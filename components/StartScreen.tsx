@@ -776,7 +776,7 @@ ${marketStr}`;
       {/* Top Right: Logout Button */}
       <button
         onClick={() => {
-          localStorage.removeItem('user_authenticated');
+          sessionStorage.removeItem('user_authenticated');
           useArchitectStore.getState().setIsAuthenticated(false);
           useArchitectStore.getState().setIsAppStarted(false);
         }}
