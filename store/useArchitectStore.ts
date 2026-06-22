@@ -20,8 +20,13 @@ const defaultParameters: CollectedParameters = {
 };
 
 export const useArchitectStore = create<ArchitectStore>((set) => ({
+  projectName: null,
+  placeName: null,
   phase: 'search',
-  conversationHistory: [],
+  conversationHistory: [{
+    role: 'model',
+    parts: [{ text: "Welcome! I'm your AI Architect Assistant 🏛️ What nature reference would you like to explore for design inspiration? Try typing something like leaf, coral, honeycomb, pebble, or shell." }]
+  }],
   selectedNatureImage: null,
   hoveredNatureImage: null,
   lastUploadedImage: null,
@@ -38,6 +43,8 @@ export const useArchitectStore = create<ArchitectStore>((set) => ({
   isLoading: false,
   loadingMessage: '',
   isAppStarted: false,
+  sessionId: null,
+  isRestored: false,
 
   setLastUploadedImage: (base64, description) => set({ lastUploadedImage: base64, lastUploadedImageDescription: description }),
 
@@ -108,9 +115,49 @@ Let's begin the **Concept** phase. Could you please tell me about:
 
   setIsAppStarted: (started) => set({ isAppStarted: started }),
 
+  setSessionId: (id) => set({ sessionId: id }),
+  
+  setIsRestored: (restored) => set({ isRestored: restored }),
+  
+  replaceState: (newState) => set((state) => ({ ...state, ...newState })),
+
+  switchSession: (sessionId, projectName, placeName) => {
+    localStorage.setItem('architect_session_id', sessionId);
+    set({
+      projectName,
+      placeName,
+      phase: 'search',
+      conversationHistory: [{
+        role: 'model',
+        parts: [{ text: "Welcome! I'm your AI Architect Assistant 🏛️ What nature reference would you like to explore for design inspiration? Try typing something like leaf, coral, honeycomb, pebble, or shell." }]
+      }],
+      selectedNatureImage: null,
+      hoveredNatureImage: null,
+      collectedParameters: { ...defaultParameters },
+      generatedOptions: [],
+      selectedOptionIndex: null,
+      selectedOptionUrl: null,
+      roomLabels: {},
+      roomDimensions: {},
+      currentFloorPlan: null,
+      previousFloorPlan: null,
+      finalRender: null,
+      isLoading: false,
+      loadingMessage: '',
+      isAppStarted: true,
+      sessionId,
+      isRestored: false,
+    });
+  },
+
   resetStore: () => set({
+    projectName: null,
+    placeName: null,
     phase: 'search',
-    conversationHistory: [],
+    conversationHistory: [{
+      role: 'model',
+      parts: [{ text: "Welcome! I'm your AI Architect Assistant 🏛️ What nature reference would you like to explore for design inspiration? Try typing something like leaf, coral, honeycomb, pebble, or shell." }]
+    }],
     selectedNatureImage: null,
     hoveredNatureImage: null,
     collectedParameters: { ...defaultParameters },

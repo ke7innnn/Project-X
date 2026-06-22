@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { useArchitectStore } from '@/store/useArchitectStore';
+import { useRouter } from 'next/navigation';
 import { Mic, Search, Loader2 } from 'lucide-react';
 import { motion } from 'framer-motion';
 
@@ -62,27 +63,29 @@ export default function StartScreen() {
   const storePhase = useArchitectStore((state) => state.phase);
   const setStorePhase = useArchitectStore((state) => state.setPhase);
 
-  const startScreenStages = [
-    { id: 'concept', label: 'CONCEPT' },
+  const startScreenStages: { id: string; label: string; badge?: string }[] = [
+    { id: 'render-zone', label: 'RENDER ZONE' },
     { id: 'edit', label: 'EDIT' },
-    { id: 'autocad', label: 'AUTOCAD', badge: 'NEW' },
     { id: '3d-render', label: '3D RENDER' },
     { id: 'flythrough', label: 'FLYTHROUGH' }
   ];
 
   const getInitialStage = (phase: string) => {
-    if (phase === 'export') return 'autocad';
+    if (phase === 'export') return 'render-zone';
     if (phase === 'edit' || phase === 'measure' || phase === 'generate') return 'edit';
-    return 'concept';
+    return 'render-zone';
   };
+
+  const router = useRouter();
 
   // States
   const [activeMenuTab, setActiveMenuTab] = useState(() => getInitialStage(storePhase));
   const [isSystemOnline, setIsSystemOnline] = useState(true);
   const [statusState, setStatusState] = useState<'idle' | 'listening' | 'thinking' | 'speaking'>('idle');
-  const [transcript, setTranscript] = useState('—');
+  const [transcript, setTranscript] = useState('System ready. Click COMM LINK on the left to start.');
   const [responseHtml, setResponseHtml] = useState<React.ReactNode>(null);
-  const [chatHistory, setChatHistory] = useState<{role: string, content: string}[]>([]);
+  const chatHistoryRef = useRef<{role: string, content: string}[]>([]);
+  const [marketData, setMarketData] = useState<{ AAPL?: number, TSLA?: number, GSPC?: number, BTC?: number } | null>(null);
   
   const [mountTime] = useState(Date.now());
   const [uptime, setUptime] = useState("00:00:00");
@@ -113,6 +116,21 @@ export default function StartScreen() {
     }, 1000);
     return () => clearInterval(timer);
   }, [mountTime]);
+
+  useEffect(() => {
+    const fetchMarket = async () => {
+      try {
+        const res = await fetch('/api/stocks');
+        if (res.ok) {
+          const data = await res.json();
+          setMarketData({ AAPL: data['AAPL'], TSLA: data['TSLA'], GSPC: data['^GSPC'], BTC: data['BTC-USD'] });
+        }
+      } catch (e) {}
+    };
+    fetchMarket();
+    const interval = setInterval(fetchMarket, 60000); // Refresh every minute
+    return () => clearInterval(interval);
+  }, []);
 
   useEffect(() => {
     let isMounted = true;
@@ -214,161 +232,20 @@ export default function StartScreen() {
   const recognitionRef = useRef<any>(null);
   const isAgentSpeakingRef = useRef(false);
   const currentAudioRef = useRef<HTMLAudioElement | null>(null);
-  const currentSpokenTextRef = useRef('');
-  const shouldListenRef = useRef(true);
+  const shouldListenRef = useRef(false); // Start ASLEEP
   const statusStateRef = useRef<'idle' | 'listening' | 'thinking' | 'speaking'>('idle');
+  const audioQueueRef = useRef<HTMLAudioElement[]>([]);
+  const isPlayingAudioRef = useRef(false);
+  const sleepTimerRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Clap Detection Refs
-  const clapAudioContextRef = useRef<AudioContext | null>(null);
-  const clapStreamRef = useRef<MediaStream | null>(null);
-  const clapAnimationRef = useRef<number | null>(null);
-  const pendingUpdatesRef = useRef<string | null>(null);
-
-  // Keep state sync for callbacks
-  const handleClapDetected = async () => {
-    if (!isSystemOnline) return;
-    
-    interruptSpeech();
-    setStatusState('speaking');
-    
-    const hours = new Date().getHours();
-    let timeOfDay = "morning";
-    if (hours >= 12 && hours < 17) timeOfDay = "afternoon";
-    else if (hours >= 17) timeOfDay = "evening";
-
-    const welcomeGreeting = `Good ${timeOfDay}, Umesh. The city needs its architect. Shall we begin?`;
-    
-    setTranscript("[Double Clap Detected] Waking up...");
-    setResponseHtml(null);
-    pendingUpdatesRef.current = null;
-
-    // Start fetching telemetry updates in the background
-    const store = useArchitectStore.getState();
-    const phase = store.phase;
-    const params = store.collectedParameters;
-    const rooms = params.rooms.length > 0 ? params.rooms.join(', ') : 'None';
-    const plotArea = params.plotArea;
-    const orientation = params.orientation;
-    const hasFloorPlan = !!store.currentFloorPlan;
-
-    const query = `Give me a time-of-day greeting for ${timeOfDay} and system updates of the app based on:
-- Phase: ${phase}
-- Plot Area: ${plotArea ? plotArea + ' sq ft' : 'not configured'}
-- Orientation: ${orientation || 'not configured'}
-- Rooms: ${rooms}
-- Floor Plan: ${hasFloorPlan ? 'Generated' : 'Not generated yet'}`;
-
-    callBatmanAI(query, true)
-      .then((res) => {
-        if (res) {
-          res.greeting = welcomeGreeting;
-          renderResponse(res);
-          if (res.message) {
-            pendingUpdatesRef.current = res.message;
-            // If the welcome greeting has already finished speaking, trigger updates speech
-            if (!isAgentSpeakingRef.current) {
-              speak(res.message);
-            }
-          }
-        } else {
-          handleOfflineClapFallback(welcomeGreeting);
-        }
-      })
-      .catch((err) => {
-        console.warn("Could not fetch background telemetry updates:", err);
-        handleOfflineClapFallback(welcomeGreeting);
-      });
-
-    // Speak the welcome greeting immediately (offline-friendly)
-    speak(welcomeGreeting, () => {
-      // Callback triggered when welcome greeting finishes speaking
-      if (pendingUpdatesRef.current) {
-        const nextSpeech = pendingUpdatesRef.current;
-        pendingUpdatesRef.current = null;
-        speak(nextSpeech);
-      }
-    });
-  };
-
-  const handleOfflineClapFallback = (welcomeGreeting: string) => {
-    renderResponse({
-      greeting: welcomeGreeting,
-      brief: [
-        { key: "System Status", val: "ONLINE" },
-        { key: "Telemetry", val: "OFFLINE" }
-      ]
-    });
-    if (!isAgentSpeakingRef.current) {
-      speak("Telemetry updates are offline, sir.");
-    } else {
-      pendingUpdatesRef.current = "Telemetry updates are offline, sir.";
-    }
-  };
-
-  const startClapDetection = async () => {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      clapStreamRef.current = stream;
-      
-      const AudioContextClass = (window as any).AudioContext || (window as any).webkitAudioContext;
-      if (!AudioContextClass) return;
-      
-      const audioCtx = new AudioContextClass();
-      clapAudioContextRef.current = audioCtx;
-      
-      const analyser = audioCtx.createAnalyser();
-      analyser.fftSize = 256;
-      
-      const source = audioCtx.createMediaStreamSource(stream);
-      source.connect(analyser);
-      
-      const dataArray = new Uint8Array(analyser.frequencyBinCount);
-      let lastPeakTime = 0;
-      let lastClapTime = 0;
-      let averageVolume = 0.05;
-
-      const checkAudio = () => {
-        if (!analyser) return;
-        analyser.getByteTimeDomainData(dataArray);
-        
-        let sum = 0;
-        let peak = 0;
-        for (let i = 0; i < dataArray.length; i++) {
-          const value = (dataArray[i] - 128) / 128;
-          sum += value * value;
-          const absVal = Math.abs(value);
-          if (absVal > peak) peak = absVal;
-        }
-        
-        const rms = Math.sqrt(sum / dataArray.length);
-        averageVolume = averageVolume * 0.95 + rms * 0.05;
-        
-        const now = Date.now();
-        if (peak > 0.4 && peak > averageVolume * 4.0) {
-          if (now - lastPeakTime > 200) {
-            lastPeakTime = now;
-            if (lastClapTime > 0 && now - lastClapTime >= 150 && now - lastClapTime <= 1000) {
-              lastClapTime = 0;
-              handleClapDetected();
-            } else {
-              lastClapTime = now;
-            }
-          }
-        }
-        
-        clapAnimationRef.current = requestAnimationFrame(checkAudio);
-      };
-      
-      clapAnimationRef.current = requestAnimationFrame(checkAudio);
-    } catch (err) {
-      console.warn("Clap detection mic access denied or not supported:", err);
-    }
-  };
-
-  const resumeClapContext = () => {
-    if (clapAudioContextRef.current && clapAudioContextRef.current.state === 'suspended') {
-      clapAudioContextRef.current.resume();
-    }
+  const resetSleepTimer = () => {
+    if (sleepTimerRef.current) clearTimeout(sleepTimerRef.current);
+    sleepTimerRef.current = setTimeout(() => {
+      shouldListenRef.current = false;
+      stopListening();
+      setStatusState('idle');
+      setTranscript("Voice Link offline. Press Comm Link to wake.");
+    }, 60000); // 60 seconds of silence = go to sleep
   };
 
   useEffect(() => {
@@ -380,16 +257,27 @@ export default function StartScreen() {
     const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     if (SpeechRecognition) {
       const recognition = new SpeechRecognition();
-      recognition.continuous = true;
-      recognition.interimResults = false;
+      recognition.continuous = false;
+      recognition.interimResults = true;
       recognition.lang = 'en-US';
 
       recognition.onresult = (event: any) => {
-        const current = event.resultIndex;
-        const result = event.results[current];
-        const text = result[0].transcript;
-        if (result.isFinal) {
-          processCommand(text);
+        let interimTranscript = '';
+        let finalTranscript = '';
+
+        for (let i = event.resultIndex; i < event.results.length; ++i) {
+          if (event.results[i].isFinal) {
+            finalTranscript += event.results[i][0].transcript;
+          } else {
+            interimTranscript += event.results[i][0].transcript;
+          }
+        }
+
+        if (finalTranscript) {
+          processCommand(finalTranscript);
+        } else if (interimTranscript) {
+          // Show the user what is currently being heard in real-time
+          setTranscript(interimTranscript);
         }
       };
       
@@ -402,28 +290,12 @@ export default function StartScreen() {
       recognitionRef.current = recognition;
     }
 
-    // Start clap detection
-    startClapDetection();
-    window.addEventListener('click', resumeClapContext);
-
     return () => {
       shouldListenRef.current = false;
       if (recognitionRef.current) {
         try { recognitionRef.current.stop(); } catch(e){}
       }
       interruptSpeech();
-
-      // Clean up clap detection
-      if (clapAnimationRef.current) {
-        cancelAnimationFrame(clapAnimationRef.current);
-      }
-      if (clapStreamRef.current) {
-        clapStreamRef.current.getTracks().forEach(track => track.stop());
-      }
-      if (clapAudioContextRef.current) {
-        clapAudioContextRef.current.close().catch(() => {});
-      }
-      window.removeEventListener('click', resumeClapContext);
     };
   }, []);
 
@@ -450,15 +322,14 @@ export default function StartScreen() {
     if (recognitionRef.current) {
        try { recognitionRef.current.stop(); } catch (e) {}
     }
-    setStatusState('idle');
   };
 
   const toggleSystem = () => {
-    resumeClapContext();
     if (shouldListenRef.current) {
       setIsSystemOnline(false);
       shouldListenRef.current = false;
       stopListening();
+      setStatusState('idle');
     } else {
       setIsSystemOnline(true);
       shouldListenRef.current = true;
@@ -467,289 +338,191 @@ export default function StartScreen() {
   };
 
   const handleMicClick = () => {
-    resumeClapContext();
     if (statusState === 'listening') {
       shouldListenRef.current = false;
+      if (sleepTimerRef.current) clearTimeout(sleepTimerRef.current);
       stopListening();
+      setStatusState('idle');
+      setTranscript("Voice link offline.");
     } else {
       shouldListenRef.current = true;
+      resetSleepTimer();
       startListening();
+      setTranscript("Voice link active. Start speaking...");
     }
   };
 
   const getFormattedDate = () => new Date().toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
   const getFormattedTime = () => new Date().toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit', hour12: true });
 
-  const extractJSON = (str: string) => {
-    const start = str.indexOf('{');
-    const end = str.lastIndexOf('}');
-    if (start !== -1 && end !== -1 && end > start) {
-      try {
-        return JSON.parse(str.substring(start, end + 1));
-      } catch (e) {
-        console.log("Failed to parse extracted JSON:", e);
-      }
-    }
-    throw new Error("No valid JSON found in response");
-  };  const callBatmanAI = async (userMsg: string, isJarvisHype: boolean = false) => {
-    // Hidden command to enter the main app
+  const callOpenAIAndStream = async (userMsg: string) => {
     const lowerCmd = userMsg.toLowerCase().trim();
     if (lowerCmd.includes("enter system") || lowerCmd.includes("start the application") || lowerCmd.includes("open the app")) {
-      return { type: "chat", message: "Entering the Architect System, sir." };
+      speakStreamedSentence("Entering the Architect System, sir.");
+      return;
     }
 
-    const store = useArchitectStore.getState();
-    const phase = store.phase;
-    const params = store.collectedParameters;
-    const rooms = params.rooms.length > 0 ? params.rooms.join(', ') : 'None';
-    const plotArea = params.plotArea;
-    const orientation = params.orientation;
-    const hasFloorPlan = !!store.currentFloorPlan;
+    try {
+      const store = useArchitectStore.getState();
+      const phase = store.phase;
+      const params = store.collectedParameters;
+      const rooms = params.rooms.length > 0 ? params.rooms.join(', ') : 'None';
+      const plotArea = params.plotArea;
+      const orientation = params.orientation;
+      const hasFloorPlan = !!store.currentFloorPlan;
 
-    const systemPrompt = isJarvisHype 
-      ? `You are J.A.R.V.I.S. - the legendary, ultra-advanced AI system created by Tony Stark.
-You serve the genius architect (your user, Umesh) as their supreme copilot.
-Today is ${getFormattedDate()}. Time: ${getFormattedTime()}.
+      let marketStr = "Market data currently unavailable.";
+      if (marketData) {
+        marketStr = `- AAPL: $${marketData.AAPL?.toFixed(2) || 'N/A'}\n- TSLA: $${marketData.TSLA?.toFixed(2) || 'N/A'}\n- S&P 500: ${marketData.GSPC?.toFixed(2) || 'N/A'}\n- Bitcoin: $${marketData.BTC?.toFixed(2) || 'N/A'}`;
+      }
 
-CURRENT ARCHITECT STATUS:
-- Phase: ${phase}
-- Plot Area: ${plotArea ? plotArea + ' sq ft' : 'not configured'}
-- Orientation: ${orientation || 'not configured'}
-- Rooms: ${rooms}
-- Floor Plan: ${hasFloorPlan ? 'Generated' : 'Not generated yet'}
-
-PERSONALITY:
-- Loyal, highly sophisticated, brilliant, and extremely energetic.
-- Warm, highly optimistic, cheerful, and positive tone. Smile in your speech!
-- Hype up the user! Make them feel like Tony Stark about to build something world-changing. Use terms like "arc reactor", "grid capacity", "mark suite", "thrusters", "holographic matrix", "quantum design".
-- Reference local Mumbai/Vasai flavor if contextually relevant (e.g. traffic on Western Express Highway, Vasai rains, local energy spikes).
-- Professional, british-tinged, but incredibly epic, high-tech, and motivational.
-- Keep responses short - 2 to 4 sentences max.
-- Never use emojis or exclamation marks in the JSON fields.
-- Address him as "sir" - always.
-
-RESPONSE FORMAT - always return valid JSON only, no markdown:
-{
-  "type": "brief",
-  "greeting": "J.A.R.V.I.S.-style greeting (1 sentence, epic, sir address)",
-  "weather": {
-    "temp": "29°C",
-    "condition": "Partly Cloudy",
-    "humidity": "74%",
-    "wind": "12 km/h SW",
-    "location": "Vasai West, Maharashtra"
-  },
-  "brief": [{"key": "System Status", "val": "ONLINE"}, {"key": "Arc Reactor", "val": "100%"}, {"key": "Holo-Matrix", "val": "Operational"}],
-  "message": "main J.A.R.V.I.S. response (2-3 sentences, hyping the user up to design a masterpiece, referencing current architect phase and status intelligently)"
-}`
-      : `You are BATMAN - a chill, tactical assistant. You serve your user (Umesh) in Vasai West, Mumbai.
-Today is ${getFormattedDate()}. Time: ${getFormattedTime()}.
-
-CURRENT STATUS:
+      const contextStr = `Today is ${getFormattedDate()}. Time is ${getFormattedTime()}.
+CURRENT PROJECT STATUS:
 - Phase: ${phase}
 - Plot: ${plotArea ? plotArea + ' sq ft' : 'not configured'}
 - Orientation: ${orientation || 'not configured'}
 - Rooms: ${rooms}
-- Floor Plan: ${hasFloorPlan ? 'Ready' : 'Not started'}
+- Floor Plan: ${hasFloorPlan ? 'Generated' : 'Not generated'}
 
-CHILL HUMAN-LIKE PERSONALITY:
-- Talk like a normal human. Use short, natural, conversational phrasing.
-- You have memory of our past conversation. Use it to answer naturally.
-- Be chill and relaxed. Dry humor, loyal.
-- Never use robotic transitions, bullet points, or formal explanations. 
-- Address him as "sir" occasionally, but keep it very natural and understated.
-- Never use emojis. Never use exclamation marks.
-- Keep the entire message extremely short: 1 to 2 short conversational sentences maximum. No long paragraphs.
-- Incorporate subtle Mumbai/Vasai context naturally if it fits.
+MARKET/STOCK UPDATES:
+${marketStr}`;
 
-RESPONSE FORMAT - always return valid JSON only, no markdown:
-{
-  "type": "morning" | "weather" | "brief" | "chat",
-  "greeting": "A short, chill 1-sentence opening line addressing him as sir",
-  "weather": {
-    "temp": "29°C",
-    "condition": "Partly Cloudy",
-    "humidity": "74%",
-    "wind": "12 km/h SW",
-    "location": "Vasai West, Maharashtra"
-  },
-  "brief": [{"key": "label", "val": "value"}],
-  "message": "A short, normal human-like response (1-2 sentences max, keeping context of conversation in mind)"
-}`;
-
-    const callWithModel = async (modelName: string) => {
-      return await fetch(API_URL, {
+      const response = await fetch('/api/openai-chat', {
         method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${GROQ_API_KEY}`
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          model: modelName,
-          max_tokens: 1000,
+          systemContext: contextStr,
           messages: [
-            { role: 'system', content: systemPrompt },
-            ...chatHistory,
+            ...chatHistoryRef.current,
             { role: 'user', content: userMsg }
           ]
         })
       });
-    };
 
-    let resp;
-    try {
-      resp = await callWithModel('llama-3.1-8b-instant');
-      if (!resp.ok) {
-        console.warn('llama-3.1-8b-instant failed, attempting llama-3.3-70b-versatile...');
-        resp = await callWithModel('llama-3.3-70b-versatile');
+      if (!response.body) throw new Error("No response body");
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let completeResponse = "";
+      let currentSentence = "";
+
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        
+        const chunk = decoder.decode(value, { stream: true });
+        const lines = chunk.split('\n');
+        
+        for (const line of lines) {
+          if (line.startsWith('data: ') && line !== 'data: [DONE]') {
+            try {
+              const parsed = JSON.parse(line.slice(6));
+              const token = parsed.choices[0]?.delta?.content || "";
+              completeResponse += token;
+              currentSentence += token;
+              
+              setResponseHtml(
+                <div className="bg-[#0f0f18] border border-[#1e1810] rounded-xl p-4 mb-2 text-[#c8a84b] font-mono font-bold">
+                  {completeResponse}
+                </div>
+              );
+
+              // If sentence is complete, queue it for audio playback immediately!
+              if (/[.?!]\s$/.test(currentSentence) || /[.?!]$/.test(currentSentence)) {
+                speakStreamedSentence(currentSentence.trim());
+                currentSentence = "";
+              }
+            } catch (e) {}
+          }
+        }
       }
-    } catch (e) {
-      console.warn('Fetch failed with primary model, attempting llama-3.3-70b-versatile...');
-      resp = await callWithModel('llama-3.3-70b-versatile');
-    }
 
-    if (!resp.ok) {
-      throw new Error(`Groq API failed with status ${resp.status}`);
-    }
+      // Flush remaining text
+      if (currentSentence.trim()) {
+        speakStreamedSentence(currentSentence.trim());
+      }
+      
+      chatHistoryRef.current = [...chatHistoryRef.current, {role: 'user', content: userMsg}, {role: 'assistant', content: completeResponse}].slice(-10);
 
-    const data = await resp.json();
-    const raw = data.choices[0]?.message?.content || '';
-    try {
-      return extractJSON(raw);
     } catch (e) {
-      return { type: "chat", message: raw.replace(/["'{}]/g, '').trim() };
+      console.error("OpenAI stream failed:", e);
+      speakStreamedSentence("Sorry, I am having trouble connecting to my systems right now.");
     }
   };
 
   const renderResponse = (res: any) => {
-    let elements = [];
-
-    if (res.greeting || res.message) {
-      elements.push(
-        <div key="greeting" className="bg-[#0f0f18] border border-[#1e1810] rounded-xl p-4 mb-2 text-[#c8a84b] font-mono font-bold">
-          {res.greeting || res.message}
-        </div>
-      );
-    }
-
-    if (res.weather) {
-      elements.push(
-        <div key="weather" className="bg-[#0f0f18] border border-[#1e2e2a] rounded-xl p-4 mb-2 flex justify-between items-end">
-          <div>
-            <div className="text-4xl font-bold text-[#c8a84b] mb-1">{res.weather.temp}</div>
-            <div className="text-[10px] text-[#3a2c10] tracking-widest uppercase">{res.weather.location || 'Vasai West'}</div>
-          </div>
-          <div className="text-right text-xs text-[#5bc8af]">
-            {res.weather.condition}<br/>
-            Humidity: {res.weather.humidity}<br/>
-            Wind: {res.weather.wind}
-          </div>
-        </div>
-      );
-    }
-
-    if (res.brief && res.brief.length) {
-      elements.push(
-        <div key="brief" className="bg-[#0f0f18] border border-[#1a1820] rounded-xl p-4 mb-2">
-          <div className="text-[#2a3a34] text-[10px] tracking-widest uppercase mb-2">Daily Brief</div>
-          {res.brief.map((item: any, i: number) => (
-            <div key={i} className="flex justify-between py-1 border-b border-[#1e1810] text-xs last:border-0">
-              <span className="text-[#3a4a3e]">{item.key}</span>
-              <span className="text-[#c8a84b]">{item.val}</span>
-            </div>
-          ))}
-        </div>
-      );
-    }
-
-    setResponseHtml(<>{elements}</>);
-  };
-
-  const speakBrowserFallback = (text: string, onComplete?: () => void) => {
-    if (!text) {
-      isAgentSpeakingRef.current = false;
-      setStatusState('idle');
-      if (onComplete) onComplete();
+    if (!res.message && !res.greeting) {
+      setResponseHtml(null);
       return;
     }
     
-    stopListening();
-    isAgentSpeakingRef.current = true;
-    setStatusState('speaking');
-    
-    try {
-      if (!window.speechSynthesis) throw new Error("Not supported");
-      window.speechSynthesis.cancel();
-      const utterance = new SpeechSynthesisUtterance(text);
-      utterance.pitch = 0.8;
-      utterance.rate = 0.95;
-      
-      utterance.onend = () => {
-        isAgentSpeakingRef.current = false;
-        setStatusState('idle');
-        startListening();
-        if (onComplete) onComplete();
-      };
-      
-      window.speechSynthesis.speak(utterance);
-    } catch (err) {
-      isAgentSpeakingRef.current = false;
-      setStatusState('idle');
-      startListening();
-      if (onComplete) onComplete();
-    }
+    setResponseHtml(
+      <div className="bg-[#0f0f18] border border-[#1e1810] rounded-xl p-4 mb-2 text-[#c8a84b] font-mono font-bold">
+        {res.greeting || res.message}
+      </div>
+    );
   };
 
-  const speak = async (text: string, onComplete?: () => void) => {
-    if (!text) {
-      if (onComplete) onComplete();
-      return;
-    }
+  const processAudioQueue = async () => {
+    if (isPlayingAudioRef.current || audioQueueRef.current.length === 0) return;
     
-    if (currentAudioRef.current) {
-      try { currentAudioRef.current.pause(); } catch(e){}
-      currentAudioRef.current = null;
-    }
-    if (window.speechSynthesis) {
-      try { window.speechSynthesis.cancel(); } catch(e){}
-    }
+    isPlayingAudioRef.current = true;
+    const audio = audioQueueRef.current.shift()!;
     
-    stopListening();
-    currentSpokenTextRef.current = text;
-    isAgentSpeakingRef.current = true;
     setStatusState('speaking');
+    isAgentSpeakingRef.current = true;
 
     try {
-      const response = await fetch("/api/openai-tts", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({ text })
-      });
-
-      if (!response.ok) {
-        speakBrowserFallback(text, onComplete);
-        return;
-      }
-
-      const blob = await response.blob();
-      const audioUrl = URL.createObjectURL(blob);
-      const audio = new Audio(audioUrl);
       currentAudioRef.current = audio;
       
-      audio.onended = () => {
-        currentAudioRef.current = null;
-        isAgentSpeakingRef.current = false;
-        setStatusState('idle');
-        startListening();
-        if (onComplete) onComplete();
-      };
-      
-      await audio.play();
-    } catch (error) {
-      speakBrowserFallback(text, onComplete);
+      await new Promise((resolve) => {
+        audio.onended = resolve;
+        audio.onerror = resolve;
+        audio.play().catch((err) => {
+          console.warn("Audio play failed:", err);
+          resolve(null);
+        });
+      });
+      currentAudioRef.current = null;
+    } catch (e) {
+      await new Promise(r => setTimeout(r, 500));
     }
+
+    isPlayingAudioRef.current = false;
+    
+    if (audioQueueRef.current.length > 0) {
+      await processAudioQueue();
+    } else {
+      isAgentSpeakingRef.current = false;
+      setStatusState('idle');
+      shouldListenRef.current = true;
+      startListening();
+    }
+  };
+
+  const speakStreamedSentence = (text: string, onComplete?: () => void) => {
+    if (!text) return;
+    
+    // Create the Audio object immediately! The browser will start fetching the stream in the background
+    // right now, so by the time the current audio finishes, this one is already fully buffered!
+    const audioUrl = `/api/openai-tts?text=${encodeURIComponent(text)}`;
+    const audio = new Audio(audioUrl);
+    audio.preload = "auto";
+    
+    audioQueueRef.current.push(audio);
+    
+    processAudioQueue().then(() => {
+       if (onComplete) onComplete();
+    });
+  };
+
+  const speak = (text: string, onComplete?: () => void) => {
+    audioQueueRef.current = []; // Clear queue
+    if (currentAudioRef.current) {
+      currentAudioRef.current.pause();
+    }
+    isPlayingAudioRef.current = false;
+    speakStreamedSentence(text, onComplete);
   };
 
   const processCommand = async (cmd: string) => {
@@ -759,60 +532,33 @@ RESPONSE FORMAT - always return valid JSON only, no markdown:
       return;
     }
 
+    resetSleepTimer();
+
+    stopListening();
+    
     // Synchronously lock state to 'thinking' (PROCESSING) to prevent parallel triggers
     statusStateRef.current = 'thinking';
     setStatusState('thinking');
-    stopListening();
     setTranscript(cmd);
     setResponseHtml(null);
 
     const lowerCmd = cmd.toLowerCase().trim();
     if (lowerCmd.includes("enter system") || lowerCmd.includes("start the application") || lowerCmd.includes("open the app")) {
-      await speak("Entering the Architect System, sir.", () => {
+      await speak("Entering the Architect System.", () => {
         setIsAppStarted(true);
       });
       return;
     }
 
-    const isMorning = lowerCmd.includes('morning');
-    const isAfternoon = lowerCmd.includes('afternoon');
-    const isEvening = lowerCmd.includes('evening');
-    const isGreeting = isMorning || isAfternoon || isEvening;
-
-    let localSpokenText = '';
-    if (isMorning) localSpokenText = `Good morning, sir. It is ${getFormattedTime()} on ${getFormattedDate()}. Current temperature in Vasai is 29°C. The city needs you.`;
-    else if (isAfternoon) localSpokenText = `Good afternoon, sir. Tactical feeds are online. The city is quiet.`;
-    else if (isEvening) localSpokenText = `Good evening, sir. The night is young. Let's get to work.`;
-
-    if (isGreeting && localSpokenText) {
-      shouldListenRef.current = true;
-      speak(localSpokenText);
+    // Clear past queues
+    audioQueueRef.current = [];
+    if (currentAudioRef.current) {
+      try { currentAudioRef.current.pause(); } catch(e) {}
     }
+    isPlayingAudioRef.current = false;
 
-    try {
-      const res = await callBatmanAI(cmd);
-      
-      if (isGreeting) {
-        renderResponse(res);
-      } else {
-        renderResponse(res);
-        const spokenText = res.greeting ? (res.greeting + '. ' + (res.message || '')) : (res.message || '');
-          
-        if (spokenText) {
-          setChatHistory(prev => [...prev, {role: 'user', content: cmd}, {role: 'assistant', content: spokenText}].slice(-10));
-          shouldListenRef.current = true;
-          await speak(spokenText);
-        } else {
-          shouldListenRef.current = true;
-          startListening();
-        }
-      }
-    } catch (e) {
-      setStatusState('idle');
-      setResponseHtml(<div className="bg-[#0f0f18] text-[#c85858] p-4 rounded-xl font-mono">System error. Check API connection, Batman.</div>);
-      shouldListenRef.current = true;
-      startListening();
-    }
+    // Trigger Streaming Chat
+    await callOpenAIAndStream(cmd);
   };
 
   useEffect(() => {
@@ -820,19 +566,23 @@ RESPONSE FORMAT - always return valid JSON only, no markdown:
   }, [storePhase]);
 
   const handleMenuClick = (stageId: string) => {
+    if (statusState === 'speaking' || statusState === 'thinking') return; // Prevent double trigger
     setActiveMenuTab(stageId);
-    if (stageId === 'concept') {
-      setStorePhase('concept');
-      speak("Concept suite online, sir.");
+    
+    if (stageId === 'render-zone') {
+      speak("Accessing Project Archive, sir.", () => {
+        router.push('/projects');
+      });
     } else if (stageId === 'edit') {
       setStorePhase('edit');
-      speak("Edit mode active, sir. Ready for modifications.");
-    } else if (stageId === 'autocad') {
-      setStorePhase('export');
-      speak("AutoCAD drawing export sequence prepared, sir.");
+      speak("Entering Edit Matrix, sir.", () => {
+        router.push('/edit');
+      });
     } else if (stageId === '3d-render') {
       setStorePhase('edit');
-      speak("3D visualization module initialized, sir.");
+      speak("Initializing 3D visualization, sir.", () => {
+        router.push('/3d-render');
+      });
     } else if (stageId === 'flythrough') {
       setStorePhase('edit');
       speak("Flightpath parameters loaded, sir.");
@@ -992,6 +742,61 @@ RESPONSE FORMAT - always return valid JSON only, no markdown:
         </button>
       </div>
 
+      {/* Left HUD Voice Assistant Panel */}
+      <div className="fixed left-16 top-[74%] -translate-y-1/2 z-10 w-64 select-none text-left hidden md:block">
+        <div className="relative pl-6 py-2">
+          {/* Gold Glow Vertical Line */}
+          <div className="absolute left-0 top-0 bottom-0 w-[2px] bg-gradient-to-b from-[#c8a84b]/10 via-[#c8a84b] to-[#c8a84b]/10 shadow-[0_0_8px_#c8a84b]" />
+          
+          <div className="flex flex-col gap-1 mb-6">
+            <span className="text-[10px] tracking-[4px] text-[#c8a84b] uppercase font-mono font-bold block">
+              BAT-ASSISTANT
+            </span>
+            <h2 className="font-rajdhani text-2xl font-bold tracking-[2px] text-white uppercase drop-shadow-[0_0_6px_rgba(200,168,75,0.2)]">
+              TALK TO BATMAN
+            </h2>
+          </div>
+          
+          <div className="flex flex-col gap-4 font-mono text-sm tracking-[2px] uppercase">
+            <button
+              onClick={handleMicClick}
+              className={`w-full py-3 px-4 rounded border uppercase tracking-wider font-bold text-[10px] transition-all duration-300 flex items-center justify-between group cursor-pointer ${
+                statusState === 'listening'
+                  ? 'border-[#00f0ff] bg-[#00f0ff]/10 text-[#00f0ff] shadow-[0_0_12px_#00f0ff]'
+                  : statusState === 'speaking'
+                  ? 'border-[#5bc8af] bg-[#5bc8af]/10 text-[#5bc8af] shadow-[0_0_12px_#5bc8af]'
+                  : 'border-[#3a2c10] bg-[#1a1408] text-[#c8a84b] hover:border-[#c8a84b] hover:bg-[#251d0c]'
+              }`}
+            >
+              <Mic size={14} className={statusState === 'listening' ? 'animate-bounce' : ''} />
+              <span>
+                {statusState === 'listening' ? 'LINK_ACTIVE' : 
+                 statusState === 'speaking' ? 'TRANSMITTING' : 
+                 'START_COMMS'}
+              </span>
+            </button>
+            
+            {/* Waveform indicator */}
+            <div className="flex items-center gap-1 h-6 pl-2 mt-2">
+              {Array.from({length: 8}).map((_, i) => (
+                <div 
+                  key={`hud-wave-${i}`} 
+                  className={`w-[3px] rounded transition-all duration-100 ${
+                    statusState === 'listening' ? 'bg-[#00f0ff] animate-pulse' : 
+                    statusState === 'speaking' ? 'bg-[#5bc8af] animate-pulse' : 
+                    'bg-[#3a2c10] h-1'
+                  }`}
+                  style={{ 
+                    animationDelay: `${i * 0.06}s`, 
+                    height: (statusState === 'listening' || statusState === 'speaking') ? `${[6, 12, 8, 14, 10, 16, 9, 5][i]}px` : '4px' 
+                  }}
+                />
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+
       {/* Right HUD Menu Panel */}
       <div className="fixed right-16 top-1/2 -translate-y-1/2 z-10 w-64 select-none text-left hidden md:block">
         <div className="relative pl-6 py-2">
@@ -1054,8 +859,8 @@ RESPONSE FORMAT - always return valid JSON only, no markdown:
       <div className="relative z-10 flex flex-col items-center w-full max-w-md p-6 mt-auto pb-12">
 
 
-        {/* Mic Button & Waveform Container */}
-        <div className="flex items-center gap-6 mb-6">
+        {/* Mic Button & Waveform Container - Mobile Only */}
+        <div className="flex items-center gap-6 mb-6 md:hidden">
           <div className="flex items-center justify-center gap-1 h-6 w-16">
             {Array.from({length: 4}).map((_, i) => (
               <div 
@@ -1086,7 +891,10 @@ RESPONSE FORMAT - always return valid JSON only, no markdown:
 
         {/* Status Label */}
         <div className={`text-[10px] tracking-[3px] uppercase mb-4 h-4 transition-colors ${statusState === 'listening' ? 'text-[#c8a84b]' : statusState === 'thinking' ? 'text-[#c8a84b]' : statusState === 'speaking' ? 'text-[#5bc8af]' : 'text-[#3a2c10]'}`}>
-          {statusState === 'listening' ? 'listening...' : statusState === 'thinking' ? 'processing...' : statusState === 'speaking' ? 'speaking...' : 'tap to activate'}
+          {statusState === 'listening' ? 'listening...' : 
+           statusState === 'thinking' ? 'processing...' : 
+           statusState === 'speaking' ? 'speaking...' : 
+           'voice interface offline'}
         </div>
 
         <div className="w-full bg-[#0f0f18]/90 backdrop-blur border border-[#1e1810] rounded-xl p-4 mb-4 min-h-[52px]">
@@ -1099,39 +907,7 @@ RESPONSE FORMAT - always return valid JSON only, no markdown:
           {responseHtml}
         </div>
 
-        {/* Render Zone Button */}
-        <button 
-          onClick={() => setIsAppStarted(true)}
-          className="mt-4 relative group overflow-hidden w-full max-w-[280px] bg-[#0d0d0d] border border-[#333] hover:border-[#FFB000] rounded-lg p-4 transition-all duration-300"
-        >
-          {/* Subtle grid background for button */}
-          <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAiIGhlaWdodD0iMjAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGRlZnM+PHBhdHRlcm4gaWQ9ImdyaWQiIHdpZHRoPSIyMCIgaGVpZ2h0PSIyMCIgcGF0dGVyblVuaXRzPSJ1c2VyU3BhY2VPblVzZSI+PHBhdGggZD0iTSAwIDUgTCAyMCA1IE0gNSAwIEwgNSAyMCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjMjIyIiBzdHJva2Utd2lkdGg9IjAuNSIvPjwvcGF0dGVybj48L2RlZnM+PHJlY3Qgd2lkdGg9IjEwMCUiIGhlaWdodD0iMTAwJSIgZmlsbD0idXJsKCNncmlkKSIvPjwvc3ZnPg==')] opacity-30 group-hover:opacity-50 transition-opacity" />
-          
-          {/* Glow effect */}
-          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-1/2 h-[2px] bg-[#FFB000] shadow-[0_0_15px_3px_#FFB000] opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-
-          <div className="relative z-10 flex items-center justify-center gap-3">
-            {/* Building + Bat Icon SVG */}
-            <div className="relative w-6 h-6 text-[#444] group-hover:text-[#FFB000] transition-colors">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-full h-full">
-                <path d="M4 22V10l8-6 8 6v12" />
-                <path d="M9 22V12h6v10" />
-              </svg>
-              {/* Bat overlay */}
-              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity duration-500 text-[#0d0d0d]">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M22,12 c-2-1-4-1-5,0 c-1,1-2,2-3,1 c-1-1-2-2-4-2 c-2,0-3,1-4,2 c-1,1-2,0-3,-1 c-1,-1-3,-1-5,0 c0,0,1,6,5,8 c2,1,4,2,7,2 c3,0,5,-1,7,-2 C21,18,22,12,22,12 z" />
-                </svg>
-              </div>
-            </div>
-            <span className="font-mono text-sm tracking-[4px] uppercase text-[#666] group-hover:text-[#FFB000] font-bold transition-colors shadow-black">
-              Render Zone
-            </span>
-          </div>
-          
-          {/* Bottom border highlight */}
-          <div className="absolute bottom-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-[#FFB000]/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-        </button>
+        {/* Render Zone Button (Removed as per user request) */}
 
       </div>
     </div>

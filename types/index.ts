@@ -42,6 +42,8 @@ export interface CollectedParameters {
 }
 
 export interface ArchitectStore {
+  projectName: string | null;
+  placeName: string | null;
   phase: Phase;
   conversationHistory: ConversationMessage[];
   selectedNatureImage: NatureImage | null;
@@ -60,6 +62,8 @@ export interface ArchitectStore {
   isLoading: boolean;
   loadingMessage: string;
   isAppStarted: boolean;
+  sessionId: string | null;
+  isRestored: boolean;
   setPhase: (phase: Phase) => void;
   addMessage: (message: ConversationMessage) => void;
   updateHistory: (history: ConversationMessage[]) => void;
@@ -77,5 +81,9 @@ export interface ArchitectStore {
   setLoadingMessage: (message: string) => void;
   setLastUploadedImage: (base64: string | null, description: string | null) => void;
   setIsAppStarted: (started: boolean) => void;
+  setSessionId: (id: string) => void;
+  setIsRestored: (restored: boolean) => void;
+  replaceState: (state: Partial<ArchitectStore>) => void;
   resetStore: () => void;
+  switchSession: (sessionId: string, projectName: string, placeName: string) => void;
 }

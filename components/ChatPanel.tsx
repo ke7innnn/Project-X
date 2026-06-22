@@ -22,14 +22,7 @@ export default function ChatPanel() {
   // Track last edit instruction so we can retry on failure
   const lastEditInstructionRef = useRef<string>('');
 
-  useEffect(() => {
-    if (conversationHistory.length === 0) {
-      addMessage({
-        role: 'model',
-        parts: [{ text: "Welcome! I'm your AI Architect Assistant 🏛️ What nature reference would you like to explore for design inspiration? Try typing something like leaf, coral, honeycomb, pebble, or shell." }]
-      });
-    }
-  }, [conversationHistory.length, addMessage]);
+  // Welcome message is now initialized directly in the Zustand store to prevent Strict Mode double-firing
 
   const prevHistoryLengthRef = useRef(conversationHistory.length);
 

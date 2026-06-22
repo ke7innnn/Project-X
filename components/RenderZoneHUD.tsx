@@ -3,6 +3,7 @@
 import { useArchitectStore } from '@/store/useArchitectStore';
 import { Phase } from '@/types';
 import { Building2, Pencil, Map, Box, Video, ChevronLeft } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 
 const STAGES = [
   { id: 'concept', label: 'Concept', icon: Building2 },
@@ -14,6 +15,7 @@ const STAGES = [
 
 export default function RenderZoneHUD() {
   const { phase } = useArchitectStore();
+  const router = useRouter();
   
   // Map internal phases to the 5 UI stages
   const getStageIndex = (currentPhase: Phase) => {
@@ -36,6 +38,24 @@ export default function RenderZoneHUD() {
 
   const currentIndex = getStageIndex(phase);
 
+  const handleExit = () => {
+    const store = useArchitectStore.getState();
+    
+    // Clear all project specific states and session metadata
+    store.setIsAppStarted(false);
+    store.resetStore();
+    store.replaceState({
+      sessionId: null,
+      isRestored: false,
+      isAppStarted: false,
+    });
+    
+    localStorage.removeItem('architect_session_id');
+    
+    // Redirect to home screen
+    router.push('/');
+  };
+
   return (
     <div className="w-full h-20 bg-[#0a0a0a] border-b border-[#222] flex items-center px-8 relative shrink-0 z-20 shadow-[0_4px_30px_rgba(0,0,0,0.8)] font-mono">
       {/* Background HUD texture */}
@@ -43,7 +63,7 @@ export default function RenderZoneHUD() {
       
       {/* Exit Button */}
       <button 
-        onClick={() => useArchitectStore.getState().setIsAppStarted(false)}
+        onClick={handleExit}
         className="absolute left-6 top-1/2 -translate-y-1/2 flex items-center gap-1 text-[#666] hover:text-[#FFB000] transition-colors z-20 group"
       >
         <ChevronLeft size={20} className="group-hover:-translate-x-1 transition-transform" />
