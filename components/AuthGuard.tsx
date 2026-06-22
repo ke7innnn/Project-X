@@ -9,13 +9,13 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Restore auth state from browser session storage
     const isAuth = sessionStorage.getItem('user_authenticated') === 'true';
-    if (isAuth) {
+    if (isAuth && !isAuthenticated) {
       setIsAuthenticated(true);
+    } else {
+      setLoading(false);
     }
-    setLoading(false);
-  }, [setIsAuthenticated]);
+  }, [isAuthenticated, setIsAuthenticated]);
 
   if (loading) {
     return (
