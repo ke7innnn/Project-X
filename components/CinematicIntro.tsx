@@ -22,9 +22,6 @@ export default function CinematicIntro({ videoPath, title, onComplete }: Cinemat
   const chapterPrefix = chapterMatch ? chapterMatch[1] : "PROTOCOL SEC";
   const mainTitle = chapterMatch ? chapterMatch[2] : title;
 
-  const isChapter1 = title.toLowerCase().includes("chapter 1") || title.toLowerCase().includes("concept");
-  const glowColor = isChapter1 ? "#FFB000" : "#00f0ff";
-  const glowIntensity = isChapter1 ? "rgba(255, 176, 0, 0.6)" : "rgba(0, 240, 255, 0.6)";
 
   // Cinematic sound trigger (synthesized via Web Audio API)
   const triggerCinematicSound = () => {
@@ -348,11 +345,11 @@ export default function CinematicIntro({ videoPath, title, onComplete }: Cinemat
           <canvas ref={canvasRef} className="absolute inset-0 w-full h-full z-10 pointer-events-none opacity-80" />
 
           {/* Corner HUD Brackets */}
-          <div className="absolute inset-[8.5vh] border border-[#c8a84b]/5 pointer-events-none z-10">
-            <div className="absolute top-0 left-0 w-5 h-5 border-t-2 border-l-2 border-[#c8a84b]/40" />
-            <div className="absolute top-0 right-0 w-5 h-5 border-t-2 border-r-2 border-[#c8a84b]/40" />
-            <div className="absolute bottom-0 left-0 w-5 h-5 border-b-2 border-l-2 border-[#c8a84b]/40" />
-            <div className="absolute bottom-0 right-0 w-5 h-5 border-b-2 border-r-2 border-[#c8a84b]/40" />
+          <div className="absolute inset-[8.5vh] border border-white/5 pointer-events-none z-10">
+            <div className="absolute top-0 left-0 w-5 h-5 border-t-2 border-l-2 border-white/30" />
+            <div className="absolute top-0 right-0 w-5 h-5 border-t-2 border-r-2 border-white/30" />
+            <div className="absolute bottom-0 left-0 w-5 h-5 border-b-2 border-l-2 border-white/30" />
+            <div className="absolute bottom-0 right-0 w-5 h-5 border-b-2 border-r-2 border-white/30" />
           </div>
 
           {/* Cinematic Title Overlay */}
@@ -362,16 +359,12 @@ export default function CinematicIntro({ videoPath, title, onComplete }: Cinemat
               initial={{ opacity: 0, y: -12, letterSpacing: "6px" }}
               animate={{ opacity: 1, y: 0, letterSpacing: "14px" }}
               transition={{ duration: 1.0, ease: "easeOut" }}
-              className="flex items-center gap-2 text-xs md:text-sm font-black font-orbitron uppercase mb-3 tracking-[14px] select-none"
+              className="flex items-center gap-2 text-xs md:text-sm font-semibold font-michroma uppercase mb-3 tracking-[14px] text-white select-none"
               style={{
-                color: glowColor,
-                textShadow: `0 0 10px ${glowIntensity}, 0 0 20px ${glowIntensity}33`,
+                textShadow: '0 2px 8px rgba(0,0,0,0.9), 0 0 15px rgba(0,0,0,0.6)',
               }}
             >
-              <span 
-                className="w-1.5 h-1.5 rounded-full inline-block animate-ping mr-1" 
-                style={{ backgroundColor: glowColor }}
-              />
+              <span className="w-1.5 h-1.5 rounded-full bg-white inline-block animate-ping mr-1" />
               {chapterPrefix}
             </motion.div>
 
@@ -380,10 +373,9 @@ export default function CinematicIntro({ videoPath, title, onComplete }: Cinemat
               initial={{ scaleX: 0 }}
               animate={{ scaleX: 1 }}
               transition={{ duration: 1.0, delay: 0.15, ease: "easeInOut" }}
-              className="w-28 h-[1.5px] mb-5"
+              className="w-24 h-[1.5px] bg-gradient-to-r from-transparent via-white/70 to-transparent mb-5"
               style={{
-                background: `linear-gradient(to right, transparent, ${glowColor}, transparent)`,
-                boxShadow: `0 0 8px ${glowColor}`,
+                boxShadow: '0 1px 3px rgba(0,0,0,0.5)',
               }}
             />
 
@@ -392,10 +384,11 @@ export default function CinematicIntro({ videoPath, title, onComplete }: Cinemat
               variants={containerVariants}
               initial="hidden"
               animate="visible"
-              className="font-orbitron font-black uppercase tracking-[6px] md:tracking-[16px] text-center leading-normal text-white select-none relative z-10 flex flex-wrap justify-center gap-y-4 gap-x-6 md:gap-x-10"
+              className="font-michroma uppercase tracking-[10px] md:tracking-[24px] text-center leading-normal text-white select-none relative z-10 flex flex-wrap justify-center gap-y-4 gap-x-6 md:gap-x-10"
               style={{
-                fontSize: 'clamp(1.5rem, 4.5vw, 3.8rem)',
-                textShadow: `0 0 8px ${glowColor}aa, 0 0 20px ${glowColor}55, 0 0 3px rgba(255,255,255,0.9), 0 4px 15px rgba(0,0,0,0.95)`,
+                fontSize: 'clamp(1.3rem, 4vw, 3.4rem)',
+                textShadow: '0 4px 15px rgba(0,0,0,0.95), 0 0 35px rgba(0,0,0,0.8), 0 2px 4px rgba(0,0,0,0.9)',
+                color: '#ffffff',
               }}
             >
               {words.map((word, wordIdx) => (
@@ -417,14 +410,13 @@ export default function CinematicIntro({ videoPath, title, onComplete }: Cinemat
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               transition={{ duration: 1.5, delay: 0.6 }}
-              className="mt-6 text-[9px] tracking-[5px] text-zinc-300 font-mono uppercase bg-black/60 px-5 py-2 border rounded backdrop-blur-md shadow-2xl flex items-center gap-1.5"
+              className="mt-6 text-[9px] tracking-[5px] text-zinc-300 font-mono uppercase bg-black/60 px-5 py-2 border border-white/10 rounded backdrop-blur-md shadow-2xl flex items-center gap-1.5"
               style={{
-                borderColor: `${glowColor}33`,
-                boxShadow: `0 0 20px rgba(0,0,0,0.9), 0 0 4px ${glowColor}11`,
+                boxShadow: '0 0 20px rgba(0,0,0,0.9)',
               }}
             >
               <span>SYNTHESIZING PARADIGM DATA</span>
-              <span className="animate-pulse" style={{ color: glowColor }}>_</span>
+              <span className="animate-pulse text-white">_</span>
             </motion.div>
           </div>
           
