@@ -550,6 +550,37 @@ ${marketStr}`;
       return;
     }
 
+    // Voice Navigation Command Protocols
+    if (lowerCmd.includes("render zone") || lowerCmd.includes("project archive") || lowerCmd.includes("projects") || lowerCmd.includes("open projects") || lowerCmd.includes("open render zone")) {
+      setActiveMenuTab('render-zone');
+      await speak("Accessing Project Archive, sir.", () => {
+        router.push('/projects');
+      });
+      return;
+    }
+    if (lowerCmd.includes("edit matrix") || lowerCmd.includes("open edit") || (lowerCmd.includes("edit") && !lowerCmd.includes("credits"))) {
+      setActiveMenuTab('edit');
+      setStorePhase('edit');
+      await speak("Entering Edit Matrix, sir.", () => {
+        router.push('/edit');
+      });
+      return;
+    }
+    if (lowerCmd.includes("3d render") || lowerCmd.includes("3d visualization") || lowerCmd.includes("three d render") || lowerCmd.includes("open 3d render") || lowerCmd.includes("open 3d")) {
+      setActiveMenuTab('3d-render');
+      setStorePhase('edit');
+      await speak("Initializing 3D visualization, sir.", () => {
+        router.push('/3d-render');
+      });
+      return;
+    }
+    if (lowerCmd.includes("flythrough") || lowerCmd.includes("flightpath") || lowerCmd.includes("open flythrough")) {
+      setActiveMenuTab('flythrough');
+      setStorePhase('edit');
+      await speak("Flightpath parameters loaded, sir.");
+      return;
+    }
+
     // Clear past queues
     audioQueueRef.current = [];
     if (currentAudioRef.current) {
