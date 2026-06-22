@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import './globals.css';
 
 import SupabaseSyncProvider from '@/components/SupabaseSyncProvider';
+import AuthGuard from '@/components/AuthGuard';
 
 export const metadata: Metadata = {
   title: 'AI Architect Assistant',
@@ -17,7 +18,9 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <body className="antialiased min-h-screen flex flex-col bg-navy text-white overflow-hidden">
         <SupabaseSyncProvider>
-          {children}
+          <AuthGuard>
+            {children}
+          </AuthGuard>
         </SupabaseSyncProvider>
       </body>
 

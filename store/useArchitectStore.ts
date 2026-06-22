@@ -45,6 +45,7 @@ export const useArchitectStore = create<ArchitectStore>((set) => ({
   isAppStarted: false,
   sessionId: null,
   isRestored: false,
+  isAuthenticated: false,
 
   setLastUploadedImage: (base64, description) => set({ lastUploadedImage: base64, lastUploadedImageDescription: description }),
 
@@ -118,6 +119,8 @@ Let's begin the **Concept** phase. Could you please tell me about:
   setSessionId: (id) => set({ sessionId: id }),
   
   setIsRestored: (restored) => set({ isRestored: restored }),
+  
+  setIsAuthenticated: (auth) => set({ isAuthenticated: auth }),
   
   replaceState: (newState) => set((state) => ({ ...state, ...newState })),
 

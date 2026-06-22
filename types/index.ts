@@ -64,6 +64,7 @@ export interface ArchitectStore {
   isAppStarted: boolean;
   sessionId: string | null;
   isRestored: boolean;
+  isAuthenticated: boolean;
   setPhase: (phase: Phase) => void;
   addMessage: (message: ConversationMessage) => void;
   updateHistory: (history: ConversationMessage[]) => void;
@@ -83,6 +84,7 @@ export interface ArchitectStore {
   setIsAppStarted: (started: boolean) => void;
   setSessionId: (id: string) => void;
   setIsRestored: (restored: boolean) => void;
+  setIsAuthenticated: (auth: boolean) => void;
   replaceState: (state: Partial<ArchitectStore>) => void;
   resetStore: () => void;
   switchSession: (sessionId: string, projectName: string, placeName: string) => void;
