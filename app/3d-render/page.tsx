@@ -1,16 +1,20 @@
 'use client';
 
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useArchitectStore } from '@/store/useArchitectStore';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, Box, Download, Settings2, Sparkles, Loader2, UploadCloud, Folder } from 'lucide-react';
+import { ArrowLeft, Box, Download, Settings2, Sparkles, Loader2, UploadCloud, Folder, Search, Plus, MapPin, Clock, Trash2, Map } from 'lucide-react';
 import CinematicIntro from '@/components/CinematicIntro';
 import { RenderHistoryItem } from '@/types';
 import SaveToProjectModal from '@/components/SaveToProjectModal';
+import { supabase } from '@/lib/supabase';
+import { v4 as uuidv4 } from 'uuid';
 
 export default function Render3DPage() {
   const router = useRouter();
   const { currentFloorPlan, setCurrentFloorPlan, finalRender, setFinalRender, collectedParameters, projectName, placeName } = useArchitectStore();
+  const switchSession = useArchitectStore(state => state.switchSession);
+  const { replaceState, sessionId } = useArchitectStore();
 
   const [isRendering, setIsRendering] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -23,6 +27,43 @@ export default function Render3DPage() {
 
   const [isSaveModalOpen, setIsSaveModalOpen] = useState(false);
   const [saveSuccessMsg, setSaveSuccessMsg] = useState<string | null>(null);
+
+  // Pre-page Project Selection Dashboard state
+  const [showSelector, setShowSelector] = useState(true);
+  const [projects, setProjects] = useState<any[]>([]);
+  const [loadingProjects, setLoadingProjects] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [isNewProjectModalOpen, setIsNewProjectModalOpen] = useState(false);
+  const [newProjectName, setNewProjectName] = useState('');
+  const [newPlaceName, setNewPlaceName] = useState('');
+
+  useEffect(() => {
+    if (sessionId) {
+      setShowSelector(false);
+    }
+  }, [sessionId]);
+
+  useEffect(() => {
+    if (showSelector) {
+      fetchProjects();
+    }
+  }, [showSelector]);
+
+  const fetchProjects = async () => {
+    setLoadingProjects(true);
+    try {
+      const { data, error } = await supabase
+        .from('projects')
+        .select('session_id, state, updated_at')
+        .order('updated_at', { ascending: false });
+      if (error) throw error;
+      setProjects(data || []);
+    } catch (err) {
+      console.error('Error fetching projects:', err);
+    } finally {
+      setLoadingProjects(false);
+    }
+  };
 
   const handleGenerateRender = async () => {
     if (!currentFloorPlan || isRendering) return;
@@ -152,6 +193,13 @@ export default function Render3DPage() {
               <Folder size={14} /> Save to Project
             </button>
           )}
+
+          <button 
+            onClick={() => setShowSelector(true)}
+            className="px-4 py-2 text-[10px] uppercase tracking-widest border border-[#FFB000]/50 text-[#FFB000] hover:bg-[#FFB000]/10 rounded transition-colors cursor-pointer"
+          >
+            Switch Project
+          </button>
         </div>
       </header>
 
@@ -475,25 +523,223 @@ export default function Render3DPage() {
         );
       })()}
 
-      {/* Success alert toast */}
-      {saveSuccessMsg && (
-        <div className="absolute top-24 left-1/2 -translate-x-1/2 z-50 bg-[#0f0f18] border border-[#FFB000] rounded-lg px-6 py-3 text-[#FFB000] uppercase tracking-widest text-xs font-bold shadow-[0_0_30px_rgba(255,176,0,0.25)] animate-bounce">
-          ✓ Saved to project: {saveSuccessMsg}
+
+      {/* Selector view insertion */}
+      {showSelector && (
+        <div className="fixed inset-0 z-40 bg-[#0a0a0f] text-[#FFB000] overflow-y-auto">
+          <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGRlZnM+PHBhdHRlcm4gaWQ9ImdyaWQiIHdpZHRoPSI0MCIgaGVpZ2h0PSI0MCIgcGF0dGVyblVuaXRzPSJ1c2VyU3BhY2VPblVzZSI+PHBhdGggZD0iTSAwIDEwIEwgNDAgMTAgTSAxMCAwIEwgMTAgNDAiIGZpbGw9Im5vbmUiIHN0cm9rZT0iIzExMSIgc3Ryb2tlLXdpZHRoPSIwLjUiLz48L3BhdHRlcm4+PC9kZWZzPjxyZWN0IHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiIGZpbGw9InVybCgjZ3JpZCkiLz48L3N2Zz4=')] opacity-10 pointer-events-none z-0 fixed" />
+          
+          <header className="relative z-10 max-w-7xl mx-auto flex items-center justify-between p-8 border-b border-[#FFB000]/20">
+            <div className="flex items-center gap-6">
+              <button 
+                onClick={() => router.push('/')}
+                className="flex items-center justify-center w-10 h-10 rounded-full border border-[#FFB000]/30 hover:border-[#FFB000] hover:bg-[#FFB000]/10 transition-all group cursor-pointer"
+              >
+                <ArrowLeft className="text-[#FFB000]/70 group-hover:text-[#FFB000]" size={18} />
+              </button>
+              <div>
+                <h1 className="text-2xl font-bold tracking-[4px] uppercase text-white drop-shadow-[0_0_8px_rgba(255,255,255,0.3)]">
+                  3D Render Project Matrix
+                </h1>
+                <span className="text-xs tracking-[3px] text-[#FFB000]/60 uppercase">
+                  Select a project for photorealistic generation
+                </span>
+              </div>
+            </div>
+            
+            <div className="flex gap-4">
+              {sessionId && (
+                <button 
+                  onClick={() => setShowSelector(false)}
+                  className="px-6 py-3 border border-[#FFB000]/50 text-[#FFB000] hover:text-yellow-400 hover:bg-[#FFB000]/10 font-bold uppercase tracking-widest rounded-lg text-xs transition-colors cursor-pointer"
+                >
+                  Resume Current Project
+                </button>
+              )}
+              <button 
+                onClick={() => setIsNewProjectModalOpen(true)}
+                className="flex items-center gap-2 px-6 py-3 bg-[#FFB000] text-black hover:bg-[#e09c00] font-bold uppercase tracking-widest rounded-lg transition-all shadow-[0_0_20px_rgba(255,176,0,0.3)] cursor-pointer"
+              >
+                <Plus size={18} /> Initialize Project
+              </button>
+            </div>
+          </header>
+
+          <main className="relative z-10 max-w-7xl mx-auto p-8">
+            <div className="relative max-w-md mb-8">
+              <Search className="absolute left-3 top-3 text-[#FFB000]/50 w-5 h-5" />
+              <input 
+                type="text"
+                placeholder="SEARCH PROJECT ARCHIVES..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full bg-[#0f0f18] border border-[#FFB000]/30 rounded pl-11 pr-4 py-3 text-white focus:outline-none focus:border-[#FFB000] transition-colors uppercase font-mono tracking-wider text-sm"
+              />
+            </div>
+
+            {loadingProjects ? (
+              <div className="flex flex-col items-center justify-center py-32 opacity-50">
+                 <div className="w-12 h-12 border-4 border-[#FFB000] border-t-transparent rounded-full animate-spin mb-4" />
+                 <p className="tracking-widest uppercase">Querying secure node...</p>
+              </div>
+            ) : projects.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-32 border-2 border-dashed border-[#FFB000]/20 rounded-xl bg-[#0f0f18]/50 backdrop-blur">
+                <Folder size={64} className="text-[#FFB000]/30 mb-6" />
+                <h2 className="text-xl tracking-widest uppercase text-white mb-2">No active projects found</h2>
+                <p className="text-sm tracking-widest uppercase text-[#FFB000]/60 mb-8">Initialize a new project to begin rendering</p>
+                <button 
+                  onClick={() => setIsNewProjectModalOpen(true)}
+                  className="px-8 py-3 bg-transparent border border-[#FFB000] text-[#FFB000] hover:bg-[#FFB000] hover:text-black font-bold uppercase tracking-widest transition-all cursor-pointer"
+                >
+                  Create Project
+                </button>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                {projects.filter(p => {
+                  const name = (p.state?.projectName || 'Untitled Project').toLowerCase();
+                  const place = (p.state?.placeName || '').toLowerCase();
+                  return name.includes(searchQuery.toLowerCase()) || place.includes(searchQuery.toLowerCase());
+                }).map((proj) => {
+                  const name = proj.state?.projectName || 'Untitled Project';
+                  const place = proj.state?.placeName || 'Unknown Location';
+                  const thumb = proj.state?.finalRender || proj.state?.currentFloorPlan;
+                  const date = new Date(proj.updated_at).toLocaleDateString();
+
+                  return (
+                    <div 
+                      key={proj.session_id}
+                      onClick={() => {
+                        switchSession(proj.session_id, name, place);
+                        setShowSelector(false);
+                      }}
+                      className="group bg-[#0f0f18]/80 backdrop-blur border border-[#FFB000]/20 hover:border-[#FFB000] rounded-xl overflow-hidden cursor-pointer transition-all duration-300 shadow-lg hover:shadow-[0_0_30px_rgba(255,176,0,0.2)] flex flex-col"
+                    >
+                      <div className="relative aspect-video bg-[#0a0a0f] flex items-center justify-center border-b border-[#FFB000]/10 overflow-hidden">
+                        {thumb ? (
+                          <img 
+                            src={thumb.startsWith('data:image/') ? thumb : `data:image/jpeg;base64,${thumb}`} 
+                            alt={name} 
+                            className="w-full h-full object-cover opacity-80 group-hover:opacity-100 group-hover:scale-105 transition-all duration-500" 
+                          />
+                        ) : (
+                          <Map size={48} className="text-[#FFB000]/20" />
+                        )}
+                        <div className="absolute inset-0 bg-gradient-to-t from-[#0f0f18] to-transparent opacity-80" />
+                        
+                        <button
+                          onClick={async (e) => {
+                            e.stopPropagation();
+                            const ok = window.confirm("Are you sure you want to delete this project?");
+                            if (!ok) return;
+                            try {
+                              const { error } = await supabase.from('projects').delete().eq('session_id', proj.session_id);
+                              if (error) throw error;
+                              setProjects(prev => prev.filter(p => p.session_id !== proj.session_id));
+                              if (sessionId === proj.session_id) {
+                                replaceState({ sessionId: null, projectName: null, placeName: null });
+                                localStorage.removeItem('architect_session_id');
+                              }
+                            } catch (err) {
+                              console.error(err);
+                            }
+                          }}
+                          className="absolute top-3 right-3 z-20 flex items-center justify-center w-8 h-8 rounded-full border border-red-500/30 bg-[#0a0a0f]/80 text-red-500/70 hover:text-red-500 hover:border-red-500 hover:bg-red-500/10 transition-all shadow-md cursor-pointer"
+                          title="Delete Project"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+
+                        <div className="absolute bottom-3 left-3 flex items-center gap-2 text-[10px] text-[#FFB000] font-bold tracking-widest uppercase bg-[#0a0a0f]/80 px-2 py-1 rounded backdrop-blur">
+                          <Clock size={12} /> {date}
+                        </div>
+                      </div>
+                      <div className="p-5 flex-1 flex flex-col justify-between">
+                        <div>
+                          <h3 className="text-sm font-bold text-white uppercase tracking-wider mb-2 group-hover:text-[#FFB000] transition-colors">{name}</h3>
+                          <p className="flex items-center gap-2 text-xs text-[#FFB000]/60 tracking-widest uppercase">
+                            <MapPin size={12} /> {place}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </main>
         </div>
       )}
 
-      {/* Save Project Modal */}
-      <SaveToProjectModal 
-        isOpen={isSaveModalOpen} 
-        onClose={() => setIsSaveModalOpen(false)} 
-        currentImageBase64={finalRender} 
-        imageType="finalRender" 
-        theme="gold" 
-        onSaveSuccess={(pName) => {
-          setSaveSuccessMsg(pName);
-          setTimeout(() => setSaveSuccessMsg(null), 3000);
-        }}
-      />
+      {/* Create Project Modal */}
+      {isNewProjectModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#0a0a0f]/90 backdrop-blur-sm">
+          <div className="bg-[#0f0f18] border border-[#FFB000]/30 rounded-xl p-8 max-w-md w-full shadow-[0_0_50px_rgba(255,176,0,0.15)] relative">
+            <h2 className="text-xl font-bold uppercase tracking-[3px] text-white mb-6">Initialize Render Project</h2>
+            
+            <form onSubmit={async (e) => {
+              e.preventDefault();
+              if (!newProjectName.trim()) return;
+              const newSessionId = uuidv4();
+              switchSession(newSessionId, newProjectName, newPlaceName);
+              
+              // Save empty structure to supabase
+              await supabase.from('projects').insert({
+                session_id: newSessionId,
+                state: {
+                  projectName: newProjectName,
+                  placeName: newPlaceName,
+                  phase: 'export'
+                }
+              });
+              
+              setShowSelector(false);
+              setIsNewProjectModalOpen(false);
+            }} className="space-y-6">
+              <div>
+                <label className="block text-xs uppercase tracking-widest text-[#FFB000]/80 mb-2">Project Designation (Name)</label>
+                <input 
+                  autoFocus
+                  type="text" 
+                  value={newProjectName}
+                  onChange={(e) => setNewProjectName(e.target.value)}
+                  placeholder="E.g. Wayne Manor Redesign"
+                  className="w-full bg-[#0a0a0f] border border-[#FFB000]/30 rounded p-3 text-white focus:outline-none focus:border-[#FFB000] transition-colors uppercase tracking-wider text-xs font-mono"
+                  required
+                />
+              </div>
+              
+              <div>
+                <label className="block text-xs uppercase tracking-widest text-[#FFB000]/80 mb-2">Geographic Location</label>
+                <input 
+                  type="text" 
+                  value={newPlaceName}
+                  onChange={(e) => setNewPlaceName(e.target.value)}
+                  placeholder="E.g. Gotham City"
+                  className="w-full bg-[#0a0a0f] border border-[#FFB000]/30 rounded p-3 text-white focus:outline-none focus:border-[#FFB000] transition-colors uppercase tracking-wider text-xs font-mono"
+                />
+              </div>
+
+              <div className="flex gap-4 pt-4">
+                <button 
+                  type="button"
+                  onClick={() => setIsNewProjectModalOpen(false)}
+                  className="flex-1 py-3 border border-[#FFB000]/50 text-[#FFB000] hover:text-yellow-400 hover:bg-[#FFB000]/10 uppercase tracking-widest font-bold rounded text-xs transition-colors cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button 
+                  type="submit"
+                  disabled={!newProjectName.trim()}
+                  className="flex-1 py-3 bg-[#FFB000] text-black hover:bg-[#e09c00] uppercase tracking-widest font-bold rounded text-xs transition-colors disabled:opacity-50 cursor-pointer"
+                >
+                  Initialize
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </main>
   );
 }
