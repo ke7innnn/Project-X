@@ -3,13 +3,14 @@
 import React, { useState, useRef } from 'react';
 import { useArchitectStore } from '@/store/useArchitectStore';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, Box, Download, Settings2, Sparkles, Loader2, UploadCloud } from 'lucide-react';
+import { ArrowLeft, Box, Download, Settings2, Sparkles, Loader2, UploadCloud, Folder } from 'lucide-react';
 import CinematicIntro from '@/components/CinematicIntro';
 import { RenderHistoryItem } from '@/types';
+import SaveToProjectModal from '@/components/SaveToProjectModal';
 
 export default function Render3DPage() {
   const router = useRouter();
-  const { currentFloorPlan, setCurrentFloorPlan, finalRender, setFinalRender, collectedParameters } = useArchitectStore();
+  const { currentFloorPlan, setCurrentFloorPlan, finalRender, setFinalRender, collectedParameters, projectName, placeName } = useArchitectStore();
 
   const [isRendering, setIsRendering] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -19,6 +20,9 @@ export default function Render3DPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [renderHistory, setRenderHistory] = useState<RenderHistoryItem[]>([]);
   const [viewingHistoryId, setViewingHistoryId] = useState<string | null>(null);
+
+  const [isSaveModalOpen, setIsSaveModalOpen] = useState(false);
+  const [saveSuccessMsg, setSaveSuccessMsg] = useState<string | null>(null);
 
   const handleGenerateRender = async () => {
     if (!currentFloorPlan || isRendering) return;
@@ -120,7 +124,7 @@ export default function Render3DPage() {
               3D Render Matrix
             </h1>
             <span className="text-[10px] tracking-[3px] text-[#FFB000]/60 uppercase">
-              Photorealistic Generation Engine
+              {projectName ? `Project: ${projectName} (${placeName || 'Unknown Location'})` : 'Photorealistic Generation Engine'}
             </span>
           </div>
         </div>
@@ -139,6 +143,15 @@ export default function Render3DPage() {
           >
             <UploadCloud size={14} /> Upload Plan
           </button>
+
+          {finalRender && (
+            <button 
+              onClick={() => setIsSaveModalOpen(true)}
+              className="flex items-center gap-2 px-4 py-2 text-[10px] uppercase tracking-widest bg-[#1e1810] border border-[#FFB000]/30 text-[#FFB000] hover:bg-[#FFB000]/10 hover:border-[#FFB000] font-bold rounded transition-colors cursor-pointer"
+            >
+              <Folder size={14} /> Save to Project
+            </button>
+          )}
         </div>
       </header>
 
@@ -162,7 +175,7 @@ export default function Render3DPage() {
               
               <div className="w-full max-h-[50vh] flex items-center justify-center bg-white p-6 rounded-xl border border-zinc-800 shadow-2xl">
                 <img 
-                  src={currentFloorPlan} 
+                  src={currentFloorPlan.startsWith('data:image/') ? currentFloorPlan : `data:image/jpeg;base64,${currentFloorPlan}`} 
                   alt="Draft Floor Plan" 
                   className="max-w-full max-h-[45vh] object-contain rounded"
                 />
@@ -176,7 +189,7 @@ export default function Render3DPage() {
                   {renderHistory.map((item) => (
                     <div key={item.id} className="bg-[#0f0f18] border border-zinc-800 rounded-xl overflow-hidden hover:border-[#FFB000]/50 transition-all flex flex-col shadow-lg">
                       <div className="aspect-video relative overflow-hidden bg-black/40">
-                        <img src={`data:image/jpeg;base64,${item.base64}`} alt="Render Thumb" className="w-full h-full object-cover" />
+                        <img src={item.base64.startsWith('data:image/') ? item.base64 : `data:image/jpeg;base64,${item.base64}`} alt="Render Thumb" className="w-full h-full object-cover" />
                       </div>
                       <div className="p-3 flex-1 flex flex-col justify-between gap-3">
                         <div>
@@ -452,7 +465,7 @@ export default function Render3DPage() {
               {/* Modal Body */}
               <div className="flex-1 overflow-y-auto p-6 bg-black/40 flex items-center justify-center min-h-0">
                 <img 
-                  src={`data:image/jpeg;base64,${activeItem.base64}`} 
+                  src={activeItem.base64.startsWith('data:image/') ? activeItem.base64 : `data:image/jpeg;base64,${activeItem.base64}`} 
                   alt="Detailed 3D Render" 
                   className="max-w-full max-h-[70vh] object-contain rounded-lg shadow-2xl border border-zinc-800" 
                 />
@@ -461,6 +474,26 @@ export default function Render3DPage() {
           </div>
         );
       })()}
+
+      {/* Success alert toast */}
+      {saveSuccessMsg && (
+        <div className="absolute top-24 left-1/2 -translate-x-1/2 z-50 bg-[#0f0f18] border border-[#FFB000] rounded-lg px-6 py-3 text-[#FFB000] uppercase tracking-widest text-xs font-bold shadow-[0_0_30px_rgba(255,176,0,0.25)] animate-bounce">
+          ✓ Saved to project: {saveSuccessMsg}
+        </div>
+      )}
+
+      {/* Save Project Modal */}
+      <SaveToProjectModal 
+        isOpen={isSaveModalOpen} 
+        onClose={() => setIsSaveModalOpen(false)} 
+        currentImageBase64={finalRender} 
+        imageType="finalRender" 
+        theme="gold" 
+        onSaveSuccess={(pName) => {
+          setSaveSuccessMsg(pName);
+          setTimeout(() => setSaveSuccessMsg(null), 3000);
+        }}
+      />
     </main>
   );
 }

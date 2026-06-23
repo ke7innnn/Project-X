@@ -3,16 +3,20 @@
 import React, { useState, useRef } from 'react';
 import { useArchitectStore } from '@/store/useArchitectStore';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, Send, PenTool, Loader2, UploadCloud } from 'lucide-react';
+import { ArrowLeft, Send, PenTool, Loader2, UploadCloud, Folder } from 'lucide-react';
 import CinematicIntro from '@/components/CinematicIntro';
+import SaveToProjectModal from '@/components/SaveToProjectModal';
 
 export default function EditPage() {
   const router = useRouter();
-  const { currentFloorPlan, previousFloorPlan, setCurrentFloorPlan, setPreviousFloorPlan, collectedParameters, roomDimensions, sessionId } = useArchitectStore();
+  const { currentFloorPlan, previousFloorPlan, setCurrentFloorPlan, setPreviousFloorPlan, collectedParameters, roomDimensions, sessionId, projectName, placeName } = useArchitectStore();
   const [prompt, setPrompt] = useState('');
   const [isEditing, setIsEditing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  
+  const [isSaveModalOpen, setIsSaveModalOpen] = useState(false);
+  const [saveSuccessMsg, setSaveSuccessMsg] = useState<string | null>(null);
 
   const handleEdit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -99,7 +103,7 @@ export default function EditPage() {
               Edit Matrix
             </h1>
             <span className="text-[10px] tracking-[3px] text-cyan-500/60 uppercase">
-              Powered by Groq Vision
+              {projectName ? `Project: ${projectName} (${placeName || 'Unknown Location'})` : 'Powered by Groq Vision'}
             </span>
           </div>
         </div>
@@ -117,6 +121,15 @@ export default function EditPage() {
           >
             <UploadCloud size={14} /> Upload Plan
           </button>
+
+          {currentFloorPlan && (
+            <button 
+              onClick={() => setIsSaveModalOpen(true)}
+              className="flex items-center gap-2 px-4 py-2 text-[10px] uppercase tracking-widest bg-[#1e1810] border border-cyan-500/30 text-cyan-400 hover:bg-cyan-500/10 hover:border-cyan-400 font-bold rounded transition-colors"
+            >
+              <Folder size={14} /> Save to Project
+            </button>
+          )}
           
           {previousFloorPlan && (
             <button 
@@ -137,7 +150,7 @@ export default function EditPage() {
           {currentFloorPlan ? (
             <div className="relative w-full max-w-4xl aspect-square bg-white rounded-xl shadow-2xl overflow-hidden border-2 border-cyan-500/20 group">
               <img 
-                src={`data:image/jpeg;base64,${currentFloorPlan}`} 
+                src={currentFloorPlan.startsWith('data:image/') ? currentFloorPlan : `data:image/jpeg;base64,${currentFloorPlan}`} 
                 alt="Current Floor Plan" 
                 className={`w-full h-full object-contain transition-opacity duration-300 ${isEditing ? 'opacity-50 blur-sm' : 'opacity-100'}`}
               />
@@ -203,8 +216,27 @@ export default function EditPage() {
             </form>
           </div>
         </div>
-
       </main>
+
+      {/* Success alert toast */}
+      {saveSuccessMsg && (
+        <div className="absolute top-24 left-1/2 -translate-x-1/2 z-50 bg-[#0f0f18] border border-cyan-500 rounded-lg px-6 py-3 text-cyan-400 uppercase tracking-widest text-xs font-bold shadow-[0_0_30px_rgba(6,182,212,0.25)] animate-bounce">
+          ✓ Saved to project: {saveSuccessMsg}
+        </div>
+      )}
+
+      {/* Save Project Modal */}
+      <SaveToProjectModal 
+        isOpen={isSaveModalOpen} 
+        onClose={() => setIsSaveModalOpen(false)} 
+        currentImageBase64={currentFloorPlan} 
+        imageType="floorPlan" 
+        theme="cyan" 
+        onSaveSuccess={(pName) => {
+          setSaveSuccessMsg(pName);
+          setTimeout(() => setSaveSuccessMsg(null), 3000);
+        }}
+      />
     </main>
   );
 }

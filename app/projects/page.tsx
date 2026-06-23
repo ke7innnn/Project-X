@@ -159,7 +159,7 @@ export default function ProjectsDashboard() {
                 >
                   <div className="relative aspect-video bg-[#0a0a0f] flex items-center justify-center border-b border-[#FFB000]/10 overflow-hidden">
                     {thumb ? (
-                      <img src={`data:image/jpeg;base64,${thumb}`} alt={name} className="w-full h-full object-cover opacity-80 group-hover:opacity-100 group-hover:scale-105 transition-all duration-500" />
+                      <img src={thumb.startsWith('data:image/') ? thumb : `data:image/jpeg;base64,${thumb}`} alt={name} className="w-full h-full object-cover opacity-80 group-hover:opacity-100 group-hover:scale-105 transition-all duration-500" />
                     ) : (
                       <Map size={48} className="text-[#FFB000]/20" />
                     )}
