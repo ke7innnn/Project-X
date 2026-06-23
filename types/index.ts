@@ -27,7 +27,7 @@ export interface NatureImage {
 export interface ConversationMessage {
   role: 'user' | 'model';
   parts: { text: string }[];
-  customType?: 'image-grid' | 'parameters-summary' | 'download-button' | 'upload-prompt' | 'selected-image' | 'floorplan-drafts' | 'floorplan-edit';
+  customType?: 'image-grid' | 'parameters-summary' | 'download-button' | 'upload-prompt' | 'selected-image' | 'floorplan-drafts' | 'floorplan-edit' | 'uploaded-image';
   customData?: any;
 }
 
