@@ -18,6 +18,8 @@ interface SaveToProjectModalProps {
   currentImageBase64: string | null;
   imageType: 'floorPlan' | 'finalRender';
   theme: 'cyan' | 'gold';
+  /** Which Supabase table to save to. Defaults to 'projects' (Render Zone). */
+  tableName?: 'projects' | 'edit_projects' | 'render3d_projects';
   onSaveSuccess?: (projectName: string) => void;
 }
 
@@ -27,6 +29,7 @@ export default function SaveToProjectModal({
   currentImageBase64,
   imageType,
   theme,
+  tableName = 'projects',
   onSaveSuccess,
 }: SaveToProjectModalProps) {
   const switchSession = useArchitectStore((state) => state.switchSession);
@@ -85,7 +88,7 @@ export default function SaveToProjectModal({
     setLoadingProjects(true);
     try {
       const { data, error } = await supabase
-        .from('projects')
+        .from(tableName)
         .select('session_id, state, updated_at')
         .order('updated_at', { ascending: false });
 
@@ -105,7 +108,7 @@ export default function SaveToProjectModal({
     try {
       // 1. Fetch current project state to merge and preserve everything else
       const { data, error } = await supabase
-        .from('projects')
+        .from(tableName)
         .select('state')
         .eq('session_id', projSessionId)
         .single();
@@ -137,7 +140,7 @@ export default function SaveToProjectModal({
 
       // 2. Upsert back to database
       const { error: upsertError } = await supabase
-        .from('projects')
+        .from(tableName)
         .upsert({
           session_id: projSessionId,
           state: mergedState

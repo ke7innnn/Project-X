@@ -359,8 +359,9 @@ export default function CinematicIntro({ videoPath, title, onComplete }: Cinemat
               initial={{ opacity: 0, y: -12, letterSpacing: "6px" }}
               animate={{ opacity: 1, y: 0, letterSpacing: "14px" }}
               transition={{ duration: 1.0, ease: "easeOut" }}
-              className="flex items-center gap-2 text-xs md:text-sm font-semibold font-michroma uppercase mb-3 tracking-[14px] text-white select-none"
+              className="flex items-center gap-2 text-xs md:text-sm font-semibold uppercase mb-3 tracking-[14px] text-white select-none"
               style={{
+                fontFamily: 'Givonic, Syncopate, sans-serif',
                 textShadow: '0 2px 8px rgba(0,0,0,0.9), 0 0 15px rgba(0,0,0,0.6)',
               }}
             >
@@ -384,8 +385,9 @@ export default function CinematicIntro({ videoPath, title, onComplete }: Cinemat
               variants={containerVariants}
               initial="hidden"
               animate="visible"
-              className="font-michroma uppercase tracking-[10px] md:tracking-[24px] text-center leading-normal text-white select-none relative z-10 flex flex-wrap justify-center gap-y-4 gap-x-6 md:gap-x-10"
+              className="uppercase tracking-[10px] md:tracking-[24px] text-center leading-normal text-white select-none relative z-10 flex flex-wrap justify-center gap-y-4 gap-x-6 md:gap-x-10"
               style={{
+                fontFamily: 'Givonic, Syncopate, sans-serif',
                 fontSize: 'clamp(1.3rem, 4vw, 3.4rem)',
                 textShadow: '0 4px 15px rgba(0,0,0,0.95), 0 0 35px rgba(0,0,0,0.8), 0 2px 4px rgba(0,0,0,0.9)',
                 color: '#ffffff',

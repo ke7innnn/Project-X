@@ -86,6 +86,8 @@ export default function StartScreen() {
   const [responseHtml, setResponseHtml] = useState<React.ReactNode>(null);
   const chatHistoryRef = useRef<{role: string, content: string}[]>([]);
   const [marketData, setMarketData] = useState<Record<string, number> | null>(null);
+  const bgMusicRef = useRef<HTMLAudioElement | null>(null);
+  const [isMusicPlaying, setIsMusicPlaying] = useState(false);
   
   interface NewsArticle {
     title: string;
@@ -126,6 +128,37 @@ export default function StartScreen() {
     }, 1000);
     return () => clearInterval(timer);
   }, [mountTime]);
+
+  // Background music
+  useEffect(() => {
+    const audio = new Audio('/home page mp3/Batman Begins (OST) - Training.mp3.mpeg');
+    audio.loop = true;
+    audio.volume = 0.35;
+    bgMusicRef.current = audio;
+
+    const tryPlay = () => {
+      audio.play().then(() => setIsMusicPlaying(true)).catch(() => {});
+    };
+
+    // Try autoplay
+    tryPlay();
+
+    // Also try on first user interaction in case autoplay is blocked
+    const onInteract = () => {
+      if (!isMusicPlaying) tryPlay();
+      window.removeEventListener('click', onInteract);
+      window.removeEventListener('keydown', onInteract);
+    };
+    window.addEventListener('click', onInteract);
+    window.addEventListener('keydown', onInteract);
+
+    return () => {
+      audio.pause();
+      audio.src = '';
+      window.removeEventListener('click', onInteract);
+      window.removeEventListener('keydown', onInteract);
+    };
+  }, []);
 
   useEffect(() => {
     const fetchMarket = async () => {
@@ -995,7 +1028,7 @@ ${newsStr}`;
             <span className="text-[10px] tracking-[4px] text-cyan-500/60 uppercase font-mono font-bold block">
               SYSTEM INTERFACE
             </span>
-            <h2 className="font-rajdhani text-2xl font-bold tracking-[2px] text-white uppercase drop-shadow-[0_0_6px_rgba(255,255,255,0.2)]">
+            <h2 className="text-2xl font-bold tracking-[2px] text-white uppercase drop-shadow-[0_0_6px_rgba(255,255,255,0.2)]" style={{ fontFamily: 'Givonic, Syncopate, sans-serif' }}>
               MAIN MENU
             </h2>
           </div>
@@ -1023,7 +1056,7 @@ ${newsStr}`;
                     >
                       ▶
                     </span>
-                    <span className="font-semibold">{stage.label}</span>
+                    <span className="font-semibold" style={{ fontFamily: 'Givonic, Syncopate, sans-serif' }}>{stage.label}</span>
                   </div>
                   {stage.badge && (
                     <span 

@@ -119,12 +119,18 @@ export default function ChatPanel() {
         if (data.images && data.images.length > 0) {
           addMessage({ 
             role: 'model', 
-            parts: [{ text: 'Here are some references:' }],
+            parts: [{ text: 'Here are some references from Pexels. You can also search Google Images below if you need something more specific:' }],
             customType: 'image-grid',
             customData: { images: data.images, query: text }
           });
         } else {
-          addMessage({ role: 'model', parts: [{ text: "No images found. Try a different nature keyword." }] });
+          // Even with no Pexels results, show the grid with Google fallback options
+          addMessage({ 
+            role: 'model', 
+            parts: [{ text: `No results found on Pexels for "${text}". Try searching on Google Images below:` }],
+            customType: 'image-grid',
+            customData: { images: [], query: text }
+          });
         }
       } catch (err) {
         addMessage({ role: 'model', parts: [{ text: "Failed to search images. Please try again." }] });

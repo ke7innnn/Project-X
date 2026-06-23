@@ -53,7 +53,7 @@ export default function Render3DPage() {
     setLoadingProjects(true);
     try {
       const { data, error } = await supabase
-        .from('projects')
+        .from('render3d_projects')
         .select('session_id, state, updated_at')
         .order('updated_at', { ascending: false });
       if (error) throw error;
@@ -633,7 +633,7 @@ export default function Render3DPage() {
                             const ok = window.confirm("Are you sure you want to delete this project?");
                             if (!ok) return;
                             try {
-                              const { error } = await supabase.from('projects').delete().eq('session_id', proj.session_id);
+                              const { error } = await supabase.from('render3d_projects').delete().eq('session_id', proj.session_id);
                               if (error) throw error;
                               setProjects(prev => prev.filter(p => p.session_id !== proj.session_id));
                               if (sessionId === proj.session_id) {
@@ -684,7 +684,7 @@ export default function Render3DPage() {
               switchSession(newSessionId, newProjectName, newPlaceName);
               
               // Save empty structure to supabase
-              await supabase.from('projects').insert({
+              await supabase.from('render3d_projects').insert({
                 session_id: newSessionId,
                 state: {
                   projectName: newProjectName,
@@ -740,6 +740,18 @@ export default function Render3DPage() {
           </div>
         </div>
       )}
+      <SaveToProjectModal
+        isOpen={isSaveModalOpen}
+        onClose={() => setIsSaveModalOpen(false)}
+        currentImageBase64={finalRender}
+        imageType="finalRender"
+        theme="gold"
+        tableName="render3d_projects"
+        onSaveSuccess={(name) => {
+          setSaveSuccessMsg(name);
+          setTimeout(() => setSaveSuccessMsg(null), 3000);
+        }}
+      />
     </main>
   );
 }
