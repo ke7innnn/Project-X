@@ -140,6 +140,46 @@ Follow that instruction exactly. Move the requested furniture and appliances to 
 Follow that instruction exactly to replace the requested text. CRITICAL TEXT SIZE: The new text must be medium-sized and perfectly readable. It should be exactly the same scale as the other room labels in the drawing—not too giant, and not microscopically small. Keep it in the exact same position and same clear black font style. Do NOT change anything else — do not modify any walls, wall lines, room dividers, doors, door arcs, windows, furniture, staircases, or the outer building boundary/outline. Only the specific requested text changes. Maintain the exact same black and white architectural drawing style throughout.`;
   }
 
+  if (instructionStr.includes('door') || instructionStr.includes('gate') || instructionStr.includes('entryway')) {
+    return `This is an architectural floor plan drawing. Look at this specific instruction regarding doors, gates, or entryways: "${editInstruction}".
+Follow that instruction exactly. If adding a door, create a clean gap in the double-line wall and draw a standard 90-degree swing arc indicator. If removing or shifting, fill the original gap with continuous solid double-line walls matching the thickness of the rest of the wall. Do NOT modify other walls, rooms, windows, text, or the general layout. Maintain the exact same black and white CAD drawing style throughout.`;
+  }
+
+  if (instructionStr.includes('window') || instructionStr.includes('glazing')) {
+    return `This is an architectural floor plan drawing. Look at this specific instruction regarding windows: "${editInstruction}".
+Follow that instruction exactly. If adding a window, draw it as neat parallel lines embedded inside the wall line. If removing, replace it with a solid double-line wall. Ensure all window frames align perfectly with the walls. Do NOT modify other walls, rooms, doors, text, or the general layout. Maintain the exact same black and white CAD drawing style throughout.`;
+  }
+
+  if (instructionStr.includes('partition') || instructionStr.includes('split') || instructionStr.includes('divide') || instructionStr.includes('divider') || instructionStr.includes('half')) {
+    return `This is an architectural floor plan drawing. Look at this specific instruction regarding splitting or partitioning a room: "${editInstruction}".
+Follow that instruction exactly. Draw a new straight wall (matching the exact double-line thickness of the existing interior walls) to split the space. Add a door arc or entryway in the partition wall if requested, and clean up or rename the room labels/letters inside the new sub-divided spaces. Do NOT change other outer building outlines, staircases, or unrelated room configurations. Maintain the exact same black and white CAD drawing style throughout.`;
+  }
+
+  if (instructionStr.includes('merge') || instructionStr.includes('join') || instructionStr.includes('combine') || instructionStr.includes('remove wall') || instructionStr.includes('open plan')) {
+    return `This is an architectural floor plan drawing. Look at this specific instruction regarding combining or merging rooms: "${editInstruction}".
+Follow that instruction exactly. Erase the specified partition/dividing walls, creating a clean, open, and continuous interior space. Erase the old separate room labels and write a unified, clear label centered inside the newly merged room. Do NOT alter outer boundaries, structural columns, or other unrelated room setups. Maintain the exact same black and white CAD drawing style throughout.`;
+  }
+
+  if (instructionStr.includes('stairs') || instructionStr.includes('staircase') || instructionStr.includes('lift') || instructionStr.includes('elevator')) {
+    return `This is an architectural floor plan drawing. Look at this specific instruction regarding a staircase or lift core: "${editInstruction}".
+Follow that instruction exactly. Draw or relocate the staircase using neat, parallel step lines showing the direction of ascent. Do NOT alter unrelated room structures, door positions, or labels. Maintain the exact same black and white CAD drawing style throughout.`;
+  }
+
+  if (instructionStr.includes('balcony') || instructionStr.includes('terrace') || instructionStr.includes('deck') || instructionStr.includes('patio') || instructionStr.includes('verandah')) {
+    return `This is an architectural floor plan drawing. Look at this specific instruction regarding adding or modifying a balcony, terrace, deck, or patio: "${editInstruction}".
+Follow that instruction exactly. Draw it as a clean exterior offset zone with thin borders, keeping it connected to the main building via a sliding door or standard doorway as requested. Do NOT distort internal rooms. Maintain the exact same black and white CAD drawing style throughout.`;
+  }
+
+  if (instructionStr.includes('extend') || instructionStr.includes('expand') || instructionStr.includes('enlarge') || instructionStr.includes('resize') || instructionStr.includes('widen') || instructionStr.includes('bigger')) {
+    return `This is an architectural floor plan drawing. Look at this specific instruction regarding extending or expanding a section of the plan: "${editInstruction}".
+Follow that instruction exactly. Shift the specified wall outwards to enlarge the room size while keeping all other walls, wall alignments, adjacent rooms, and double-line wall thicknesses consistent. Adjust room labels if needed. MARGIN RULE (CRITICAL): Maintain the exact same empty white margin gap around the entire building and do NOT crop or zoom in. Maintain the exact same black and white CAD drawing style throughout.`;
+  }
+
+  if (instructionStr.includes('garage') || instructionStr.includes('parking') || instructionStr.includes('carport')) {
+    return `This is an architectural floor plan drawing. Look at this specific instruction regarding adding or modifying a garage or parking space: "${editInstruction}".
+Follow that instruction exactly. Draw the parking or garage zone at the designated spot, labeled clearly with thin dashed or solid lines. Ensure the parking space structure blends cleanly with the main wall layout without distorting internal rooms. Maintain the exact same black and white CAD drawing style throughout.`;
+  }
+
   // Fallback for general editing
   return `
 Edit this 2D architectural floor plan. Apply ONLY this change and keep everything else identical:
