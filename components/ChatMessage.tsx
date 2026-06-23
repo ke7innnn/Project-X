@@ -7,7 +7,7 @@ import { useArchitectStore } from '@/store/useArchitectStore';
 
 interface ChatMessageProps {
   message: ConversationMessage;
-  isCustomType?: 'image-grid' | 'parameters-summary' | 'download-button' | 'upload-prompt' | 'loading';
+  isCustomType?: 'image-grid' | 'parameters-summary' | 'download-button' | 'upload-prompt' | 'loading' | 'selected-image' | 'floorplan-drafts' | 'floorplan-edit';
   customData?: any;
 }
 
@@ -15,6 +15,11 @@ export default function ChatMessage({ message, isCustomType, customData }: ChatM
   const isUser = message.role === 'user';
   const text = message.parts[0]?.text || '';
   const [isDownloading, setIsDownloading] = useState(false);
+
+  const currentFloorPlan = useArchitectStore(state => state.currentFloorPlan);
+  const setSelectedOption = useArchitectStore(state => state.setSelectedOption);
+  const setCurrentFloorPlan = useArchitectStore(state => state.setCurrentFloorPlan);
+  const setPhase = useArchitectStore(state => state.setPhase);
 
   const handleDownload = async () => {
     setIsDownloading(true);
@@ -89,6 +94,116 @@ export default function ChatMessage({ message, isCustomType, customData }: ChatM
       <div className="flex justify-start my-4">
         <div className="bg-blue-900/40 border border-blue-500/50 text-blue-100 p-3 rounded-xl max-w-[90%] text-sm">
           {text}
+        </div>
+      </div>
+    );
+  }
+
+  if (isCustomType === 'selected-image') {
+    const img = message.customData || customData;
+    if (!img) return null;
+    return (
+      <div className="flex justify-start my-4 w-full">
+        <div className="bg-[#0A0E1A] border border-gray-800 rounded-xl overflow-hidden shadow-xl max-w-[85%] w-full">
+          <div className="p-3 border-b border-gray-800 flex justify-between items-center bg-[#0d0d15]">
+            <span className="text-[10px] text-[#FFB000] tracking-wider uppercase font-bold">🌿 Selected Nature Reference</span>
+          </div>
+          <img 
+            src={img.url || img.thumbUrl} 
+            alt={img.description}
+            className="w-full max-h-48 object-cover"
+          />
+          <div className="p-3 bg-[#0a0a0f]/60 backdrop-blur">
+            <p className="text-xs text-white font-semibold truncate">{img.description}</p>
+            <p className="text-[10px] text-gray-500 mt-1">Photo by {img.photographer || 'Unsplash'}</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (isCustomType === 'floorplan-drafts') {
+    const options = (message.customData?.options || customData?.options) as string[] | undefined;
+    if (!options || options.length === 0) return null;
+
+    return (
+      <div className="flex justify-start my-4 w-full font-mono">
+        <div className="bg-[#0A0E1A] border border-gray-800 rounded-xl overflow-hidden shadow-xl w-full">
+          <div className="p-3 border-b border-gray-800 bg-[#0d0d15]">
+            <span className="text-[10px] text-[#FFB000] tracking-wider uppercase font-bold">📐 Generated Concept Layouts</span>
+          </div>
+          <div className="grid grid-cols-2 gap-3 p-3 bg-[#0a0a0f]/40">
+            {options.map((optUrl, idx) => {
+              const isActive = currentFloorPlan === optUrl;
+              return (
+                <div key={idx} className={`relative rounded-lg overflow-hidden border ${isActive ? 'border-[#FFB000]' : 'border-gray-800 bg-white/5'}`}>
+                  <img 
+                    src={`data:image/jpeg;base64,${optUrl}`} 
+                    alt={`Option ${idx + 1}`} 
+                    className="w-full aspect-square object-contain bg-white"
+                  />
+                  <div className="p-2 flex flex-col gap-1.5 bg-[#0a0a0f]/90 border-t border-gray-800">
+                    <button
+                      onClick={() => {
+                        setSelectedOption(idx, optUrl);
+                        setPhase('measure');
+                      }}
+                      className={`w-full py-1 text-[10px] uppercase font-bold tracking-wider rounded transition-colors ${
+                        isActive 
+                          ? 'bg-[#FFB000] text-black' 
+                          : 'bg-transparent border border-gray-700 text-gray-400 hover:text-white hover:border-white'
+                      }`}
+                    >
+                      {isActive ? 'Active Option ✓' : `Select Option ${idx + 1}`}
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (isCustomType === 'floorplan-edit') {
+    const editPlan = message.customData?.editedFloorPlan || customData?.editedFloorPlan;
+    const instruction = message.customData?.instruction || customData?.instruction || 'Edit';
+    if (!editPlan) return null;
+
+    const isActive = currentFloorPlan === editPlan;
+
+    return (
+      <div className="flex justify-start my-4 w-full font-mono">
+        <div className="bg-[#0A0E1A] border border-gray-800 rounded-xl overflow-hidden shadow-xl max-w-[85%] w-full">
+          <div className="p-3 border-b border-gray-800 bg-[#0d0d15]">
+            <span className="text-[10px] text-cyan-400 tracking-wider uppercase font-bold">✏️ Floor Plan Modification</span>
+          </div>
+          <div className="p-3 bg-[#0a0a0f]/40 flex flex-col gap-3">
+            <p className="text-[10px] text-gray-400 uppercase tracking-wider leading-relaxed">
+              Instruction: <span className="text-white">"{instruction}"</span>
+            </p>
+            <div className={`relative rounded-lg overflow-hidden border ${isActive ? 'border-cyan-400' : 'border-gray-800 bg-white/5'}`}>
+              <img 
+                src={`data:image/jpeg;base64,${editPlan}`} 
+                alt="Edited Floor Plan" 
+                className="w-full aspect-square object-contain bg-white"
+              />
+            </div>
+            <button
+              onClick={() => {
+                setCurrentFloorPlan(editPlan);
+                setPhase('edit');
+              }}
+              className={`w-full py-1.5 text-[10px] uppercase font-bold tracking-wider rounded transition-colors ${
+                isActive 
+                  ? 'bg-cyan-500 text-black' 
+                  : 'bg-transparent border border-gray-700 text-cyan-400 hover:text-cyan-300 hover:border-cyan-500'
+              }`}
+            >
+              {isActive ? 'Active Plan ✓' : 'Restore as Active'}
+            </button>
+          </div>
         </div>
       </div>
     );

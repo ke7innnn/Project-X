@@ -177,6 +177,14 @@ export default function ChatPanel() {
           
           if (genData.options && genData.options.length > 0) {
             useArchitectStore.getState().setGeneratedOptions(genData.options);
+            
+            // Append generated drafts to chat history
+            addMessage({
+              role: 'model',
+              parts: [{ text: "Here are the generated concept layouts based on your design requirements:" }],
+              customType: 'floorplan-drafts',
+              customData: { options: genData.options }
+            });
           } else {
              console.error("Floor plan generation failed:", genData);
              addMessage({ role: 'model', parts: [{ text: "I hit a snag generating the images. Let's try again." }] });
@@ -217,6 +225,14 @@ export default function ChatPanel() {
             if (useArchitectStore.getState().phase !== 'edit') {
               useArchitectStore.getState().setPhase('edit');
             }
+            
+            // Append edited floor plan to chat history
+            addMessage({
+              role: 'model',
+              parts: [{ text: `Here is the updated floor plan after applying: "${effectiveEditInstruction}"` }],
+              customType: 'floorplan-edit',
+              customData: { editedFloorPlan: editData.editedFloorPlan, instruction: effectiveEditInstruction }
+            });
           } else {
              console.error("Floor plan edit failed:", editData);
              addMessage({ role: 'model', parts: [{ text: "I hit a snag editing the floor plan. Just say 'try again' and I'll retry the same change." }] });

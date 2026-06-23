@@ -63,6 +63,13 @@ export const useArchitectStore = create<ArchitectStore>((set) => ({
 
     if (state.phase === 'search' && image) {
       nextHistory.push({
+        role: 'user',
+        parts: [{ text: `Selected nature inspiration: ${image.description}` }],
+        customType: 'selected-image',
+        customData: image
+      });
+
+      nextHistory.push({
         role: 'model',
         parts: [{
           text: `Great choice! I have saved this nature reference ("${image.description}") as our design inspiration. ✦

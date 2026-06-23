@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { useArchitectStore } from '@/store/useArchitectStore';
 import { v4 as uuidv4 } from 'uuid';
-import { ArrowLeft, Folder, MapPin, Plus, Clock, Search, Map } from 'lucide-react';
+import { ArrowLeft, Folder, MapPin, Plus, Clock, Search, Map, Trash2 } from 'lucide-react';
 
 interface ProjectRow {
   session_id: string;
@@ -58,6 +58,38 @@ export default function ProjectsDashboard() {
     
     switchSession(project.session_id, pName, pPlace);
     router.push('/workspace/' + project.session_id);
+  };
+
+  const handleDeleteProject = async (sessId: string) => {
+    const ok = window.confirm("Are you sure you want to delete this project? This action cannot be undone.");
+    if (!ok) return;
+
+    try {
+      const { error } = await supabase
+        .from('projects')
+        .delete()
+        .eq('session_id', sessId);
+
+      if (error) throw error;
+
+      // Update state
+      setProjects(prev => prev.filter(p => p.session_id !== sessId));
+      
+      // If we just deleted the active session, clear the store session ID too
+      const store = useArchitectStore.getState();
+      if (store.sessionId === sessId) {
+        store.replaceState({
+          sessionId: null,
+          isRestored: false,
+          projectName: null,
+          placeName: null,
+        });
+        localStorage.removeItem('architect_session_id');
+      }
+    } catch (err) {
+      console.error('Error deleting project:', err);
+      alert('Failed to delete the project. Please try again.');
+    }
   };
 
   return (
@@ -132,6 +164,16 @@ export default function ProjectsDashboard() {
                       <Map size={48} className="text-[#FFB000]/20" />
                     )}
                     <div className="absolute inset-0 bg-gradient-to-t from-[#0f0f18] to-transparent opacity-80" />
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDeleteProject(proj.session_id);
+                      }}
+                      className="absolute top-3 right-3 z-20 flex items-center justify-center w-8 h-8 rounded-full border border-red-500/30 bg-[#0a0a0f]/80 text-red-500/70 hover:text-red-500 hover:border-red-500 hover:bg-red-500/10 transition-all shadow-md cursor-pointer"
+                      title="Delete Project"
+                    >
+                      <Trash2 size={14} />
+                    </button>
                     <div className="absolute bottom-3 left-3 flex items-center gap-2 text-[10px] text-[#FFB000] font-bold tracking-widest uppercase bg-[#0a0a0f]/80 px-2 py-1 rounded backdrop-blur">
                       <Clock size={12} /> {date}
                     </div>
