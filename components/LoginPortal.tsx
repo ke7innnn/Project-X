@@ -107,7 +107,14 @@ export default function LoginPortal() {
     e.preventDefault();
     setError(null);
 
-    if (email.trim() === 'boss@uka' && password.trim() === 'password@uka') {
+    const cleanEmail = email.trim().toLowerCase();
+    const cleanPassword = password.trim();
+
+    const isValidUser = 
+      (cleanEmail === 'boss@uka' || cleanEmail === 'boss2uka' || cleanEmail === 'boss2uka@uka') && 
+      cleanPassword === 'password@uka';
+
+    if (isValidUser) {
       setStatus('decrypting');
       setProgress(0);
       playSound('success');
@@ -151,7 +158,7 @@ export default function LoginPortal() {
       
       {/* Grid Texture */}
       <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGRlZnM+PHBhdHRlcm4gaWQ9ImdyaWQiIHdpZHRoPSI0MCIgaGVpZ2h0PSI0MCIgcGF0dGVyblVuaXRzPSJ1c2VyU3BhY2VPblVzZSI+PHBhdGggZD0iTSAwIDEwIEwgNDAgMTAgTSAxMCAwIEwgMTAgNDAiIGZpbGw9Im5vbmUiIHN0cm9rZT0iIzExMSIgc3Ryb2tlLXdpZHRoPSIwLjUiLz48L3BhdHRlcm4+PC9kZWZzPjxyZWN0IHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiIGZpbGw9InVybCgjZ3JpZCkiLz48L3N2Zz4=')] opacity-20 pointer-events-none z-0" />
-
+ 
       {/* Decorative HUD Corner Borders */}
       <div className="absolute inset-10 border border-white/5 pointer-events-none z-10">
         <div className="absolute top-0 left-0 w-8 h-8 border-t-2 border-l-2 border-white/20" />
@@ -159,7 +166,7 @@ export default function LoginPortal() {
         <div className="absolute bottom-0 left-0 w-8 h-8 border-b-2 border-l-2 border-white/20" />
         <div className="absolute bottom-0 right-0 w-8 h-8 border-b-2 border-r-2 border-white/20" />
       </div>
-
+ 
       <AnimatePresence mode="wait">
         {status === 'idle' && (
           <motion.div
@@ -185,7 +192,7 @@ export default function LoginPortal() {
                 SECURE ACCESS PORTAL
               </span>
             </div>
-
+ 
             {/* Error Message */}
             {error && (
               <div className="w-full mb-6 p-3 border border-red-500/30 bg-red-950/20 rounded text-[9px] font-bold text-red-400 tracking-[1px] leading-relaxed uppercase flex gap-2 items-start">
@@ -193,7 +200,7 @@ export default function LoginPortal() {
                 <span>{error}</span>
               </div>
             )}
-
+ 
             {/* Login Form */}
             <form onSubmit={handleSubmit} className="w-full space-y-6">
               <div className="space-y-2">
@@ -207,13 +214,17 @@ export default function LoginPortal() {
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     onKeyDown={handleKeyDown}
-                    placeholder="E.G. BOSS@UKA"
+                    placeholder="E.G. BOSS2UKA"
+                    autoCapitalize="none"
+                    autoComplete="username"
+                    autoCorrect="off"
+                    spellCheck="false"
                     className="w-full bg-black/50 border border-white/10 group-hover:border-white/25 focus:border-white focus:outline-none rounded px-3 py-3 pl-9 text-[11px] text-white placeholder-zinc-600 transition-all tracking-[2px] uppercase font-mono"
                   />
                   <KeyRound className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-zinc-500" />
                 </div>
               </div>
-
+ 
               <div className="space-y-2">
                 <label className="block text-[9px] tracking-[3px] text-zinc-400 uppercase font-bold text-left">
                   DECRYPT KEY
@@ -226,6 +237,10 @@ export default function LoginPortal() {
                     onChange={(e) => setPassword(e.target.value)}
                     onKeyDown={handleKeyDown}
                     placeholder="••••••••"
+                    autoCapitalize="none"
+                    autoComplete="current-password"
+                    autoCorrect="off"
+                    spellCheck="false"
                     className="w-full bg-black/50 border border-white/10 group-hover:border-white/25 focus:border-white focus:outline-none rounded px-3 py-3 pl-9 text-[11px] text-white placeholder-zinc-600 transition-all tracking-[4px]"
                   />
                   <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-zinc-500" />
