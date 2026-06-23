@@ -3,6 +3,8 @@ import { EDIT_FLOORPLAN_PROMPT } from '@/lib/prompts';
 
 const FAL_KEY = process.env.FAL_KEY!;
 
+export const maxDuration = 60; // 60s timeout for Vercel functions
+
 
 /**
  * Calls fal-ai/gemini-25-flash-image/edit (Nano Banana) for professional CAD floor plan edits.

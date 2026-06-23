@@ -3,6 +3,8 @@ import { FINAL_RENDER_PROMPT } from '@/lib/prompts';
 
 const FAL_KEY = process.env.FAL_KEY!;
 
+export const maxDuration = 60; // 60s timeout for Vercel functions
+
 export async function POST(request: Request) {
   try {
     const { floorPlanBase64, collectedParameters } = await request.json();

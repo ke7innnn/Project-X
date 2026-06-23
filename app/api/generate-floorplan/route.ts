@@ -4,6 +4,8 @@ import { FLOORPLAN_GENERATION_PROMPT } from '@/lib/prompts';
 import fs from 'fs';
 import path from 'path';
 
+export const maxDuration = 60; // 60s timeout for Vercel functions
+
 /**
  * Fetches a Pexels image URL and returns it as base64.
  */

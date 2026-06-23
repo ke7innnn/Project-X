@@ -167,7 +167,7 @@ export default function ChatPanel() {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ 
               collectedParameters: useArchitectStore.getState().collectedParameters,
-              natureImageUrl: useArchitectStore.getState().selectedNatureImage?.url,
+              natureImageUrl: useArchitectStore.getState().selectedNatureImage?.thumbUrl || useArchitectStore.getState().selectedNatureImage?.url,
               natureImageDescription: useArchitectStore.getState().selectedNatureImage?.description,
               customImageBase64: useArchitectStore.getState().lastUploadedImage,
               customImageDescription: useArchitectStore.getState().lastUploadedImageDescription
