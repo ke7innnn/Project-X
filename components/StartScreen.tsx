@@ -134,6 +134,7 @@ export default function StartScreen() {
         if (res.ok) {
           const data = await res.json();
           setMarketData(data);
+          marketDataRef.current = data;
         }
       } catch (e) {}
     };
@@ -150,6 +151,7 @@ export default function StartScreen() {
         if (res.ok) {
           const data = await res.json();
           setNewsData(data);
+          newsDataRef.current = data;
         }
       } catch (e) {
         console.error("Failed to fetch news:", e);
@@ -268,6 +270,9 @@ export default function StartScreen() {
   const isPlayingAudioRef = useRef(false);
   const sleepTimerRef = useRef<NodeJS.Timeout | null>(null);
   const isStreamingRef = useRef(false);
+  const isSystemOnlineRef = useRef(true);
+  const marketDataRef = useRef<Record<string, number> | null>(null);
+  const newsDataRef = useRef<NewsArticle[] | null>(null);
 
   const resetSleepTimer = () => {
     if (sleepTimerRef.current) clearTimeout(sleepTimerRef.current);
@@ -361,11 +366,13 @@ export default function StartScreen() {
   const toggleSystem = () => {
     if (shouldListenRef.current) {
       setIsSystemOnline(false);
+      isSystemOnlineRef.current = false;
       shouldListenRef.current = false;
       stopListening();
       setStatusState('idle');
     } else {
       setIsSystemOnline(true);
+      isSystemOnlineRef.current = true;
       shouldListenRef.current = true;
       startListening();
     }
@@ -451,7 +458,8 @@ export default function StartScreen() {
       const hasFloorPlan = !!store.currentFloorPlan;
 
       let marketStr = "Market data currently unavailable.";
-      if (marketData) {
+      const currentMarketData = marketDataRef.current;
+      if (currentMarketData) {
         const stocksList = [
           { name: "S&P 500", sym: "^GSPC" },
           { name: "Dow Jones", sym: "^DJI" },
@@ -467,7 +475,7 @@ export default function StartScreen() {
         ];
         marketStr = stocksList
           .map(s => {
-            const val = marketData[s.sym];
+            const val = currentMarketData[s.sym];
             if (val === undefined) return `- ${s.name}: N/A`;
             const isIndex = s.sym.startsWith('^');
             return `- ${s.name} (${s.sym.replace('^', '')}): ${isIndex ? '' : '$'}${val.toFixed(2)}`;
@@ -476,8 +484,9 @@ export default function StartScreen() {
       }
 
       let newsStr = "No architectural news available.";
-      if (newsData && newsData.length > 0) {
-        newsStr = newsData
+      const currentNewsData = newsDataRef.current;
+      if (currentNewsData && currentNewsData.length > 0) {
+        newsStr = currentNewsData
           .map((item, idx) => `${idx + 1}. [${item.source}] ${item.title}\n   Summary: ${item.description}\n   Link: ${item.link}`)
           .join('\n\n');
       }
@@ -673,7 +682,7 @@ ${newsStr}`;
   };
 
   const processCommand = async (cmd: string) => {
-    if (!isSystemOnline) return;
+    if (!isSystemOnlineRef.current) return;
     if (statusStateRef.current !== 'listening') {
       console.log(`[Command Processor] Ignored command "${cmd}" because state is: ${statusStateRef.current}`);
       return;
