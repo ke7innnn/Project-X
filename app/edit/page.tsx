@@ -67,7 +67,7 @@ export default function EditPage() {
       <header className="relative z-10 flex items-center justify-between px-8 py-6 border-b border-[#1e1810] bg-[#0f0f18]/80 backdrop-blur-md shadow-[0_4px_20px_rgba(0,0,0,0.5)]">
         <div className="flex items-center gap-6">
           <button 
-            onClick={() => router.push(sessionId ? `/workspace/${sessionId}` : '/')}
+            onClick={() => router.push('/')}
             className="flex items-center justify-center w-10 h-10 rounded-full border border-cyan-500/30 hover:border-cyan-400 hover:bg-cyan-500/10 transition-all group"
           >
             <ArrowLeft className="text-cyan-500/70 group-hover:text-cyan-400" size={18} />
