@@ -132,7 +132,7 @@ export default function ChatPanel() {
       if (!res.ok) {
         const errData = await res.json().catch(() => ({}));
         if (res.status === 429) {
-           addMessage({ role: 'model', parts: [{ text: errData.reply || "The system is overloaded right now. Please wait a moment and try again." }] });
+           alert(errData.reply || "The system is overloaded right now. Please wait a moment and try again.");
            return;
         }
         throw new Error(errData.error || `Chat request failed with status ${res.status}`);

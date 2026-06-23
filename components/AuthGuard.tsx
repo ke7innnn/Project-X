@@ -9,7 +9,7 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const isAuth = sessionStorage.getItem('user_authenticated') === 'true';
+    const isAuth = localStorage.getItem('user_authenticated') === 'true';
     if (isAuth && !isAuthenticated) {
       setIsAuthenticated(true);
     } else {

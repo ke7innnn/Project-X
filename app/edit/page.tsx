@@ -1,9 +1,9 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { useArchitectStore } from '@/store/useArchitectStore';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, Send, PenTool, Loader2 } from 'lucide-react';
+import { ArrowLeft, Send, PenTool, Loader2, UploadCloud } from 'lucide-react';
 import CinematicIntro from '@/components/CinematicIntro';
 
 export default function EditPage() {
@@ -12,6 +12,7 @@ export default function EditPage() {
   const [prompt, setPrompt] = useState('');
   const [isEditing, setIsEditing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleEdit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -43,6 +44,27 @@ export default function EditPage() {
       setError('An error occurred while connecting to Groq. Please try again.');
     } finally {
       setIsEditing(false);
+    }
+  };
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const base64 = event.target?.result as string;
+      if (base64) {
+        setPreviousFloorPlan(currentFloorPlan); // Save current state for undo
+        setCurrentFloorPlan(base64);
+        setPrompt('');
+      }
+    };
+    reader.readAsDataURL(file);
+    
+    // Reset input so the same file can be uploaded again if needed
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
     }
   };
 
@@ -81,15 +103,30 @@ export default function EditPage() {
             </span>
           </div>
         </div>
-        
-        {previousFloorPlan && (
+        <div className="flex items-center gap-4">
+          <input 
+            type="file" 
+            accept="image/*" 
+            ref={fileInputRef} 
+            onChange={handleFileUpload} 
+            className="hidden" 
+          />
           <button 
-            onClick={handleUndo}
-            className="px-4 py-2 text-[10px] uppercase tracking-widest border border-[#c8a84b]/40 text-[#c8a84b] hover:bg-[#c8a84b]/10 rounded transition-colors"
+            onClick={() => fileInputRef.current?.click()}
+            className="flex items-center gap-2 px-4 py-2 text-[10px] uppercase tracking-widest bg-[#1e1810] border border-cyan-500/30 text-cyan-400 hover:bg-cyan-500/10 hover:border-cyan-400 font-bold rounded transition-colors"
           >
-            Undo Last Edit
+            <UploadCloud size={14} /> Upload Plan
           </button>
-        )}
+          
+          {previousFloorPlan && (
+            <button 
+              onClick={handleUndo}
+              className="px-4 py-2 text-[10px] uppercase tracking-widest border border-[#c8a84b]/40 text-[#c8a84b] hover:bg-[#c8a84b]/10 rounded transition-colors"
+            >
+              Undo Last Edit
+            </button>
+          )}
+        </div>
       </header>
 
       {/* Main Content Area */}
@@ -108,16 +145,24 @@ export default function EditPage() {
                 <div className="absolute inset-0 flex flex-col items-center justify-center bg-[#0a0a0f]/60 backdrop-blur-sm z-20">
                   <Loader2 className="w-12 h-12 text-cyan-400 animate-spin mb-4" />
                   <p className="text-cyan-400 font-mono tracking-[2px] uppercase text-sm animate-pulse">
-                    Groq is analyzing & editing...
+                    Grok is analyzing & editing...
                   </p>
                 </div>
               )}
             </div>
           ) : (
-            <div className="flex flex-col items-center justify-center text-cyan-500/40 p-12 border-2 border-dashed border-cyan-500/20 rounded-xl">
-              <PenTool size={48} className="mb-4 opacity-50" />
-              <p className="tracking-[2px] uppercase text-sm">No active floor plan found.</p>
-              <p className="text-[10px] mt-2 opacity-70">Please generate one in the Render Zone first.</p>
+            <div className="flex flex-col items-center justify-center text-cyan-500/40 p-12 border-2 border-dashed border-cyan-500/20 rounded-xl bg-[#0f0f18]/30">
+              <UploadCloud size={64} className="mb-6 opacity-50 text-cyan-500" />
+              <h2 className="text-xl tracking-[4px] font-bold text-white uppercase mb-2">Upload Floor Plan</h2>
+              <p className="text-cyan-500/60 tracking-[2px] text-xs uppercase max-w-md text-center mb-8">
+                Upload a 2D floor plan image to initialize the Grok editing sequence.
+              </p>
+              <button 
+                onClick={() => fileInputRef.current?.click()}
+                className="flex items-center gap-3 px-8 py-4 bg-cyan-500/10 border border-cyan-500 text-cyan-400 hover:bg-cyan-500 hover:text-[#0a0a0f] uppercase tracking-widest font-bold transition-all"
+              >
+                <UploadCloud size={18} /> Select Image
+              </button>
             </div>
           )}
         </div>

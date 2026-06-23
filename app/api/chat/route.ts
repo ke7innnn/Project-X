@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { ARCHITECT_SYSTEM_PROMPT } from '@/lib/prompts';
 import { ConversationMessage, Phase } from '@/types';
+import { callGemini } from '@/lib/gemini';
 
 function detectPhaseTransition(messageText: string, currentPhase: Phase): Phase | null {
   const text = messageText.toLowerCase();
@@ -108,11 +109,8 @@ export async function POST(request: Request) {
       required: ["reply", "isEditCommand"]
     };
 
-    const primaryKey = process.env.GROQ_API_KEY;
-    const fallbackKey = process.env.GROQ_API_KEY_FALLBACK;
-    const groqApiKeys = [primaryKey, fallbackKey].filter(Boolean);
-
-    if (groqApiKeys.length === 0) throw new Error('No GROQ API keys found in environment');
+    const openRouterKey = process.env.OPENROUTER_API_KEY;
+    if (!openRouterKey) throw new Error('No OPENROUTER_API_KEY found in environment');
 
     const rawMessages = conversationHistory.map((msg: any) => ({
       role: msg.role === 'model' ? 'assistant' : 'user',
@@ -132,10 +130,6 @@ export async function POST(request: Request) {
       }
     }
 
-    // Groq's llama-3.1-8b-instant has an incredibly high free limit and does not suffer from the 100k TPD limit of the 70b model.
-    // It is also not currently experiencing a 503 outage like Google AI Studio.
-    const modelToUse = 'llama-3.1-8b-instant';
-
     const messages = [
       {
         role: 'system',
@@ -144,60 +138,69 @@ export async function POST(request: Request) {
       ...squashedMessages
     ];
 
-    console.log(`[Groq] Calling ${modelToUse} for chat. History length: ${conversationHistory.length}`);
+    const fallbackModels = [
+      'deepseek/deepseek-chat',           // Primary: Smartest & Cheapest
+      'google/gemini-2.5-flash',          // Fallback 1: Extremely fast & reliable
+      'meta-llama/llama-3.3-70b-instruct' // Fallback 2: Powerful open source
+    ];
 
-    let groqResponse;
-    let lastError: { status: number; text: string } | null = null;
+    let parsed: any = {};
+    let rawText = '{}';
+    let lastError = null;
+    let successfulModel = '';
+    let openRouterResponse;
 
-    for (let i = 0; i < groqApiKeys.length; i++) {
-      const key = groqApiKeys[i];
+    for (const modelToUse of fallbackModels) {
+      console.log(`[OpenRouter] Trying ${modelToUse} for chat. History length: ${conversationHistory.length}`);
       try {
-        groqResponse = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+        openRouterResponse = await fetch('https://openrouter.ai/api/v1/chat/completions', {
           method: 'POST',
           headers: {
-            'Authorization': `Bearer ${key}`,
+            'Authorization': `Bearer ${openRouterKey}`,
+            'HTTP-Referer': 'http://localhost:3000',
+            'X-Title': 'Architect AI',
             'Content-Type': 'application/json'
           },
           body: JSON.stringify({
             model: modelToUse,
             messages,
             temperature: 0.7,
-            max_tokens: 2048,
             response_format: { type: 'json_object' }
           }),
           signal: AbortSignal.timeout(30000)
         });
 
-        if (groqResponse.ok) {
+        if (openRouterResponse.ok) {
           lastError = null;
-          break; // Success, exit the waterfall loop
+          successfulModel = modelToUse;
+          break; // Success! Break out of the fallback loop
         } else {
-          const errText = await groqResponse.text();
-          lastError = { status: groqResponse.status, text: errText };
-          console.warn(`[Groq Waterfall] Key ${i + 1} failed with status ${groqResponse.status}. Attempting next key if available...`);
+          if (openRouterResponse.status === 429) {
+             throw new Error('429'); // Pass rate limit directly if out of credits
+          }
+          const errText = await openRouterResponse.text();
+          throw new Error(`${openRouterResponse.status} - ${errText}`);
         }
       } catch (e: any) {
-        lastError = { status: 500, text: e.message };
-        console.warn(`[Groq Waterfall] Key ${i + 1} fetch failed: ${e.message}. Attempting next key if available...`);
+        lastError = e;
+        console.warn(`[OpenRouter Waterfall] Model ${modelToUse} failed: ${e.message}. Trying next model...`);
       }
     }
 
-    if (lastError) {
-      if (lastError.status === 429) {
-        throw new Error('429');
-      }
-      throw new Error(`Groq API Error (${modelToUse}): ${lastError.status} — ${lastError.text}`);
-    }
-
-    const groqData = await groqResponse!.json();
-    const rawText = groqData.choices?.[0]?.message?.content || '{}';
-    const cleanedText = cleanJsonResponse(rawText);
-
-    let parsed: any = {};
     try {
+      if (lastError && !openRouterResponse?.ok) {
+         throw lastError; // All models failed
+      }
+
+      console.log(`[OpenRouter] Success using ${successfulModel}`);
+      const orData = await openRouterResponse!.json();
+      rawText = orData.choices?.[0]?.message?.content || '{}';
+      
+      const cleanedText = cleanJsonResponse(rawText);
       parsed = JSON.parse(cleanedText.trim());
-    } catch (e) {
-      console.error('Failed to parse Groq JSON response:', rawText, cleanedText, e);
+    } catch (e: any) {
+      if (e.message === '429') throw e; // Pass rate limit up
+      console.error('Failed to parse OpenRouter JSON response:', rawText, e);
       const replyMatch = rawText.match(/"reply"\s*:\s*"((?:[^"\\]|\\.)*)"/);
       let salvagedReply = "I'm processing your requirements but encountered a glitch. Could you repeat that?";
       if (replyMatch && replyMatch[1]) {

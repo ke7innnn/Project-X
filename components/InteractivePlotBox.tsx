@@ -48,78 +48,74 @@ export default function InteractivePlotBox() {
     const { currentFloorPlan, setCurrentFloorPlan, updateParameters } = useArchitectStore.getState();
     if (!currentFloorPlan) return;
     
-    // Find the image element next to this component
-    const parent = containerRef.current?.parentElement;
-    const imgEl = parent?.querySelector('img');
-    if (!imgEl || !parent) return;
+    // The parent is the white container div (bg-white p-16 aspect-square)
+    const whiteContainer = containerRef.current?.parentElement;
+    const imgEl = whiteContainer?.querySelector('img') as HTMLImageElement | null;
+    if (!imgEl || !whiteContainer) return;
 
-    const domW = imgEl.clientWidth;
-    const domH = imgEl.clientHeight;
+    // The box element is the first child of containerRef (the div with width/height style)
+    const boxEl = containerRef.current?.firstElementChild as HTMLElement | null;
+    if (!boxEl) return;
 
+    // Load the intrinsic image at full resolution
     const img = new Image();
     img.src = `data:image/jpeg;base64,${currentFloorPlan}`;
     await new Promise((resolve) => { img.onload = resolve; });
 
-    const scaleX = img.width / domW;
-    const scaleY = img.height / domH;
+    // --- Step 1: Measure exact screen positions ---
+    const containerRect = whiteContainer.getBoundingClientRect();
+    const imgRect = imgEl.getBoundingClientRect();
+    const boxRect = boxEl.getBoundingClientRect();
+
+    // --- Step 2: Figure out where image pixels actually render (object-contain) ---
+    const imgAspect = img.naturalWidth / img.naturalHeight;
+    const elemAspect = imgRect.width / imgRect.height;
+
+    let renderedW: number, renderedH: number, renderedScreenLeft: number, renderedScreenTop: number;
+    if (imgAspect > elemAspect) {
+      renderedW = imgRect.width;
+      renderedH = imgRect.width / imgAspect;
+      renderedScreenLeft = imgRect.left;
+      renderedScreenTop = imgRect.top + (imgRect.height - renderedH) / 2;
+    } else {
+      renderedH = imgRect.height;
+      renderedW = imgRect.height * imgAspect;
+      renderedScreenLeft = imgRect.left + (imgRect.width - renderedW) / 2;
+      renderedScreenTop = imgRect.top;
+    }
+
+    // --- Step 3: Scale factor so image renders at its natural resolution ---
+    const pxPerScreenPx = img.naturalWidth / renderedW;
+
+    // --- Step 4: Create a canvas matching the ENTIRE white container ---
+    const canvasW = Math.round(containerRect.width * pxPerScreenPx);
+    const canvasH = Math.round(containerRect.height * pxPerScreenPx);
 
     const canvas = document.createElement('canvas');
-    canvas.width = img.width;
-    canvas.height = img.height;
+    canvas.width = canvasW;
+    canvas.height = canvasH;
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    // Draw original image
-    ctx.drawImage(img, 0, 0);
+    // Fill entire canvas with white (matches the white container background)
+    ctx.fillStyle = '#FFFFFF';
+    ctx.fillRect(0, 0, canvasW, canvasH);
 
-    const scaledBoxW = boxW * scaleX;
-    const scaledBoxH = boxH * scaleY;
-    const startX = (img.width - scaledBoxW) / 2;
-    const startY = (img.height - scaledBoxH) / 2;
+    // --- Step 5: Draw the image at its correct position within the canvas ---
+    const imgCanvasX = (renderedScreenLeft - containerRect.left) * pxPerScreenPx;
+    const imgCanvasY = (renderedScreenTop - containerRect.top) * pxPerScreenPx;
+    // Draw at natural resolution (img.naturalWidth × img.naturalHeight)
+    ctx.drawImage(img, imgCanvasX, imgCanvasY, img.naturalWidth, img.naturalHeight);
 
-    // Clamping box to be within canvas area with a safety margin
-    const marginX = 15 * scaleX;
-    const marginY = 15 * scaleY;
+    // --- Step 6: Draw the box at its correct position within the canvas ---
+    const boxCanvasX = (boxRect.left - containerRect.left) * pxPerScreenPx;
+    const boxCanvasY = (boxRect.top - containerRect.top) * pxPerScreenPx;
+    const boxCanvasW = boxRect.width * pxPerScreenPx;
+    const boxCanvasH = boxRect.height * pxPerScreenPx;
 
-    let drawW = scaledBoxW;
-    let drawH = scaledBoxH;
-    let drawX = startX;
-    let drawY = startY;
-
-    if (drawW > img.width - 2 * marginX) {
-      drawW = img.width - 2 * marginX;
-      drawX = marginX;
-    }
-    if (drawH > img.height - 2 * marginY) {
-      drawH = img.height - 2 * marginY;
-      drawY = marginY;
-    }
-
-    // Draw the black boundary box
     ctx.strokeStyle = '#000000';
-    ctx.lineWidth = 4 * scaleX;
-    ctx.setLineDash([15 * scaleX, 15 * scaleX]);
-    ctx.strokeRect(drawX, drawY, drawW, drawH);
-
-    // Add dimension text
-    ctx.setLineDash([]);
-    ctx.fillStyle = '#000000';
-    ctx.font = `${16 * scaleX}px monospace`;
-    ctx.textAlign = 'center';
-
-    const wText = `${Math.round(boxW / pxPerMeter)}m Width`;
-    // Place width text inside the box if it is too close to the top edge, otherwise place it above the box
-    const wTextY = drawY < 25 * scaleY ? drawY + 20 * scaleY : drawY - (10 * scaleY);
-    ctx.fillText(wText, drawX + drawW / 2, wTextY);
-
-    ctx.save();
-    // Place height text inside the box if it is too close to the left edge, otherwise place it to the left of the box
-    const hTextX = drawX < 60 * scaleX ? drawX + 20 * scaleX : drawX - (10 * scaleX);
-    ctx.translate(hTextX, drawY + drawH / 2);
-    ctx.rotate(-Math.PI / 2);
-    const hText = `${Math.round(boxH / pxPerMeter)}m Height`;
-    ctx.fillText(hText, 0, 0);
-    ctx.restore();
+    ctx.lineWidth = Math.max(3, 4 * pxPerScreenPx);
+    ctx.strokeRect(boxCanvasX, boxCanvasY, boxCanvasW, boxCanvasH);
 
     // Export back to base64
     const newBase64 = canvas.toDataURL('image/jpeg', 0.95).split(',')[1];
@@ -142,6 +138,9 @@ export default function InteractivePlotBox() {
       
       let newW = startPosRef.current.w;
       let newH = startPosRef.current.h;
+
+      const containerW = containerRef.current?.clientWidth || 472;
+      const containerH = containerRef.current?.clientHeight || 472;
 
       if (handle === 'br') {
         if (isLocked) {
@@ -202,10 +201,10 @@ export default function InteractivePlotBox() {
   }
 
   return (
-    <div ref={containerRef} className="absolute inset-0 flex items-center justify-center pointer-events-none z-40 rounded-xl">
+    <div ref={containerRef} className="absolute inset-16 flex items-center justify-center pointer-events-none z-40 rounded-xl">
       <div 
         style={{ width: boxW, height: boxH }}
-        className="relative border-2 border-dashed border-[#FFB000] bg-[#FFB000]/5 shadow-[0_0_30px_rgba(196,168,130,0.15)] hover:bg-[#FFB000]/10 pointer-events-auto transition-colors flex items-center justify-center group"
+        className="relative flex-shrink-0 border-2 border-solid border-[#000000] bg-[#FFB000]/5 shadow-[0_0_30px_rgba(196,168,130,0.15)] hover:bg-[#FFB000]/10 pointer-events-auto transition-colors flex items-center justify-center group"
       >
           <>
             <div className="absolute -top-6 text-[#FFB000] font-mono text-xs bg-[#111827] px-2 py-0.5 rounded shadow border border-gray-800 cursor-text pointer-events-auto transition-colors hover:bg-gray-800" onClick={() => setEditingDimension('width')}>
@@ -254,8 +253,6 @@ export default function InteractivePlotBox() {
           >
             <div className="w-2 h-2 bg-[#0A0E1A] rounded-full" />
           </div>
-        
-          <span className="text-[#FFB000]/40 text-xs font-mono pointer-events-none select-none tracking-widest uppercase">Boundary Box</span>
         
         {/* Ratio Lock Toggle */}
           <button 

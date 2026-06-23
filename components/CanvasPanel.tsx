@@ -4,9 +4,13 @@ import { useArchitectStore } from '@/store/useArchitectStore';
 import { useRef, useEffect, useState } from 'react';
 import FloorPlanGrid from './FloorPlanGrid';
 import InteractivePlotBox from './InteractivePlotBox';
-import { Download, Upload, Palette } from 'lucide-react';
+import { Download, Upload, Palette, ZoomIn, ZoomOut, Maximize } from 'lucide-react';
+import dynamic from 'next/dynamic';
+
+const VectorEditor = dynamic(() => import('./VectorEditor'), { ssr: false });
 
 export default function CanvasPanel() {
+  const [isEditingVectors, setIsEditingVectors] = useState(false);
   const { 
     phase, 
     selectedNatureImage, 
@@ -19,7 +23,8 @@ export default function CanvasPanel() {
     setCurrentFloorPlan,
     finalRender,
     setFinalRender,
-    collectedParameters
+    collectedParameters,
+    updateParameters
   } = useArchitectStore();
 
   const [styledFloorPlan, setStyledFloorPlan] = useState<string | null>(null);
@@ -29,6 +34,65 @@ export default function CanvasPanel() {
   const isRenderLoadingRef = useRef(false);
   const [renderError, setRenderError] = useState<string | null>(null);
   const [renderAttempted, setRenderAttempted] = useState(false);
+
+  // --- Zoom & Pan state ---
+  const [zoom, setZoom] = useState(1);
+  const [pan, setPan] = useState({ x: 0, y: 0 });
+  const [isPanning, setIsPanning] = useState(false);
+  const panStartRef = useRef({ x: 0, y: 0, panX: 0, panY: 0 });
+  const [isZoomTransition, setIsZoomTransition] = useState(true);
+
+  const handleWheel = (e: React.WheelEvent) => {
+    e.stopPropagation();
+    const delta = e.deltaY < 0 ? 0.15 : -0.15;
+    setIsZoomTransition(true);
+    setZoom(prev => {
+      const next = Math.min(5, Math.max(0.5, prev + delta));
+      if (next <= 1) setPan({ x: 0, y: 0 });
+      return next;
+    });
+  };
+
+  const handlePanMouseDown = (e: React.MouseEvent) => {
+    if (zoom <= 1) return;
+    e.preventDefault();
+    setIsPanning(true);
+    setIsZoomTransition(false);
+    panStartRef.current = { x: e.clientX, y: e.clientY, panX: pan.x, panY: pan.y };
+
+    const onMove = (me: MouseEvent) => {
+      const dx = me.clientX - panStartRef.current.x;
+      const dy = me.clientY - panStartRef.current.y;
+      setPan({ x: panStartRef.current.panX + dx, y: panStartRef.current.panY + dy });
+    };
+    const onUp = () => {
+      setIsPanning(false);
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+    };
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+  };
+
+  const resetZoom = () => {
+    setIsZoomTransition(true);
+    setZoom(1);
+    setPan({ x: 0, y: 0 });
+  };
+
+  const zoomIn = () => {
+    setIsZoomTransition(true);
+    setZoom(prev => Math.min(5, prev + 0.25));
+  };
+
+  const zoomOut = () => {
+    setIsZoomTransition(true);
+    setZoom(prev => {
+      const next = Math.max(0.5, prev - 0.25);
+      if (next <= 1) setPan({ x: 0, y: 0 });
+      return next;
+    });
+  };
 
   const handleUploadRefined = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -179,6 +243,8 @@ export default function CanvasPanel() {
               onClick={() => {
                 setCurrentFloorPlan(previousFloorPlan);
                 setPreviousFloorPlan(null);
+                updateParameters({ isPlotBurned: false });
+                resetZoom();
               }}
               className="mt-2 w-full text-xs py-1 border border-[#FFB000] text-[#FFB000] rounded hover:bg-[#FFB000]/10"
             >
@@ -188,13 +254,62 @@ export default function CanvasPanel() {
         )}
 
         {currentFloorPlan && (
-          <div className="relative h-full max-h-[72vh] aspect-square bg-white p-16 rounded-xl shadow-2xl flex items-center justify-center">
-            <img 
-              src={`data:image/jpeg;base64,${currentFloorPlan}`} 
-              alt="Current Floor Plan" 
-              className="w-full h-full object-contain"
-            />
-            {!collectedParameters.isPlotBurned && <InteractivePlotBox />}
+          <div 
+            className="relative h-full max-h-[72vh] aspect-square overflow-hidden rounded-xl shadow-2xl"
+            onWheel={handleWheel}
+          >
+            <div
+              onMouseDown={handlePanMouseDown}
+              onDoubleClick={resetZoom}
+              style={{
+                transform: `scale(${zoom}) translate(${pan.x / zoom}px, ${pan.y / zoom}px)`,
+                transformOrigin: 'center center',
+                transition: isZoomTransition ? 'transform 0.25s cubic-bezier(0.25, 0.46, 0.45, 0.94)' : 'none',
+                cursor: zoom > 1 ? (isPanning ? 'grabbing' : 'grab') : 'default',
+                width: '100%',
+                height: '100%',
+              }}
+              className="bg-white p-16 flex items-center justify-center"
+            >
+              <img 
+                src={`data:image/jpeg;base64,${currentFloorPlan}`} 
+                alt="Current Floor Plan" 
+                className="w-full h-full object-contain select-none pointer-events-none"
+                draggable={false}
+              />
+              {!collectedParameters.isPlotBurned && <InteractivePlotBox />}
+            </div>
+          </div>
+        )}
+
+        {/* Zoom Controls */}
+        {currentFloorPlan && (
+          <div className="absolute bottom-6 right-6 z-30 flex flex-col gap-1 bg-[#0A0E1A]/90 backdrop-blur-md rounded-xl border border-gray-700/50 shadow-2xl p-1.5">
+            <button
+              onClick={zoomIn}
+              className="w-9 h-9 flex items-center justify-center rounded-lg text-gray-300 hover:text-[#FFB000] hover:bg-[#FFB000]/10 transition-all duration-200"
+              title="Zoom In"
+            >
+              <ZoomIn size={18} />
+            </button>
+            <div className="text-center text-[10px] font-mono text-gray-500 select-none py-0.5">
+              {Math.round(zoom * 100)}%
+            </div>
+            <button
+              onClick={zoomOut}
+              className="w-9 h-9 flex items-center justify-center rounded-lg text-gray-300 hover:text-[#FFB000] hover:bg-[#FFB000]/10 transition-all duration-200"
+              title="Zoom Out"
+            >
+              <ZoomOut size={18} />
+            </button>
+            <div className="w-full h-px bg-gray-700/50 my-0.5" />
+            <button
+              onClick={resetZoom}
+              className="w-9 h-9 flex items-center justify-center rounded-lg text-gray-300 hover:text-[#FFB000] hover:bg-[#FFB000]/10 transition-all duration-200"
+              title="Reset Zoom"
+            >
+              <Maximize size={16} />
+            </button>
           </div>
         )}
       </div>
@@ -204,7 +319,11 @@ export default function CanvasPanel() {
   // Export / Reimport Phase
   if (phase === 'export' || phase === 'reimport') {
     return (
-      <div className="flex-1 bg-transparent flex flex-col p-8 overflow-y-auto">
+      <div className="flex-1 bg-transparent flex flex-col p-8 overflow-y-auto relative">
+        {isEditingVectors && (
+          <VectorEditor onClose={() => setIsEditingVectors(false)} />
+        )}
+
         <div className="flex justify-between items-center mb-6">
           <h2 className="text-2xl text-[#FFB000] font-semibold">Final Layout & Rendering</h2>
           
@@ -216,6 +335,12 @@ export default function CanvasPanel() {
               accept="image/png, image/jpeg"
               className="hidden" 
             />
+            <button 
+              onClick={() => setIsEditingVectors(true)}
+              className="flex items-center gap-2 bg-[#FFB000] hover:bg-[#e09c00] text-black font-bold px-4 py-2 rounded-lg transition-all shadow-[0_0_15px_rgba(255,176,0,0.15)] hover:shadow-[0_0_20px_rgba(255,176,0,0.3)]"
+            >
+              <Palette size={16} /> Start CAD Vector Editor
+            </button>
             <button 
               onClick={() => fileInputRef.current?.click()}
               className="flex items-center gap-2 bg-[#1F2937] hover:bg-[#374151] text-white px-4 py-2 rounded-lg transition-colors border border-gray-700"

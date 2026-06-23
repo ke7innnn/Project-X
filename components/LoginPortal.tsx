@@ -129,7 +129,7 @@ export default function LoginPortal() {
           clearInterval(interval);
           setStatus('granted');
           setTimeout(() => {
-            sessionStorage.setItem('user_authenticated', 'true');
+            localStorage.setItem('user_authenticated', 'true');
             setIsAuthenticated(true);
           }, 800);
           return 100;

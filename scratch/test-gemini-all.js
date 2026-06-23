@@ -27,6 +27,9 @@ async function testModel(model) {
     });
 
     console.log(`Status: ${response.status} | Time taken (ms): ${Date.now() - startTime}`);
+    if (!response.ok) {
+      console.log('Error Body:', await response.text());
+    }
   } catch (err) {
     console.error('Fetch error:', err);
   }

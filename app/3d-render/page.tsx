@@ -1,16 +1,17 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { useArchitectStore } from '@/store/useArchitectStore';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, Box, Download, Settings2, Sparkles, Loader2 } from 'lucide-react';
+import { ArrowLeft, Box, Download, Settings2, Sparkles, Loader2, UploadCloud } from 'lucide-react';
 import CinematicIntro from '@/components/CinematicIntro';
 
 export default function Render3DPage() {
   const router = useRouter();
-  const { currentFloorPlan, finalRender, setFinalRender, collectedParameters, sessionId } = useArchitectStore();
+  const { currentFloorPlan, setCurrentFloorPlan, finalRender, setFinalRender, collectedParameters, sessionId } = useArchitectStore();
   const [isRendering, setIsRendering] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleGenerateRender = async () => {
     if (!currentFloorPlan || isRendering) return;
@@ -36,6 +37,26 @@ export default function Render3DPage() {
       setError('Network error. Please check your connection and try again.');
     } finally {
       setIsRendering(false);
+    }
+  };
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const base64 = event.target?.result as string;
+      if (base64) {
+        setCurrentFloorPlan(base64);
+        setFinalRender(null); // Reset render when a new plan is uploaded
+      }
+    };
+    reader.readAsDataURL(file);
+    
+    // Reset input so the same file can be uploaded again if needed
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
     }
   };
 
@@ -76,14 +97,30 @@ export default function Render3DPage() {
           </div>
         </div>
         
-        {finalRender && (
+        <div className="flex items-center gap-4">
+          <input 
+            type="file" 
+            accept="image/*" 
+            ref={fileInputRef} 
+            onChange={handleFileUpload} 
+            className="hidden" 
+          />
           <button 
-            onClick={downloadImage}
-            className="flex items-center gap-2 px-4 py-2 text-[10px] uppercase tracking-widest bg-[#FFB000] text-[#0a0a0f] hover:bg-[#D8B78D] font-bold rounded transition-colors"
+            onClick={() => fileInputRef.current?.click()}
+            className="flex items-center gap-2 px-4 py-2 text-[10px] uppercase tracking-widest bg-[#1e1810] border border-[#FFB000]/30 text-[#FFB000] hover:bg-[#FFB000]/10 hover:border-[#FFB000] font-bold rounded transition-colors"
           >
-            <Download size={14} /> Export Render
+            <UploadCloud size={14} /> Upload Plan
           </button>
-        )}
+          
+          {finalRender && (
+            <button 
+              onClick={downloadImage}
+              className="flex items-center gap-2 px-4 py-2 text-[10px] uppercase tracking-widest bg-[#FFB000] text-[#0a0a0f] hover:bg-[#D8B78D] font-bold rounded transition-colors"
+            >
+              <Download size={14} /> Export Render
+            </button>
+          )}
+        </div>
       </header>
 
       {/* Main Content Area */}
@@ -96,7 +133,7 @@ export default function Render3DPage() {
               <img 
                 src={`data:image/jpeg;base64,${finalRender}`} 
                 alt="3D Final Render" 
-                className="w-full h-full object-cover"
+                className="w-full h-full object-contain"
               />
             </div>
           ) : currentFloorPlan ? (
@@ -124,10 +161,18 @@ export default function Render3DPage() {
                 </div>
              </div>
           ) : (
-            <div className="flex flex-col items-center justify-center text-[#FFB000]/40 p-12 border-2 border-dashed border-[#FFB000]/20 rounded-xl">
-              <Box size={48} className="mb-4 opacity-50" />
-              <p className="tracking-[2px] uppercase text-sm">No floor plan available.</p>
-              <p className="text-[10px] mt-2 opacity-70">Design a layout in the Render Zone first.</p>
+            <div className="flex flex-col items-center justify-center text-[#FFB000]/40 p-12 border-2 border-dashed border-[#FFB000]/20 rounded-xl bg-[#0f0f18]/30">
+              <UploadCloud size={64} className="mb-6 opacity-50 text-[#FFB000]" />
+              <h2 className="text-xl tracking-[4px] font-bold text-white uppercase mb-2">Upload Floor Plan</h2>
+              <p className="text-[#FFB000]/60 tracking-[2px] text-xs uppercase max-w-md text-center mb-8">
+                Upload a 2D floor plan image to initialize the photorealistic 3D generation sequence.
+              </p>
+              <button 
+                onClick={() => fileInputRef.current?.click()}
+                className="flex items-center gap-3 px-8 py-4 bg-[#FFB000]/10 border border-[#FFB000] text-[#FFB000] hover:bg-[#FFB000] hover:text-[#0a0a0f] uppercase tracking-widest font-bold transition-all"
+              >
+                <UploadCloud size={18} /> Select Image
+              </button>
             </div>
           )}
         </div>

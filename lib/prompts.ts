@@ -98,16 +98,18 @@ export const FLOORPLAN_GENERATION_PROMPT = (params: any, natureImageDescription:
 You are an expert biomimicry architect. Generate a STRICTLY TOP-DOWN 2D AutoCAD architectural floor plan with clean, plain lines.
 
 BIOMIMICRY INSPIRATION: ${natureImageDescription}
-Take macro-level inspiration from the reference image. The building footprint should reflect the general overall shape of the reference, BUT it MUST be translated into realistic, buildable architectural walls. 
-CRITICAL: Do NOT copy microscopic details or jagged edges exactly. Smooth out the shape into practical, straight or cleanly curving structural walls.
+CRITICAL INSTRUCTION: The outer boundary/borders of the floor plan MUST STRICTLY MATCH the exact overall shape of the reference image. Do NOT just draw a standard rectangle. If the reference is a leaf, the floor plan boundary must be leaf-shaped. Smooth out jagged edges into practical, straight or curving structural walls, but KEEP the distinctive biomimetic shape!
 
 MARGIN RULE (CRITICAL): Do NOT draw any dashed plot lines or borders around the building. The user interface handles the plot boundary visually. However, you MUST leave a MASSIVE empty white margin gap around the entire building so it sits comfortably in the absolute center of the 1:1 canvas.
 BUILDING PLACEMENT: Draw the floor plan SMALLER so it easily fits inside the center of the image. The true proportions of the building must be based on a mathematical ${w}:${h} ratio (${aspectInstruction}).
-ROOMS: ${Array.isArray(params.rooms) ? params.rooms.map((r: string, i: number) => `Room ${String.fromCharCode(65 + i)}: ${r}`).join(', ') : 'Standard residential rooms'}
+
+ROOMS & LAYOUT: ${Array.isArray(params.rooms) ? params.rooms.map((r: string, i: number) => `Room ${String.fromCharCode(65 + i)}: ${r}`).join(', ') : 'Standard residential rooms'}
+MULTIPLE UNITS RULE: If the user requests multiple flats, apartments, or units (e.g., "3 flats", "2 units"), you MUST explicitly divide the floor plan and draw the exact number of independent, separate flats requested within the building shape. Do NOT just draw 1 flat!
 VASTU: ${Array.isArray(params.vastuRules) && params.vastuRules.length > 0 ? params.vastuRules.join(', ') : 'Standard residential placement'}
 ${params.garden ? 'Include a GARDEN area.' : ''}
 ${params.parking ? 'Include a PARKING space.' : ''}
 FLOORS: ${params.floors || 1} floor(s).
+${Array.isArray(params.additionalNotes) && params.additionalNotes.length > 0 ? `NOTES: ${params.additionalNotes.join(', ')}` : ''}
 
 STYLE RULES (MANDATORY):
 - Black and white ONLY. Pure monochrome. No colors, no green.
@@ -173,18 +175,20 @@ export const FINAL_RENDER_PROMPT = (params: any = {}) => {
 You are a professional architectural visualizer. Convert this 2D floor plan into a premium photorealistic 3D bird's-eye view render.
 
 STRICT RULES — follow these absolutely:
-1. RENDER ONLY what is explicitly drawn in the input floor plan. Do NOT add, invent, or hallucinate any walls, rooms, structures, connecting elements, pathways, or architectural features that are not clearly present in the drawing.
-2. If two buildings are separated by a gap in the drawing, they MUST remain separated by the same gap in the render — do NOT connect them with walls, corridors, or any structure.
+1. RENDER ONLY what is explicitly drawn in the input floor plan. Do NOT add, invent, or hallucinate any rooms, structures, or connecting elements that are not clearly present.
+2. If two buildings are separated by a gap in the drawing, they MUST remain separated.
 3. ${gardenText}
 4. ${parkingText}
-5. If an element is explicitly a swimming pool in the drawing, render it as a swimming pool with clear blue water and tiling. Otherwise, DO NOT render pools.
-6. Maintain the EXACT spatial layout: every room, every pool, every garden, every gap, every open space must be in the exact same position and proportion as in the input drawing.
-7. Do NOT add boundary walls, perimeter fences, or enclosures unless they are explicitly drawn in the input.
+5. If an element is explicitly a swimming pool, render it as a swimming pool. Otherwise, DO NOT render pools.
+6. Maintain the EXACT spatial layout of every room, gap, and open space.
+7. PLOT BOUNDARY (CRITICAL): There is a solid black rectangular line drawn around the outside of the building. You MUST render this exact rectangular box as a physical 3D perimeter boundary wall or modern fence enclosing the property. The empty area inside this boundary wall (but outside the building) MUST be rendered as completely plain, bare ground (e.g., flat grey concrete or plain dirt) UNLESS the user explicitly drew a garden or parking area. DO NOT hallucinate random grass, trees, or landscaping in empty space.
+8. TEXT REMOVAL (CRITICAL): The 2D input drawing has text labels (room names) written on the floor. In a 3D physical render, text floating on the floor makes no sense and will look blurred/deformed. You MUST completely ERASE and REMOVE all text, words, letters, and numbers from the image. Replace the areas where text was with the continuous flooring material of the room (wood, tile, concrete).
 
 RENDERING QUALITY:
-- Isometric bird's-eye view, 20-degree angle
+- STRICTLY top-down 90-degree bird's-eye view — the camera must be positioned DIRECTLY above the building looking STRAIGHT DOWN, perfectly orthographic. NO angle, NO tilt, NO isometric, NO perspective distortion whatsoever.
+- The viewer should see the roof removed and look directly into the rooms from above, like a drone hovering directly overhead.
 - Realistic materials: concrete walls, tiled floors, wooden doors, glass windows
-- Soft natural daylight from the northeast
+- Soft natural daylight, evenly lit from above
 - Interior visible: furniture placement, room colors matching room function
 - Clean white or light grey background outside the plot boundary
 - Professional architectural visualization quality

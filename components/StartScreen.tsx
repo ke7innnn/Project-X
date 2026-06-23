@@ -642,9 +642,9 @@ ${marketStr}`;
       <div className="fixed inset-0 z-0 pointer-events-none flex justify-center">
         <div className="relative w-full max-w-[1200px] h-full">
           <div className={`absolute rounded-full transition-all duration-400 ${statusState !== 'idle' ? 'bg-[#00f0ff] shadow-[0_0_8px_4px_#00d2ff,0_0_20px_10px_#0088ff,0_0_40px_16px_#0044ff66]' : 'bg-transparent'}`} 
-               style={{ top: '29.2%', left: '47.6%', width: '1.5%', height: '0.8%' }} />
+               style={{ top: '30.6%', left: '48.4%', width: '1.5%', height: '0.8%' }} />
           <div className={`absolute rounded-full transition-all duration-400 ${statusState !== 'idle' ? 'bg-[#00f0ff] shadow-[0_0_8px_4px_#00d2ff,0_0_20px_10px_#0088ff,0_0_40px_16px_#0044ff66]' : 'bg-transparent'}`} 
-               style={{ top: '29.2%', left: '53.6%', width: '1.5%', height: '0.8%' }} />
+               style={{ top: '30.6%', left: '54.4%', width: '1.5%', height: '0.8%' }} />
         </div>
       </div>
 

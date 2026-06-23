@@ -40,17 +40,15 @@ export default function WorkspacePage() {
   let introVideo = "/stage videos/Chapter 1 'THE CONCEPT'.mp4";
   let introTitle = "Chapter 1 - THE CONCEPT";
 
-  if (phase === 'edit' || phase === 'reimport') {
+  if (phase === 'edit' || phase === 'reimport' || phase === 'export') {
     introVideo = "/stage videos/Chapter 2 - 'THE TRANSFORMATION INTO ARCHITECTURE'.mp4";
     introTitle = "Chapter 2 - THE TRANSFORMATION INTO ARCHITECTURE";
-  } else if (phase === 'export') {
-    introVideo = "/stage videos/Chapter 3 - 3D Render.mp4";
-    introTitle = "Chapter 3 - THE RENDER";
   }
 
   return (
     <main className="flex flex-col w-full h-screen bg-[#0d0d0d] overflow-hidden font-mono text-white relative">
       <CinematicIntro 
+        key={introVideo}
         videoPath={introVideo} 
         title={introTitle} 
       />

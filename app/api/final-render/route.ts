@@ -16,6 +16,7 @@ export async function POST(request: Request) {
       : FINAL_RENDER_PROMPT;
     const body = {
       prompt,
+      negative_prompt: "text, words, letters, typography, alphabet, writing, labels, fonts, numbers, watermarks, blurred text, scrambled letters, floating text, symbols, illegible text, text on floor",
       image_urls: [
         floorPlanBase64.startsWith('data:')
           ? floorPlanBase64
