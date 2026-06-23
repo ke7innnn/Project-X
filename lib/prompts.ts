@@ -161,6 +161,27 @@ Follow that instruction exactly. Erase the specified partition/dividing walls, c
   }
 
   if (instructionStr.includes('stairs') || instructionStr.includes('staircase') || instructionStr.includes('lift') || instructionStr.includes('elevator')) {
+    // Detect if this is a SHIFT/MOVE of stairs (directional)
+    const isStairShift = instructionStr.includes('shift') || instructionStr.includes('move') || instructionStr.includes('relocate') || instructionStr.includes('transfer');
+    const stairDirection = instructionStr.includes('north') ? 'north (top of the drawing)'
+      : instructionStr.includes('south') ? 'south (bottom of the drawing)'
+      : instructionStr.includes('east') ? 'east (right side of the drawing)'
+      : instructionStr.includes('west') ? 'west (left side of the drawing)'
+      : instructionStr.includes('corner') ? 'the nearest corner'
+      : null;
+
+    if (isStairShift && stairDirection) {
+      return `This is an architectural floor plan drawing. Instruction: "${editInstruction}".
+Your job is to RELOCATE the staircase/lift core to the ${stairDirection}.
+STEPS:
+1. Identify the current staircase symbol (the parallel step lines or elevator box) in the drawing.
+2. ERASE it completely from its current position. Fill the erased area with the same wall or floor texture surrounding it — do not leave a blank void.
+3. REDRAW the staircase using neat, evenly spaced parallel step lines (or an elevator box with an X or arrow inside) at the ${stairDirection} position, inside the nearest room boundary or wall cluster appropriate for a staircase.
+4. Update the 'Up' direction arrow to reflect the new spatial orientation.
+5. If the staircase had a label ('Staircase', 'S', 'Lift', 'L'), re-add that label at the new position.
+6. Do NOT modify any other walls, wall lines, room labels, doors, windows, or the outer building boundary. Only the staircase block moves. Maintain the exact same black and white CAD drawing style throughout.`;
+    }
+    
     return `This is an architectural floor plan drawing. Look at this specific instruction regarding a staircase or lift core: "${editInstruction}".
 Follow that instruction exactly. Draw or relocate the staircase using neat, parallel step lines showing the direction of ascent. Do NOT alter unrelated room structures, door positions, or labels. Maintain the exact same black and white CAD drawing style throughout.`;
   }
@@ -178,6 +199,96 @@ Follow that instruction exactly. Shift the specified wall outwards to enlarge th
   if (instructionStr.includes('garage') || instructionStr.includes('parking') || instructionStr.includes('carport')) {
     return `This is an architectural floor plan drawing. Look at this specific instruction regarding adding or modifying a garage or parking space: "${editInstruction}".
 Follow that instruction exactly. Draw the parking or garage zone at the designated spot, labeled clearly with thin dashed or solid lines. Ensure the parking space structure blends cleanly with the main wall layout without distorting internal rooms. Maintain the exact same black and white CAD drawing style throughout.`;
+  }
+
+  // ─── SHIFT / MOVE / RELOCATE ─────────────────────────────────────────────
+  // Handles: "shift the sofa to the north", "move the bed from bedroom A to bedroom B",
+  //          "shift the dining table to the east corner", "relocate the wardrobe", etc.
+
+  const isShiftMove = instructionStr.includes('shift') || instructionStr.includes('move') || instructionStr.includes('relocate') || instructionStr.includes('transfer') || instructionStr.includes('push') || instructionStr.includes('place');
+
+  if (isShiftMove) {
+    // Compass direction mapping
+    const directionMap: Record<string, string> = {
+      north: 'north (top of the drawing)',
+      south: 'south (bottom of the drawing)',
+      east: 'east (right side of the drawing)',
+      west: 'west (left side of the drawing)',
+      northeast: 'northeast (top-right corner of the drawing)',
+      northwest: 'northwest (top-left corner of the drawing)',
+      southeast: 'southeast (bottom-right corner of the drawing)',
+      southwest: 'southwest (bottom-left corner of the drawing)',
+      center: 'center of the room',
+      corner: 'nearest corner of the room',
+    };
+
+    const detectedDirection = Object.keys(directionMap).find(d => instructionStr.includes(d));
+    const directionLabel = detectedDirection ? directionMap[detectedDirection] : null;
+
+    if (directionLabel) {
+      return `This is an architectural floor plan drawing. Instruction: "${editInstruction}".
+Your task is to SHIFT or MOVE the specified furniture/element to the ${directionLabel}.
+
+STEPS (follow exactly in order):
+1. Locate the furniture/element mentioned in the instruction (e.g., bed, sofa, dining table, wardrobe, bath, toilet, etc.) in the drawing.
+2. ERASE it from its current position. Fill the erased area with clean solid white (the floor background). Do NOT leave any residue, ghost lines, or smudges.
+3. REDRAW the same furniture symbol at the ${directionLabel} of the same room it currently occupies. Keep the furniture symbol exactly the same size and proportion. Align it naturally against the nearest wall or corner at the target position.
+4. If multiple furniture items are grouped (e.g., a double bed with nightstands), move the entire group together as a unit.
+5. Do NOT move or modify any walls, wall lines, room dividers, doors, door arcs, windows, room labels, text, or the outer building boundary. ONLY the specified furniture moves. Maintain the exact same black and white architectural drawing style throughout.`;
+    }
+
+    // Moving furniture FROM one room TO another room
+    const isCrossRoomMove = /(from|between|to)/.test(instructionStr) && /(room|bedroom|kitchen|bathroom|living|hall|study|dining|lobby|balcony)/i.test(instructionStr);
+    if (isCrossRoomMove) {
+      return `This is an architectural floor plan drawing. Instruction: "${editInstruction}".
+Your task is to MOVE the specified furniture from one room to another.
+
+STEPS (follow exactly in order):
+1. Identify the furniture item and the source room (the room it is currently in).
+2. Identify the destination room (the room where it must be placed).
+3. ERASE the furniture from the source room. Fill the erased floor area with clean solid white matching the room floor. Do NOT leave ghost lines or residue.
+4. REDRAW the same furniture symbol inside the destination room at a sensible position (against the nearest wall or centered, as appropriate for that furniture type in architecture).
+5. Keep the furniture symbol exactly the same size. Maintain natural architectural proportions.
+6. Do NOT modify any walls, wall lines, room dividers, doors, door arcs, windows, room labels, text, or the outer building boundary. Only the specified furniture moves. Maintain the exact same black and white architectural drawing style throughout.`;
+    }
+
+    // Generic move/shift without explicit direction or destination
+    return `This is an architectural floor plan drawing. Instruction: "${editInstruction}".
+Your task is to move or reposition the specified furniture or element as described.
+
+STEPS:
+1. Identify the furniture/element mentioned.
+2. ERASE it from its current position. Fill the erased area with clean solid white.
+3. REDRAW it at the new position described in the instruction. Keep the same size and proportions.
+4. Align the furniture naturally against walls or in open space, as appropriate for that element type in a real floor plan.
+5. Do NOT modify walls, wall lines, room dividers, doors, windows, room labels, or the outer boundary. Only the specified element moves. Maintain the exact same black and white CAD drawing style throughout.`;
+  }
+
+  // ─── ROOM-LEVEL DIRECTIONAL ORIENTATION SHIFT ────────────────────────────
+  // Handles: "shift the master bedroom to the south", "move the kitchen to the northeast corner"
+  const isRoomShift = (instructionStr.includes('room') || instructionStr.includes('bedroom') || instructionStr.includes('kitchen') || instructionStr.includes('bathroom') || instructionStr.includes('living') || instructionStr.includes('hall') || instructionStr.includes('study') || instructionStr.includes('dining') || instructionStr.includes('lobby') || instructionStr.includes('balcony') || instructionStr.includes('garden') || instructionStr.includes('pool'));
+  const roomDirectionMap: Record<string, string> = {
+    north: 'north (top of the drawing)',
+    south: 'south (bottom of the drawing)',
+    east: 'east (right side of the drawing)',
+    west: 'west (left side of the drawing)',
+    northeast: 'northeast (top-right area)',
+    northwest: 'northwest (top-left area)',
+    southeast: 'southeast (bottom-right area)',
+    southwest: 'southwest (bottom-left area)',
+  };
+  const roomDirection = Object.keys(roomDirectionMap).find(d => instructionStr.includes(d));
+  if (isRoomShift && roomDirection) {
+    return `This is an architectural floor plan drawing. Instruction: "${editInstruction}".
+The architect wants to SHIFT the specified ROOM to the ${roomDirectionMap[roomDirection]} of the floor plan.
+
+IMPORTANT — this is a structural room repositioning:
+1. Identify the room mentioned (its walls, label, furniture, doors, and windows).
+2. Carefully MOVE the entire room block — walls, interior furniture, label, door arcs, and windows — as a single unit to the ${roomDirectionMap[roomDirection]} of the floor plan.
+3. RECONNECT the room's walls cleanly with adjacent walls at its new location. Walls must align perfectly — no gaps, overlaps, or diagonal distortions.
+4. At the original position, fill the vacated area and extend the adjacent rooms or open space to absorb the freed-up zone cleanly.
+5. Update door arcs to face the correct direction at the new position.
+6. Do NOT change any rooms that were NOT mentioned. Do NOT alter the outer building boundary shape. Maintain the exact same double-line wall thickness and black and white CAD drawing style throughout.`;
   }
 
   // Fallback for general editing
