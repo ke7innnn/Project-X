@@ -171,8 +171,58 @@ export const FINAL_RENDER_PROMPT = (params: any = {}) => {
     ? "The user has requested parking. Render the designated parking/driveway area with outdoor tiles, gravel, or paved concrete."
     : "";
 
+  const stylePrompts: Record<string, string> = {
+    // Minimalist
+    "Minimalist Modern": "Aesthetic style: Minimalist Modern. Emphasize clean, sleek lines, sparse decoration, a neutral color palette (whites, greys), large open spaces, and an uncluttered feel. Furniture should have simple geometric profiles.",
+    "Japandi": "Aesthetic style: Japandi. Blend Japanese minimalism with Scandinavian functionality. Use warm natural light, light wood (oak, ash), bamboo accents, soft earth tones, low-profile furniture, and simple clean geometry in harmony with organic details.",
+    "Scandinavian": "Aesthetic style: Scandinavian. Create a light, airy space with cozy textures, warm natural woods, highly functional furniture, and a light pastel or neutral color scheme.",
+    "Bauhaus": "Aesthetic style: Bauhaus. Utilize primary colors, functional geometries, exposed steel pipe accents, glass panels, smooth concrete slabs, and a focus on clean industrial forms.",
+
+    // Industrial
+    "Industrial Loft": "Aesthetic style: Industrial Loft. Features exposed brick walls, concrete floors, massive black steel beams, high ceilings, large metal-framed industrial windows, and distressed wood trims.",
+    "Brutalist": "Aesthetic style: Brutalist. Emphasize monolithic raw concrete surfaces (béton brut), chunky bold geometric shapes, heavy textured grey finishes, and a stark minimalist layout.",
+    "Warehouse Conversion": "Aesthetic style: Warehouse Conversion. Create a multi-level loft feel with exposed ducts, pipes, distressed concrete, brickwork, open-plan spaces, and a combination of steel frames and warm timber.",
+    "Steampunk": "Aesthetic style: Steampunk. Blend Victorian-era aesthetics with industrial mechanisms. Include polished copper/brass piping, exposed gears, dark polished mahogany wood, leather furniture, and glowing warm amber Edison bulbs.",
+
+    // Modern
+    "Contemporary": "Aesthetic style: Contemporary. Incorporate curved architectural profiles, cutting-edge materials, high-contrast black and white palettes, bold solid color accents, and highly polished glossy surfaces.",
+    "Mid-Century Modern": "Aesthetic style: Mid-Century Modern. Use retro-organic forms, warm walnut wood surfaces, tapered thin legs on furniture, mustard yellow and teal blue color accents, and a classic mid-century furniture aesthetic.",
+    "Hi-Tech": "Aesthetic style: Hi-Tech. Focus on an engineered aesthetic with exposed metal trusses, glass cladding, dynamic cool LED track lighting, automated devices, and clean metallic surfaces.",
+    "Parametric/Deconstructivist": "Aesthetic style: Parametric/Deconstructivist. Feature complex organic curves, fluid parametric ribs, distorted non-Euclidean geometries, and futuristic carbon fiber or composite paneling.",
+
+    // Organic/Natural
+    "Biophilic": "Aesthetic style: Biophilic. Integrate nature deeply with living green walls, indoor water features, planters built directly into the structure, skylights, warm natural timber, and climbing plants.",
+    "Earthen/Adobe": "Aesthetic style: Earthen/Adobe. Features terracotta tile floors, thick textured clay/mud walls, rounded corners, natural plaster, warm earth tones, and exposed wooden ceiling logs (vigas).",
+    "Blob Architecture": "Aesthetic style: Blob Architecture. Create a fluid, organic form with bulbous curves, a smooth continuous white plaster shell, and custom rounded window frames.",
+    "Mediterranean": "Aesthetic style: Mediterranean. White stucco walls, terracotta floor tiles, arched doorways, rustic dark timber beams, and accents of blue and warm earth tones.",
+
+    // Historic/Classical
+    "Gothic": "Aesthetic style: Gothic. Use pointed arch structures, dark stained oak floors, stone gargoyle motifs, gold-leaf details, deep crimson velvet fabrics, and high-contrast dramatic lighting.",
+    "Renaissance": "Aesthetic style: Renaissance. Focus on symmetrical classical proportions, marble tiled floors, columns, pilasters, decorative fresco detailing, and gilded timber furnishings.",
+    "Neoclassical": "Aesthetic style: Neoclassical. Incorporate grand classical columns, white and gold ornamentation, marble fireplaces, formal elegant furniture, and detailed wall moldings.",
+    "Victorian": "Aesthetic style: Victorian. Use rich patterned wallpapers, dark mahogany wood paneling, ornate brass fittings, tufted velvet sofas, crown molding, and stained glass windows.",
+
+    // Futuristic/Speculative
+    "Cyberpunk": "Aesthetic style: Cyberpunk. Render with neon glowing signs, rain-slicked dark metallic finishes, exposed wiring/ducts, glowing holographic projection details, and high-contrast neon blue and pink accent lights.",
+    "Sci-Fi": "Aesthetic style: Sci-Fi. Make it look like a futuristic spaceship interior with clean white composite panels, integrated circular blue LED strips, automatic sliding doors, and clean geometric control grids.",
+    "Afrofuturist": "Aesthetic style: Afrofuturist. Fusion of traditional African cultural patterns and advanced technology. Include vibrantly patterned fabrics, organic mudbrick textures, glowing technological circuits, geometric wooden screens, and warm copper accents.",
+    "Solarpunk": "Aesthetic style: Solarpunk. Create a bright, sunny eco-friendly environment with winding climbing vines, white ceramic structures, glass domes, integrated solar panels, and warm bronze gears.",
+
+    // Luxury/Decorative
+    "Contemporary Luxury": "Aesthetic style: Contemporary Luxury. Emphasize rich marble slabs with gold veining, polished brass trims, velvet furnishings, designer pendant lighting, and a sophisticated gold/black/taupe palette.",
+    "Art Deco": "Aesthetic style: Art Deco. Bold geometric patterns, shiny chrome and gold metal accents, black lacquer wood, chevron/zigzag flooring, rich jewel tones, and opulent mirrors.",
+    "Maximalist": "Aesthetic style: Maximalist. Layered patterns, bold mismatched colors, high visual density, eclectic antique furniture, and rich velvet and silk fabrics.",
+    "Tropical Luxury": "Aesthetic style: Tropical Luxury. Incorporate open-air spaces, polished teak wood, large indoor palms and banana leaves, woven rattan/wicker details, and light linen fabrics."
+  };
+
+  const styleText = params.renderStyle && stylePrompts[params.renderStyle]
+    ? stylePrompts[params.renderStyle]
+    : "Aesthetic style: Normal/Default. Render with realistic materials, clean white walls, natural wood and tile floors, and a standard modern architectural visualization style.";
+
   return `
 You are a professional architectural visualizer. Convert this 2D floor plan into a premium photorealistic 3D bird's-eye view render.
+
+${styleText}
 
 STRICT RULES — follow these absolutely:
 1. RENDER ONLY what is explicitly drawn in the input floor plan. Do NOT add, invent, or hallucinate any rooms, structures, or connecting elements that are not clearly present.

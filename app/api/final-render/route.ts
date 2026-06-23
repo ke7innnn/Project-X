@@ -12,7 +12,8 @@ export async function POST(request: Request) {
       collectedParameters,
       isSunpathEdit,
       sunpathDirection,
-      existingRenderBase64
+      existingRenderBase64,
+      renderStyle
     } = await request.json();
 
     let inputImageBase64 = floorPlanBase64;
@@ -30,9 +31,9 @@ export async function POST(request: Request) {
         throw new Error('Missing floor plan image for rendering');
       }
       prompt = typeof FINAL_RENDER_PROMPT === 'function'
-        ? FINAL_RENDER_PROMPT(collectedParameters)
+        ? FINAL_RENDER_PROMPT({ ...collectedParameters, renderStyle })
         : FINAL_RENDER_PROMPT;
-      console.log(`[xai/grok-imagine-image/edit] Generating 3D Render.`);
+      console.log(`[xai/grok-imagine-image/edit] Generating 3D Render with style: "${renderStyle || 'Normal'}"`);
     }
 
     const body = {

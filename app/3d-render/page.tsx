@@ -11,10 +11,12 @@ export default function Render3DPage() {
   const { currentFloorPlan, setCurrentFloorPlan, finalRender, setFinalRender, collectedParameters, sessionId } = useArchitectStore();
 
 
+
   const [isRendering, setIsRendering] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [sunpath, setSunpath] = useState('North');
   const [customSunpath, setCustomSunpath] = useState('');
+  const [selectedStyle, setSelectedStyle] = useState('Normal');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleApplySunpathEdit = async () => {
@@ -64,7 +66,8 @@ export default function Render3DPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           floorPlanBase64: currentFloorPlan,
-          collectedParameters
+          collectedParameters,
+          renderStyle: selectedStyle
         })
       });
       const data = await res.json();
@@ -234,6 +237,67 @@ export default function Render3DPage() {
                 ⚠️ {error}
               </div>
             )}
+
+            {/* Architectural Style Selector */}
+            <div className="p-4 border border-zinc-800 bg-[#07070a] rounded flex flex-col gap-3">
+              <span className="text-[10px] font-bold tracking-[2px] uppercase text-white">Architectural Style</span>
+              <p className="text-[9px] text-zinc-500 uppercase tracking-wider leading-relaxed">
+                Choose an architectural aesthetic theme for the generated 3D render.
+              </p>
+              
+              <div className="space-y-2">
+                <select
+                  value={selectedStyle}
+                  onChange={(e) => setSelectedStyle(e.target.value)}
+                  disabled={isRendering}
+                  className="w-full bg-black text-xs border border-gray-700 text-white rounded px-3 py-2.5 focus:outline-none focus:border-[#FFB000] uppercase font-mono cursor-pointer"
+                >
+                  <option value="Normal">Style: Normal / Default</option>
+                  <optgroup label="Minimalist">
+                    <option value="Minimalist Modern">Minimalist Modern</option>
+                    <option value="Japandi">Japandi</option>
+                    <option value="Scandinavian">Scandinavian</option>
+                    <option value="Bauhaus">Bauhaus</option>
+                  </optgroup>
+                  <optgroup label="Industrial">
+                    <option value="Industrial Loft">Industrial Loft</option>
+                    <option value="Brutalist">Brutalist</option>
+                    <option value="Warehouse Conversion">Warehouse Conversion</option>
+                    <option value="Steampunk">Steampunk</option>
+                  </optgroup>
+                  <optgroup label="Modern">
+                    <option value="Contemporary">Contemporary</option>
+                    <option value="Mid-Century Modern">Mid-Century Modern</option>
+                    <option value="Hi-Tech">Hi-Tech</option>
+                    <option value="Parametric/Deconstructivist">Parametric/Deconstructivist</option>
+                  </optgroup>
+                  <optgroup label="Organic/Natural">
+                    <option value="Biophilic">Biophilic</option>
+                    <option value="Earthen/Adobe">Earthen/Adobe</option>
+                    <option value="Blob Architecture">Blob Architecture</option>
+                    <option value="Mediterranean">Mediterranean</option>
+                  </optgroup>
+                  <optgroup label="Historic/Classical">
+                    <option value="Gothic">Gothic</option>
+                    <option value="Renaissance">Renaissance</option>
+                    <option value="Neoclassical">Neoclassical</option>
+                    <option value="Victorian">Victorian</option>
+                  </optgroup>
+                  <optgroup label="Futuristic/Speculative">
+                    <option value="Cyberpunk">Cyberpunk</option>
+                    <option value="Sci-Fi">Sci-Fi</option>
+                    <option value="Afrofuturist">Afrofuturist</option>
+                    <option value="Solarpunk">Solarpunk</option>
+                  </optgroup>
+                  <optgroup label="Luxury/Decorative">
+                    <option value="Contemporary Luxury">Contemporary Luxury</option>
+                    <option value="Art Deco">Art Deco</option>
+                    <option value="Maximalist">Maximalist</option>
+                    <option value="Tropical Luxury">Tropical Luxury</option>
+                  </optgroup>
+                </select>
+              </div>
+            </div>
 
             {/* Active Sunpath Controller */}
             {finalRender ? (

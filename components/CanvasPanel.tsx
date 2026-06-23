@@ -36,6 +36,8 @@ export default function CanvasPanel() {
   const [renderAttempted, setRenderAttempted] = useState(false);
   const [sunpath, setSunpath] = useState('North');
   const [customSunpath, setCustomSunpath] = useState('');
+  const [selectedStyle, setSelectedStyle] = useState('Normal');
+
 
   const handleApplySunpathEdit = async () => {
     if (!finalRender || isRenderLoading) return;
@@ -186,7 +188,8 @@ export default function CanvasPanel() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           floorPlanBase64: styledFloorPlan || currentFloorPlan,
-          collectedParameters
+          collectedParameters,
+          renderStyle: selectedStyle
         })
       });
       const data = await res.json();
@@ -417,17 +420,68 @@ export default function CanvasPanel() {
           <div className="bg-[#0A0E1A] p-6 rounded-xl border border-gray-800 flex flex-col">
             <div className="flex justify-between items-center mb-6 border-b border-gray-800 pb-4">
               <h3 className="text-xl text-white">Exports</h3>
-              <div className="flex gap-3">
+              <div className="flex items-center gap-3">
+                <select
+                  value={selectedStyle}
+                  onChange={(e) => setSelectedStyle(e.target.value)}
+                  disabled={isRenderLoading}
+                  className="bg-[#1F2937] text-white text-xs border border-gray-700 rounded-lg px-3 py-2 focus:outline-none focus:border-[#FFB000] uppercase font-mono h-[38px] cursor-pointer"
+                >
+                  <option value="Normal">Style: Normal / Default</option>
+                  <optgroup label="Minimalist">
+                    <option value="Minimalist Modern">Minimalist Modern</option>
+                    <option value="Japandi">Japandi</option>
+                    <option value="Scandinavian">Scandinavian</option>
+                    <option value="Bauhaus">Bauhaus</option>
+                  </optgroup>
+                  <optgroup label="Industrial">
+                    <option value="Industrial Loft">Industrial Loft</option>
+                    <option value="Brutalist">Brutalist</option>
+                    <option value="Warehouse Conversion">Warehouse Conversion</option>
+                    <option value="Steampunk">Steampunk</option>
+                  </optgroup>
+                  <optgroup label="Modern">
+                    <option value="Contemporary">Contemporary</option>
+                    <option value="Mid-Century Modern">Mid-Century Modern</option>
+                    <option value="Hi-Tech">Hi-Tech</option>
+                    <option value="Parametric/Deconstructivist">Parametric/Deconstructivist</option>
+                  </optgroup>
+                  <optgroup label="Organic/Natural">
+                    <option value="Biophilic">Biophilic</option>
+                    <option value="Earthen/Adobe">Earthen/Adobe</option>
+                    <option value="Blob Architecture">Blob Architecture</option>
+                    <option value="Mediterranean">Mediterranean</option>
+                  </optgroup>
+                  <optgroup label="Historic/Classical">
+                    <option value="Gothic">Gothic</option>
+                    <option value="Renaissance">Renaissance</option>
+                    <option value="Neoclassical">Neoclassical</option>
+                    <option value="Victorian">Victorian</option>
+                  </optgroup>
+                  <optgroup label="Futuristic/Speculative">
+                    <option value="Cyberpunk">Cyberpunk</option>
+                    <option value="Sci-Fi">Sci-Fi</option>
+                    <option value="Afrofuturist">Afrofuturist</option>
+                    <option value="Solarpunk">Solarpunk</option>
+                  </optgroup>
+                  <optgroup label="Luxury/Decorative">
+                    <option value="Contemporary Luxury">Contemporary Luxury</option>
+                    <option value="Art Deco">Art Deco</option>
+                    <option value="Maximalist">Maximalist</option>
+                    <option value="Tropical Luxury">Tropical Luxury</option>
+                  </optgroup>
+                </select>
+
                 <button 
                   onClick={() => downloadImage(styledFloorPlan || currentFloorPlan || '', 'floorplan.png')}
-                  className="flex items-center gap-2 bg-[#1F2937] hover:bg-[#374151] px-4 py-2 rounded-lg transition-colors"
+                  className="flex items-center gap-2 bg-[#1F2937] hover:bg-[#374151] px-4 py-2 rounded-lg transition-colors h-[38px]"
                 >
                   <Download size={16} /> PNG
                 </button>
                 <button 
                   onClick={() => handleGenerateRender()}
                   disabled={isRenderLoading}
-                  className="flex items-center gap-2 bg-[#FFB000] hover:bg-[#D8B78D] text-black font-semibold px-4 py-2 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="flex items-center gap-2 bg-[#FFB000] hover:bg-[#D8B78D] text-black font-semibold px-4 py-2 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed h-[38px] cursor-pointer"
                 >
                   {isRenderLoading ? (
                     <div className="w-4 h-4 border-2 border-black border-t-transparent rounded-full animate-spin" />
