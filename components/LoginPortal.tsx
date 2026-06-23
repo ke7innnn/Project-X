@@ -111,8 +111,9 @@ export default function LoginPortal() {
     const cleanPassword = password.trim();
 
     const isValidUser = 
-      (cleanEmail === 'boss@uka' || cleanEmail === 'boss2uka' || cleanEmail === 'boss2uka@uka') && 
-      cleanPassword === 'password@uka';
+      (cleanEmail === '1234' && cleanPassword === '4321') ||
+      ((cleanEmail === 'boss@uka' || cleanEmail === 'boss2uka' || cleanEmail === 'boss2uka@uka') && 
+      cleanPassword === 'password@uka');
 
     if (isValidUser) {
       setStatus('decrypting');
@@ -209,12 +210,12 @@ export default function LoginPortal() {
                 </label>
                 <div className="relative group">
                   <input
-                    type="email"
+                    type="text"
                     required
                     value={email}
                     onChange={(e) => setEmail(e.target.value.toLowerCase())}
                     onKeyDown={handleKeyDown}
-                    placeholder="E.G. BOSS2UKA"
+                    placeholder="E.G. 1234"
                     autoCapitalize="none"
                     autoComplete="username"
                     autoCorrect="off"
