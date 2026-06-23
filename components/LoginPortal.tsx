@@ -209,10 +209,10 @@ export default function LoginPortal() {
                 </label>
                 <div className="relative group">
                   <input
-                    type="text"
+                    type="email"
                     required
                     value={email}
-                    onChange={(e) => setEmail(e.target.value)}
+                    onChange={(e) => setEmail(e.target.value.toLowerCase())}
                     onKeyDown={handleKeyDown}
                     placeholder="E.G. BOSS2UKA"
                     autoCapitalize="none"

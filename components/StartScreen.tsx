@@ -773,17 +773,6 @@ ${marketStr}`;
         </button>
       </div>
 
-      {/* Top Right: Logout Button */}
-      <button
-        onClick={() => {
-          localStorage.removeItem('user_authenticated');
-          useArchitectStore.getState().setIsAuthenticated(false);
-          useArchitectStore.getState().setIsAppStarted(false);
-        }}
-        className="fixed top-[70px] right-6 px-3 py-1.5 bg-[#0f0f18]/80 hover:bg-red-950/20 border border-[#1e1810] hover:border-red-500/50 rounded text-[9px] font-bold tracking-[2px] text-zinc-400 hover:text-red-400 transition-all cursor-pointer z-10"
-      >
-        SECURE LOGOUT // BYPASS
-      </button>
 
       {/* Left HUD Voice Assistant Panel */}
       <div className="fixed left-16 top-[74%] -translate-y-1/2 z-10 w-64 select-none text-left hidden md:block">
