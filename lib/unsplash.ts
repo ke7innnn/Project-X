@@ -1,5 +1,8 @@
 export async function fetchUnsplashImages(query: string, page: number = 1) {
-  const accessKey = process.env.NEXT_PUBLIC_UNSPLASH_ACCESS_KEY || 'BnoeapJpelCj7CGsYpFYRLhbI1fRsOoLGqGvU8HNYVpyFkI4OpCOCyn6';
+  const accessKey = 
+    process.env.PEXELS_API_KEY || 
+    process.env.NEXT_PUBLIC_PEXELS_API_KEY || 
+    'BnoeapJpelCj7CGsYpFYRLhbI1fRsOoLGqGvU8HNYVpyFkI4OpCOCyn6';
 
   const url = `https://api.pexels.com/v1/search?query=${encodeURIComponent(query)}&per_page=80&page=${page}&_t=${Date.now()}`;
   console.log(`[Pexels] Fetching URL: ${url}`);
