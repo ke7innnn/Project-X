@@ -77,24 +77,38 @@ export async function POST(request: Request) {
       new Promise<string>((resolve, reject) =>
         setTimeout(async () => {
           try {
-            const res = await callGemini({
-              model: 'gemini-3.1-flash-image-preview',
-              message: undefined, // We pass parts directly below
-              temperature: 0.9,
-              responseModalities: ['image', 'text'],
-              timeoutMs: 90000,
-              // Pass custom parts via a workaround: inject into imageBase64 field not used,
-              // instead use the raw contents override
-              _customContents: [{ role: 'user', parts: buildParts() }],
-            } as any);
+            let res;
+            try {
+              res = await callGemini({
+                model: 'gemini-3.1-flash-image-preview',
+                message: undefined,
+                temperature: 0.9,
+                responseModalities: ['image', 'text'],
+                timeoutMs: 8000, // 8s to stay inside Vercel's Hobby 10s limit
+                _customContents: [{ role: 'user', parts: buildParts() }],
+              } as any);
+            } catch (err: any) {
+              console.warn(`[generate-floorplan] gemini-3.1-flash-image-preview variation ${i} failed: ${err.message}. Retrying with gemini-2.5-flash-image...`);
+              res = await callGemini({
+                model: 'gemini-2.5-flash-image',
+                message: undefined,
+                temperature: 0.9,
+                responseModalities: ['image', 'text'],
+                timeoutMs: 8000,
+                _customContents: [{ role: 'user', parts: buildParts() }],
+              } as any);
+            }
 
             const part = res.candidates?.[0]?.content?.parts?.find((p: any) => p.inlineData);
-            if (!part?.inlineData?.data) throw new Error('No image in response');
+            if (!part?.inlineData?.data) {
+               console.error('[generate-floorplan] Gemini Response:', JSON.stringify(res));
+               throw new Error('No image found in Gemini response candidate parts');
+            }
             resolve(part.inlineData.data);
           } catch (e) {
             reject(e);
           }
-        }, i * 500)
+        }, i * 100) // Lower delay so both run quickly
       )
     );
 
@@ -107,7 +121,7 @@ export async function POST(request: Request) {
       const errors = results
         .filter((r): r is PromiseRejectedResult => r.status === 'rejected')
         .map(r => r.reason?.message || String(r.reason));
-      throw new Error(`Floor plan generation failed: ${JSON.stringify(errors)}`);
+      throw new Error(`Floor plan generation failed. Details: ${JSON.stringify(errors)}`);
     }
 
     return NextResponse.json({ options });
