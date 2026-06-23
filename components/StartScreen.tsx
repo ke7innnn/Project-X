@@ -85,7 +85,17 @@ export default function StartScreen() {
   const [transcript, setTranscript] = useState('System ready. Click COMM LINK on the left to start.');
   const [responseHtml, setResponseHtml] = useState<React.ReactNode>(null);
   const chatHistoryRef = useRef<{role: string, content: string}[]>([]);
-  const [marketData, setMarketData] = useState<{ AAPL?: number, TSLA?: number, GSPC?: number, BTC?: number } | null>(null);
+  const [marketData, setMarketData] = useState<Record<string, number> | null>(null);
+  
+  interface NewsArticle {
+    title: string;
+    link: string;
+    description: string;
+    pubDate: string;
+    source: string;
+  }
+  const [newsData, setNewsData] = useState<NewsArticle[] | null>(null);
+  const [newsLoading, setNewsLoading] = useState(true);
   
   const [mountTime] = useState(Date.now());
   const [uptime, setUptime] = useState("00:00:00");
@@ -123,12 +133,32 @@ export default function StartScreen() {
         const res = await fetch('/api/stocks');
         if (res.ok) {
           const data = await res.json();
-          setMarketData({ AAPL: data['AAPL'], TSLA: data['TSLA'], GSPC: data['^GSPC'], BTC: data['BTC-USD'] });
+          setMarketData(data);
         }
       } catch (e) {}
     };
     fetchMarket();
     const interval = setInterval(fetchMarket, 60000); // Refresh every minute
+    return () => clearInterval(interval);
+  }, []);
+
+  useEffect(() => {
+    const fetchNews = async () => {
+      try {
+        setNewsLoading(true);
+        const res = await fetch('/api/architect-news');
+        if (res.ok) {
+          const data = await res.json();
+          setNewsData(data);
+        }
+      } catch (e) {
+        console.error("Failed to fetch news:", e);
+      } finally {
+        setNewsLoading(false);
+      }
+    };
+    fetchNews();
+    const interval = setInterval(fetchNews, 300000); // Refresh every 5 minutes
     return () => clearInterval(interval);
   }, []);
 
@@ -422,7 +452,34 @@ export default function StartScreen() {
 
       let marketStr = "Market data currently unavailable.";
       if (marketData) {
-        marketStr = `- AAPL: $${marketData.AAPL?.toFixed(2) || 'N/A'}\n- TSLA: $${marketData.TSLA?.toFixed(2) || 'N/A'}\n- S&P 500: ${marketData.GSPC?.toFixed(2) || 'N/A'}\n- Bitcoin: $${marketData.BTC?.toFixed(2) || 'N/A'}`;
+        const stocksList = [
+          { name: "S&P 500", sym: "^GSPC" },
+          { name: "Dow Jones", sym: "^DJI" },
+          { name: "Nasdaq", sym: "^IXIC" },
+          { name: "Autodesk", sym: "ADSK" },
+          { name: "Nvidia", sym: "NVDA" },
+          { name: "Apple", sym: "AAPL" },
+          { name: "Tesla", sym: "TSLA" },
+          { name: "Microsoft", sym: "MSFT" },
+          { name: "Home Depot", sym: "HD" },
+          { name: "Lennar", sym: "LEN" },
+          { name: "Bitcoin", sym: "BTC-USD" }
+        ];
+        marketStr = stocksList
+          .map(s => {
+            const val = marketData[s.sym];
+            if (val === undefined) return `- ${s.name}: N/A`;
+            const isIndex = s.sym.startsWith('^');
+            return `- ${s.name} (${s.sym.replace('^', '')}): ${isIndex ? '' : '$'}${val.toFixed(2)}`;
+          })
+          .join('\n');
+      }
+
+      let newsStr = "No architectural news available.";
+      if (newsData && newsData.length > 0) {
+        newsStr = newsData
+          .map((item, idx) => `${idx + 1}. [${item.source}] ${item.title}\n   Summary: ${item.description}\n   Link: ${item.link}`)
+          .join('\n\n');
       }
 
       const contextStr = `Today is ${getFormattedDate()}. Time is ${getFormattedTime()}.
@@ -433,8 +490,11 @@ CURRENT PROJECT STATUS:
 - Rooms: ${rooms}
 - Floor Plan: ${hasFloorPlan ? 'Generated' : 'Not generated'}
 
-MARKET/STOCK UPDATES:
-${marketStr}`;
+REAL-TIME STOCK/MARKET METRICS:
+${marketStr}
+
+BREAKING ARCHITECTURAL NEWS & DIGEST:
+${newsStr}`;
 
       isStreamingRef.current = true;
 
