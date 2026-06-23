@@ -107,6 +107,76 @@ export default function ChatPanel() {
     // Prevent double submissions synchronously
     if (useArchitectStore.getState().isLoading) return;
     
+    // Handle custom uploaded image/drawing directly in search phase
+    if (phase === 'search' && file) {
+      try {
+        setIsLoading(true);
+        // Resize and compress the image
+        const base64Image = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = (e) => {
+            const img = new Image();
+            img.onload = () => {
+              const canvas = document.createElement('canvas');
+              let width = img.width;
+              let height = img.height;
+              const maxDim = 800; // 800px is plenty for reference
+              
+              if (width > height && width > maxDim) {
+                height *= maxDim / width;
+                width = maxDim;
+              } else if (height > maxDim) {
+                width *= maxDim / height;
+                height = maxDim;
+              }
+              
+              canvas.width = width;
+              canvas.height = height;
+              const ctx = canvas.getContext('2d');
+              ctx?.drawImage(img, 0, 0, width, height);
+              
+              const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
+              resolve(dataUrl.split(',')[1]);
+            };
+            img.onerror = reject;
+            img.src = e.target?.result as string;
+          };
+          reader.readAsDataURL(file);
+        });
+        
+        // Save uploaded image in store
+        useArchitectStore.getState().setLastUploadedImage(base64Image, text || "Custom uploaded reference image");
+        useArchitectStore.setState({ selectedNatureImage: null });
+        
+        // Transition to concept phase with history update
+        const updatedHistory = [...conversationHistory];
+        updatedHistory.push({
+          role: 'user',
+          parts: [{ text: text || "Uploaded reference image" }],
+          customType: 'uploaded-image',
+          customData: { base64: base64Image, description: text || 'Custom reference image' }
+        });
+        updatedHistory.push({
+          role: 'model',
+          parts: [{
+            text: `Excellent! I have saved your uploaded image/drawing as our design reference. ✦\n\nLet's begin the **Concept** phase. Could you please tell me about:\n1. Your **plot dimensions** (width and height in meters)?\n2. The **plot orientation** (e.g., North-facing, East-facing)?\n3. The **rooms/spaces** you want to include (e.g., 3 bedrooms, double-height living room, kitchen, etc.)?`
+          }]
+        });
+        
+        useArchitectStore.getState().updateHistory(updatedHistory);
+        useArchitectStore.getState().setPhase('concept');
+      } catch (err) {
+        console.error("Failed to process uploaded reference image:", err);
+        addMessage({ 
+          role: 'model', 
+          parts: [{ text: "Failed to process the uploaded image. Please make sure it's a valid image file and try again." }] 
+        });
+      } finally {
+        setIsLoading(false);
+      }
+      return;
+    }
+
     const userMsg = { role: 'user' as const, parts: [{ text }] };
     addMessage(userMsg);
     

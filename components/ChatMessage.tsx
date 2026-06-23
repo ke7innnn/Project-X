@@ -7,7 +7,7 @@ import { useArchitectStore } from '@/store/useArchitectStore';
 
 interface ChatMessageProps {
   message: ConversationMessage;
-  isCustomType?: 'image-grid' | 'parameters-summary' | 'download-button' | 'upload-prompt' | 'loading' | 'selected-image' | 'floorplan-drafts' | 'floorplan-edit';
+  isCustomType?: 'image-grid' | 'parameters-summary' | 'download-button' | 'upload-prompt' | 'loading' | 'selected-image' | 'floorplan-drafts' | 'floorplan-edit' | 'uploaded-image';
   customData?: any;
 }
 
@@ -94,6 +94,28 @@ export default function ChatMessage({ message, isCustomType, customData }: ChatM
       <div className="flex justify-start my-4">
         <div className="bg-blue-900/40 border border-blue-500/50 text-blue-100 p-3 rounded-xl max-w-[90%] text-sm">
           {text}
+        </div>
+      </div>
+    );
+  }
+
+  if (isCustomType === 'uploaded-image') {
+    const imgData = message.customData || customData;
+    if (!imgData) return null;
+    return (
+      <div className="flex justify-start my-4 w-full">
+        <div className="bg-[#0A0E1A] border border-gray-800 rounded-xl overflow-hidden shadow-xl max-w-[85%] w-full">
+          <div className="p-3 border-b border-gray-800 flex justify-between items-center bg-[#0d0d15]">
+            <span className="text-[10px] text-[#FFB000] tracking-wider uppercase font-bold">🖼️ Uploaded Design Reference</span>
+          </div>
+          <img 
+            src={`data:image/jpeg;base64,${imgData.base64}`} 
+            alt={imgData.description || 'Reference Image'}
+            className="w-full max-h-60 object-contain bg-neutral-900"
+          />
+          <div className="p-3 bg-[#0a0a0f]/60 backdrop-blur">
+            <p className="text-xs text-white font-semibold">{imgData.description || 'Custom reference image'}</p>
+          </div>
         </div>
       </div>
     );
