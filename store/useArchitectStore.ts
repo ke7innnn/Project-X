@@ -46,6 +46,11 @@ export const useArchitectStore = create<ArchitectStore>((set) => ({
   sessionId: null,
   isRestored: false,
   isAuthenticated: false,
+  selectedStyle: 'Normal',
+  sunpath: 'North',
+  customSunpath: '',
+  renderHistory: [],
+  viewingHistoryId: null,
 
   setLastUploadedImage: (base64, description) => set({ lastUploadedImage: base64, lastUploadedImageDescription: description }),
 
@@ -129,6 +134,13 @@ Let's begin the **Concept** phase. Could you please tell me about:
   
   setIsAuthenticated: (auth) => set({ isAuthenticated: auth }),
   
+  setSelectedStyle: (selectedStyle) => set({ selectedStyle }),
+  setSunpath: (sunpath) => set({ sunpath }),
+  setCustomSunpath: (customSunpath) => set({ customSunpath }),
+  setRenderHistory: (renderHistory) => set({ renderHistory }),
+  setViewingHistoryId: (viewingHistoryId) => set({ viewingHistoryId }),
+  addRenderHistoryItem: (item) => set((state) => ({ renderHistory: [...state.renderHistory, item] })),
+  
   replaceState: (newState) => set((state) => ({ ...state, ...newState })),
 
   switchSession: (sessionId, projectName, placeName) => {
@@ -157,6 +169,11 @@ Let's begin the **Concept** phase. Could you please tell me about:
       isAppStarted: true,
       sessionId,
       isRestored: false,
+      selectedStyle: 'Normal',
+      sunpath: 'North',
+      customSunpath: '',
+      renderHistory: [],
+      viewingHistoryId: null,
     });
   },
 
@@ -181,5 +198,10 @@ Let's begin the **Concept** phase. Could you please tell me about:
     finalRender: null,
     isLoading: false,
     loadingMessage: '',
+    selectedStyle: 'Normal',
+    sunpath: 'North',
+    customSunpath: '',
+    renderHistory: [],
+    viewingHistoryId: null,
   })
 }));

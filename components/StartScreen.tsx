@@ -427,8 +427,12 @@ ${marketStr}`;
                 </div>
               );
 
-              // If sentence is complete, queue it for audio playback immediately!
-              if (/[.?!]\s$/.test(currentSentence) || /[.?!]$/.test(currentSentence)) {
+              // Queue chunks for audio playback early to minimize latency!
+              const hasPunctuation = /[.?!]\s$/.test(currentSentence) || /[.?!]$/.test(currentSentence);
+              const hasClauseBreak = (currentSentence.length > 40) && (/[,;:]\s$/.test(currentSentence) || /[,;:]$/.test(currentSentence));
+              const hasWordBoundaryBreak = (currentSentence.length > 70) && (/\s$/.test(currentSentence));
+
+              if (hasPunctuation || hasClauseBreak || hasWordBoundaryBreak) {
                 speakStreamedSentence(currentSentence.trim());
                 currentSentence = "";
               }

@@ -215,14 +215,21 @@ export const FINAL_RENDER_PROMPT = (params: any = {}) => {
     "Tropical Luxury": "Aesthetic style: Tropical Luxury. Incorporate open-air spaces, polished teak wood, large indoor palms and banana leaves, woven rattan/wicker details, and light linen fabrics."
   };
 
-  const styleText = params.renderStyle && stylePrompts[params.renderStyle]
+  const styleText = (params.renderStyle && stylePrompts[params.renderStyle]
     ? stylePrompts[params.renderStyle]
-    : "Aesthetic style: Normal/Default. Render with realistic materials, clean white walls, natural wood and tile floors, and a standard modern architectural visualization style.";
+    : "Aesthetic style: Normal/Default. Render with realistic materials, clean white walls, natural wood and tile floors, and a standard modern architectural visualization style.")
+    + " ABSOLUTELY DO NOT write, print, overlay, or draw any text labels, letters, room names, words, numbers, or symbols anywhere in the 3D render. All rooms must be completely free of text labels, text on floors, or written annotations.";
+
+  const sunpathText = params.sunpathDirection
+    ? `LIGHTING & SHADOWS: The sun is positioned in the ${params.sunpathDirection}. Cast extremely faint, light, soft, and highly diffuse shadows with very low opacity that fall towards the opposite side of the sun's position. The shadows must be barely visible, gentle, and semi-transparent, not dark, heavy, bold, black, or harsh. Dominant bright ambient natural daylight must fill the entire space.`
+    : "LIGHTING & SHADOWS: Evenly lit from above with soft natural daylight, casting subtle diffuse shadows.";
 
   return `
 You are a professional architectural visualizer. Convert this 2D floor plan into a premium photorealistic 3D bird's-eye view render.
 
 ${styleText}
+
+${sunpathText}
 
 STRICT RULES — follow these absolutely:
 1. RENDER ONLY what is explicitly drawn in the input floor plan. Do NOT add, invent, or hallucinate any rooms, structures, or connecting elements that are not clearly present.

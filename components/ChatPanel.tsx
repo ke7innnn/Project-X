@@ -6,6 +6,7 @@ import ChatMessage from './ChatMessage';
 import ChatInput from './ChatInput';
 import ImageGrid from './ImageGrid';
 import { Loader2 } from 'lucide-react';
+import { RenderHistoryItem } from '@/types';
 
 export default function ChatPanel() {
   const { 
@@ -18,11 +19,17 @@ export default function ChatPanel() {
     isLoading,
     setIsLoading,
     finalRender,
-    setFinalRender
+    setFinalRender,
+    currentFloorPlan,
+    selectedStyle,
+    sunpath,
+    setSunpath,
+    customSunpath,
+    setCustomSunpath,
+    addRenderHistoryItem,
+    setViewingHistoryId
   } = useArchitectStore();
 
-  const [sunpath, setSunpath] = useState('North');
-  const [customSunpath, setCustomSunpath] = useState('');
   const [isLocalRenderLoading, setIsLocalRenderLoading] = useState(false);
   
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -51,7 +58,7 @@ export default function ChatPanel() {
   }, [conversationHistory.length, isLoading]);
 
   const handleApplySunpathEdit = async () => {
-    if (!finalRender || isLocalRenderLoading) return;
+    if (!currentFloorPlan || isLocalRenderLoading) return;
     
     const direction = sunpath === 'custom' ? customSunpath : sunpath;
     if (!direction.trim()) {
@@ -65,18 +72,26 @@ export default function ChatPanel() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          existingRenderBase64: finalRender,
-          isSunpathEdit: true,
+          floorPlanBase64: currentFloorPlan,
+          renderStyle: selectedStyle,
           sunpathDirection: direction,
           collectedParameters
         })
       });
       const data = await res.json();
       if (data.render) {
+        const newItem: RenderHistoryItem = {
+          id: Math.random().toString(),
+          base64: data.render,
+          style: selectedStyle,
+          sunpath: direction
+        };
+        addRenderHistoryItem(newItem);
+        setViewingHistoryId(newItem.id);
         setFinalRender(data.render);
         addMessage({ 
           role: 'model', 
-          parts: [{ text: `Successfully updated the 3D render's lighting. The sun is now coming from the ${direction}, casting shadows opposite to it.` }] 
+          parts: [{ text: `Successfully generated a new 3D render using the ${selectedStyle} style and ${direction} sunpath direction.` }] 
         });
       } else {
         addMessage({ role: 'model', parts: [{ text: `Failed to edit sunpath: ${data.error || 'Unknown error'}` }] });
@@ -330,8 +345,8 @@ export default function ChatPanel() {
           </div>
         )}
       </div>
-      {/* Sunpath controls if phase is render/export and render exists */}
-      {(phase === 'export' || phase === 'reimport') && finalRender && (
+      {/* Sunpath controls if phase is render/export and floorplan exists */}
+      {(phase === 'export' || phase === 'reimport') && currentFloorPlan && (
         <div className="mx-4 mb-4 p-3 border border-[#FFB000]/30 bg-[#FFB000]/5 rounded-lg flex flex-col gap-2 relative z-10">
           <div className="flex justify-between items-center">
             <span className="text-[9px] font-bold tracking-[2px] uppercase text-[#FFB000]">Sunpath Controller</span>

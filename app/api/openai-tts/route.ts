@@ -24,7 +24,7 @@ async function handleTTS(text: string | null) {
         model: "tts-1",
         input: text,
         voice: "onyx", // Deep tactical male voice
-        speed: 1.1, // Slightly faster speaking rate
+        speed: 1.3, // 1.3X speaking rate (+0.2x speed increase)
       }),
     });
 

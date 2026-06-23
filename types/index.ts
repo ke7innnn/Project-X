@@ -9,6 +9,13 @@ export type Phase =
   | 'export'
   | 'reimport';
 
+export interface RenderHistoryItem {
+  id: string;
+  base64: string;
+  style: string;
+  sunpath: string;
+}
+
 export interface NatureImage {
   id: string;
   url: string;
@@ -65,6 +72,11 @@ export interface ArchitectStore {
   sessionId: string | null;
   isRestored: boolean;
   isAuthenticated: boolean;
+  selectedStyle: string;
+  sunpath: string;
+  customSunpath: string;
+  renderHistory: RenderHistoryItem[];
+  viewingHistoryId: string | null;
   setPhase: (phase: Phase) => void;
   addMessage: (message: ConversationMessage) => void;
   updateHistory: (history: ConversationMessage[]) => void;
@@ -85,6 +97,12 @@ export interface ArchitectStore {
   setSessionId: (id: string) => void;
   setIsRestored: (restored: boolean) => void;
   setIsAuthenticated: (auth: boolean) => void;
+  setSelectedStyle: (style: string) => void;
+  setSunpath: (sunpath: string) => void;
+  setCustomSunpath: (customSunpath: string) => void;
+  setRenderHistory: (history: RenderHistoryItem[]) => void;
+  setViewingHistoryId: (id: string | null) => void;
+  addRenderHistoryItem: (item: RenderHistoryItem) => void;
   replaceState: (state: Partial<ArchitectStore>) => void;
   resetStore: () => void;
   switchSession: (sessionId: string, projectName: string, placeName: string) => void;

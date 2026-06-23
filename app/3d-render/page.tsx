@@ -5,12 +5,11 @@ import { useArchitectStore } from '@/store/useArchitectStore';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, Box, Download, Settings2, Sparkles, Loader2, UploadCloud } from 'lucide-react';
 import CinematicIntro from '@/components/CinematicIntro';
+import { RenderHistoryItem } from '@/types';
 
 export default function Render3DPage() {
   const router = useRouter();
-  const { currentFloorPlan, setCurrentFloorPlan, finalRender, setFinalRender, collectedParameters, sessionId } = useArchitectStore();
-
-
+  const { currentFloorPlan, setCurrentFloorPlan, finalRender, setFinalRender, collectedParameters } = useArchitectStore();
 
   const [isRendering, setIsRendering] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -18,48 +17,16 @@ export default function Render3DPage() {
   const [customSunpath, setCustomSunpath] = useState('');
   const [selectedStyle, setSelectedStyle] = useState('Normal');
   const fileInputRef = useRef<HTMLInputElement>(null);
-
-  const handleApplySunpathEdit = async () => {
-    if (!finalRender || isRendering) return;
-    
-    setIsRendering(true);
-    setError(null);
-    const direction = sunpath === 'custom' ? customSunpath : sunpath;
-    if (!direction.trim()) {
-      setError('Please specify a custom direction.');
-      setIsRendering(false);
-      return;
-    }
-
-    try {
-      const res = await fetch('/api/final-render', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          existingRenderBase64: finalRender,
-          isSunpathEdit: true,
-          sunpathDirection: direction,
-          collectedParameters
-        })
-      });
-      const data = await res.json();
-      if (data.render) {
-        setFinalRender(data.render);
-      } else {
-        setError(data.error || 'Sunpath edit failed. Please try again.');
-      }
-    } catch (err) {
-      setError('Network error. Please check your connection and try again.');
-    } finally {
-      setIsRendering(false);
-    }
-  };
+  const [renderHistory, setRenderHistory] = useState<RenderHistoryItem[]>([]);
+  const [viewingHistoryId, setViewingHistoryId] = useState<string | null>(null);
 
   const handleGenerateRender = async () => {
     if (!currentFloorPlan || isRendering) return;
     
     setIsRendering(true);
     setError(null);
+    const directionToUse = sunpath === 'custom' ? customSunpath : sunpath;
+    
     try {
       const res = await fetch('/api/final-render', {
         method: 'POST',
@@ -67,12 +34,21 @@ export default function Render3DPage() {
         body: JSON.stringify({
           floorPlanBase64: currentFloorPlan,
           collectedParameters,
-          renderStyle: selectedStyle
+          renderStyle: selectedStyle,
+          sunpathDirection: directionToUse
         })
       });
       const data = await res.json();
       if (data.render) {
-        setFinalRender(data.render);
+        const newItem: RenderHistoryItem = {
+          id: Math.random().toString(),
+          base64: data.render,
+          style: selectedStyle,
+          sunpath: directionToUse
+        };
+        setRenderHistory(prev => [...prev, newItem]);
+        setViewingHistoryId(newItem.id); // Open inspect view
+        setFinalRender(data.render); // Save in store
       } else {
         setError(data.error || '3D render failed. Please try again.');
       }
@@ -93,6 +69,8 @@ export default function Render3DPage() {
       if (base64) {
         setCurrentFloorPlan(base64);
         setFinalRender(null); // Reset render when a new plan is uploaded
+        setRenderHistory([]); // Clear local renders history
+        setViewingHistoryId(null);
       }
     };
     reader.readAsDataURL(file);
@@ -103,11 +81,18 @@ export default function Render3DPage() {
     }
   };
 
-  const downloadImage = () => {
-    if (!finalRender) return;
+  const downloadImageDirect = (base64Data: string, filename: string) => {
     const a = document.createElement('a');
-    a.href = `data:image/jpeg;base64,${finalRender}`;
-    a.download = '3d-render.png';
+    a.href = `data:image/jpeg;base64,${base64Data}`;
+    a.download = filename;
+    a.click();
+  };
+
+  const downloadFloorPlan = () => {
+    if (!currentFloorPlan) return;
+    const a = document.createElement('a');
+    a.href = currentFloorPlan;
+    a.download = 'floorplan.png';
     a.click();
   };
 
@@ -119,14 +104,14 @@ export default function Render3DPage() {
       />
 
       {/* Subtle animated background gradient */}
-      <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGRlZnM+PHBhdHRlcm4gaWQ9ImdyaWQiIHdpZHRoPSI0MCIgaGVpZ2h0PSI0MCIgcGF0dGVyblVuaXRzPSJ1c2VyU3BhY2VPblVzZSI+PHBhdGggZD0iTSAw IDEwIEwgNDAgMTAgTSAxMCAwIEwgMTAgNDAiIGZpbGw9Im5vbmUiIHN0cm9rZT0iIzExMSIgc3Ryb2tlLXdpZHRoPSIwLjUiLz48L3BhdHRlcm4+PC9kZWZzPjxyZWN0IHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiIGZpbGw9InVybCgjZ3JpZCkiLz48L3N2Zz4=')] opacity-10 pointer-events-none z-0" />
+      <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGRlZnM+PHBhdHRlcm4gaWQ9ImdyaWQiIHdpZHRoPSI0MCIgaGVpZ2h0PSI0MCIgcGF0dGVyblVuaXRzPSJ1c2VyU3BhY2VPblVzZSI+PHBhdGggZD0iTSAwIDEwIEwgNDAgMTAgTSAxMCAwIEwgMTAgNDAiIGZpbGw9Im5vbmUiIHN0cm9rZT0iIzExMSIgc3Ryb2tlLXdpZHRoPSIwLjUiLz48L3BhdHRlcm4+PC9kZWZzPjxyZWN0IHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiIGZpbGw9InVybCgjZ3JpZCkiLz48L3N2Zz4=')] opacity-10 pointer-events-none z-0" />
 
       {/* Top Bar */}
       <header className="relative z-10 flex items-center justify-between px-8 py-6 border-b border-[#1e1810] bg-[#0f0f18]/80 backdrop-blur-md shadow-[0_4px_20px_rgba(0,0,0,0.5)]">
         <div className="flex items-center gap-6">
           <button 
             onClick={() => router.push('/')}
-            className="flex items-center justify-center w-10 h-10 rounded-full border border-[#FFB000]/30 hover:border-[#FFB000] hover:bg-[#FFB000]/10 transition-all group"
+            className="flex items-center justify-center w-10 h-10 rounded-full border border-[#FFB000]/30 hover:border-[#FFB000] hover:bg-[#FFB000]/10 transition-all group cursor-pointer"
           >
             <ArrowLeft className="text-[#FFB000]/70 group-hover:text-[#FFB000]" size={18} />
           </button>
@@ -150,59 +135,101 @@ export default function Render3DPage() {
           />
           <button 
             onClick={() => fileInputRef.current?.click()}
-            className="flex items-center gap-2 px-4 py-2 text-[10px] uppercase tracking-widest bg-[#1e1810] border border-[#FFB000]/30 text-[#FFB000] hover:bg-[#FFB000]/10 hover:border-[#FFB000] font-bold rounded transition-colors"
+            className="flex items-center gap-2 px-4 py-2 text-[10px] uppercase tracking-widest bg-[#1e1810] border border-[#FFB000]/30 text-[#FFB000] hover:bg-[#FFB000]/10 hover:border-[#FFB000] font-bold rounded transition-colors cursor-pointer"
           >
             <UploadCloud size={14} /> Upload Plan
           </button>
-          
-          {finalRender && (
-            <button 
-              onClick={downloadImage}
-              className="flex items-center gap-2 px-4 py-2 text-[10px] uppercase tracking-widest bg-[#FFB000] text-[#0a0a0f] hover:bg-[#D8B78D] font-bold rounded transition-colors"
-            >
-              <Download size={14} /> Export Render
-            </button>
-          )}
         </div>
       </header>
 
       {/* Main Content Area */}
       <main className="relative z-10 flex flex-1 overflow-hidden">
         
-        {/* Left Side: Viewport */}
-        <div className="flex-1 flex flex-col items-center justify-center p-8 relative">
-          {finalRender ? (
-            <div className="relative w-full h-full max-h-[80vh] bg-white rounded-xl shadow-[0_0_40px_rgba(255,176,0,0.1)] overflow-hidden border border-[#FFB000]/20 group">
-              <img 
-                src={`data:image/jpeg;base64,${finalRender}`} 
-                alt="3D Final Render" 
-                className="w-full h-full object-contain"
-              />
-            </div>
-          ) : currentFloorPlan ? (
-             <div className="flex flex-col items-center justify-center w-full h-full max-h-[80vh] border border-[#FFB000]/20 bg-[#0f0f18]/50 backdrop-blur rounded-xl relative overflow-hidden">
+        {/* Left Side: Viewport & Render History */}
+        <div className="flex-1 flex flex-col p-8 overflow-y-auto relative custom-scrollbar">
+          {currentFloorPlan ? (
+            <div className="flex flex-col gap-6 w-full mb-8">
+              {/* 2D Blueprint Image Viewport */}
+              <div className="flex justify-between items-center pb-4 border-b border-[#1e1810]">
+                <h3 className="text-sm font-bold tracking-[3px] text-white uppercase">2D Blueprint View</h3>
+                <button 
+                  onClick={downloadFloorPlan}
+                  className="flex items-center gap-2 bg-[#1e1810] hover:bg-[#FFB000]/10 border border-[#FFB000]/30 text-[#FFB000] px-4 py-2 rounded text-[10px] uppercase tracking-widest font-bold transition-all cursor-pointer"
+                >
+                  <Download size={12} /> Download Plan
+                </button>
+              </div>
+              
+              <div className="w-full max-h-[50vh] flex items-center justify-center bg-white p-6 rounded-xl border border-zinc-800 shadow-2xl">
                 <img 
-                  src={`data:image/jpeg;base64,${currentFloorPlan}`} 
+                  src={currentFloorPlan} 
                   alt="Draft Floor Plan" 
-                  className="w-full h-full object-contain opacity-30 blur-sm grayscale"
+                  className="max-w-full max-h-[45vh] object-contain rounded"
                 />
-                <div className="absolute inset-0 flex flex-col items-center justify-center bg-[#0a0a0f]/60 backdrop-blur-md">
-                   <Box size={64} className="text-[#FFB000]/40 mb-6" />
-                   <h2 className="text-xl tracking-[4px] font-bold text-white uppercase mb-2">Ready for Rendering</h2>
-                   <p className="text-[#FFB000]/60 tracking-[2px] text-xs uppercase max-w-md text-center">
-                     Initialize the photorealistic generation sequence using your drafted floor plan.
-                   </p>
-                   
-                   <button 
-                    onClick={handleGenerateRender}
-                    disabled={isRendering}
-                    className="mt-8 flex items-center gap-3 px-8 py-4 bg-[#FFB000]/10 border border-[#FFB000] text-[#FFB000] hover:bg-[#FFB000] hover:text-[#0a0a0f] uppercase tracking-widest font-bold transition-all"
-                   >
-                     {isRendering ? <Loader2 size={18} className="animate-spin" /> : <Sparkles size={18} />}
-                     {isRendering ? 'Rendering Engine Active...' : 'Initialize Render'}
-                   </button>
+              </div>
+
+              {/* RENDER HISTORY SECTION */}
+              <div className="w-full mt-6">
+                <h3 className="text-sm font-bold tracking-[3px] text-white uppercase mb-4">Generated 3D Renders History</h3>
+                
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-6">
+                  {renderHistory.map((item) => (
+                    <div key={item.id} className="bg-[#0f0f18] border border-zinc-800 rounded-xl overflow-hidden hover:border-[#FFB000]/50 transition-all flex flex-col shadow-lg">
+                      <div className="aspect-video relative overflow-hidden bg-black/40">
+                        <img src={`data:image/jpeg;base64,${item.base64}`} alt="Render Thumb" className="w-full h-full object-cover" />
+                      </div>
+                      <div className="p-3 flex-1 flex flex-col justify-between gap-3">
+                        <div>
+                          <div className="text-[10px] font-bold text-[#FFB000] uppercase truncate">{item.style}</div>
+                          <div className="text-[9px] text-zinc-500 uppercase tracking-widest mt-1">Sun: {item.sunpath}</div>
+                        </div>
+                        
+                        <div className="flex gap-1.5 mt-2">
+                          <button
+                            onClick={() => setViewingHistoryId(item.id)}
+                            className="flex-1 py-1.5 bg-[#FFB000]/10 border border-[#FFB000]/30 hover:border-[#FFB000] text-[#FFB000] hover:text-[#0a0a0f] hover:bg-[#FFB000] font-bold uppercase tracking-widest text-[8px] rounded transition-all cursor-pointer font-mono"
+                          >
+                            Inspect
+                          </button>
+                          <button
+                            onClick={() => downloadImageDirect(item.base64, `render-${item.style.replace(/\s+/g, '-')}.png`)}
+                            className="px-2 py-1.5 bg-zinc-800 hover:bg-zinc-700 text-white rounded text-[8px] transition-colors cursor-pointer"
+                            title="Download"
+                          >
+                            <Download size={12} />
+                          </button>
+                          <button
+                            onClick={() => {
+                              setRenderHistory(prev => prev.filter(h => h.id !== item.id));
+                              if (viewingHistoryId === item.id) setViewingHistoryId(null);
+                            }}
+                            className="px-2 py-1.5 bg-red-950/20 hover:bg-red-900/50 text-red-400 rounded text-[8px] transition-colors cursor-pointer"
+                            title="Delete"
+                          >
+                            🗑️
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+
+                  {/* GENERATING LOADING CARD */}
+                  {isRendering && (
+                    <div className="bg-[#0f0f18] border border-[#FFB000]/40 rounded-xl overflow-hidden animate-pulse flex flex-col justify-center items-center p-6 min-h-[160px]">
+                      <div className="w-8 h-8 border-3 border-[#FFB000] border-t-transparent rounded-full animate-spin mb-3" />
+                      <span className="text-[9px] text-[#FFB000] tracking-widest uppercase text-center font-bold">Generating Render...</span>
+                    </div>
+                  )}
+
+                  {!isRendering && renderHistory.length === 0 && (
+                    <div className="col-span-full py-12 flex flex-col items-center justify-center border border-dashed border-zinc-800 rounded-xl bg-black/10 text-zinc-500">
+                      <span className="text-xs uppercase tracking-widest">No Renders Generated Yet</span>
+                      <span className="text-[9px] uppercase tracking-widest mt-1 text-zinc-600">Select a style and sunpath on the right to start</span>
+                    </div>
+                  )}
                 </div>
-             </div>
+              </div>
+            </div>
           ) : (
             <div className="flex flex-col items-center justify-center text-[#FFB000]/40 p-12 border-2 border-dashed border-[#FFB000]/20 rounded-xl bg-[#0f0f18]/30">
               <UploadCloud size={64} className="mb-6 opacity-50 text-[#FFB000]" />
@@ -212,7 +239,7 @@ export default function Render3DPage() {
               </p>
               <button 
                 onClick={() => fileInputRef.current?.click()}
-                className="flex items-center gap-3 px-8 py-4 bg-[#FFB000]/10 border border-[#FFB000] text-[#FFB000] hover:bg-[#FFB000] hover:text-[#0a0a0f] uppercase tracking-widest font-bold transition-all"
+                className="flex items-center gap-3 px-8 py-4 bg-[#FFB000]/10 border border-[#FFB000] text-[#FFB000] hover:bg-[#FFB000] hover:text-[#0a0a0f] uppercase tracking-widest font-bold transition-all cursor-pointer"
               >
                 <UploadCloud size={18} /> Select Image
               </button>
@@ -238,122 +265,126 @@ export default function Render3DPage() {
               </div>
             )}
 
-            {/* Architectural Style Selector */}
-            <div className="p-4 border border-zinc-800 bg-[#07070a] rounded flex flex-col gap-3">
-              <span className="text-[10px] font-bold tracking-[2px] uppercase text-white">Architectural Style</span>
-              <p className="text-[9px] text-zinc-500 uppercase tracking-wider leading-relaxed">
-                Choose an architectural aesthetic theme for the generated 3D render.
-              </p>
-              
-              <div className="space-y-2">
-                <select
-                  value={selectedStyle}
-                  onChange={(e) => setSelectedStyle(e.target.value)}
-                  disabled={isRendering}
-                  className="w-full bg-black text-xs border border-gray-700 text-white rounded px-3 py-2.5 focus:outline-none focus:border-[#FFB000] uppercase font-mono cursor-pointer"
-                >
-                  <option value="Normal">Style: Normal / Default</option>
-                  <optgroup label="Minimalist">
-                    <option value="Minimalist Modern">Minimalist Modern</option>
-                    <option value="Japandi">Japandi</option>
-                    <option value="Scandinavian">Scandinavian</option>
-                    <option value="Bauhaus">Bauhaus</option>
-                  </optgroup>
-                  <optgroup label="Industrial">
-                    <option value="Industrial Loft">Industrial Loft</option>
-                    <option value="Brutalist">Brutalist</option>
-                    <option value="Warehouse Conversion">Warehouse Conversion</option>
-                    <option value="Steampunk">Steampunk</option>
-                  </optgroup>
-                  <optgroup label="Modern">
-                    <option value="Contemporary">Contemporary</option>
-                    <option value="Mid-Century Modern">Mid-Century Modern</option>
-                    <option value="Hi-Tech">Hi-Tech</option>
-                    <option value="Parametric/Deconstructivist">Parametric/Deconstructivist</option>
-                  </optgroup>
-                  <optgroup label="Organic/Natural">
-                    <option value="Biophilic">Biophilic</option>
-                    <option value="Earthen/Adobe">Earthen/Adobe</option>
-                    <option value="Blob Architecture">Blob Architecture</option>
-                    <option value="Mediterranean">Mediterranean</option>
-                  </optgroup>
-                  <optgroup label="Historic/Classical">
-                    <option value="Gothic">Gothic</option>
-                    <option value="Renaissance">Renaissance</option>
-                    <option value="Neoclassical">Neoclassical</option>
-                    <option value="Victorian">Victorian</option>
-                  </optgroup>
-                  <optgroup label="Futuristic/Speculative">
-                    <option value="Cyberpunk">Cyberpunk</option>
-                    <option value="Sci-Fi">Sci-Fi</option>
-                    <option value="Afrofuturist">Afrofuturist</option>
-                    <option value="Solarpunk">Solarpunk</option>
-                  </optgroup>
-                  <optgroup label="Luxury/Decorative">
-                    <option value="Contemporary Luxury">Contemporary Luxury</option>
-                    <option value="Art Deco">Art Deco</option>
-                    <option value="Maximalist">Maximalist</option>
-                    <option value="Tropical Luxury">Tropical Luxury</option>
-                  </optgroup>
-                </select>
-              </div>
-            </div>
-
-            {/* Active Sunpath Controller */}
-            {finalRender ? (
-              <div className="p-4 border border-[#FFB000]/30 bg-[#FFB000]/5 rounded flex flex-col gap-3">
-                <span className="text-[10px] font-bold tracking-[2px] uppercase text-[#FFB000]">Change Sunpath</span>
-                <p className="text-[9px] text-[#FFB000]/60 uppercase tracking-wider leading-relaxed">
-                  Shift the position of the sun. Long, sharp shadows will dynamically project on the opposite side of the structure.
-                </p>
-                
-                <div className="space-y-2">
-                  <label className="block text-[9px] uppercase tracking-widest text-zinc-400">Direction</label>
-                  <select
-                    value={sunpath}
-                    onChange={(e) => {
-                      setSunpath(e.target.value);
-                      if (e.target.value !== 'custom') setCustomSunpath('');
-                    }}
-                    className="w-full bg-black text-xs border border-gray-700 text-white rounded px-3 py-2.5 focus:outline-none focus:border-[#FFB000] uppercase font-mono"
-                  >
-                    <option value="North">North (Shadows South)</option>
-                    <option value="South">South (Shadows North)</option>
-                    <option value="East">East (Shadows West)</option>
-                    <option value="West">West (Shadows East)</option>
-                    <option value="North-East">North-East (Shadows South-West)</option>
-                    <option value="North-West">North-West (Shadows South-East)</option>
-                    <option value="South-East">South-East (Shadows North-West)</option>
-                    <option value="South-West">South-West (Shadows North-East)</option>
-                    <option value="custom">Custom Direction...</option>
-                  </select>
+            {currentFloorPlan ? (
+              <div className="flex flex-col gap-6">
+                {/* Architectural Style Selector */}
+                <div className="p-4 border border-zinc-800 bg-[#07070a] rounded flex flex-col gap-3">
+                  <span className="text-[10px] font-bold tracking-[2px] uppercase text-white">Architectural Style</span>
+                  <p className="text-[9px] text-zinc-500 uppercase tracking-wider leading-relaxed">
+                    Choose an architectural aesthetic theme for the generated 3D render.
+                  </p>
+                  
+                  <div className="space-y-2">
+                    <select
+                      value={selectedStyle}
+                      onChange={(e) => setSelectedStyle(e.target.value)}
+                      disabled={isRendering}
+                      className="w-full bg-black text-xs border border-gray-700 text-white rounded px-3 py-2.5 focus:outline-none focus:border-[#FFB000] uppercase font-mono cursor-pointer"
+                    >
+                      <option value="Normal">Style: Normal / Default</option>
+                      <optgroup label="Minimalist">
+                        <option value="Minimalist Modern">Minimalist Modern</option>
+                        <option value="Japandi">Japandi</option>
+                        <option value="Scandinavian">Scandinavian</option>
+                        <option value="Bauhaus">Bauhaus</option>
+                      </optgroup>
+                      <optgroup label="Industrial">
+                        <option value="Industrial Loft">Industrial Loft</option>
+                        <option value="Brutalist">Brutalist</option>
+                        <option value="Warehouse Conversion">Warehouse Conversion</option>
+                        <option value="Steampunk">Steampunk</option>
+                      </optgroup>
+                      <optgroup label="Modern">
+                        <option value="Contemporary">Contemporary</option>
+                        <option value="Mid-Century Modern">Mid-Century Modern</option>
+                        <option value="Hi-Tech">Hi-Tech</option>
+                        <option value="Parametric/Deconstructivist">Parametric/Deconstructivist</option>
+                      </optgroup>
+                      <optgroup label="Organic/Natural">
+                        <option value="Biophilic">Biophilic</option>
+                        <option value="Earthen/Adobe">Earthen/Adobe</option>
+                        <option value="Blob Architecture">Blob Architecture</option>
+                        <option value="Mediterranean">Mediterranean</option>
+                      </optgroup>
+                      <optgroup label="Historic/Classical">
+                        <option value="Gothic">Gothic</option>
+                        <option value="Renaissance">Renaissance</option>
+                        <option value="Neoclassical">Neoclassical</option>
+                        <option value="Victorian">Victorian</option>
+                      </optgroup>
+                      <optgroup label="Futuristic/Speculative">
+                        <option value="Cyberpunk">Cyberpunk</option>
+                        <option value="Sci-Fi">Sci-Fi</option>
+                        <option value="Afrofuturist">Afrofuturist</option>
+                        <option value="Solarpunk">Solarpunk</option>
+                      </optgroup>
+                      <optgroup label="Luxury/Decorative">
+                        <option value="Contemporary Luxury">Contemporary Luxury</option>
+                        <option value="Art Deco">Art Deco</option>
+                        <option value="Maximalist">Maximalist</option>
+                        <option value="Tropical Luxury">Tropical Luxury</option>
+                      </optgroup>
+                    </select>
+                  </div>
                 </div>
 
-                {sunpath === 'custom' && (
+                {/* Sunpath Controller */}
+                <div className="p-4 border border-[#FFB000]/30 bg-[#FFB000]/5 rounded flex flex-col gap-3">
+                  <span className="text-[10px] font-bold tracking-[2px] uppercase text-[#FFB000]">Shadows (Sunpath)</span>
+                  <p className="text-[9px] text-[#FFB000]/60 uppercase tracking-wider leading-relaxed">
+                    Shift the position of the sun. Extremely faint, diffuse shadows will project on the opposite side.
+                  </p>
+                  
                   <div className="space-y-2">
-                    <label className="block text-[9px] uppercase tracking-widest text-zinc-400">Custom Position</label>
-                    <input
-                      type="text"
-                      value={customSunpath}
-                      onChange={(e) => setCustomSunpath(e.target.value)}
-                      placeholder="E.G. LOW ON THE WESTERN HORIZON"
-                      className="w-full bg-black text-xs border border-gray-700 text-white rounded px-3 py-2.5 focus:outline-none focus:border-[#FFB000] uppercase font-mono tracking-wider"
-                    />
+                    <label className="block text-[9px] uppercase tracking-widest text-zinc-400">Direction</label>
+                    <select
+                      value={sunpath}
+                      onChange={(e) => {
+                        setSunpath(e.target.value);
+                        if (e.target.value !== 'custom') setCustomSunpath('');
+                      }}
+                      disabled={isRendering}
+                      className="w-full bg-black text-xs border border-gray-700 text-white rounded px-3 py-2.5 focus:outline-none focus:border-[#FFB000] uppercase font-mono cursor-pointer"
+                    >
+                      <option value="North">North (Shadows South)</option>
+                      <option value="South">South (Shadows North)</option>
+                      <option value="East">East (Shadows West)</option>
+                      <option value="West">West (Shadows East)</option>
+                      <option value="North-East">North-East (Shadows South-West)</option>
+                      <option value="North-West">North-West (Shadows South-East)</option>
+                      <option value="South-East">South-East (Shadows North-West)</option>
+                      <option value="South-West">South-West (Shadows North-East)</option>
+                      <option value="custom">Custom Direction...</option>
+                    </select>
                   </div>
-                )}
+
+                  {sunpath === 'custom' && (
+                    <div className="space-y-2">
+                      <label className="block text-[9px] uppercase tracking-widest text-zinc-400">Custom Position</label>
+                      <input
+                        type="text"
+                        value={customSunpath}
+                        onChange={(e) => setCustomSunpath(e.target.value)}
+                        disabled={isRendering}
+                        placeholder="E.G. LOW ON THE WESTERN HORIZON"
+                        className="w-full bg-black text-xs border border-gray-700 text-white rounded px-3 py-2.5 focus:outline-none focus:border-[#FFB000] uppercase font-mono tracking-wider"
+                      />
+                    </div>
+                  )}
+                </div>
 
                 <button
-                  onClick={handleApplySunpathEdit}
+                  onClick={handleGenerateRender}
                   disabled={isRendering}
-                  className="w-full py-3 mt-2 bg-[#FFB000] text-black font-bold uppercase tracking-widest text-[9px] rounded hover:bg-[#D8B78D] transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                  className="w-full py-4 bg-[#FFB000] text-black font-bold uppercase tracking-widest text-xs rounded hover:bg-[#e09c00] transition-colors disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer shadow-[0_0_15px_rgba(255,176,0,0.15)]"
                 >
-                  {isRendering && <Loader2 size={12} className="animate-spin" />}
-                  {isRendering ? 'Recalculating Shadows...' : 'Apply Sunpath Edit'}
+                  {isRendering && <Loader2 size={14} className="animate-spin" />}
+                  {isRendering ? 'Generating Concept...' : 'Generate 3D Render'}
                 </button>
               </div>
             ) : (
               <p className="text-[9px] tracking-widest uppercase text-zinc-500 text-center py-4">
-                Initialize render to unlock filters
+                Upload floor plan to unlock filters
               </p>
             )}
 
@@ -386,6 +417,50 @@ export default function Render3DPage() {
         </div>
 
       </main>
+
+      {/* DETAILED CONCEPT INSPECT MODAL OVERLAY */}
+      {viewingHistoryId && (() => {
+        const activeItem = renderHistory.find(h => h.id === viewingHistoryId);
+        if (!activeItem) return null;
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-md p-4 md:p-8 animate-fadeIn">
+            <div className="bg-[#0A0E1A] border border-[#FFB000]/30 rounded-xl w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden shadow-2xl">
+              {/* Modal Header */}
+              <div className="flex justify-between items-center p-4 border-b border-zinc-800 bg-[#07070d]">
+                <div>
+                  <h3 className="text-[#FFB000] text-sm font-semibold uppercase tracking-wider">Viewing Rendered Concept</h3>
+                  <span className="text-[10px] text-zinc-400 uppercase tracking-widest block mt-0.5">
+                    Style: {activeItem.style} | Shadows: {activeItem.sunpath}
+                  </span>
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => downloadImageDirect(activeItem.base64, `render-${activeItem.style.replace(/\s+/g, '-')}.png`)}
+                    className="flex items-center gap-2 bg-[#1F2937] hover:bg-[#374151] px-4 py-2 rounded-lg text-xs transition-colors cursor-pointer text-white font-mono"
+                  >
+                    <Download size={14} /> Download PNG
+                  </button>
+                  <button 
+                    onClick={() => setViewingHistoryId(null)}
+                    className="flex items-center gap-2 bg-[#FFB000] hover:bg-[#e09c00] text-black font-bold px-4 py-2 rounded-lg text-xs transition-colors cursor-pointer font-mono"
+                  >
+                    Close
+                  </button>
+                </div>
+              </div>
+              
+              {/* Modal Body */}
+              <div className="flex-1 overflow-y-auto p-6 bg-black/40 flex items-center justify-center min-h-0">
+                <img 
+                  src={`data:image/jpeg;base64,${activeItem.base64}`} 
+                  alt="Detailed 3D Render" 
+                  className="max-w-full max-h-[70vh] object-contain rounded-lg shadow-2xl border border-zinc-800" 
+                />
+              </div>
+            </div>
+          </div>
+        );
+      })()}
     </main>
   );
 }
