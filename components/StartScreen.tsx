@@ -237,6 +237,7 @@ export default function StartScreen() {
   const audioQueueRef = useRef<HTMLAudioElement[]>([]);
   const isPlayingAudioRef = useRef(false);
   const sleepTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const isStreamingRef = useRef(false);
 
   const resetSleepTimer = () => {
     if (sleepTimerRef.current) clearTimeout(sleepTimerRef.current);
@@ -301,6 +302,9 @@ export default function StartScreen() {
 
   const interruptSpeech = () => {
     isAgentSpeakingRef.current = false;
+    isStreamingRef.current = false;
+    audioQueueRef.current = [];
+    isPlayingAudioRef.current = false;
     if (currentAudioRef.current) {
       try { currentAudioRef.current.pause(); } catch(e){}
       currentAudioRef.current = null;
@@ -355,6 +359,51 @@ export default function StartScreen() {
   const getFormattedDate = () => new Date().toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
   const getFormattedTime = () => new Date().toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit', hour12: true });
 
+  const extractSpeakableChunk = (text: string): { chunk: string; remaining: string } | null => {
+    const trimmed = text.trimStart();
+    if (!trimmed) return null;
+
+    // 1. Look for sentence boundaries immediately (. ? !) followed by whitespace or end of string.
+    const sentenceMatch = trimmed.match(/[.?!]+(\s+|$)/);
+    if (sentenceMatch) {
+      const splitIndex = (sentenceMatch.index ?? 0) + sentenceMatch[0].length;
+      return {
+        chunk: trimmed.slice(0, splitIndex),
+        remaining: trimmed.slice(splitIndex)
+      };
+    }
+
+    // 2. Count words
+    const words = trimmed.split(/\s+/);
+
+    // 3. Clause boundaries if the prefix has at least 4 words
+    const clauseRegex = /[,;:-]+(\s+|$)/g;
+    let match;
+    while ((match = clauseRegex.exec(trimmed)) !== null) {
+      const splitIndex = match.index + match[0].length;
+      const prefix = trimmed.slice(0, splitIndex);
+      const prefixWords = prefix.trim().split(/\s+/);
+      if (prefixWords.length >= 4) {
+        return {
+          chunk: prefix,
+          remaining: trimmed.slice(splitIndex)
+        };
+      }
+    }
+
+    // 4. Space word boundaries if length is >= 8 words
+    if (words.length >= 8) {
+      const chunk = words.slice(0, 8).join(" ");
+      const remaining = words.slice(8).join(" ");
+      return {
+        chunk: chunk + " ",
+        remaining: remaining
+      };
+    }
+
+    return null;
+  };
+
   const callOpenAIAndStream = async (userMsg: string) => {
     const lowerCmd = userMsg.toLowerCase().trim();
     if (lowerCmd.includes("enter system") || lowerCmd.includes("start the application") || lowerCmd.includes("open the app")) {
@@ -387,6 +436,8 @@ CURRENT PROJECT STATUS:
 MARKET/STOCK UPDATES:
 ${marketStr}`;
 
+      isStreamingRef.current = true;
+
       const response = await fetch('/api/openai-chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -405,19 +456,23 @@ ${marketStr}`;
       const decoder = new TextDecoder();
       let completeResponse = "";
       let currentSentence = "";
+      let streamBuffer = "";
 
       while (true) {
         const { value, done } = await reader.read();
         if (done) break;
         
-        const chunk = decoder.decode(value, { stream: true });
-        const lines = chunk.split('\n');
+        streamBuffer += decoder.decode(value, { stream: true });
+        const lines = streamBuffer.split('\n');
+        streamBuffer = lines.pop() || "";
         
         for (const line of lines) {
           if (line.startsWith('data: ') && line !== 'data: [DONE]') {
             try {
               const parsed = JSON.parse(line.slice(6));
               const token = parsed.choices[0]?.delta?.content || "";
+              if (!token) continue;
+
               completeResponse += token;
               currentSentence += token;
               
@@ -427,18 +482,34 @@ ${marketStr}`;
                 </div>
               );
 
-              // Queue chunks for audio playback early to minimize latency!
-              const hasPunctuation = /[.?!]\s$/.test(currentSentence) || /[.?!]$/.test(currentSentence);
-              const hasClauseBreak = (currentSentence.length > 40) && (/[,;:]\s$/.test(currentSentence) || /[,;:]$/.test(currentSentence));
-              const hasWordBoundaryBreak = (currentSentence.length > 70) && (/\s$/.test(currentSentence));
-
-              if (hasPunctuation || hasClauseBreak || hasWordBoundaryBreak) {
-                speakStreamedSentence(currentSentence.trim());
-                currentSentence = "";
+              // Use our smart sentence/clause/word-count extractor to queue speaking early!
+              let splitResult = extractSpeakableChunk(currentSentence);
+              while (splitResult) {
+                speakStreamedSentence(splitResult.chunk.trim());
+                currentSentence = splitResult.remaining;
+                splitResult = extractSpeakableChunk(currentSentence);
               }
             } catch (e) {}
           }
         }
+      }
+
+      // Process any leftover line in streamBuffer
+      if (streamBuffer && streamBuffer.startsWith('data: ') && streamBuffer !== 'data: [DONE]') {
+        try {
+          const parsed = JSON.parse(streamBuffer.slice(6));
+          const token = parsed.choices[0]?.delta?.content || "";
+          if (token) {
+            completeResponse += token;
+            currentSentence += token;
+            
+            setResponseHtml(
+              <div className="bg-[#0f0f18] border border-[#1e1810] rounded-xl p-4 mb-2 text-[#c8a84b] font-mono font-bold">
+                {completeResponse}
+              </div>
+            );
+          }
+        } catch (e) {}
       }
 
       // Flush remaining text
@@ -451,6 +522,14 @@ ${marketStr}`;
     } catch (e) {
       console.error("OpenAI stream failed:", e);
       speakStreamedSentence("Sorry, I am having trouble connecting to my systems right now.");
+    } finally {
+      isStreamingRef.current = false;
+      // If we finished streaming and there is no active audio playing, transition back to idle
+      if (!isPlayingAudioRef.current && audioQueueRef.current.length === 0) {
+        setStatusState('idle');
+        shouldListenRef.current = true;
+        startListening();
+      }
     }
   };
 
@@ -498,9 +577,13 @@ ${marketStr}`;
       await processAudioQueue();
     } else {
       isAgentSpeakingRef.current = false;
-      setStatusState('idle');
-      shouldListenRef.current = true;
-      startListening();
+      if (isStreamingRef.current) {
+        setStatusState('thinking');
+      } else {
+        setStatusState('idle');
+        shouldListenRef.current = true;
+        startListening();
+      }
     }
   };
 
