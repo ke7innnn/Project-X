@@ -4,7 +4,7 @@ import { useArchitectStore } from '@/store/useArchitectStore';
 import { useRef, useEffect, useState } from 'react';
 import FloorPlanGrid from './FloorPlanGrid';
 import InteractivePlotBox from './InteractivePlotBox';
-import { Download, Upload, Palette, ZoomIn, ZoomOut, Maximize } from 'lucide-react';
+import { Download, Upload, Palette, ZoomIn, ZoomOut, Maximize, Loader2 } from 'lucide-react';
 import dynamic from 'next/dynamic';
 
 const VectorEditor = dynamic(() => import('./VectorEditor'), { ssr: false });
@@ -34,6 +34,45 @@ export default function CanvasPanel() {
   const isRenderLoadingRef = useRef(false);
   const [renderError, setRenderError] = useState<string | null>(null);
   const [renderAttempted, setRenderAttempted] = useState(false);
+  const [sunpath, setSunpath] = useState('North');
+  const [customSunpath, setCustomSunpath] = useState('');
+
+  const handleApplySunpathEdit = async () => {
+    if (!finalRender || isRenderLoading) return;
+    
+    setRenderError(null);
+    const direction = sunpath === 'custom' ? customSunpath : sunpath;
+    if (!direction.trim()) {
+      setRenderError('Please specify a custom direction.');
+      return;
+    }
+
+    try {
+      setIsRenderLoading(true);
+      isRenderLoadingRef.current = true;
+      const res = await fetch('/api/final-render', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          existingRenderBase64: finalRender,
+          isSunpathEdit: true,
+          sunpathDirection: direction,
+          collectedParameters
+        })
+      });
+      const data = await res.json();
+      if (data.render) {
+        setFinalRender(data.render);
+      } else {
+        setRenderError(data.error || 'Sunpath edit failed. Please try again.');
+      }
+    } catch (err) {
+      setRenderError('Network error. Please check your connection and try again.');
+    } finally {
+      setIsRenderLoading(false);
+      isRenderLoadingRef.current = false;
+    }
+  };
 
   // --- Zoom & Pan state ---
   const [zoom, setZoom] = useState(1);
@@ -411,9 +450,64 @@ export default function CanvasPanel() {
                  <p className="text-[#FFB000] animate-pulse">Rendering high-quality 3D image...</p>
               </div>
             ) : finalRender && (
-              <div className="mt-4">
-                <h3 className="text-[#FFB000] mb-4 font-semibold">Premium 3D Render</h3>
-                <img src={`data:image/jpeg;base64,${finalRender}`} alt="3D Render" className="w-full rounded-xl shadow-2xl" />
+              <div className="mt-4 flex flex-col gap-6">
+                <div>
+                  <h3 className="text-[#FFB000] mb-4 font-semibold">Premium 3D Render</h3>
+                  <img src={`data:image/jpeg;base64,${finalRender}`} alt="3D Render" className="w-full rounded-xl shadow-2xl" />
+                </div>
+
+                <div className="p-4 border border-[#FFB000]/30 bg-[#FFB000]/5 rounded-xl flex flex-col gap-3">
+                  <span className="text-[11px] font-bold tracking-[2px] uppercase text-[#FFB000]">Change Sunpath</span>
+                  <p className="text-[9px] text-[#FFB000]/60 uppercase tracking-wider leading-relaxed">
+                    Shift the position of the sun. Long, sharp shadows will dynamically project on the opposite side of the structure.
+                  </p>
+                  
+                  <div className="flex flex-col md:flex-row gap-3">
+                    <div className="flex-1 flex flex-col gap-2">
+                      <label className="text-[9px] uppercase tracking-widest text-zinc-400">Select Direction</label>
+                      <select 
+                        value={sunpath} 
+                        onChange={(e) => {
+                          setSunpath(e.target.value);
+                          if (e.target.value !== 'custom') setCustomSunpath('');
+                        }}
+                        className="w-full bg-black text-xs border border-gray-700 text-white rounded px-3 py-2.5 focus:outline-none focus:border-[#FFB000] uppercase font-mono"
+                      >
+                        <option value="North">North (Shadows South)</option>
+                        <option value="South">South (Shadows North)</option>
+                        <option value="East">East (Shadows West)</option>
+                        <option value="West">West (Shadows East)</option>
+                        <option value="North-East">North-East (Shadows South-West)</option>
+                        <option value="North-West">North-West (Shadows South-East)</option>
+                        <option value="South-East">South-East (Shadows North-West)</option>
+                        <option value="South-West">South-West (Shadows North-East)</option>
+                        <option value="custom">Custom Direction...</option>
+                      </select>
+                    </div>
+
+                    {sunpath === 'custom' && (
+                      <div className="flex-1 flex flex-col gap-2">
+                        <label className="text-[9px] uppercase tracking-widest text-zinc-400">Custom Position</label>
+                        <input
+                          type="text"
+                          value={customSunpath}
+                          onChange={(e) => setCustomSunpath(e.target.value)}
+                          placeholder="E.G. LOW ON THE WESTERN HORIZON"
+                          className="w-full bg-black text-xs border border-gray-700 text-white rounded px-3 py-2.5 focus:outline-none focus:border-[#FFB000] uppercase font-mono tracking-wider"
+                        />
+                      </div>
+                    )}
+                  </div>
+
+                  <button
+                    onClick={handleApplySunpathEdit}
+                    disabled={isRenderLoading}
+                    className="mt-2 py-3 bg-[#FFB000] text-black font-bold uppercase tracking-widest text-[9px] rounded hover:bg-[#D8B78D] transition-colors disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer shadow-[0_0_15px_rgba(255,176,0,0.1)]"
+                  >
+                    {isRenderLoading && <Loader2 size={12} className="animate-spin" />}
+                    {isRenderLoading ? 'Recalculating Shadows...' : 'Apply Sunpath Edit'}
+                  </button>
+                </div>
               </div>
             )}
           </div>

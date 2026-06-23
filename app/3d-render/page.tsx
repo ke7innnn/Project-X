@@ -9,9 +9,49 @@ import CinematicIntro from '@/components/CinematicIntro';
 export default function Render3DPage() {
   const router = useRouter();
   const { currentFloorPlan, setCurrentFloorPlan, finalRender, setFinalRender, collectedParameters, sessionId } = useArchitectStore();
+
+
   const [isRendering, setIsRendering] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [sunpath, setSunpath] = useState('North');
+  const [customSunpath, setCustomSunpath] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleApplySunpathEdit = async () => {
+    if (!finalRender || isRendering) return;
+    
+    setIsRendering(true);
+    setError(null);
+    const direction = sunpath === 'custom' ? customSunpath : sunpath;
+    if (!direction.trim()) {
+      setError('Please specify a custom direction.');
+      setIsRendering(false);
+      return;
+    }
+
+    try {
+      const res = await fetch('/api/final-render', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          existingRenderBase64: finalRender,
+          isSunpathEdit: true,
+          sunpathDirection: direction,
+          collectedParameters
+        })
+      });
+      const data = await res.json();
+      if (data.render) {
+        setFinalRender(data.render);
+      } else {
+        setError(data.error || 'Sunpath edit failed. Please try again.');
+      }
+    } catch (err) {
+      setError('Network error. Please check your connection and try again.');
+    } finally {
+      setIsRendering(false);
+    }
+  };
 
   const handleGenerateRender = async () => {
     if (!currentFloorPlan || isRendering) return;
@@ -195,8 +235,66 @@ export default function Render3DPage() {
               </div>
             )}
 
+            {/* Active Sunpath Controller */}
+            {finalRender ? (
+              <div className="p-4 border border-[#FFB000]/30 bg-[#FFB000]/5 rounded flex flex-col gap-3">
+                <span className="text-[10px] font-bold tracking-[2px] uppercase text-[#FFB000]">Change Sunpath</span>
+                <p className="text-[9px] text-[#FFB000]/60 uppercase tracking-wider leading-relaxed">
+                  Shift the position of the sun. Long, sharp shadows will dynamically project on the opposite side of the structure.
+                </p>
+                
+                <div className="space-y-2">
+                  <label className="block text-[9px] uppercase tracking-widest text-zinc-400">Direction</label>
+                  <select
+                    value={sunpath}
+                    onChange={(e) => {
+                      setSunpath(e.target.value);
+                      if (e.target.value !== 'custom') setCustomSunpath('');
+                    }}
+                    className="w-full bg-black text-xs border border-gray-700 text-white rounded px-3 py-2.5 focus:outline-none focus:border-[#FFB000] uppercase font-mono"
+                  >
+                    <option value="North">North (Shadows South)</option>
+                    <option value="South">South (Shadows North)</option>
+                    <option value="East">East (Shadows West)</option>
+                    <option value="West">West (Shadows East)</option>
+                    <option value="North-East">North-East (Shadows South-West)</option>
+                    <option value="North-West">North-West (Shadows South-East)</option>
+                    <option value="South-East">South-East (Shadows North-West)</option>
+                    <option value="South-West">South-West (Shadows North-East)</option>
+                    <option value="custom">Custom Direction...</option>
+                  </select>
+                </div>
+
+                {sunpath === 'custom' && (
+                  <div className="space-y-2">
+                    <label className="block text-[9px] uppercase tracking-widest text-zinc-400">Custom Position</label>
+                    <input
+                      type="text"
+                      value={customSunpath}
+                      onChange={(e) => setCustomSunpath(e.target.value)}
+                      placeholder="E.G. LOW ON THE WESTERN HORIZON"
+                      className="w-full bg-black text-xs border border-gray-700 text-white rounded px-3 py-2.5 focus:outline-none focus:border-[#FFB000] uppercase font-mono tracking-wider"
+                    />
+                  </div>
+                )}
+
+                <button
+                  onClick={handleApplySunpathEdit}
+                  disabled={isRendering}
+                  className="w-full py-3 mt-2 bg-[#FFB000] text-black font-bold uppercase tracking-widest text-[9px] rounded hover:bg-[#D8B78D] transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                >
+                  {isRendering && <Loader2 size={12} className="animate-spin" />}
+                  {isRendering ? 'Recalculating Shadows...' : 'Apply Sunpath Edit'}
+                </button>
+              </div>
+            ) : (
+              <p className="text-[9px] tracking-widest uppercase text-zinc-500 text-center py-4">
+                Initialize render to unlock filters
+              </p>
+            )}
+
             {/* Filter Placeholders */}
-            <div className="space-y-4 opacity-50 pointer-events-none">
+            <div className="space-y-4 opacity-30 pointer-events-none">
               <div className="flex justify-between items-center pb-2 border-b border-[#1e1810]">
                 <span className="text-[10px] tracking-[2px] uppercase text-white">Time of Day</span>
                 <span className="text-[9px] tracking-widest text-[#FFB000]">Coming Soon</span>

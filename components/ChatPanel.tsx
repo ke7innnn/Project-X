@@ -1,10 +1,11 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useArchitectStore } from '@/store/useArchitectStore';
 import ChatMessage from './ChatMessage';
 import ChatInput from './ChatInput';
 import ImageGrid from './ImageGrid';
+import { Loader2 } from 'lucide-react';
 
 export default function ChatPanel() {
   const { 
@@ -15,8 +16,14 @@ export default function ChatPanel() {
     setPhase, 
     collectedParameters,
     isLoading,
-    setIsLoading
+    setIsLoading,
+    finalRender,
+    setFinalRender
   } = useArchitectStore();
+
+  const [sunpath, setSunpath] = useState('North');
+  const [customSunpath, setCustomSunpath] = useState('');
+  const [isLocalRenderLoading, setIsLocalRenderLoading] = useState(false);
   
   const scrollRef = useRef<HTMLDivElement>(null);
   // Track last edit instruction so we can retry on failure
@@ -42,6 +49,44 @@ export default function ChatPanel() {
       }
     }
   }, [conversationHistory.length, isLoading]);
+
+  const handleApplySunpathEdit = async () => {
+    if (!finalRender || isLocalRenderLoading) return;
+    
+    const direction = sunpath === 'custom' ? customSunpath : sunpath;
+    if (!direction.trim()) {
+      addMessage({ role: 'model', parts: [{ text: "Please specify a custom direction for the sunpath." }] });
+      return;
+    }
+
+    try {
+      setIsLocalRenderLoading(true);
+      const res = await fetch('/api/final-render', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          existingRenderBase64: finalRender,
+          isSunpathEdit: true,
+          sunpathDirection: direction,
+          collectedParameters
+        })
+      });
+      const data = await res.json();
+      if (data.render) {
+        setFinalRender(data.render);
+        addMessage({ 
+          role: 'model', 
+          parts: [{ text: `Successfully updated the 3D render's lighting. The sun is now coming from the ${direction}, casting shadows opposite to it.` }] 
+        });
+      } else {
+        addMessage({ role: 'model', parts: [{ text: `Failed to edit sunpath: ${data.error || 'Unknown error'}` }] });
+      }
+    } catch (err) {
+      addMessage({ role: 'model', parts: [{ text: "Network error occurred while updating the sunpath. Please try again." }] });
+    } finally {
+      setIsLocalRenderLoading(false);
+    }
+  };
 
   const handleSend = async (text: string, file?: File | null) => {
     // Prevent double submissions synchronously
@@ -285,6 +330,56 @@ export default function ChatPanel() {
           </div>
         )}
       </div>
+      {/* Sunpath controls if phase is render/export and render exists */}
+      {(phase === 'export' || phase === 'reimport') && finalRender && (
+        <div className="mx-4 mb-4 p-3 border border-[#FFB000]/30 bg-[#FFB000]/5 rounded-lg flex flex-col gap-2 relative z-10">
+          <div className="flex justify-between items-center">
+            <span className="text-[9px] font-bold tracking-[2px] uppercase text-[#FFB000]">Sunpath Controller</span>
+            {isLocalRenderLoading && <Loader2 size={10} className="animate-spin text-[#FFB000]" />}
+          </div>
+          
+          <div className="flex gap-2">
+            <select
+              value={sunpath}
+              onChange={(e) => {
+                setSunpath(e.target.value);
+                if (e.target.value !== 'custom') setCustomSunpath('');
+              }}
+              disabled={isLocalRenderLoading}
+              className="flex-1 bg-black text-[10px] border border-gray-700 text-white rounded px-2 py-1.5 focus:outline-none focus:border-[#FFB000] uppercase font-mono"
+            >
+              <option value="North">North (Shadows S)</option>
+              <option value="South">South (Shadows N)</option>
+              <option value="East">East (Shadows W)</option>
+              <option value="West">West (Shadows E)</option>
+              <option value="North-East">NE (Shadows SW)</option>
+              <option value="North-West">NW (Shadows SE)</option>
+              <option value="South-East">SE (Shadows NW)</option>
+              <option value="South-West">SW (Shadows NE)</option>
+              <option value="custom">Custom...</option>
+            </select>
+            
+            <button
+              onClick={handleApplySunpathEdit}
+              disabled={isLocalRenderLoading}
+              className="px-3 py-1.5 bg-[#FFB000] hover:bg-[#D8B78D] text-black font-bold uppercase tracking-widest text-[9px] rounded transition-colors disabled:opacity-50 cursor-pointer"
+            >
+              {isLocalRenderLoading ? 'Modifying...' : 'Apply'}
+            </button>
+          </div>
+
+          {sunpath === 'custom' && (
+            <input
+              type="text"
+              value={customSunpath}
+              onChange={(e) => setCustomSunpath(e.target.value)}
+              disabled={isLocalRenderLoading}
+              placeholder="E.G. SUN FROM NORTH-WEST"
+              className="w-full bg-black text-[9px] border border-gray-700 text-white rounded px-2 py-1.5 focus:outline-none focus:border-[#FFB000] uppercase font-mono tracking-wider"
+            />
+          )}
+        </div>
+      )}
       
       <ChatInput onSend={handleSend} disabled={isLoading} />
     </div>

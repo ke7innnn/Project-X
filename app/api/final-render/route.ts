@@ -7,22 +7,41 @@ export const maxDuration = 60; // 60s timeout for Vercel functions
 
 export async function POST(request: Request) {
   try {
-    const { floorPlanBase64, collectedParameters } = await request.json();
+    const { 
+      floorPlanBase64, 
+      collectedParameters,
+      isSunpathEdit,
+      sunpathDirection,
+      existingRenderBase64
+    } = await request.json();
 
-    if (!floorPlanBase64) {
-      throw new Error('Missing floor plan image for rendering');
+    let inputImageBase64 = floorPlanBase64;
+    let prompt = '';
+
+    if (isSunpathEdit) {
+      if (!existingRenderBase64) {
+        throw new Error('Missing existing 3D render image for sunpath edit');
+      }
+      inputImageBase64 = existingRenderBase64;
+      prompt = `Adjust the lighting and environment of this architectural 3D render. The sun is now coming from the ${sunpathDirection}, casting long, sharp, cinematic shadows that fall towards the opposite side. Maintain the exact house structure, materials, colors, and layout. Only change the sun's position, shadows, and the ambient sun path lighting.`;
+      console.log(`[xai/grok-imagine-image/edit] Editing Sunpath. Direction: "${sunpathDirection}"`);
+    } else {
+      if (!floorPlanBase64) {
+        throw new Error('Missing floor plan image for rendering');
+      }
+      prompt = typeof FINAL_RENDER_PROMPT === 'function'
+        ? FINAL_RENDER_PROMPT(collectedParameters)
+        : FINAL_RENDER_PROMPT;
+      console.log(`[xai/grok-imagine-image/edit] Generating 3D Render.`);
     }
 
-    const prompt = typeof FINAL_RENDER_PROMPT === 'function'
-      ? FINAL_RENDER_PROMPT(collectedParameters)
-      : FINAL_RENDER_PROMPT;
     const body = {
       prompt,
       negative_prompt: "text, words, letters, typography, alphabet, writing, labels, fonts, numbers, watermarks, blurred text, scrambled letters, floating text, symbols, illegible text, text on floor",
       image_urls: [
-        floorPlanBase64.startsWith('data:')
-          ? floorPlanBase64
-          : `data:image/jpeg;base64,${floorPlanBase64}`
+        inputImageBase64.startsWith('data:')
+          ? inputImageBase64
+          : `data:image/jpeg;base64,${inputImageBase64}`
       ]
     };
 
