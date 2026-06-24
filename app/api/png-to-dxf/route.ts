@@ -37,6 +37,10 @@ export async function POST(request: Request) {
     // Output format — dxf or svg
     vectorizerForm.append('output.file_format', outputFormat);
 
+    // Use test mode — works without an API subscription (results are watermarked).
+    // Remove this line once upgraded to the vectorizer.ai API subscription tier.
+    vectorizerForm.append('mode', 'test');
+
     // Processing options for maximum accuracy on architectural floor plans
     if (outputFormat === 'dxf') {
       vectorizerForm.append('processing.max_colors', '2');      // B&W floor plans — 2 colours = perfect trace
