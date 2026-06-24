@@ -1,0 +1,451 @@
+'use client';
+
+import { useState, useRef, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
+import { Upload, Download, RotateCcw, ChevronLeft, Loader2, CheckCircle2, AlertCircle, ZoomIn, ZoomOut } from 'lucide-react';
+
+type Step = 'upload' | 'processing' | 'done' | 'error';
+
+export default function PngToDxfPage() {
+  const router = useRouter();
+
+  const [step, setStep] = useState<Step>('upload');
+  const [dragOver, setDragOver] = useState(false);
+  const [originalFile, setOriginalFile] = useState<File | null>(null);
+  const [originalPreviewUrl, setOriginalPreviewUrl] = useState<string | null>(null);
+  const [svgResult, setSvgResult] = useState<string | null>(null);
+  const [dxfBlob, setDxfBlob] = useState<Blob | null>(null);
+  const [errorMsg, setErrorMsg] = useState<string>('');
+  const [progress, setProgress] = useState(0);
+  const [svgZoom, setSvgZoom] = useState(1);
+
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const progressRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const startFakeProgress = () => {
+    setProgress(0);
+    let p = 0;
+    progressRef.current = setInterval(() => {
+      p += Math.random() * 4 + 1;
+      if (p >= 90) {
+        clearInterval(progressRef.current!);
+        p = 90;
+      }
+      setProgress(Math.min(p, 90));
+    }, 300);
+  };
+
+  const finishProgress = () => {
+    if (progressRef.current) clearInterval(progressRef.current);
+    setProgress(100);
+  };
+
+  const loadFile = (file: File) => {
+    if (!file.type.match(/image\/(png|jpeg|jpg|webp)/)) {
+      setErrorMsg('Please upload a PNG, JPG or WEBP image file.');
+      setStep('error');
+      return;
+    }
+    setOriginalFile(file);
+    const url = URL.createObjectURL(file);
+    setOriginalPreviewUrl(url);
+    setSvgResult(null);
+    setDxfBlob(null);
+    setStep('upload');
+  };
+
+  const handleDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    setDragOver(false);
+    const file = e.dataTransfer.files[0];
+    if (file) loadFile(file);
+  }, []);
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) loadFile(file);
+  };
+
+  const vectorize = async () => {
+    if (!originalFile) return;
+    setStep('processing');
+    setErrorMsg('');
+    startFakeProgress();
+
+    try {
+      // Step 1: Get SVG preview
+      const svgForm = new FormData();
+      svgForm.append('image', originalFile);
+      svgForm.append('format', 'svg');
+
+      const svgRes = await fetch('/api/png-to-dxf', { method: 'POST', body: svgForm });
+      if (!svgRes.ok) {
+        const j = await svgRes.json().catch(() => ({ error: 'Unknown error' }));
+        throw new Error(j.error || `SVG request failed (${svgRes.status})`);
+      }
+      const svgText = await svgRes.text();
+      setSvgResult(svgText);
+
+      // Step 2: Get DXF for download
+      const dxfForm = new FormData();
+      dxfForm.append('image', originalFile);
+      dxfForm.append('format', 'dxf');
+
+      const dxfRes = await fetch('/api/png-to-dxf', { method: 'POST', body: dxfForm });
+      if (!dxfRes.ok) {
+        const j = await dxfRes.json().catch(() => ({ error: 'Unknown error' }));
+        throw new Error(j.error || `DXF request failed (${dxfRes.status})`);
+      }
+      const dxfBuffer = await dxfRes.blob();
+      setDxfBlob(dxfBuffer);
+
+      finishProgress();
+      setTimeout(() => setStep('done'), 400);
+    } catch (err: any) {
+      if (progressRef.current) clearInterval(progressRef.current);
+      setErrorMsg(err.message || 'Vectorization failed. Please try again.');
+      setStep('error');
+    }
+  };
+
+  const downloadDxf = () => {
+    if (!dxfBlob) return;
+    const url = URL.createObjectURL(dxfBlob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = originalFile?.name?.replace(/\.[^.]+$/, '') + '.dxf' || 'floorplan.dxf';
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const reset = () => {
+    setStep('upload');
+    setOriginalFile(null);
+    if (originalPreviewUrl) URL.revokeObjectURL(originalPreviewUrl);
+    setOriginalPreviewUrl(null);
+    setSvgResult(null);
+    setDxfBlob(null);
+    setErrorMsg('');
+    setProgress(0);
+    setSvgZoom(1);
+  };
+
+  return (
+    <div className="min-h-screen bg-[#0a0a0f] text-white font-mono flex flex-col">
+      {/* Top bar */}
+      <div className="flex items-center justify-between px-6 py-4 border-b border-[#00f0ff]/10 bg-[#0a0a0f]/90 backdrop-blur sticky top-0 z-20">
+        <button
+          onClick={() => router.push('/')}
+          className="flex items-center gap-2 text-[#00f0ff]/60 hover:text-[#00f0ff] transition-colors text-xs uppercase tracking-[3px]"
+        >
+          <ChevronLeft size={16} />
+          Main Menu
+        </button>
+        <div className="text-center">
+          <p className="text-[10px] text-[#00f0ff]/40 tracking-[4px] uppercase">Pinnacle Studios</p>
+          <h1 className="text-[13px] font-bold tracking-[6px] uppercase text-[#00f0ff]" style={{ fontFamily: 'Givonic, Syncopate, sans-serif' }}>
+            PNG → DXF
+          </h1>
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="w-1.5 h-1.5 rounded-full bg-[#00f0ff] animate-pulse" />
+          <span className="text-[9px] text-[#00f0ff]/50 tracking-[2px] uppercase">
+            Vectorizer.AI
+          </span>
+        </div>
+      </div>
+
+      <div className="flex-1 flex flex-col lg:flex-row gap-0 overflow-hidden">
+        {/* Left Panel — Upload & Controls */}
+        <div className="lg:w-[380px] shrink-0 flex flex-col gap-0 border-r border-[#00f0ff]/10">
+          {/* Upload zone */}
+          <div className="p-6 border-b border-[#00f0ff]/10">
+            <p className="text-[10px] text-[#00f0ff]/50 tracking-[3px] uppercase mb-4">
+              Input Image
+            </p>
+
+            <div
+              onDrop={handleDrop}
+              onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+              onDragLeave={() => setDragOver(false)}
+              onClick={() => fileInputRef.current?.click()}
+              className={`relative border-2 border-dashed rounded-xl p-8 flex flex-col items-center justify-center gap-3 cursor-pointer transition-all duration-300 min-h-[180px] ${
+                dragOver
+                  ? 'border-[#00f0ff] bg-[#00f0ff]/5 scale-[1.01]'
+                  : originalFile
+                  ? 'border-[#00f0ff]/40 bg-[#00f0ff]/3 hover:border-[#00f0ff]/70'
+                  : 'border-[#00f0ff]/20 bg-[#0d0d1a] hover:border-[#00f0ff]/40 hover:bg-[#00f0ff]/3'
+              }`}
+            >
+              {originalPreviewUrl ? (
+                <>
+                  <img
+                    src={originalPreviewUrl}
+                    alt="Uploaded floor plan"
+                    className="max-h-36 max-w-full object-contain rounded"
+                  />
+                  <p className="text-[9px] text-[#00f0ff]/50 mt-1 truncate max-w-full px-2">
+                    {originalFile?.name}
+                  </p>
+                  <p className="text-[8px] text-white/30">Click to replace</p>
+                </>
+              ) : (
+                <>
+                  <Upload size={28} className="text-[#00f0ff]/30" />
+                  <p className="text-[11px] text-white/60 text-center leading-relaxed">
+                    Drop your floor plan here<br />or click to browse
+                  </p>
+                  <p className="text-[9px] text-white/30">PNG · JPG · WEBP</p>
+                </>
+              )}
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/png,image/jpeg,image/webp"
+                className="hidden"
+                onChange={handleFileChange}
+              />
+            </div>
+          </div>
+
+          {/* Info panel */}
+          <div className="p-6 border-b border-[#00f0ff]/10 flex flex-col gap-3">
+            <p className="text-[10px] text-[#00f0ff]/50 tracking-[3px] uppercase">Engine</p>
+            {[
+              ['🤖 AI', 'Deep learning vectorization'],
+              ['🧮 Curves', 'Cubic Bézier + arcs preserved'],
+              ['📐 Format', 'AutoCAD 2007+ compatible DXF'],
+              ['🎯 Accuracy', '100% — all walls & details'],
+            ].map(([label, desc]) => (
+              <div key={label} className="flex items-start gap-3">
+                <span className="text-[10px] w-14 shrink-0 text-[#00f0ff]/70">{label}</span>
+                <span className="text-[10px] text-white/50 leading-tight">{desc}</span>
+              </div>
+            ))}
+          </div>
+
+          {/* Action buttons */}
+          <div className="p-6 flex flex-col gap-3 mt-auto">
+            {step === 'upload' && originalFile && (
+              <button
+                onClick={vectorize}
+                className="w-full py-3.5 bg-[#00f0ff] text-black font-bold text-xs uppercase tracking-[4px] rounded-lg hover:bg-[#00d4e8] transition-all shadow-[0_0_20px_rgba(0,240,255,0.3)] hover:shadow-[0_0_30px_rgba(0,240,255,0.5)] active:scale-95"
+              >
+                Vectorize → DXF
+              </button>
+            )}
+
+            {step === 'done' && (
+              <>
+                <button
+                  onClick={downloadDxf}
+                  className="w-full py-3.5 bg-[#00f0ff] text-black font-bold text-xs uppercase tracking-[4px] rounded-lg hover:bg-[#00d4e8] transition-all shadow-[0_0_20px_rgba(0,240,255,0.4)] flex items-center justify-center gap-2"
+                >
+                  <Download size={16} />
+                  Download DXF
+                </button>
+                <button
+                  onClick={reset}
+                  className="w-full py-3 border border-[#00f0ff]/30 text-[#00f0ff]/60 hover:text-[#00f0ff] hover:border-[#00f0ff]/60 text-xs uppercase tracking-[3px] rounded-lg transition-all flex items-center justify-center gap-2"
+                >
+                  <RotateCcw size={14} />
+                  New Image
+                </button>
+              </>
+            )}
+
+            {step === 'error' && (
+              <button
+                onClick={reset}
+                className="w-full py-3.5 border border-red-500/40 text-red-400 hover:border-red-400 text-xs uppercase tracking-[3px] rounded-lg transition-all flex items-center justify-center gap-2"
+              >
+                <RotateCcw size={14} />
+                Try Again
+              </button>
+            )}
+
+            {step === 'upload' && !originalFile && (
+              <button
+                disabled
+                className="w-full py-3.5 bg-[#00f0ff]/10 text-[#00f0ff]/30 font-bold text-xs uppercase tracking-[4px] rounded-lg cursor-not-allowed"
+              >
+                Vectorize → DXF
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Right Panel — Preview */}
+        <div className="flex-1 flex flex-col overflow-hidden bg-[#07070d]">
+          {/* Panel header */}
+          <div className="flex items-center justify-between px-6 py-3 border-b border-[#00f0ff]/10 shrink-0">
+            <p className="text-[10px] text-[#00f0ff]/50 tracking-[3px] uppercase">
+              {step === 'done' ? 'Vectorized Preview' : 'Preview'}
+            </p>
+            {step === 'done' && svgResult && (
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setSvgZoom(z => Math.max(0.3, z - 0.2))}
+                  className="p-1.5 text-white/40 hover:text-[#00f0ff] transition-colors"
+                >
+                  <ZoomOut size={14} />
+                </button>
+                <span className="text-[10px] text-white/30 w-10 text-center">{Math.round(svgZoom * 100)}%</span>
+                <button
+                  onClick={() => setSvgZoom(z => Math.min(3, z + 0.2))}
+                  className="p-1.5 text-white/40 hover:text-[#00f0ff] transition-colors"
+                >
+                  <ZoomIn size={14} />
+                </button>
+              </div>
+            )}
+          </div>
+
+          <div className="flex-1 overflow-auto flex items-start justify-center p-6 relative">
+            {/* Empty state */}
+            {step === 'upload' && !originalFile && (
+              <div className="flex flex-col items-center justify-center h-full gap-4 opacity-30">
+                <div className="w-24 h-24 border-2 border-dashed border-[#00f0ff]/30 rounded-xl flex items-center justify-center">
+                  <Upload size={32} className="text-[#00f0ff]/40" />
+                </div>
+                <p className="text-[11px] text-white/40 text-center tracking-wider uppercase">
+                  Upload a floor plan to preview
+                </p>
+              </div>
+            )}
+
+            {/* Original preview while uploading */}
+            {step === 'upload' && originalFile && originalPreviewUrl && (
+              <div className="flex flex-col items-center gap-4 w-full">
+                <div className="border border-[#00f0ff]/10 rounded-xl overflow-hidden bg-neutral-900 w-full max-w-2xl">
+                  <div className="px-4 py-2 border-b border-[#00f0ff]/10 flex items-center gap-2">
+                    <div className="w-1.5 h-1.5 rounded-full bg-white/20" />
+                    <span className="text-[9px] text-white/30 tracking-[2px] uppercase">Original</span>
+                  </div>
+                  <img
+                    src={originalPreviewUrl}
+                    alt="Original floor plan"
+                    className="w-full object-contain max-h-[70vh]"
+                  />
+                </div>
+                <p className="text-[10px] text-[#00f0ff]/50 uppercase tracking-[2px]">
+                  ↙ Ready — click Vectorize on the left
+                </p>
+              </div>
+            )}
+
+            {/* Processing */}
+            {step === 'processing' && (
+              <div className="flex flex-col items-center justify-center h-full gap-8 w-full max-w-md">
+                {/* HUD circle */}
+                <div className="relative w-40 h-40">
+                  <svg className="absolute inset-0 -rotate-90" viewBox="0 0 160 160">
+                    <circle cx="80" cy="80" r="70" fill="none" stroke="#00f0ff10" strokeWidth="4" />
+                    <circle
+                      cx="80" cy="80" r="70"
+                      fill="none"
+                      stroke="#00f0ff"
+                      strokeWidth="4"
+                      strokeLinecap="round"
+                      strokeDasharray={`${2 * Math.PI * 70}`}
+                      strokeDashoffset={`${2 * Math.PI * 70 * (1 - progress / 100)}`}
+                      className="transition-all duration-300"
+                      style={{ filter: 'drop-shadow(0 0 8px #00f0ff)' }}
+                    />
+                  </svg>
+                  <div className="absolute inset-0 flex flex-col items-center justify-center gap-1">
+                    <Loader2 size={24} className="text-[#00f0ff] animate-spin" />
+                    <span className="text-xl font-bold text-[#00f0ff]">{Math.round(progress)}%</span>
+                  </div>
+                </div>
+
+                <div className="text-center">
+                  <p className="text-[13px] font-bold text-white tracking-[3px] uppercase mb-2">
+                    Vectorizing
+                  </p>
+                  <p className="text-[10px] text-white/40 leading-relaxed">
+                    AI tracing all paths, curves, and walls…
+                  </p>
+                </div>
+
+                {/* Animated scan lines */}
+                <div className="w-full border border-[#00f0ff]/10 rounded-lg overflow-hidden h-24 relative bg-[#0a0a0f]">
+                  {originalPreviewUrl && (
+                    <img src={originalPreviewUrl} alt="" className="w-full h-full object-cover opacity-20" />
+                  )}
+                  <div
+                    className="absolute inset-x-0 h-0.5 bg-gradient-to-r from-transparent via-[#00f0ff] to-transparent animate-bounce"
+                    style={{ top: `${progress}%`, transition: 'top 0.3s' }}
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* Done — Side by side */}
+            {step === 'done' && svgResult && (
+              <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 w-full">
+                {/* Original */}
+                <div className="border border-white/10 rounded-xl overflow-hidden bg-neutral-900">
+                  <div className="px-4 py-2 border-b border-white/10 flex items-center gap-2">
+                    <div className="w-1.5 h-1.5 rounded-full bg-white/30" />
+                    <span className="text-[9px] text-white/40 tracking-[2px] uppercase">Original PNG</span>
+                  </div>
+                  {originalPreviewUrl && (
+                    <img src={originalPreviewUrl} alt="Original" className="w-full object-contain max-h-[60vh]" />
+                  )}
+                </div>
+
+                {/* SVG Vector result */}
+                <div className="border border-[#00f0ff]/20 rounded-xl overflow-hidden bg-white">
+                  <div className="px-4 py-2 border-b border-[#00f0ff]/20 bg-[#0a0a0f] flex items-center gap-2">
+                    <div className="w-1.5 h-1.5 rounded-full bg-[#00f0ff] shadow-[0_0_6px_#00f0ff]" />
+                    <span className="text-[9px] text-[#00f0ff] tracking-[2px] uppercase">Vectorized Result</span>
+                    <span className="ml-auto text-[8px] text-[#00f0ff]/40">Cubic Bézier curves</span>
+                  </div>
+                  <div
+                    className="w-full overflow-auto bg-white flex items-start justify-center p-4 max-h-[60vh]"
+                    style={{ minHeight: 200 }}
+                  >
+                    <div
+                      style={{ transform: `scale(${svgZoom})`, transformOrigin: 'top center', transition: 'transform 0.2s' }}
+                      dangerouslySetInnerHTML={{ __html: svgResult }}
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Error */}
+            {step === 'error' && (
+              <div className="flex flex-col items-center justify-center h-full gap-4">
+                <AlertCircle size={48} className="text-red-400" />
+                <p className="text-sm font-bold text-red-400 uppercase tracking-[2px]">Vectorization Failed</p>
+                <p className="text-[11px] text-white/40 text-center max-w-xs leading-relaxed">{errorMsg}</p>
+              </div>
+            )}
+          </div>
+
+          {/* Bottom status bar */}
+          {step === 'done' && (
+            <div className="px-6 py-3 border-t border-[#00f0ff]/10 flex items-center gap-4 bg-[#00f0ff]/3 shrink-0">
+              <CheckCircle2 size={14} className="text-[#00f0ff]" />
+              <span className="text-[10px] text-[#00f0ff]/80 tracking-[2px] uppercase">
+                Vectorization complete — all curves and walls traced
+              </span>
+              <button
+                onClick={downloadDxf}
+                className="ml-auto flex items-center gap-1.5 px-3 py-1.5 bg-[#00f0ff] text-black text-[10px] font-bold uppercase tracking-[2px] rounded hover:bg-[#00d4e8] transition-colors"
+              >
+                <Download size={12} />
+                DXF
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Scanline overlay */}
+      <div className="fixed inset-0 pointer-events-none bg-[linear-gradient(to_bottom,transparent_50%,rgba(0,0,0,0.07)_51%)] bg-[length:100%_4px] z-50 opacity-30" />
+    </div>
+  );
+}

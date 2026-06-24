@@ -67,6 +67,7 @@ export default function StartScreen() {
     { id: 'render-zone', label: 'RENDER ZONE' },
     { id: 'edit', label: 'EDIT' },
     { id: '3d-render', label: '3D RENDER' },
+    { id: 'png-to-dxf', label: 'PNG TO DXF', badge: 'NEW' },
     { id: 'flythrough', label: 'FLYTHROUGH' }
   ];
 
@@ -802,6 +803,10 @@ ${newsStr}`;
       setStorePhase('edit');
       speak("Initializing 3D visualization, sir.", () => {
         router.push('/3d-render');
+      });
+    } else if (stageId === 'png-to-dxf') {
+      speak("Initiating vector conversion suite, sir.", () => {
+        router.push('/png-to-dxf');
       });
     } else if (stageId === 'flythrough') {
       setStorePhase('edit');
