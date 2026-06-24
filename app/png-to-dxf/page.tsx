@@ -374,11 +374,11 @@ export default function PngToDxfPage() {
                       {preprocessing ? (
                         <div className="flex flex-col items-center justify-center gap-4 py-20">
                           <Loader2 size={32} className="text-[#00f0ff] animate-spin" />
-                          <p className="text-[11px] text-[#00f0ff]/60 uppercase tracking-[3px]">
-                            Enhancing image…
+                          <p className="text-[10px] text-[#00f0ff]/60 uppercase tracking-[3px]">
+                            Enhancing & AI Upscaling image…
                           </p>
                           <p className="text-[10px] text-white/30">
-                            Denoising · Sharpening · Contrast boost
+                            Upscale 3x+ · Sharp Filter · SeedVR AI Upscale 2x
                           </p>
                         </div>
                       ) : preprocessedUrl ? (
@@ -387,7 +387,7 @@ export default function PngToDxfPage() {
                             <div className="px-4 py-2 border-b border-[#00f0ff]/20 bg-[#0a0a0f] flex items-center gap-2">
                               <div className="w-1.5 h-1.5 rounded-full bg-[#00f0ff] shadow-[0_0_6px_#00f0ff]" />
                               <span className="text-[9px] text-[#00f0ff] tracking-[2px] uppercase">Enhanced — ready for vectorization</span>
-                              <span className="ml-auto text-[8px] text-[#00f0ff]/50">Denoise · Sharpen · Contrast · Threshold</span>
+                              <span className="ml-auto text-[8px] text-[#00f0ff]/50">Upscale 3x+ · Sharp Filter · SeedVR AI Upscale 2x</span>
                             </div>
                             <img
                               src={preprocessedUrl}

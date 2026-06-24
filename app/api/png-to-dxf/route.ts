@@ -5,33 +5,27 @@ export const maxDuration = 60;
 
 /**
  * Image pre-processing pipeline using sharp before vectorization.
- * Goal: make even blurry/low-contrast floor plans into crisp B&W drawings
- * so vectorizer.ai can extract 100% of the detail.
- *
- * Pipeline:
- *  1. Grayscale               — strip color noise, treat as B&W drawing
- *  2. Median blur (3px)       — kill specks, scanner noise, JPEG artifacts
- *  3. Sharpen (aggressive)    — recover edge sharpness after blur
- *  4. Normalize               — stretch tones to full 0–255 range
- *  5. Linear contrast boost   — crush blacks, lift whites further
- *  6. Threshold               — convert to pure black & white (best for DXF tracing)
+ * Pipeline is GENTLE and focuses on ANTI-ALIASING.
+ * We upscale the image 2x with Lanczos3 interpolation to smooth out pixelated lines,
+ * giving vectorizer.ai clean, high-resolution curves to trace instead of jagged pixels.
  */
 async function preprocessForVectorization(inputBuffer: Buffer): Promise<Buffer> {
-  return await sharp(inputBuffer)
-    // 1. Convert to single-channel grayscale
+  const image = sharp(inputBuffer);
+  const metadata = await image.metadata();
+  const targetWidth = Math.min(4096, Math.max(3000, (metadata.width || 1000) * 3));
+
+  return await image
+    // 1. Upscale 3x+ with smooth Lanczos3 interpolation to remove pixelation/jaggies
+    .resize({ width: targetWidth, kernel: sharp.kernel.lanczos3 })
+    // 2. Grayscale
     .greyscale()
-    // 2. Median filter — noise reduction without destroying edge sharpness
-    .median(3)
-    // 3. Aggressive sharpening — sigma=3, flat=1, jagged=2
-    .sharpen({ sigma: 3, m1: 1.5, m2: 2.5 })
-    // 4. Normalize — auto-stretch levels so darkest=black, lightest=white
+    // 3. Normalize to stretch contrast naturally
     .normalise()
-    // 5. Linear contrast: multiply=1.8 (boosts contrast), offset=-30 (kills grey noise)
-    .linear(1.8, -30)
-    // 6. Threshold at 140/255 — converts grey mid-tones to pure B&W
-    //    Everything below 140 → pure black (walls), above → pure white (space)
-    .threshold(140)
-    // Output as PNG — lossless, perfect for vectorizer.ai
+    // 4. Sharpen to make lines and details extremely crisp without diffusing or erasing them
+    .sharpen({ sigma: 0.8, m1: 0.5, m2: 1.0 })
+    // 5. Very gentle contrast stretch to clean the background without eroding thin/dashed lines
+    .linear(1.15, -19)
+    // Output PNG — lossless
     .png()
     .toBuffer();
 }
