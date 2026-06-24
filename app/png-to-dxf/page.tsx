@@ -13,6 +13,9 @@ export default function PngToDxfPage() {
   const [dragOver, setDragOver] = useState(false);
   const [originalFile, setOriginalFile] = useState<File | null>(null);
   const [originalPreviewUrl, setOriginalPreviewUrl] = useState<string | null>(null);
+  const [preprocessedUrl, setPreprocessedUrl] = useState<string | null>(null);
+  const [preprocessing, setPreprocessing] = useState(false);
+  const [previewTab, setPreviewTab] = useState<'original' | 'enhanced'>('enhanced');
   const [svgResult, setSvgResult] = useState<string | null>(null);
   const [dxfBlob, setDxfBlob] = useState<Blob | null>(null);
   const [errorMsg, setErrorMsg] = useState<string>('');
@@ -51,7 +54,21 @@ export default function PngToDxfPage() {
     setOriginalPreviewUrl(url);
     setSvgResult(null);
     setDxfBlob(null);
+    setPreprocessedUrl(null);
+    setPreprocessing(true);
+    setPreviewTab('enhanced');
     setStep('upload');
+
+    // Immediately run preprocessing so user can see the enhanced image
+    const form = new FormData();
+    form.append('image', file);
+    fetch('/api/preprocess-image', { method: 'POST', body: form })
+      .then(r => r.json())
+      .then(data => {
+        if (data.dataUrl) setPreprocessedUrl(data.dataUrl);
+      })
+      .catch(() => {/* silent — original still shows */})
+      .finally(() => setPreprocessing(false));
   };
 
   const handleDrop = useCallback((e: React.DragEvent) => {
@@ -314,25 +331,99 @@ export default function PngToDxfPage() {
               </div>
             )}
 
-            {/* Original preview while uploading */}
+            {/* Preview with tabs: Original vs Enhanced */}
             {step === 'upload' && originalFile && originalPreviewUrl && (
-              <div className="flex flex-col items-center gap-4 w-full">
-                <div className="border border-[#00f0ff]/10 rounded-xl overflow-hidden bg-neutral-900 w-full max-w-2xl">
-                  <div className="px-4 py-2 border-b border-[#00f0ff]/10 flex items-center gap-2">
-                    <div className="w-1.5 h-1.5 rounded-full bg-white/20" />
-                    <span className="text-[9px] text-white/30 tracking-[2px] uppercase">Original</span>
-                  </div>
-                  <img
-                    src={originalPreviewUrl}
-                    alt="Original floor plan"
-                    className="w-full object-contain max-h-[70vh]"
-                  />
+              <div className="flex flex-col gap-0 w-full h-full">
+                {/* Tab bar */}
+                <div className="flex items-center gap-0 border-b border-[#00f0ff]/10 shrink-0 mb-4">
+                  <button
+                    onClick={() => setPreviewTab('enhanced')}
+                    className={`flex items-center gap-2 px-4 py-2 text-[10px] font-bold uppercase tracking-[2px] border-b-2 transition-all ${
+                      previewTab === 'enhanced'
+                        ? 'border-[#00f0ff] text-[#00f0ff]'
+                        : 'border-transparent text-white/30 hover:text-white/60'
+                    }`}
+                  >
+                    {preprocessing ? (
+                      <Loader2 size={11} className="animate-spin" />
+                    ) : (
+                      <div className="w-1.5 h-1.5 rounded-full bg-[#00f0ff] shadow-[0_0_6px_#00f0ff]" />
+                    )}
+                    Enhanced
+                    {!preprocessing && preprocessedUrl && (
+                      <span className="text-[8px] px-1 py-0.5 bg-[#00f0ff]/20 text-[#00f0ff] rounded font-bold">READY</span>
+                    )}
+                  </button>
+                  <button
+                    onClick={() => setPreviewTab('original')}
+                    className={`flex items-center gap-2 px-4 py-2 text-[10px] font-bold uppercase tracking-[2px] border-b-2 transition-all ${
+                      previewTab === 'original'
+                        ? 'border-white/40 text-white/70'
+                        : 'border-transparent text-white/30 hover:text-white/60'
+                    }`}
+                  >
+                    <div className="w-1.5 h-1.5 rounded-full bg-white/30" />
+                    Original
+                  </button>
                 </div>
-                <p className="text-[10px] text-[#00f0ff]/50 uppercase tracking-[2px]">
-                  ↙ Ready — click Vectorize on the left
-                </p>
+
+                {/* Image display */}
+                <div className="flex-1 overflow-auto flex items-start justify-center">
+                  {previewTab === 'enhanced' ? (
+                    <div className="flex flex-col items-center gap-3 w-full max-w-2xl">
+                      {preprocessing ? (
+                        <div className="flex flex-col items-center justify-center gap-4 py-20">
+                          <Loader2 size={32} className="text-[#00f0ff] animate-spin" />
+                          <p className="text-[11px] text-[#00f0ff]/60 uppercase tracking-[3px]">
+                            Enhancing image…
+                          </p>
+                          <p className="text-[10px] text-white/30">
+                            Denoising · Sharpening · Contrast boost
+                          </p>
+                        </div>
+                      ) : preprocessedUrl ? (
+                        <>
+                          <div className="border border-[#00f0ff]/30 rounded-xl overflow-hidden bg-white w-full shadow-[0_0_20px_rgba(0,240,255,0.1)]">
+                            <div className="px-4 py-2 border-b border-[#00f0ff]/20 bg-[#0a0a0f] flex items-center gap-2">
+                              <div className="w-1.5 h-1.5 rounded-full bg-[#00f0ff] shadow-[0_0_6px_#00f0ff]" />
+                              <span className="text-[9px] text-[#00f0ff] tracking-[2px] uppercase">Enhanced — ready for vectorization</span>
+                              <span className="ml-auto text-[8px] text-[#00f0ff]/50">Denoise · Sharpen · Contrast · Threshold</span>
+                            </div>
+                            <img
+                              src={preprocessedUrl}
+                              alt="Enhanced floor plan"
+                              className="w-full object-contain max-h-[65vh]"
+                            />
+                          </div>
+                          <p className="text-[10px] text-[#00f0ff]/50 uppercase tracking-[2px]">
+                            ↙ Click Vectorize → DXF on the left
+                          </p>
+                        </>
+                      ) : (
+                        <div className="flex flex-col items-center justify-center gap-4 py-20 opacity-40">
+                          <p className="text-[11px] text-white/40 uppercase tracking-wider">Enhancement failed — showing original</p>
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="flex flex-col items-center gap-3 w-full max-w-2xl">
+                      <div className="border border-white/10 rounded-xl overflow-hidden bg-neutral-900 w-full">
+                        <div className="px-4 py-2 border-b border-white/10 flex items-center gap-2">
+                          <div className="w-1.5 h-1.5 rounded-full bg-white/20" />
+                          <span className="text-[9px] text-white/30 tracking-[2px] uppercase">Original (unprocessed)</span>
+                        </div>
+                        <img
+                          src={originalPreviewUrl}
+                          alt="Original floor plan"
+                          className="w-full object-contain max-h-[65vh]"
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
             )}
+
 
             {/* Processing */}
             {step === 'processing' && (
