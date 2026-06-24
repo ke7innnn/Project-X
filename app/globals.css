@@ -1,3 +1,7 @@
+@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700;900&family=Rajdhani:wght@400;500;600;700&family=Syncopate:wght@400;700&family=Oxanium:wght@400;600;800&family=Inter:wght@300;400;600;800&family=Cinzel:wght@400;700;900&family=Syne:wght@400;700;800&family=Michroma&display=swap');
+
+@import "tailwindcss";
+
 @font-face {
   font-family: 'Givonic';
   src: url('/fonts/Givonic-Regular.otf') format('opentype');
@@ -6,9 +10,7 @@
   font-display: swap;
 }
 
-@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700;900&family=Rajdhani:wght@400;500;600;700&family=Syncopate:wght@400;700&family=Oxanium:wght@400;600;800&family=Inter:wght@300;400;600;800&family=Cinzel:wght@400;700;900&family=Syne:wght@400;700;800&family=Michroma&display=swap');
 
-@import "tailwindcss";
 
 @theme {
   --color-navy: #0A0E1A;
