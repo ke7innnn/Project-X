@@ -318,12 +318,12 @@ export default function StartScreen() {
 
     // Compose a warm, empathetic greeting
     const greeting =
-      `Good ${timeOfDay}, sir. It is ${timeStr} on ${dayName}, ${dateStr}. ` +
+      `Good ${timeOfDay}, Master Umesh. It is ${timeStr} on ${dayName}, ${dateStr}. ` +
       `You are in ${weather.location}. ` +
       `Current conditions — ${weather.condition}, ${weather.temp} degrees Celsius, feels like ${weather.feelsLike}. ` +
       (forecast ? `Today expects a high of ${forecast.tempMax} and a low of ${forecast.tempMin}, with ${forecast.condition.toLowerCase()}. ` : '') +
       `Humidity is at ${weather.humidity} percent. ` +
-      `I hope you are well rested and ready, sir. The system is fully online. How may I assist you today?`;
+      `I hope you are well rested and ready, Master Umesh. The system is fully online. How may I assist you today?`;
 
     // Small delay so audio context is ready after page load
     setTimeout(() => {
