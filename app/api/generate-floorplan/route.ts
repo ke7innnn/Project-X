@@ -84,7 +84,7 @@ export async function POST(request: Request) {
                 message: undefined,
                 temperature: 0.9,
                 responseModalities: ['image', 'text'],
-                timeoutMs: 8000, // 8s to stay inside Vercel's Hobby 10s limit
+                timeoutMs: 45000, // Increased from 8s to 45s (image gen is slow)
                 _customContents: [{ role: 'user', parts: buildParts() }],
               } as any);
             } catch (err: any) {
@@ -94,7 +94,7 @@ export async function POST(request: Request) {
                 message: undefined,
                 temperature: 0.9,
                 responseModalities: ['image', 'text'],
-                timeoutMs: 8000,
+                timeoutMs: 45000, // Increased from 8s to 45s
                 _customContents: [{ role: 'user', parts: buildParts() }],
               } as any);
             }
