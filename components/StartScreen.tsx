@@ -829,6 +829,40 @@ ${newsStr}`;
       return;
     }
 
+    // Check if the user is affirming a suggestion from Batman
+    const isAffirmative = ["yes", "sure", "do it", "please", "yeah", "open", "yep", "ok", "okay"].some(word => lowerCmd.includes(word));
+    if (isAffirmative) {
+      // Find the last thing Batman said
+      const lastAssistantMsg = [...chatHistoryRef.current].reverse().find(msg => msg.role === 'assistant');
+      if (lastAssistantMsg && lastAssistantMsg.content.includes("Would you like me to open the")) {
+        const contentStr = lastAssistantMsg.content.toLowerCase();
+        if (contentStr.includes("render zone")) {
+           setActiveMenuTab('render-zone');
+           await speak("Accessing Project Archive, Master Umesh.", () => router.push('/projects'));
+           return;
+        } else if (contentStr.includes("edit")) {
+           setActiveMenuTab('edit');
+           setStorePhase('edit');
+           await speak("Entering Edit Matrix, Master Umesh.", () => router.push('/edit'));
+           return;
+        } else if (contentStr.includes("3d render")) {
+           setActiveMenuTab('3d-render');
+           setStorePhase('edit');
+           await speak("Initializing 3D visualization, Master Umesh.", () => router.push('/3d-render'));
+           return;
+        } else if (contentStr.includes("png to dxf") || contentStr.includes("vector")) {
+           setActiveMenuTab('png-to-dxf');
+           await speak("Initiating vector conversion suite, Master Umesh.", () => router.push('/png-to-dxf'));
+           return;
+        } else if (contentStr.includes("flythrough") || contentStr.includes("flightpath")) {
+           setActiveMenuTab('flythrough');
+           setStorePhase('edit');
+           await speak("Flightpath parameters loaded, Master Umesh.");
+           return;
+        }
+      }
+    }
+
     // Voice Navigation Command Protocols
     if (lowerCmd.includes("render zone") || lowerCmd.includes("project archive") || lowerCmd.includes("projects") || lowerCmd.includes("open projects") || lowerCmd.includes("open render zone")) {
       setActiveMenuTab('render-zone');
