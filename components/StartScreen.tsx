@@ -134,7 +134,7 @@ export default function StartScreen() {
   useEffect(() => {
     const audio = new Audio('/home page mp3/Batman Begins (OST) - Training.mp3.mpeg');
     audio.loop = true;
-    audio.volume = 0.35;
+    audio.volume = 0.10;
     bgMusicRef.current = audio;
 
     const tryPlay = () => {
@@ -307,6 +307,8 @@ export default function StartScreen() {
   const isSystemOnlineRef = useRef(true);
   const marketDataRef = useRef<Record<string, number> | null>(null);
   const newsDataRef = useRef<NewsArticle[] | null>(null);
+  // Always points to the latest processCommand — avoids stale closure inside the recognition useEffect
+  const processCommandRef = useRef<(cmd: string) => void>(() => {});
 
   const resetSleepTimer = () => {
     if (sleepTimerRef.current) clearTimeout(sleepTimerRef.current);
@@ -325,46 +327,75 @@ export default function StartScreen() {
   useEffect(() => {
     // Initialize speech recognition
     const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-    if (SpeechRecognition) {
-      const recognition = new SpeechRecognition();
-      recognition.continuous = false;
-      recognition.interimResults = true;
-      recognition.lang = 'en-US';
+    if (!SpeechRecognition) return;
 
-      recognition.onresult = (event: any) => {
-        let interimTranscript = '';
-        let finalTranscript = '';
+    const recognition = new SpeechRecognition();
+    recognition.continuous = true;
+    recognition.interimResults = true;
+    recognition.lang = 'en-US';
+    recognition.maxAlternatives = 1;
 
-        for (let i = event.resultIndex; i < event.results.length; ++i) {
-          if (event.results[i].isFinal) {
-            finalTranscript += event.results[i][0].transcript;
-          } else {
-            interimTranscript += event.results[i][0].transcript;
-          }
+    // Guard: prevents calling .start() while already running (the crash-loop cause)
+    let isRunning = false;
+
+    const safeStart = () => {
+      if (!isRunning && shouldListenRef.current) {
+        try {
+          recognition.start();
+          isRunning = true;
+        } catch (e) {}
+      }
+    };
+
+    recognition.onstart = () => { isRunning = true; };
+
+    recognition.onresult = (event: any) => {
+      let interimTranscript = '';
+      let finalTranscript = '';
+
+      for (let i = event.resultIndex; i < event.results.length; ++i) {
+        if (event.results[i].isFinal) {
+          finalTranscript += event.results[i][0].transcript;
+        } else {
+          interimTranscript += event.results[i][0].transcript;
         }
+      }
 
-        if (finalTranscript) {
-          processCommand(finalTranscript);
-        } else if (interimTranscript) {
-          // Show the user what is currently being heard in real-time
-          setTranscript(interimTranscript);
-        }
-      };
-      
-      recognition.onend = () => {
-        if (shouldListenRef.current && statusStateRef.current !== 'thinking' && statusStateRef.current !== 'speaking') {
-          try { recognition.start(); } catch (e) {}
-        }
-      };
+      if (finalTranscript.trim()) {
+        // Use ref to always call the latest version of processCommand (avoids stale closure)
+        processCommandRef.current(finalTranscript.trim());
+      } else if (interimTranscript) {
+        setTranscript(interimTranscript);
+      }
+    };
 
-      recognitionRef.current = recognition;
-    }
+    recognition.onerror = (event: any) => {
+      // no-speech is NORMAL in continuous mode — browser just didn't hear anything in a segment.
+      // DO NOT restart here — it causes the rapid restart death-loop. Let onend handle it.
+      if (event.error !== 'no-speech') {
+        console.warn('[Batman STT] error:', event.error);
+      }
+      // aborted = we stopped it intentionally, don't restart
+      if (event.error === 'aborted') {
+        isRunning = false;
+      }
+    };
+
+    recognition.onend = () => {
+      isRunning = false;
+      // Only restart if we should still be listening and not mid-processing
+      if (shouldListenRef.current && statusStateRef.current === 'listening') {
+        // Small delay to prevent immediate re-crash on rapid no-speech cycles
+        setTimeout(safeStart, 250);
+      }
+    };
+
+    recognitionRef.current = recognition;
 
     return () => {
       shouldListenRef.current = false;
-      if (recognitionRef.current) {
-        try { recognitionRef.current.stop(); } catch(e){}
-      }
+      isRunning = false;
+      try { recognition.stop(); } catch(e){}
       interruptSpeech();
     };
   }, []);
@@ -385,10 +416,14 @@ export default function StartScreen() {
   };
   
   const startListening = () => {
-    if (recognitionRef.current && shouldListenRef.current) {
-       try { recognitionRef.current.start(); } catch (e) {}
-       setStatusState('listening');
-    }
+    if (!recognitionRef.current || !shouldListenRef.current) return;
+    setStatusState('listening');
+    // Small delay to ensure any previous session has fully ended before starting
+    setTimeout(() => {
+      try { recognitionRef.current?.start(); } catch (e) {
+        // Already running or not ready — fine, onstart will set state
+      }
+    }, 100);
   };
 
   const stopListening = () => {
@@ -662,10 +697,20 @@ ${newsStr}`;
       currentAudioRef.current = audio;
       
       await new Promise((resolve) => {
-        audio.onended = resolve;
-        audio.onerror = resolve;
+        // Duck background music while Batman speaks
+        if (bgMusicRef.current) bgMusicRef.current.volume = 0.02;
+        audio.onended = () => {
+          // Restore bg music after speech
+          if (bgMusicRef.current) bgMusicRef.current.volume = 0.10;
+          resolve(null);
+        };
+        audio.onerror = () => {
+          if (bgMusicRef.current) bgMusicRef.current.volume = 0.10;
+          resolve(null);
+        };
         audio.play().catch((err) => {
           console.warn("Audio play failed:", err);
+          if (bgMusicRef.current) bgMusicRef.current.volume = 0.10;
           resolve(null);
         });
       });
@@ -698,6 +743,7 @@ ${newsStr}`;
     const audioUrl = `/api/openai-tts?text=${encodeURIComponent(text)}`;
     const audio = new Audio(audioUrl);
     audio.preload = "auto";
+    audio.volume = 1.0; // Batman's voice at full volume
     
     audioQueueRef.current.push(audio);
     
@@ -715,6 +761,7 @@ ${newsStr}`;
     speakStreamedSentence(text, onComplete);
   };
 
+  // Keep processCommandRef in sync with the latest closure every render
   const processCommand = async (cmd: string) => {
     if (!isSystemOnlineRef.current) return;
     if (statusStateRef.current !== 'listening') {
@@ -781,6 +828,10 @@ ${newsStr}`;
     // Trigger Streaming Chat
     await callOpenAIAndStream(cmd);
   };
+
+  // Sync processCommandRef on every render so the speech recognition closure always sees the latest version
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  processCommandRef.current = processCommand;
 
   useEffect(() => {
     setActiveMenuTab(getInitialStage(storePhase));
