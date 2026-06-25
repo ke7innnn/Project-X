@@ -316,14 +316,8 @@ export default function StartScreen() {
     const weather = weatherData;
     const forecast = weather.forecast[0];
 
-    // Compose a warm, empathetic greeting
-    const greeting =
-      `Good ${timeOfDay}, Master Umesh. It is ${timeStr} on ${dayName}, ${dateStr}. ` +
-      `You are in ${weather.location}. ` +
-      `Current conditions — ${weather.condition}, ${weather.temp} degrees Celsius, feels like ${weather.feelsLike}. ` +
-      (forecast ? `Today expects a high of ${forecast.tempMax} and a low of ${forecast.tempMin}, with ${forecast.condition.toLowerCase()}. ` : '') +
-      `Humidity is at ${weather.humidity} percent. ` +
-      `I hope you are well rested and ready, Master Umesh. The system is fully online. How may I assist you today?`;
+    // Simple, quick wake greeting
+    const greeting = `System online. How may I help you, Master Umesh?`;
 
     // Small delay so audio context is ready after page load
     setTimeout(() => {
@@ -395,6 +389,9 @@ export default function StartScreen() {
     recognition.onstart = () => { isRunning = true; };
 
     recognition.onresult = (event: any) => {
+      // Ignore input if Batman is currently speaking (prevents echo/feedback loops)
+      if (isAgentSpeakingRef.current) return;
+
       let interimTranscript = '';
       let finalTranscript = '';
 
