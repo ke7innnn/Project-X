@@ -21,10 +21,10 @@ async function handleTTS(text: string | null) {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "tts-1",
+        model: "tts-1",          // Lower latency than tts-1-hd — starts playing ~200ms faster
         input: text,
-        voice: "onyx", // Deep tactical male voice
-        speed: 1.3, // 1.3X speaking rate (+0.2x speed increase)
+        voice: "onyx",           // Deep, authoritative, manly voice
+        speed: 1.0,              // Natural pace — confident and grounded
       }),
     });
 

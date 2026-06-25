@@ -294,6 +294,51 @@ export default function StartScreen() {
     }
   };
 
+  // ── Wake Greeting ─────────────────────────────────────────────────────────
+  // Fires once when weather data first loads — greets with time, date & weather
+  const hasGreetedRef = useRef(false);
+  useEffect(() => {
+    if (!weatherData || hasGreetedRef.current) return;
+    hasGreetedRef.current = true;
+
+    const now = new Date();
+    const hour = now.getHours();
+
+    const timeOfDay =
+      hour >= 5 && hour < 12  ? 'morning' :
+      hour >= 12 && hour < 17 ? 'afternoon' :
+      hour >= 17 && hour < 21 ? 'evening' : 'night';
+
+    const dayName = now.toLocaleDateString('en-IN', { weekday: 'long' });
+    const dateStr = now.toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' });
+    const timeStr = now.toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit', hour12: true });
+
+    const weather = weatherData;
+    const forecast = weather.forecast[0];
+
+    // Compose a warm, empathetic greeting
+    const greeting =
+      `Good ${timeOfDay}, sir. It is ${timeStr} on ${dayName}, ${dateStr}. ` +
+      `You are in ${weather.location}. ` +
+      `Current conditions — ${weather.condition}, ${weather.temp} degrees Celsius, feels like ${weather.feelsLike}. ` +
+      (forecast ? `Today expects a high of ${forecast.tempMax} and a low of ${forecast.tempMin}, with ${forecast.condition.toLowerCase()}. ` : '') +
+      `Humidity is at ${weather.humidity} percent. ` +
+      `I hope you are well rested and ready, sir. The system is fully online. How may I assist you today?`;
+
+    // Small delay so audio context is ready after page load
+    setTimeout(() => {
+      setStatusState('speaking');
+      setTranscript(greeting);
+      speak(greeting, () => {
+        // After greeting finishes, go straight into listening mode
+        shouldListenRef.current = true;
+        startListening();
+      });
+    }, 1800);
+  }, [weatherData]);
+  // ─────────────────────────────────────────────────────────────────────────
+
+
   // Refs
   const recognitionRef = useRef<any>(null);
   const isAgentSpeakingRef = useRef(false);
@@ -489,7 +534,7 @@ export default function StartScreen() {
       const splitIndex = match.index + match[0].length;
       const prefix = trimmed.slice(0, splitIndex);
       const prefixWords = prefix.trim().split(/\s+/);
-      if (prefixWords.length >= 4) {
+      if (prefixWords.length >= 3) {
         return {
           chunk: prefix,
           remaining: trimmed.slice(splitIndex)
@@ -497,10 +542,10 @@ export default function StartScreen() {
       }
     }
 
-    // 4. Space word boundaries if length is >= 8 words
-    if (words.length >= 8) {
-      const chunk = words.slice(0, 8).join(" ");
-      const remaining = words.slice(8).join(" ");
+    // Speak as soon as we have 5+ words (low latency — don't wait for long sentences)
+    if (words.length >= 5) {
+      const chunk = words.slice(0, 5).join(" ");
+      const remaining = words.slice(5).join(" ");
       return {
         chunk: chunk + " ",
         remaining: remaining

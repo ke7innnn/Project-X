@@ -5,20 +5,20 @@ export const runtime = 'edge';
 export async function POST(request: Request) {
   try {
     const { messages, systemContext } = await request.json();
-    const apiKey = process.env.OPENAI_API_KEY;
+    const apiKey = process.env.NEXT_PUBLIC_GROQ_API_KEY || process.env.GROQ_API_KEY;
 
     if (!apiKey) {
       return NextResponse.json({ error: "Missing API Key" }, { status: 500 });
     }
 
-    const response = await fetch("https://api.openai.com/v1/chat/completions", {
+    const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
       method: "POST",
       headers: {
         "Authorization": `Bearer ${apiKey}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "gpt-4o-mini",
+        model: "llama-3.3-70b-versatile", // Groq — ~80ms TTFT vs ~500ms OpenAI
         stream: true,
         messages: [
           {
@@ -27,7 +27,7 @@ export async function POST(request: Request) {
           },
           ...messages
         ],
-        max_tokens: 500,
+        max_tokens: 200,   // Short responses = faster first audio chunk
         temperature: 0.7,
       }),
     });
