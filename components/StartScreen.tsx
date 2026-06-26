@@ -879,6 +879,13 @@ ${newsStr}`;
       await speak("Flightpath parameters loaded, Master Umesh.");
       return;
     }
+    if (lowerCmd.includes("png to dxf") || lowerCmd.includes("vector") || lowerCmd.includes("open png") || lowerCmd.includes("open vector")) {
+      setActiveMenuTab('png-to-dxf');
+      await speak("Initiating vector conversion suite, Master Umesh.", () => {
+        router.push('/png-to-dxf');
+      });
+      return;
+    }
 
     // Clear past queues
     audioQueueRef.current = [];
