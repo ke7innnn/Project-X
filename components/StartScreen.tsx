@@ -324,6 +324,7 @@ export default function StartScreen() {
   const statusStateRef = useRef<'idle' | 'listening' | 'thinking' | 'speaking'>('idle');
   const audioQueueRef = useRef<HTMLAudioElement[]>([]);
   const isPlayingAudioRef = useRef(false);
+  const audioSessionIdRef = useRef(0); // Tracks current queue session to prevent zombies
   const sleepTimerRef = useRef<NodeJS.Timeout | null>(null);
   const isStreamingRef = useRef(false);
   const isSystemOnlineRef = useRef(true);
@@ -430,6 +431,7 @@ export default function StartScreen() {
   }, []);
 
   const interruptSpeech = () => {
+    audioSessionIdRef.current += 1; // Increment session so pending queue loops abort
     isAgentSpeakingRef.current = false;
     isStreamingRef.current = false;
     audioQueueRef.current = [];
@@ -759,6 +761,8 @@ NOTE: Each time Master Umesh asks for the brief, these stories are shuffled rand
     if (isPlayingAudioRef.current || audioQueueRef.current.length === 0) return;
     
     isPlayingAudioRef.current = true;
+    const currentSessionId = audioSessionIdRef.current;
+    
     const audio = audioQueueRef.current.shift()!;
     
     setStatusState('speaking');
@@ -814,6 +818,13 @@ NOTE: Each time Master Umesh asks for the brief, these stories are shuffled rand
     } catch (e) {
       console.error('[Batman Audio] processAudioQueue exception:', e);
       if (bgMusicRef.current) bgMusicRef.current.volume = 0.06;
+    }
+
+    // If the session was interrupted while we were awaiting the audio, DO NOT proceed!
+    // This absolutely prevents "zombie" promises from restarting the queue and causing overlapping voices.
+    if (currentSessionId !== audioSessionIdRef.current) {
+      console.log('[Batman Audio] Queue session was interrupted. Aborting queue loop.');
+      return;
     }
 
     isPlayingAudioRef.current = false;
@@ -894,9 +905,11 @@ NOTE: Each time Master Umesh asks for the brief, these stories are shuffled rand
     if (isAffirmative) {
       // Find the last thing Batman said
       const lastAssistantMsg = [...chatHistoryRef.current].reverse().find(msg => msg.role === 'assistant');
-      if (lastAssistantMsg && lastAssistantMsg.content.includes("Would you like me to open the")) {
+      if (lastAssistantMsg) {
         const contentStr = lastAssistantMsg.content.toLowerCase();
-        if (contentStr.includes("render zone")) {
+        // Be more flexible with the prompt matching to handle slight LLM variations
+        if (contentStr.includes("open the") || contentStr.includes("navigate") || contentStr.includes("would you like me to")) {
+          if (contentStr.includes("render zone")) {
            setActiveMenuTab('render-zone');
            await speak("Accessing Project Archive, Master Umesh.", () => router.push('/projects'));
            return;
@@ -919,6 +932,7 @@ NOTE: Each time Master Umesh asks for the brief, these stories are shuffled rand
            setStorePhase('edit');
            await speak("Flightpath parameters loaded, Master Umesh.");
            return;
+        }
         }
       }
     }
