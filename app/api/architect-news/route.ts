@@ -42,7 +42,7 @@ export async function GET() {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
             'Accept': 'application/rss+xml, application/xml, text/xml, */*',
           },
-          next: { revalidate: 300 } // cache for 5 minutes
+          cache: 'no-store', // always fetch fresh — no caching
         });
 
         if (res.ok) {
@@ -101,12 +101,24 @@ export async function GET() {
     const primary = adItems.sort((a, b) => b.timestamp - a.timestamp);
     const fallback = archDailyItems.sort((a, b) => b.timestamp - a.timestamp);
 
-    // Return top 5 AD items; if AD had nothing, return top 5 ArchDaily
-    const topItems = primary.length > 0
-      ? primary.slice(0, 5)
-      : fallback.slice(0, 5);
+    // Return up to 15 stories so Batman always has a fresh variety to pick from.
+    // Shuffle recent stories (top 15) so the order differs on every request.
+    const pool = primary.length > 0
+      ? primary.slice(0, 15)
+      : fallback.slice(0, 15);
 
-    return NextResponse.json(topItems);
+    // Fisher-Yates shuffle for true randomness
+    for (let i = pool.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [pool[i], pool[j]] = [pool[j], pool[i]];
+    }
+
+    return NextResponse.json(pool, {
+      headers: {
+        'Cache-Control': 'no-store, no-cache, must-revalidate',
+        'Pragma': 'no-cache',
+      }
+    });
   } catch (error: any) {
     return NextResponse.json({ error: error.message || 'Failed to fetch news' }, { status: 500 });
   }

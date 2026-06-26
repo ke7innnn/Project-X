@@ -549,8 +549,28 @@ export default function StartScreen() {
       const orientation = params.orientation;
       const hasFloorPlan = !!store.currentFloorPlan;
 
+      // Detect if user is asking for news/brief — used to trigger fresh fetches
+      const isBriefRequest = lowerCmd.includes('brief') || lowerCmd.includes('news') ||
+        lowerCmd.includes('digest') || (lowerCmd.includes('what') && lowerCmd.includes('happen')) ||
+        lowerCmd.includes('latest') || lowerCmd.includes('update');
+
       let marketStr = "Market data currently unavailable.";
-      const currentMarketData = marketDataRef.current;
+      let currentMarketData = marketDataRef.current;
+
+      // Re-fetch stocks fresh on every brief request for real-time prices
+      if (isBriefRequest) {
+        try {
+          const freshStocksRes = await fetch(`/api/stocks?_t=${Date.now()}`);
+          if (freshStocksRes.ok) {
+            const freshStocks = await freshStocksRes.json();
+            currentMarketData = freshStocks;
+            marketDataRef.current = freshStocks;
+          }
+        } catch (e) {
+          // Fall back to cached
+        }
+      }
+
       if (currentMarketData) {
         const stocksList = [
           { name: "Reliance Industries", sym: "RELIANCE.NS" },
@@ -567,10 +587,26 @@ export default function StartScreen() {
       }
 
       let newsStr = "No architectural news available.";
-      const currentNewsData = newsDataRef.current;
-      if (currentNewsData && currentNewsData.length > 0) {
-        newsStr = currentNewsData
-          .map((item, idx) => `${idx + 1}. [${item.source}] ${item.title}\n   Summary: ${item.description}\n   Link: ${item.link}`)
+
+      // If the user is asking for news/brief, always re-fetch fresh so Batman
+      // gets a newly-shuffled pool and never repeats the same 3 stories.
+      let newsSource = newsDataRef.current;
+      if (isBriefRequest) {
+        try {
+          const freshRes = await fetch(`/api/architect-news?_t=${Date.now()}`);
+          if (freshRes.ok) {
+            const freshData = await freshRes.json();
+            newsSource = freshData;
+            newsDataRef.current = freshData; // update cache too
+          }
+        } catch (e) {
+          // Fall back to cached if fetch fails
+        }
+      }
+
+      if (newsSource && newsSource.length > 0) {
+        newsStr = newsSource
+          .map((item: any, idx: number) => `${idx + 1}. [${item.source}] ${item.title}\n   Summary: ${item.description}\n   Link: ${item.link}`)
           .join('\n\n');
       }
 
@@ -585,8 +621,9 @@ CURRENT PROJECT STATUS:
 REAL-TIME STOCK/MARKET METRICS:
 ${marketStr}
 
-BREAKING ARCHITECTURAL NEWS & DIGEST:
-${newsStr}`;
+BREAKING ARCHITECTURAL NEWS & DIGEST (freshly fetched — pick any 3, they are in random order):
+${newsStr}
+NOTE: Each time Master Umesh asks for the brief, these stories are shuffled randomly. Always pick a DIFFERENT combination of 3 stories than what you may have mentioned before. Never repeat the same story in the same session.`;
 
       isStreamingRef.current = true;
 
