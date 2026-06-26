@@ -98,7 +98,7 @@ export const FLOORPLAN_GENERATION_PROMPT = (params: any, natureImageDescription:
 You are an expert biomimicry architect. Generate a STRICTLY TOP-DOWN 2D AutoCAD architectural floor plan with clean, plain lines.
 
 BIOMIMICRY INSPIRATION: ${natureImageDescription}
-CRITICAL INSTRUCTION: The outer boundary/borders of the floor plan MUST STRICTLY MATCH the exact overall shape of the reference image. Do NOT just draw a standard rectangle. If the reference is a leaf, the floor plan boundary must be leaf-shaped. Smooth out jagged edges into practical, straight or curving structural walls, but KEEP the distinctive biomimetic shape!
+CRITICAL INSTRUCTION (SILHOUETTE MATCHING): The outer exterior wall of the floor plan MUST EXACTLY TRACE the silhouette of the second reference image (the natural object). Look closely at the reference image: if it has multiple lobes, points, sharp angles, curves, or jagged edges, YOUR EXTERIOR WALL MUST HAVE THOSE EXACT SAME LOBES, POINTS, AND CURVES. DO NOT draw a generic simplified oval, ellipse, or basic leaf! You must strictly map the specific physical outline of the provided image into a thick outer structural wall.
 
 MARGIN RULE (CRITICAL): Do NOT draw any dashed plot lines or borders around the building. The user interface handles the plot boundary visually. However, you MUST leave a MASSIVE empty white margin gap around the entire building so it sits comfortably in the absolute center of the 1:1 canvas.
 BUILDING PLACEMENT: Draw the floor plan SMALLER so it easily fits inside the center of the image. The true proportions of the building must be based on a mathematical ${w}:${h} ratio (${aspectInstruction}).
