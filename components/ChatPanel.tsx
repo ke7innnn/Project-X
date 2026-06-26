@@ -210,6 +210,65 @@ export default function ChatPanel() {
       return;
     }
 
+    // ── "Generate more" shortcut ──────────────────────────────────────────────
+    // If the user says "generate more", "more designs", "more options", "more drafts", etc.
+    // we bypass the chat LLM and trigger the generation API directly.
+    const textLower = text.toLowerCase().trim();
+    const isGenerateMoreRequest = 
+      (textLower.includes('generate') && (textLower.includes('more') || textLower.includes('new') || textLower.includes('another') || textLower.includes('other'))) ||
+      (textLower.includes('more') && (textLower.includes('design') || textLower.includes('draft') || textLower.includes('option') || textLower.includes('layout') || textLower.includes('version'))) ||
+      (textLower === 'more') || 
+      (textLower === 'generate more');
+
+    if (isGenerateMoreRequest && phase !== 'search') {
+      try {
+        setIsLoading(true);
+        // Clear option index to keep UI clean
+        useArchitectStore.getState().setSelectedOption(null as any, null as any);
+        useArchitectStore.getState().setPhase('generate');
+        
+        addMessage({
+          role: 'model',
+          parts: [{ text: "I will start generating more floor plan options for you right away!" }]
+        });
+        
+        useArchitectStore.getState().setLoadingMessage('Generating floor plans...');
+        
+        const genRes = await fetch('/api/generate-floorplan', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ 
+            collectedParameters: useArchitectStore.getState().collectedParameters,
+            natureImageUrl: useArchitectStore.getState().selectedNatureImage?.url || useArchitectStore.getState().selectedNatureImage?.thumbUrl,
+            natureImageDescription: useArchitectStore.getState().selectedNatureImage?.description,
+            customImageBase64: useArchitectStore.getState().lastUploadedImage,
+            customImageDescription: useArchitectStore.getState().lastUploadedImageDescription
+          })
+        });
+        const genData = await genRes.json();
+        
+        if (genData.options && genData.options.length > 0) {
+          useArchitectStore.getState().setGeneratedOptions(genData.options);
+          
+          addMessage({
+            role: 'model',
+            parts: [{ text: "Here are the new generated concept layouts based on your design requirements:" }],
+            customType: 'floorplan-drafts',
+            customData: { options: genData.options }
+          });
+        } else {
+          console.error("Floor plan generation failed:", genData);
+          addMessage({ role: 'model', parts: [{ text: "I hit a snag generating the images. Let's try again." }] });
+        }
+      } catch (e) {
+        console.error("Floor plan generation failed:", e);
+        addMessage({ role: 'model', parts: [{ text: "Generation encountered an error." }] });
+      } finally {
+        setIsLoading(false);
+      }
+      return;
+    }
+
     try {
       setIsLoading(true);
       
@@ -294,8 +353,12 @@ export default function ChatPanel() {
       // This prevents "yes try again" in edit mode from resetting the user back to concept selection.
       const alreadyEditing = phase === 'edit' || phase === 'measure';
       const textLower = text.toLowerCase();
-      const triggersRegen = textLower.includes('yes') || textLower.includes('try again') || textLower.includes('show more') || textLower.includes('regenerate');
-      if (!alreadyEditing && (data.newPhase === 'generate' || (data.newPhase === null && targetPhase === 'generate' && triggersRegen))) {
+      const conceptPhases = ['concept', 'parameters', 'vastu', 'generate'];
+      const triggersRegen = textLower.includes('yes') || textLower.includes('try again') || textLower.includes('show more') || textLower.includes('regenerate') || textLower.includes('go ahead') || textLower.includes('show me') || textLower.includes('generate') || textLower.includes('create') || textLower.includes('perfect');
+      const phaseJumpedToGenerate = data.newPhase === 'generate';
+      const stayedInGenerateWithTrigger = data.newPhase === null && targetPhase === 'generate' && triggersRegen;
+      const wasInConceptAndTriggered = !alreadyEditing && conceptPhases.includes(phase) && triggersRegen && data.newPhase === null;
+      if (!alreadyEditing && (phaseJumpedToGenerate || stayedInGenerateWithTrigger)) {
         useArchitectStore.getState().setLoadingMessage('Generating floor plans...');
         try {
           const genRes = await fetch('/api/generate-floorplan', {

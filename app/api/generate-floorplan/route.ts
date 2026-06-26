@@ -99,11 +99,15 @@ export async function POST(request: Request) {
     }
 
     // ── Step 3: Build prompt parts ────────────────────────────────────────
+    // IMPORTANT: Image MUST come first so Gemini uses it as the primary context
+    // before reading the text instruction. Putting text first causes the model
+    // to ignore the shape and hallucinate a default (e.g. leaf/oval).
     const buildParts = () => {
-      const parts: any[] = [{ text: prompt }];
+      const parts: any[] = [];
       if (imagePart) {
         parts.push(imagePart);
       }
+      parts.push({ text: prompt });
       return parts;
     };
 

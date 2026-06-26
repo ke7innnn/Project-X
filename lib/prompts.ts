@@ -12,14 +12,13 @@ CONVERSATION RULES:
 2. Keep responses short, friendly, and conversational — like a knowledgeable friend who is an architect
 3. When user says something architecturally impossible, correct them: "That won't work because [reason]. Instead I suggest [alternative]."
 4. Proactively suggest improvements based on space analysis
-5. Guide the user through phases naturally — never jump ahead
-6. When you have enough parameters, confirm them back to the user clearly
-7. Only generate floor plans when user explicitly says "show me", "generate", "go ahead", or "perfect"
+5. Guide the user through phases naturally — always confirm parameters clearly before generating
+6. When you have enough parameters (plot size, orientation, rooms), confirm them and ask if the user wants to generate
+7. Only generate floor plans when user explicitly says "show me", "generate", "go ahead", "yes", "perfect", "create" or similar affirmation
 8. Always sign off questions with exactly ONE question — never ask multiple questions at once
 9. For Vastu: Northeast = prayer/entrance, Southeast = kitchen, Southwest = master bedroom, Northwest = guest/children room
 10. Always calculate plot area when dimensions are given: area = width × height
-11. In the 'parameters' phase, if the image aspect ratio is not yet specified in the parameters, you MUST ask the user what aspect ratio they prefer for the generated floor plans (e.g. 1:1 square, 16:9 landscape, 9:16 portrait).
-12. CRITICAL — In 'edit' or 'measure' phase: NEVER say "shall I generate?" or "shall I go ahead and generate?" or "shall I export?" or "would you like to export?". The user has already selected their plan. Directly describe the change you are applying. ONLY transition to export when the user EXPLICITLY says the words: export, download, DWG, DXF, AutoCAD, or 'give me the file'.
+11. CRITICAL — In 'edit' or 'measure' phase: NEVER say "shall I generate?" or "shall I go ahead and generate?" or "shall I export?" or "would you like to export?". The user has already selected their plan. Directly describe the change you are applying. ONLY transition to export when the user EXPLICITLY says the words: export, download, DWG, DXF, AutoCAD, 'give me the file', 'next chapter', 'move to next', 'move to autocad'.
 
 CURRENT COLLECTED PARAMETERS (always injected with every message):
 {PARAMETERS_JSON}
@@ -30,12 +29,11 @@ OUTPUT FORMAT:
 You MUST respond with a JSON object containing the following keys. Do not output any other text:
 {
   "reply": "Your conversational response to the user. Maintain your architect persona and sign off with exactly ONE question.",
-  "newPhase": "The next phase if transitioning, otherwise null. The phase flow is: 'concept' -> 'parameters' -> 'vastu' -> 'generate' -> 'measure' -> 'edit' -> 'export'. Transition rules:
-               - From 'concept' to 'parameters': once the user specifies their plot dimensions/size or basic room wishlist, set newPhase to 'parameters'.
-               - From 'parameters' to 'vastu': once the user specifies floors, garden/parking, aspect ratio, or surrounding details, set newPhase to 'vastu'.
-               - From 'vastu' to 'generate': once Vastu rules are agreed upon and the user says 'show me', 'generate', 'go ahead', 'perfect', or similar, set newPhase to 'generate'.
-               - During 'measure' and 'edit' phases: ALWAYS set newPhase to null. NEVER set newPhase to 'generate' — the user has already selected a floor plan and you will destroy their work if you do. In these phases the only valid newPhase values are null, 'edit', or 'export'.
-               - From 'measure' or 'edit' to 'export': ONLY set newPhase to 'export' when the user's message EXPLICITLY contains words like: export, download, DWG, DXF, AutoCAD, 'give me the file'. NEVER infer export intent from a 'yes' response to your own question.",
+  "newPhase": "The next phase if transitioning, otherwise null. Transition rules:
+               - From 'concept', 'parameters', or 'vastu' to 'generate': As soon as the user has provided plot dimensions AND room requirements AND says they want to generate (e.g., 'show me', 'generate', 'go ahead', 'yes', 'create', 'perfect'), set newPhase to 'generate'. You do NOT need to force the user through all sub-phases — if they give everything at once, jump straight to 'generate'.
+               - If the user provides dimensions/rooms but has not yet said to generate: stay in the current phase (set newPhase to null), confirm the parameters, and ask if they'd like to generate now.
+               - During 'measure' and 'edit' phases: ALWAYS set newPhase to null. NEVER set newPhase to 'generate'. In these phases the only valid newPhase values are null, 'edit', or 'export'.
+               - From 'measure' or 'edit' to 'export': ONLY set newPhase to 'export' when the user's message EXPLICITLY contains words like: export, download, DWG, DXF, AutoCAD, 'give me the file', 'next chapter', 'move to next', 'move forward'. NEVER infer export intent from a 'yes' response to your own question.",
   "isEditCommand": boolean — your most important classification task. You MUST detect whether the user's message is expressing an INTENT TO MODIFY the current floor plan drawing, or just having a CONVERSATION/ASKING A QUESTION.
 
   Think semantically about the user's intent, not just the words used. Users may have typos, informal language, or incomplete sentences.
@@ -85,6 +83,7 @@ You MUST respond with a JSON object containing the following keys. Do not output
 Extract information from the entire conversation history to populate "updatedParameters". Maintain previous values if not explicitly modified by the user.
 `;
 
+
 export const FLOORPLAN_GENERATION_PROMPT = (params: any, natureImageDescription: string) => {
   const w = parseFloat(params.plotWidth) || 10;
   const h = parseFloat(params.plotHeight) || 10;
@@ -98,18 +97,32 @@ export const FLOORPLAN_GENERATION_PROMPT = (params: any, natureImageDescription:
     ? params.rooms.map((r: string, i: number) => `${String.fromCharCode(65 + i)} - ${r}`).join(', ')
     : 'living room, kitchen, 2 bedrooms, 1 bathroom';
 
-  return `Draw a 2D architectural floor plan in the EXACT same outer shape/silhouette as shown in the attached image. The exterior walls of the building must precisely follow the outline of the shape in the image — do not default to an oval or leaf shape.
+  return `CRITICAL SHAPE & BORDER RULE (TRACE EXACT SILHOUETTE):
+- The attached image is the absolute reference for the outer silhouette of the building footprint.
+- You MUST trace the exact outline of this shape as the outer exterior wall of the building.
+- Do NOT draw any separate outer plot box/rectangle; the border of the building itself MUST match the silhouette shape in the attached image exactly.
 
-Nature inspiration: ${natureImageDescription}
-${aspectInstruction}
-Rooms to include: ${roomList}
-${Array.isArray(params.vastuRules) && params.vastuRules.length > 0 ? `Vastu rules: ${params.vastuRules.join(', ')}` : ''}
-${params.garden ? 'Include a garden area.' : ''}
-${params.parking ? 'Include a parking space.' : ''}
-Floors: ${params.floors || 1}
-${Array.isArray(params.additionalNotes) && params.additionalNotes.length > 0 ? `Notes: ${params.additionalNotes.join(', ')}` : ''}
+INTERIOR SPACE PACKING & NO GAPS RULE:
+- All rooms, corridors, and spaces MUST be tightly packed to fill the ENTIRE interior of the silhouette.
+- Do NOT leave any unnecessary empty spaces, large white gaps, or unutilized areas between rooms or between rooms and the outer exterior walls.
+- Every square inch of the silhouette shape's interior must be divided and allocated to the requested rooms, showing a dense, efficient, and professional layout.
 
-Style: Black lines on white background only. AutoCAD/blueprint style. Double-line walls. Label each room with a letter and its name (e.g. "A - Living Room"). Add small furniture symbols inside rooms. Include a north arrow (↑N). Large white margin around the building. Do NOT draw any outer plot boundary rectangle.`;
+AUTOCAD BLUEPRINT SPECIAL STYLE:
+- Style: Pure monochrome black-and-white drawing on a solid white background. No colors or greys.
+- Linework: Clean, precise, razor-sharp architectural CAD lines. Double-line walls for both exterior and interior walls.
+- Details: Include standard door swing indicator arcs (quarter-circles), window indicators in walls, and tiny, simplified furniture symbols (beds, dining table, sofa, kitchen countertops, bath fixtures) positioned to show scale.
+- Labels: Label every single room clearly with a unique letter and its name (e.g. "A - Living Room", "B - Kitchen"). The text labels must be clean, professional, and properly scaled inside each room.
+- Elements: Include a small, elegant north arrow symbol (↑N) in one corner.
+
+Parameters:
+- Nature inspiration: ${natureImageDescription}
+- Orientation: ${aspectInstruction}
+- Rooms to include: ${roomList}
+- Vastu rules: ${Array.isArray(params.vastuRules) && params.vastuRules.length > 0 ? params.vastuRules.join(', ') : 'Standard residential Vastu alignment'}
+- Garden: ${params.garden ? 'Include a dedicated garden zone within the layout.' : 'No separate garden needed.'}
+- Parking: ${params.parking ? 'Include a dedicated parking space within the layout.' : 'No separate parking needed.'}
+- Floors: ${params.floors || 1}
+- Additional notes: ${Array.isArray(params.additionalNotes) && params.additionalNotes.length > 0 ? params.additionalNotes.join(', ') : 'None'}`;
 };
 
 export const EDIT_FLOORPLAN_PROMPT = (editInstruction: string, params: any) => {

@@ -6,8 +6,8 @@ import { callGemini } from '@/lib/gemini';
 function detectPhaseTransition(messageText: string, currentPhase: Phase): Phase | null {
   const text = messageText.toLowerCase();
   
-  if (currentPhase === 'vastu' || currentPhase === 'parameters' || currentPhase === 'generate') {
-    if (text.includes('show me') || text.includes('generate') || text.includes('go ahead') || text.includes('perfect') || text.includes('try again') || text.includes('show more') || text.includes('regenerate')) {
+  if (currentPhase === 'vastu' || currentPhase === 'parameters' || currentPhase === 'generate' || currentPhase === 'concept') {
+    if (text.includes('show me') || text.includes('generate') || text.includes('go ahead') || text.includes('perfect') || text.includes('try again') || text.includes('show more') || text.includes('regenerate') || text.includes('create floorplan') || text.includes('create floor plan')) {
       return 'generate';
     }
   }
@@ -16,14 +16,15 @@ function detectPhaseTransition(messageText: string, currentPhase: Phase): Phase 
     const exportKeywords = [
       'export', 'download', 'dwg', 'dxf', 'autocad', 
       'give me the file', 'get the file', 'next step', 
-      'next stage', 'next section', 'move on', 'finalize'
+      'next stage', 'next section', 'move on', 'finalize',
+      'next chapter', 'move to next', 'move to autocad', 'chapter',
+      'move forward', 'proceed to autocad', 'done editing', 'done with edit'
     ];
     if (exportKeywords.some(kw => text.includes(kw))) {
       return 'export';
     }
   }
 
-  // Add more transitions as needed based on the logic requested
   return null;
 }
 
@@ -235,7 +236,9 @@ export async function POST(request: Request) {
     const exportKeywords = [
       'export', 'download', 'dwg', 'dxf', 'autocad', 
       'give me the file', 'get the file', 'next step', 
-      'next stage', 'next section', 'move on', 'finalize'
+      'next stage', 'next section', 'move on', 'finalize',
+      'next chapter', 'move to next', 'move to autocad', 'chapter',
+      'move forward', 'proceed to autocad', 'done editing', 'done with edit'
     ];
     const affirmations = ['yes', 'okay', 'ok', 'sure', 'go ahead', 'yep', 'confirm', 'proceed'];
     const userMessageLower = message.toLowerCase().trim();
