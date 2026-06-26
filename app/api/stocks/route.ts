@@ -3,8 +3,11 @@ import { NextResponse } from 'next/server';
 export const runtime = 'edge';
 
 export async function GET() {
-  // Top 3 Indian stocks: Reliance Industries, Tata Consultancy Services, HDFC Bank
-  const symbols = ['RELIANCE.NS', 'TCS.NS', 'HDFCBANK.NS'];
+  // Top Indian stocks + Top 10 Global Tech Stocks
+  const symbols = [
+    'RELIANCE.NS', 'TCS.NS', 'HDFCBANK.NS', 
+    'AAPL', 'GOOGL', 'MSFT', 'AMZN', 'NVDA', 'META', 'TSLA', 'NFLX', 'AMD', 'INTC'
+  ];
   const results: Record<string, number> = {};
 
   try {

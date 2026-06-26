@@ -549,10 +549,11 @@ export default function StartScreen() {
       const orientation = params.orientation;
       const hasFloorPlan = !!store.currentFloorPlan;
 
-      // Detect if user is asking for news/brief — used to trigger fresh fetches
+      // Detect if user is asking for news/brief or stock prices — used to trigger fresh fetches
       const isBriefRequest = lowerCmd.includes('brief') || lowerCmd.includes('news') ||
         lowerCmd.includes('digest') || (lowerCmd.includes('what') && lowerCmd.includes('happen')) ||
-        lowerCmd.includes('latest') || lowerCmd.includes('update');
+        lowerCmd.includes('latest') || lowerCmd.includes('update') ||
+        lowerCmd.includes('stock') || lowerCmd.includes('price') || lowerCmd.includes('shares');
 
       let marketStr = "Market data currently unavailable.";
       let currentMarketData = marketDataRef.current;
@@ -575,13 +576,25 @@ export default function StartScreen() {
         const stocksList = [
           { name: "Reliance Industries", sym: "RELIANCE.NS" },
           { name: "TCS", sym: "TCS.NS" },
-          { name: "HDFC Bank", sym: "HDFCBANK.NS" }
+          { name: "HDFC Bank", sym: "HDFCBANK.NS" },
+          { name: "Apple", sym: "AAPL" },
+          { name: "Google", sym: "GOOGL" },
+          { name: "Microsoft", sym: "MSFT" },
+          { name: "Amazon", sym: "AMZN" },
+          { name: "Nvidia", sym: "NVDA" },
+          { name: "Meta / Facebook", sym: "META" },
+          { name: "Tesla", sym: "TSLA" },
+          { name: "Netflix", sym: "NFLX" },
+          { name: "AMD", sym: "AMD" },
+          { name: "Intel", sym: "INTC" }
         ];
         marketStr = stocksList
           .map(s => {
             const val = currentMarketData[s.sym];
             if (val === undefined) return `- ${s.name}: N/A`;
-            return `- ${s.name}: ₹${val.toFixed(2)}`;
+            // If it's an Indian stock, show ₹, else show $
+            const currency = s.sym.endsWith('.NS') ? '₹' : '$';
+            return `- ${s.name} (${s.sym}): ${currency}${val.toFixed(2)}`;
           })
           .join('\n');
       }
