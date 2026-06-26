@@ -134,7 +134,7 @@ export default function StartScreen() {
   useEffect(() => {
     const audio = new Audio('/home page mp3/Batman Begins (OST) - Training.mp3.mpeg');
     audio.loop = true;
-    audio.volume = 0.10;
+    audio.volume = 0.06;
     bgMusicRef.current = audio;
 
     const tryPlay = () => {
@@ -744,18 +744,18 @@ ${newsStr}`;
         // force-resolve after 15s so the mic is NEVER permanently blocked
         const safetyTimer = setTimeout(() => {
           console.warn('[Batman Audio] Safety timeout fired — forcing resolve');
-          if (bgMusicRef.current) bgMusicRef.current.volume = 0.10;
+          if (bgMusicRef.current) bgMusicRef.current.volume = 0.06;
           resolve();
         }, 15000);
 
         const cleanup = () => {
           clearTimeout(safetyTimer);
-          if (bgMusicRef.current) bgMusicRef.current.volume = 0.10;
+          if (bgMusicRef.current) bgMusicRef.current.volume = 0.06;
           resolve();
         };
 
         // Duck background music while Batman speaks
-        if (bgMusicRef.current) bgMusicRef.current.volume = 0.02;
+        if (bgMusicRef.current) bgMusicRef.current.volume = 0.01;
         audio.onended = cleanup;
         audio.onerror = () => { console.warn('[Batman Audio] onerror fired'); cleanup(); };
         audio.onstalled = () => { console.warn('[Batman Audio] onstalled'); cleanup(); };
@@ -776,7 +776,7 @@ ${newsStr}`;
       currentAudioRef.current = null;
     } catch (e) {
       console.error('[Batman Audio] processAudioQueue exception:', e);
-      if (bgMusicRef.current) bgMusicRef.current.volume = 0.10;
+      if (bgMusicRef.current) bgMusicRef.current.volume = 0.06;
     }
 
     isPlayingAudioRef.current = false;
