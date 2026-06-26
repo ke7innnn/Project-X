@@ -845,6 +845,10 @@ NOTE: Each time Master Umesh asks for the brief, these stories are shuffled rand
       return;
     }
 
+    // CRITICAL FIX: Stop any currently speaking audio and abort any ongoing API streams
+    // before processing the new command, preventing overlapping voice queues.
+    interruptSpeech();
+
     resetSleepTimer();
 
     stopListening();
@@ -934,16 +938,6 @@ NOTE: Each time Master Umesh asks for the brief, these stories are shuffled rand
       });
       return;
     }
-
-    // Clear past queues
-    audioQueueRef.current = [];
-    if (fetchAbortControllerRef.current) {
-      fetchAbortControllerRef.current.abort();
-    }
-    if (currentAudioRef.current) {
-      try { currentAudioRef.current.pause(); } catch(e) {}
-    }
-    isPlayingAudioRef.current = false;
 
     // Trigger Streaming Chat
     await callOpenAIAndStream(cmd);
