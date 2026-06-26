@@ -512,10 +512,10 @@ export default function StartScreen() {
     const trimmed = text.trimStart();
     if (!trimmed) return null;
 
-    // Look for natural sentence or clause boundaries (. ? ! , ; : \n)
-    // We only split here to preserve the TTS engine's natural intonation and prosody.
-    // Splitting by arbitrary word counts breaks the AI's "voice acting".
-    const boundaryMatch = trimmed.match(/[.?!,;:\n]+(\s+|$)/);
+    // Look for natural sentence boundaries (. ? ! \n)
+    // We strictly avoid splitting on commas or colons because splitting into tiny
+    // audio chunks causes the browser to stutter/gap between playbacks.
+    const boundaryMatch = trimmed.match(/[.?!]+(\s+|$)|(\n+)/);
     
     if (boundaryMatch) {
       const splitIndex = (boundaryMatch.index ?? 0) + boundaryMatch[0].length;
