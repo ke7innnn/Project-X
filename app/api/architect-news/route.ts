@@ -69,10 +69,22 @@ export async function GET() {
                 if (!isNaN(parsedDate)) timestamp = parsedDate;
               }
 
+              let cleanDesc = stripHtml(rawDesc);
+              if (cleanDesc.length > 350) {
+                const substr = cleanDesc.slice(0, 350);
+                const lastPeriod = substr.lastIndexOf('.');
+                if (lastPeriod > 100) {
+                  cleanDesc = substr.slice(0, lastPeriod + 1);
+                } else {
+                  const lastSpace = substr.lastIndexOf(' ');
+                  cleanDesc = substr.slice(0, lastSpace > 0 ? lastSpace : 350) + '...';
+                }
+              }
+
               bucket.push({
                 title: rawTitle,
                 link,
-                description: stripHtml(rawDesc).slice(0, 220) + (rawDesc.length > 220 ? '...' : ''),
+                description: cleanDesc,
                 pubDate,
                 source: feed.source,
                 timestamp,
