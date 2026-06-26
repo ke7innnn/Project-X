@@ -15,9 +15,11 @@ function stripHtml(html: string): string {
 }
 
 export async function GET() {
+  // ONLY Architectural Digest — Master Umesh's preferred source
   const feeds = [
+    { url: 'https://www.architecturaldigest.com/feed/rss', source: 'Architectural Digest' },
+    // Fallback: ArchDaily tagged with AD-style content if AD RSS is down
     { url: 'https://www.archdaily.com/feed', source: 'ArchDaily' },
-    { url: 'https://www.architecturaldigest.com/feed/rss', source: 'Architectural Digest' }
   ];
 
   const allItems: Array<{
@@ -29,12 +31,16 @@ export async function GET() {
     timestamp: number;
   }> = [];
 
+  const adItems: typeof allItems = [];
+  const archDailyItems: typeof allItems = [];
+
   try {
     await Promise.all(feeds.map(async (feed) => {
       try {
         const res = await fetch(feed.url, {
           headers: {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'Accept': 'application/rss+xml, application/xml, text/xml, */*',
           },
           next: { revalidate: 300 } // cache for 5 minutes
         });
@@ -42,6 +48,7 @@ export async function GET() {
         if (res.ok) {
           const xmlText = await res.text();
           const itemMatches = xmlText.matchAll(/<item>([\s\S]*?)<\/item>/gi);
+          const bucket = feed.source === 'Architectural Digest' ? adItems : archDailyItems;
 
           for (const match of itemMatches) {
             const content = match[1];
@@ -52,43 +59,43 @@ export async function GET() {
 
             if (titleMatch) {
               const rawTitle = cleanCdata(titleMatch[1]);
-              const link = linkMatch ? cleanCdata(linkMatch[1]) : "";
-              const rawDesc = descMatch ? cleanCdata(descMatch[1]) : "";
-              const pubDate = pubDateMatch ? cleanCdata(pubDateMatch[1]) : "";
+              const link = linkMatch ? cleanCdata(linkMatch[1]) : '';
+              const rawDesc = descMatch ? cleanCdata(descMatch[1]) : '';
+              const pubDate = pubDateMatch ? cleanCdata(pubDateMatch[1]) : '';
 
-              // Try parsing pubDate to get a timestamp for sorting
               let timestamp = Date.now();
               if (pubDate) {
                 const parsedDate = Date.parse(pubDate);
-                if (!isNaN(parsedDate)) {
-                  timestamp = parsedDate;
-                }
+                if (!isNaN(parsedDate)) timestamp = parsedDate;
               }
 
-              allItems.push({
+              bucket.push({
                 title: rawTitle,
                 link,
-                description: stripHtml(rawDesc).slice(0, 180) + (rawDesc.length > 180 ? "..." : ""),
+                description: stripHtml(rawDesc).slice(0, 220) + (rawDesc.length > 220 ? '...' : ''),
                 pubDate,
                 source: feed.source,
-                timestamp
+                timestamp,
               });
             }
           }
         }
       } catch (e) {
-        console.error(`Failed to fetch or parse news from ${feed.source}:`, e);
+        console.error(`Failed to fetch/parse news from ${feed.source}:`, e);
       }
     }));
 
-    // Sort combined articles by timestamp descending (newest first)
-    allItems.sort((a, b) => b.timestamp - a.timestamp);
+    // Prefer Architectural Digest; fall back to ArchDaily only if AD returned nothing
+    const primary = adItems.sort((a, b) => b.timestamp - a.timestamp);
+    const fallback = archDailyItems.sort((a, b) => b.timestamp - a.timestamp);
 
-    // Limit to top 8 items
-    const topItems = allItems.slice(0, 8);
+    // Return top 5 AD items; if AD had nothing, return top 5 ArchDaily
+    const topItems = primary.length > 0
+      ? primary.slice(0, 5)
+      : fallback.slice(0, 5);
 
     return NextResponse.json(topItems);
   } catch (error: any) {
-    return NextResponse.json({ error: error.message || "Failed to fetch architectural news" }, { status: 500 });
+    return NextResponse.json({ error: error.message || 'Failed to fetch news' }, { status: 500 });
   }
 }
