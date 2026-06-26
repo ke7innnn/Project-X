@@ -84,11 +84,15 @@ export async function callGemini(options: GeminiRequestOptions) {
     }
   }
 
+  // Image generation models must NOT have maxOutputTokens set — it interferes with image output
+  const isImageGenModel = responseModalities?.includes('image');
+
   const requestBody: any = {
     contents,
     generationConfig: {
       temperature,
-      maxOutputTokens,
+      // Only set maxOutputTokens for text-only models
+      ...(!isImageGenModel ? { maxOutputTokens } : {}),
       ...(responseMimeType ? { responseMimeType } : {}),
       ...(responseSchema ? { responseSchema } : {}),
       ...(responseModalities ? { responseModalities } : {}),

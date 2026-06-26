@@ -89,37 +89,27 @@ export const FLOORPLAN_GENERATION_PROMPT = (params: any, natureImageDescription:
   const w = parseFloat(params.plotWidth) || 10;
   const h = parseFloat(params.plotHeight) || 10;
   const aspectInstruction = w > h 
-    ? `Since width (${w}) is greater than height (${h}), the drawn rectangle MUST visually be a LANDSCAPE shape.`
+    ? `The floor plan layout should be wider than it is tall (landscape orientation).`
     : w < h 
-    ? `Since height (${h}) is greater than width (${w}), the drawn rectangle MUST visually be a PORTRAIT shape.`
-    : `Since width (${w}) equals height (${h}), the drawn rectangle MUST visually be a PERFECT SQUARE.`;
+    ? `The floor plan layout should be taller than it is wide (portrait orientation).`
+    : `The floor plan layout should be roughly square.`;
 
-  return `
-You are an expert biomimicry architect. Generate a STRICTLY TOP-DOWN 2D AutoCAD architectural floor plan with clean, plain lines.
+  const roomList = Array.isArray(params.rooms) && params.rooms.length > 0
+    ? params.rooms.map((r: string, i: number) => `${String.fromCharCode(65 + i)} - ${r}`).join(', ')
+    : 'living room, kitchen, 2 bedrooms, 1 bathroom';
 
-BIOMIMICRY INSPIRATION: ${natureImageDescription}
-CRITICAL INSTRUCTION (TRACE THIS EXACT SILHOUETTE): The attached image has been pre-processed into a stark black silhouette on a white background. You MUST trace the exact outer boundary of this black shape as the exterior wall of your floor plan. The black region shows EXACTLY where the building footprint must be drawn. Do not add, subtract, smooth, or reinterpret — your exterior wall must match the silhouette's outline pixel-for-pixel. If the shape has wing-like protrusions, jagged edges, irregular lobes, or asymmetric curves, your building wall MUST have those same features. Do NOT default to a leaf, oval, or any other shape from your training memory.
+  return `Draw a 2D architectural floor plan in the EXACT same outer shape/silhouette as shown in the attached image. The exterior walls of the building must precisely follow the outline of the shape in the image — do not default to an oval or leaf shape.
 
-MARGIN RULE (CRITICAL): Do NOT draw any dashed plot lines or borders around the building. The user interface handles the plot boundary visually. However, you MUST leave a MASSIVE empty white margin gap around the entire building so it sits comfortably in the absolute center of the 1:1 canvas.
-BUILDING PLACEMENT: Draw the floor plan SMALLER so it easily fits inside the center of the image. The true proportions of the building must be based on a mathematical ${w}:${h} ratio (${aspectInstruction}).
+Nature inspiration: ${natureImageDescription}
+${aspectInstruction}
+Rooms to include: ${roomList}
+${Array.isArray(params.vastuRules) && params.vastuRules.length > 0 ? `Vastu rules: ${params.vastuRules.join(', ')}` : ''}
+${params.garden ? 'Include a garden area.' : ''}
+${params.parking ? 'Include a parking space.' : ''}
+Floors: ${params.floors || 1}
+${Array.isArray(params.additionalNotes) && params.additionalNotes.length > 0 ? `Notes: ${params.additionalNotes.join(', ')}` : ''}
 
-ROOMS & LAYOUT: ${Array.isArray(params.rooms) ? params.rooms.map((r: string, i: number) => `Room ${String.fromCharCode(65 + i)}: ${r}`).join(', ') : 'Standard residential rooms'}
-MULTIPLE UNITS RULE: If the user requests multiple flats, apartments, or units (e.g., "3 flats", "2 units"), you MUST explicitly divide the floor plan and draw the exact number of independent, separate flats requested within the building shape. Do NOT just draw 1 flat!
-VASTU: ${Array.isArray(params.vastuRules) && params.vastuRules.length > 0 ? params.vastuRules.join(', ') : 'Standard residential placement'}
-${params.garden ? 'Include a GARDEN area.' : ''}
-${params.parking ? 'Include a PARKING space.' : ''}
-FLOORS: ${params.floors || 1} floor(s).
-${Array.isArray(params.additionalNotes) && params.additionalNotes.length > 0 ? `NOTES: ${params.additionalNotes.join(', ')}` : ''}
-
-STYLE RULES (MANDATORY):
-- Black and white ONLY. Pure monochrome. No colors, no green.
-- AutoCAD style: professional, clean architectural linework.
-- Use plain, thick black lines for all exterior and interior walls (double-line walls).
-- Include doors (quarter-circle arcs) and windows (thin parallel lines).
-- Write BOTH the single capital letter AND the full room name (e.g., "A - Living Room", "B - Master Bedroom") clearly inside each room.
-- Draw tiny, simplified architectural furniture (beds, sofas, dining tables, kitchen counters, etc.) inside the rooms to show scale and make it look realistic.
-- Include a small north arrow (↑N) in a corner.
-`;
+Style: Black lines on white background only. AutoCAD/blueprint style. Double-line walls. Label each room with a letter and its name (e.g. "A - Living Room"). Add small furniture symbols inside rooms. Include a north arrow (↑N). Large white margin around the building. Do NOT draw any outer plot boundary rectangle.`;
 };
 
 export const EDIT_FLOORPLAN_PROMPT = (editInstruction: string, params: any) => {
