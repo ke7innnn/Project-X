@@ -512,44 +512,20 @@ export default function StartScreen() {
     const trimmed = text.trimStart();
     if (!trimmed) return null;
 
-    // 1. Look for sentence boundaries immediately (. ? !) followed by whitespace or end of string.
-    const sentenceMatch = trimmed.match(/[.?!]+(\s+|$)/);
-    if (sentenceMatch) {
-      const splitIndex = (sentenceMatch.index ?? 0) + sentenceMatch[0].length;
+    // Look for natural sentence or clause boundaries (. ? ! , ; : \n)
+    // We only split here to preserve the TTS engine's natural intonation and prosody.
+    // Splitting by arbitrary word counts breaks the AI's "voice acting".
+    const boundaryMatch = trimmed.match(/[.?!,;:\n]+(\s+|$)/);
+    
+    if (boundaryMatch) {
+      const splitIndex = (boundaryMatch.index ?? 0) + boundaryMatch[0].length;
       return {
         chunk: trimmed.slice(0, splitIndex),
         remaining: trimmed.slice(splitIndex)
       };
     }
 
-    // 2. Count words
-    const words = trimmed.split(/\s+/);
-
-    // 3. Clause boundaries if the prefix has at least 4 words
-    const clauseRegex = /[,;:-]+(\s+|$)/g;
-    let match;
-    while ((match = clauseRegex.exec(trimmed)) !== null) {
-      const splitIndex = match.index + match[0].length;
-      const prefix = trimmed.slice(0, splitIndex);
-      const prefixWords = prefix.trim().split(/\s+/);
-      if (prefixWords.length >= 3) {
-        return {
-          chunk: prefix,
-          remaining: trimmed.slice(splitIndex)
-        };
-      }
-    }
-
-    // Speak as soon as we have 5+ words (low latency — don't wait for long sentences)
-    if (words.length >= 5) {
-      const chunk = words.slice(0, 5).join(" ");
-      const remaining = words.slice(5).join(" ");
-      return {
-        chunk: chunk + " ",
-        remaining: remaining
-      };
-    }
-
+    // No natural pause found yet. We will wait for more tokens to stream in.
     return null;
   };
 
