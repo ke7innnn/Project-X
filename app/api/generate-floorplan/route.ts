@@ -60,12 +60,9 @@ export async function POST(request: Request) {
       refImageMime = fetched.mimeType;
     }
 
-    // Build the parts array: [prompt text, CAD style ref (optional), nature image ref (optional)]
+    // Build the parts array: [prompt text, nature image ref (optional)]
     const buildParts = () => {
       const parts: any[] = [{ text: prompt }];
-      if (cadStyleBase64) {
-        parts.push({ inlineData: { mimeType: cadStyleMime, data: cadStyleBase64 } });
-      }
       if (refImageBase64) {
         parts.push({ inlineData: { mimeType: refImageMime, data: refImageBase64 } });
       }

@@ -98,10 +98,7 @@ export const FLOORPLAN_GENERATION_PROMPT = (params: any, natureImageDescription:
 You are an expert biomimicry architect. Generate a STRICTLY TOP-DOWN 2D AutoCAD architectural floor plan with clean, plain lines.
 
 BIOMIMICRY INSPIRATION: ${natureImageDescription}
-CRITICAL INSTRUCTION (IMAGE ROLES): You are receiving TWO reference images.
-- IMAGE 1 (Style Reference): This is ONLY for architectural style. Copy its thick black lines, double-line walls, clean white background, room labels, and tiny furniture style. IGNORE ITS OUTER SHAPE. DO NOT draw the shape shown in Image 1.
-- IMAGE 2 (Shape Reference): You MUST act as a literal tracing machine for this image. The outer exterior wall of your floor plan MUST EXACTLY TRACE the 2D pixel silhouette/mask of IMAGE 2. 
-If IMAGE 2 has irregular lobes, bizarre curves, sharp points, or asymmetrical shapes, YOUR EXTERIOR WALL MUST HAVE THOSE EXACT SAME IRREGULARITIES. DO NOT smooth it out into a standard oval or generic leaf! Your entire building floor plan MUST fit exactly inside this custom perimeter wall drawn from IMAGE 2.
+CRITICAL INSTRUCTION (COPY BORDER): The outer exterior wall of your floor plan MUST EXACTLY TRACE the 2D pixel silhouette/mask of the provided reference image. You must copy the borders of the reference image strictly, very strictly. If the reference image has irregular lobes, bizarre curves, sharp points, or asymmetrical shapes, YOUR EXTERIOR WALL MUST HAVE THOSE EXACT SAME IRREGULARITIES. DO NOT smooth it out into a standard oval or generic leaf! The interior room layout will be handled automatically based on the parameters and CAD style requirements below, but the outer border must match the reference image shape exactly.
 
 MARGIN RULE (CRITICAL): Do NOT draw any dashed plot lines or borders around the building. The user interface handles the plot boundary visually. However, you MUST leave a MASSIVE empty white margin gap around the entire building so it sits comfortably in the absolute center of the 1:1 canvas.
 BUILDING PLACEMENT: Draw the floor plan SMALLER so it easily fits inside the center of the image. The true proportions of the building must be based on a mathematical ${w}:${h} ratio (${aspectInstruction}).
@@ -116,12 +113,12 @@ ${Array.isArray(params.additionalNotes) && params.additionalNotes.length > 0 ? `
 
 STYLE RULES (MANDATORY):
 - Black and white ONLY. Pure monochrome. No colors, no green.
-- Use plain, thick black lines for all exterior and interior walls.
+- AutoCAD style: professional, clean architectural linework.
+- Use plain, thick black lines for all exterior and interior walls (double-line walls).
 - Include doors (quarter-circle arcs) and windows (thin parallel lines).
 - Write BOTH the single capital letter AND the full room name (e.g., "A - Living Room", "B - Master Bedroom") clearly inside each room.
 - Draw tiny, simplified architectural furniture (beds, sofas, dining tables, kitchen counters, etc.) inside the rooms to show scale and make it look realistic.
 - Include a small north arrow (↑N) in a corner.
-- AutoCAD aesthetic: professional, clean architectural linework.
 `;
 };
 
