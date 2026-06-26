@@ -759,12 +759,17 @@ NOTE: Each time Master Umesh asks for the brief, these stories are shuffled rand
         // force-resolve after 15s so the mic is NEVER permanently blocked
         const safetyTimer = setTimeout(() => {
           console.warn('[Batman Audio] Safety timeout fired — forcing resolve');
+          try { audio.pause(); } catch(e) {} // Force pause so it doesn't resume randomly later
           if (bgMusicRef.current) bgMusicRef.current.volume = 0.06;
           resolve();
         }, 15000);
 
         const cleanup = () => {
           clearTimeout(safetyTimer);
+          // Remove listeners to prevent memory leaks or rogue triggers
+          audio.onended = null;
+          audio.onerror = null;
+          audio.onstalled = null;
           if (bgMusicRef.current) bgMusicRef.current.volume = 0.06;
           resolve();
         };
@@ -773,7 +778,11 @@ NOTE: Each time Master Umesh asks for the brief, these stories are shuffled rand
         if (bgMusicRef.current) bgMusicRef.current.volume = 0.01;
         audio.onended = cleanup;
         audio.onerror = () => { console.warn('[Batman Audio] onerror fired'); cleanup(); };
-        audio.onstalled = () => { console.warn('[Batman Audio] onstalled'); cleanup(); };
+        
+        // DO NOT call cleanup() on onstalled! 
+        // Stalled just means buffering. If we cleanup() here, it advances the queue,
+        // but this audio will suddenly resume playing when it finishes buffering, causing overlapping voices!
+        audio.onstalled = () => { console.warn('[Batman Audio] onstalled - buffering...'); };
 
         try {
           const playPromise = audio.play();
