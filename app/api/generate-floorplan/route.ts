@@ -1,25 +1,73 @@
 import { NextResponse } from 'next/server';
 import { callGemini } from '@/lib/gemini';
 import { FLOORPLAN_GENERATION_PROMPT } from '@/lib/prompts';
+import sharp from 'sharp';
 
-export const maxDuration = 60; // 60s timeout for Vercel functions
+export const maxDuration = 60;
 
 /**
- * Fetches an image URL and returns it as base64.
- * Throws on failure so the caller can fall back to fileData URI mode.
+ * Fetch raw image bytes from a URL.
  */
-async function fetchImageAsBase64(url: string): Promise<{ data: string; mimeType: string }> {
+async function fetchImageBuffer(url: string): Promise<Buffer> {
   const res = await fetch(url, {
     signal: AbortSignal.timeout(15000),
-    headers: {
-      // Some CDNs block requests without a browser-like User-Agent
-      'User-Agent': 'Mozilla/5.0 (compatible; ArchitectBot/1.0)',
-    },
+    headers: { 'User-Agent': 'Mozilla/5.0 (compatible; ArchitectBot/1.0)' },
   });
-  if (!res.ok) throw new Error(`HTTP ${res.status} fetching reference image`);
-  const buffer = await res.arrayBuffer();
-  const mimeType = res.headers.get('content-type')?.split(';')[0] || 'image/jpeg';
-  return { data: Buffer.from(buffer).toString('base64'), mimeType };
+  if (!res.ok) throw new Error(`HTTP ${res.status} fetching image`);
+  return Buffer.from(await res.arrayBuffer());
+}
+
+/**
+ * Convert a reference photo into a stark BLACK silhouette on WHITE background.
+ *
+ * Pipeline:
+ *  1. Resize to max 800px (enough detail, fast to process)
+ *  2. Convert to greyscale
+ *  3. Normalise contrast (stretch full range 0–255)
+ *  4. Threshold at 128 → pure black/white pixels
+ *     (subject becomes BLACK, background becomes WHITE)
+ *  5. Invert if image is mostly light (background is naturally white already)
+ *
+ * The resulting PNG is an unambiguous flat black silhouette that Gemini can
+ * trivially trace — no photographed colour detail to confuse it.
+ */
+async function extractSilhouette(inputBuffer: Buffer): Promise<{ data: string; mimeType: string }> {
+  const img = sharp(inputBuffer);
+  const metadata = await img.metadata();
+
+  // Determine if the image is mostly bright (background white) or dark
+  // We do this by computing the mean of a tiny downscale of the greyscale
+  const { data: sampleData } = await sharp(inputBuffer)
+    .resize(50, 50, { fit: 'fill' })
+    .greyscale()
+    .raw()
+    .toBuffer({ resolveWithObject: true });
+  const mean = sampleData.reduce((s, v) => s + v, 0) / sampleData.length;
+  const isLightBackground = mean > 128; // true = background is white/bright
+
+  // Max 800px wide for speed; never enlarge tiny images much
+  const targetWidth = Math.min(800, Math.max(400, (metadata.width || 800)));
+
+  let pipeline = sharp(inputBuffer)
+    .resize({ width: targetWidth, withoutEnlargement: true, kernel: sharp.kernel.lanczos3 })
+    .greyscale()
+    .normalise();
+
+  // Threshold to pure black/white at mid-point
+  // After threshold: values > 128 become white (255), values <= 128 become black (0)
+  const silhouetteBuffer = await pipeline
+    .threshold(128)
+    // If the background is light, the subject is now black — perfect silhouette
+    // If the background was dark, we need to invert so subject = black, bg = white
+    .negate(isLightBackground ? false : true)
+    .png()
+    .toBuffer();
+
+  const b64 = silhouetteBuffer.toString('base64');
+  console.log(
+    `[generate-floorplan] Silhouette extracted — mean brightness: ${mean.toFixed(1)}, isLightBg: ${isLightBackground}, silhouette size: ${b64.length}`
+  );
+  return { data: b64, mimeType: 'image/png' };
 }
 
 export async function POST(request: Request) {
@@ -32,56 +80,63 @@ export async function POST(request: Request) {
       customImageDescription,
     } = await request.json();
 
-    // Ensure width and height fallbacks are present
     collectedParameters.plotWidth = collectedParameters.plotWidth || 10;
     collectedParameters.plotHeight = collectedParameters.plotHeight || 10;
 
     const descriptionToUse = customImageDescription || natureImageDescription || 'organic geometric shape';
     const prompt = FLOORPLAN_GENERATION_PROMPT(collectedParameters, descriptionToUse);
 
-    console.log('[generate-floorplan] Nature image URL received:', natureImageUrl);
+    console.log('[generate-floorplan] Nature URL:', natureImageUrl);
     console.log('[generate-floorplan] Custom image provided:', !!customImageBase64);
 
-    // ── Resolve image: base64 inline OR fetched OR fileData URL fallback ──
-    // imageMode: 'inline' = we have base64, 'fileData' = Gemini fetches the URL directly
-    let imagePart: any | undefined;
+    // ── Step 1: Get raw image bytes ───────────────────────────────────────
+    let rawBuffer: Buffer | null = null;
 
     if (customImageBase64) {
-      // User uploaded their own image — use it directly
+      // Uploaded image — decode base64 to buffer
       const raw = customImageBase64.includes(',')
         ? customImageBase64.split(',')[1]
         : customImageBase64;
-      const mime = customImageBase64.startsWith('data:image/png') ? 'image/png' : 'image/jpeg';
-      imagePart = { inlineData: { mimeType: mime, data: raw } };
-      console.log('[generate-floorplan] Using custom uploaded image (inline base64)');
+      rawBuffer = Buffer.from(raw, 'base64');
+      console.log('[generate-floorplan] Using uploaded custom image');
     } else if (natureImageUrl) {
-      // Try to fetch the Pexels image as base64 first
       try {
-        const fetched = await fetchImageAsBase64(natureImageUrl);
-        imagePart = { inlineData: { mimeType: fetched.mimeType, data: fetched.data } };
-        console.log('[generate-floorplan] Successfully fetched nature image as base64, mimeType:', fetched.mimeType, 'size:', fetched.data.length);
-      } catch (fetchErr: any) {
-        // Fetch failed (e.g. Pexels 403/CORS). Fall back: let Gemini fetch the URL directly.
-        console.warn('[generate-floorplan] Direct image fetch failed:', fetchErr.message, '— falling back to Gemini fileData URI mode');
-        imagePart = { fileData: { mimeType: 'image/jpeg', fileUri: natureImageUrl } };
+        rawBuffer = await fetchImageBuffer(natureImageUrl);
+        console.log('[generate-floorplan] Fetched nature image, size:', rawBuffer.length);
+      } catch (err: any) {
+        console.error('[generate-floorplan] Failed to fetch nature image:', err.message);
       }
-    } else {
-      console.error('[generate-floorplan] CRITICAL: No reference image URL or base64 was provided! The model will have no shape to trace.');
     }
 
-    // Build parts: always [prompt text, then image if available]
+    // ── Step 2: Convert to stark B&W silhouette ───────────────────────────
+    // This is the KEY step. Instead of sending the photograph, we send a clean
+    // black silhouette so Gemini MUST trace the exact shape outline.
+    let imagePart: any | undefined;
+
+    if (rawBuffer) {
+      try {
+        const silhouette = await extractSilhouette(rawBuffer);
+        imagePart = { inlineData: { mimeType: silhouette.mimeType, data: silhouette.data } };
+        console.log('[generate-floorplan] Silhouette ready — sending to Gemini');
+      } catch (silErr: any) {
+        // Silhouette extraction failed — fall back to raw image
+        console.warn('[generate-floorplan] Silhouette extraction failed, using raw image:', silErr.message);
+        imagePart = { inlineData: { mimeType: 'image/jpeg', data: rawBuffer.toString('base64') } };
+      }
+    } else {
+      console.error('[generate-floorplan] CRITICAL: No image available — Gemini has no shape to trace!');
+    }
+
+    // ── Step 3: Build prompt parts ────────────────────────────────────────
     const buildParts = () => {
       const parts: any[] = [{ text: prompt }];
       if (imagePart) {
         parts.push(imagePart);
-        console.log('[generate-floorplan] Image part type:', imagePart.inlineData ? 'inlineData' : 'fileData');
-      } else {
-        console.warn('[generate-floorplan] No image part — Gemini will generate without a shape reference!');
       }
       return parts;
     };
 
-    // Generate 2 variations in parallel
+    // ── Step 4: Generate 2 variations in parallel ─────────────────────────
     const promises = [0, 1].map((_, i) =>
       new Promise<string>((resolve, reject) =>
         setTimeout(async () => {
@@ -97,7 +152,7 @@ export async function POST(request: Request) {
                 _customContents: [{ role: 'user', parts: buildParts() }],
               } as any);
             } catch (err: any) {
-              console.warn(`[generate-floorplan] gemini-3.1-flash-image-preview variation ${i} failed: ${err.message}. Retrying with gemini-2.5-flash-image...`);
+              console.warn(`[generate-floorplan] gemini-3.1-flash-image-preview var ${i} failed: ${err.message}. Falling back to gemini-2.5-flash-image...`);
               res = await callGemini({
                 model: 'gemini-2.5-flash-image',
                 message: undefined,
@@ -110,14 +165,14 @@ export async function POST(request: Request) {
 
             const part = res.candidates?.[0]?.content?.parts?.find((p: any) => p.inlineData);
             if (!part?.inlineData?.data) {
-               console.error('[generate-floorplan] Gemini Response:', JSON.stringify(res));
-               throw new Error('No image found in Gemini response candidate parts');
+              console.error('[generate-floorplan] Gemini Response:', JSON.stringify(res));
+              throw new Error('No image found in Gemini response');
             }
             resolve(part.inlineData.data);
           } catch (e) {
             reject(e);
           }
-        }, i * 100)
+        }, i * 150)
       )
     );
 
