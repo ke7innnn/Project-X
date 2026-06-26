@@ -98,11 +98,10 @@ export const FLOORPLAN_GENERATION_PROMPT = (params: any, natureImageDescription:
 You are an expert biomimicry architect. Generate a STRICTLY TOP-DOWN 2D AutoCAD architectural floor plan with clean, plain lines.
 
 BIOMIMICRY INSPIRATION: ${natureImageDescription}
-CRITICAL INSTRUCTION (LITERAL EDGE-TRACING): You MUST act as a literal tracing machine. The outer exterior wall of the floor plan MUST EXACTLY TRACE the 2D pixel silhouette/mask of the second reference image provided. 
-- DO NOT rely on your conceptual understanding of what the object is. (If the image is a leaf, DO NOT draw your own generic idea of a leaf. You MUST trace the exact specific physical leaf shown in the image).
-- If the reference image has multiple irregular lobes, bizarre curves, sharp points, or asymmetrical shapes, YOUR EXTERIOR WALL MUST HAVE THOSE EXACT SAME IRREGULARITIES.
-- DO NOT smooth it out into a standard circle, oval, or generic polygon.
-- Your entire building floor plan MUST fit exactly inside this custom, traced perimeter wall.
+CRITICAL INSTRUCTION (IMAGE ROLES): You are receiving TWO reference images.
+- IMAGE 1 (Style Reference): This is ONLY for architectural style. Copy its thick black lines, double-line walls, clean white background, room labels, and tiny furniture style. IGNORE ITS OUTER SHAPE. DO NOT draw the shape shown in Image 1.
+- IMAGE 2 (Shape Reference): You MUST act as a literal tracing machine for this image. The outer exterior wall of your floor plan MUST EXACTLY TRACE the 2D pixel silhouette/mask of IMAGE 2. 
+If IMAGE 2 has irregular lobes, bizarre curves, sharp points, or asymmetrical shapes, YOUR EXTERIOR WALL MUST HAVE THOSE EXACT SAME IRREGULARITIES. DO NOT smooth it out into a standard oval or generic leaf! Your entire building floor plan MUST fit exactly inside this custom perimeter wall drawn from IMAGE 2.
 
 MARGIN RULE (CRITICAL): Do NOT draw any dashed plot lines or borders around the building. The user interface handles the plot boundary visually. However, you MUST leave a MASSIVE empty white margin gap around the entire building so it sits comfortably in the absolute center of the 1:1 canvas.
 BUILDING PLACEMENT: Draw the floor plan SMALLER so it easily fits inside the center of the image. The true proportions of the building must be based on a mathematical ${w}:${h} ratio (${aspectInstruction}).
