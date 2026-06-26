@@ -372,9 +372,6 @@ export default function StartScreen() {
     recognition.onstart = () => { isRunning = true; };
 
     recognition.onresult = (event: any) => {
-      // Ignore input if Batman is currently speaking (prevents echo/feedback loops)
-      if (isAgentSpeakingRef.current) return;
-
       let interimTranscript = '';
       let finalTranscript = '';
 
@@ -387,12 +384,18 @@ export default function StartScreen() {
       }
 
       if (finalTranscript.trim()) {
-        // Use ref to always call the latest version of processCommand (avoids stale closure)
+        // If Batman is still speaking, queue the command — don't drop it
+        if (isAgentSpeakingRef.current) {
+          console.log('[Batman STT] Final transcript captured while speaking — will process after audio ends');
+          // Still call processCommandRef — it checks statusStateRef internally
+          // so it will be ignored correctly if not in listening state
+        }
         processCommandRef.current(finalTranscript.trim());
       } else if (interimTranscript) {
         setTranscript(interimTranscript);
       }
     };
+
 
     recognition.onerror = (event: any) => {
       // no-speech is NORMAL in continuous mode — browser just didn't hear anything in a segment.
@@ -736,27 +739,44 @@ ${newsStr}`;
     try {
       currentAudioRef.current = audio;
       
-      await new Promise((resolve) => {
+      await new Promise<void>((resolve) => {
+        // Safety timeout: if audio hangs for any reason (network, Vercel edge, etc.),
+        // force-resolve after 15s so the mic is NEVER permanently blocked
+        const safetyTimer = setTimeout(() => {
+          console.warn('[Batman Audio] Safety timeout fired — forcing resolve');
+          if (bgMusicRef.current) bgMusicRef.current.volume = 0.10;
+          resolve();
+        }, 15000);
+
+        const cleanup = () => {
+          clearTimeout(safetyTimer);
+          if (bgMusicRef.current) bgMusicRef.current.volume = 0.10;
+          resolve();
+        };
+
         // Duck background music while Batman speaks
         if (bgMusicRef.current) bgMusicRef.current.volume = 0.02;
-        audio.onended = () => {
-          // Restore bg music after speech
-          if (bgMusicRef.current) bgMusicRef.current.volume = 0.10;
-          resolve(null);
-        };
-        audio.onerror = () => {
-          if (bgMusicRef.current) bgMusicRef.current.volume = 0.10;
-          resolve(null);
-        };
-        audio.play().catch((err) => {
-          console.warn("Audio play failed:", err);
-          if (bgMusicRef.current) bgMusicRef.current.volume = 0.10;
-          resolve(null);
-        });
+        audio.onended = cleanup;
+        audio.onerror = () => { console.warn('[Batman Audio] onerror fired'); cleanup(); };
+        audio.onstalled = () => { console.warn('[Batman Audio] onstalled'); cleanup(); };
+
+        try {
+          const playPromise = audio.play();
+          if (playPromise !== undefined) {
+            playPromise.catch((err) => {
+              console.warn('[Batman Audio] play() rejected:', err.name, err.message);
+              cleanup();
+            });
+          }
+        } catch (syncErr) {
+          console.warn('[Batman Audio] play() threw synchronously:', syncErr);
+          cleanup();
+        }
       });
       currentAudioRef.current = null;
     } catch (e) {
-      await new Promise(r => setTimeout(r, 500));
+      console.error('[Batman Audio] processAudioQueue exception:', e);
+      if (bgMusicRef.current) bgMusicRef.current.volume = 0.10;
     }
 
     isPlayingAudioRef.current = false;
@@ -764,7 +784,7 @@ ${newsStr}`;
     if (audioQueueRef.current.length > 0) {
       await processAudioQueue();
     } else {
-      isAgentSpeakingRef.current = false;
+      isAgentSpeakingRef.current = false; // Always reset — never leave stuck
       if (isStreamingRef.current) {
         setStatusState('thinking');
       } else {
@@ -774,6 +794,7 @@ ${newsStr}`;
       }
     }
   };
+
 
   const speakStreamedSentence = (text: string, onComplete?: () => void) => {
     if (!text) return;
