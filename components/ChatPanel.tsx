@@ -303,7 +303,8 @@ export default function ChatPanel() {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ 
               collectedParameters: useArchitectStore.getState().collectedParameters,
-              natureImageUrl: useArchitectStore.getState().selectedNatureImage?.thumbUrl || useArchitectStore.getState().selectedNatureImage?.url,
+              // Always prefer the full-resolution URL over the thumbnail — Gemini needs to clearly see the shape
+              natureImageUrl: useArchitectStore.getState().selectedNatureImage?.url || useArchitectStore.getState().selectedNatureImage?.thumbUrl,
               natureImageDescription: useArchitectStore.getState().selectedNatureImage?.description,
               customImageBase64: useArchitectStore.getState().lastUploadedImage,
               customImageDescription: useArchitectStore.getState().lastUploadedImageDescription

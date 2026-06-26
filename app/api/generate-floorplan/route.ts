@@ -1,19 +1,24 @@
 import { NextResponse } from 'next/server';
 import { callGemini } from '@/lib/gemini';
 import { FLOORPLAN_GENERATION_PROMPT } from '@/lib/prompts';
-import fs from 'fs';
-import path from 'path';
 
 export const maxDuration = 60; // 60s timeout for Vercel functions
 
 /**
- * Fetches a Pexels image URL and returns it as base64.
+ * Fetches an image URL and returns it as base64.
+ * Throws on failure so the caller can fall back to fileData URI mode.
  */
 async function fetchImageAsBase64(url: string): Promise<{ data: string; mimeType: string }> {
-  const res = await fetch(url, { signal: AbortSignal.timeout(15000) });
-  if (!res.ok) throw new Error(`Failed to fetch reference image: ${res.statusText}`);
+  const res = await fetch(url, {
+    signal: AbortSignal.timeout(15000),
+    headers: {
+      // Some CDNs block requests without a browser-like User-Agent
+      'User-Agent': 'Mozilla/5.0 (compatible; ArchitectBot/1.0)',
+    },
+  });
+  if (!res.ok) throw new Error(`HTTP ${res.status} fetching reference image`);
   const buffer = await res.arrayBuffer();
-  const mimeType = res.headers.get('content-type') || 'image/jpeg';
+  const mimeType = res.headers.get('content-type')?.split(';')[0] || 'image/jpeg';
   return { data: Buffer.from(buffer).toString('base64'), mimeType };
 }
 
@@ -34,37 +39,44 @@ export async function POST(request: Request) {
     const descriptionToUse = customImageDescription || natureImageDescription || 'organic geometric shape';
     const prompt = FLOORPLAN_GENERATION_PROMPT(collectedParameters, descriptionToUse);
 
-    // Load CAD style reference image
-    let cadStyleBase64: string | undefined;
-    let cadStyleMime = 'image/png';
-    try {
-      const cadStylePath = path.join(process.cwd(), 'public', 'cad-style-reference.png');
-      if (fs.existsSync(cadStylePath)) {
-        cadStyleBase64 = fs.readFileSync(cadStylePath).toString('base64');
-      }
-    } catch (err) {
-      console.error('Failed to load CAD style reference:', err);
-    }
+    console.log('[generate-floorplan] Nature image URL received:', natureImageUrl);
+    console.log('[generate-floorplan] Custom image provided:', !!customImageBase64);
 
-    // Resolve the nature/custom reference image
-    let refImageBase64: string | undefined;
-    let refImageMime = 'image/jpeg';
+    // ── Resolve image: base64 inline OR fetched OR fileData URL fallback ──
+    // imageMode: 'inline' = we have base64, 'fileData' = Gemini fetches the URL directly
+    let imagePart: any | undefined;
+
     if (customImageBase64) {
-      // Strip data URI prefix if present
-      refImageBase64 = customImageBase64.includes(',')
+      // User uploaded their own image — use it directly
+      const raw = customImageBase64.includes(',')
         ? customImageBase64.split(',')[1]
         : customImageBase64;
+      const mime = customImageBase64.startsWith('data:image/png') ? 'image/png' : 'image/jpeg';
+      imagePart = { inlineData: { mimeType: mime, data: raw } };
+      console.log('[generate-floorplan] Using custom uploaded image (inline base64)');
     } else if (natureImageUrl) {
-      const fetched = await fetchImageAsBase64(natureImageUrl);
-      refImageBase64 = fetched.data;
-      refImageMime = fetched.mimeType;
+      // Try to fetch the Pexels image as base64 first
+      try {
+        const fetched = await fetchImageAsBase64(natureImageUrl);
+        imagePart = { inlineData: { mimeType: fetched.mimeType, data: fetched.data } };
+        console.log('[generate-floorplan] Successfully fetched nature image as base64, mimeType:', fetched.mimeType, 'size:', fetched.data.length);
+      } catch (fetchErr: any) {
+        // Fetch failed (e.g. Pexels 403/CORS). Fall back: let Gemini fetch the URL directly.
+        console.warn('[generate-floorplan] Direct image fetch failed:', fetchErr.message, '— falling back to Gemini fileData URI mode');
+        imagePart = { fileData: { mimeType: 'image/jpeg', fileUri: natureImageUrl } };
+      }
+    } else {
+      console.error('[generate-floorplan] CRITICAL: No reference image URL or base64 was provided! The model will have no shape to trace.');
     }
 
-    // Build the parts array: [prompt text, nature image ref (optional)]
+    // Build parts: always [prompt text, then image if available]
     const buildParts = () => {
       const parts: any[] = [{ text: prompt }];
-      if (refImageBase64) {
-        parts.push({ inlineData: { mimeType: refImageMime, data: refImageBase64 } });
+      if (imagePart) {
+        parts.push(imagePart);
+        console.log('[generate-floorplan] Image part type:', imagePart.inlineData ? 'inlineData' : 'fileData');
+      } else {
+        console.warn('[generate-floorplan] No image part — Gemini will generate without a shape reference!');
       }
       return parts;
     };
@@ -81,7 +93,7 @@ export async function POST(request: Request) {
                 message: undefined,
                 temperature: 0.9,
                 responseModalities: ['image', 'text'],
-                timeoutMs: 45000, // Increased from 8s to 45s (image gen is slow)
+                timeoutMs: 45000,
                 _customContents: [{ role: 'user', parts: buildParts() }],
               } as any);
             } catch (err: any) {
@@ -91,7 +103,7 @@ export async function POST(request: Request) {
                 message: undefined,
                 temperature: 0.9,
                 responseModalities: ['image', 'text'],
-                timeoutMs: 45000, // Increased from 8s to 45s
+                timeoutMs: 45000,
                 _customContents: [{ role: 'user', parts: buildParts() }],
               } as any);
             }
@@ -105,7 +117,7 @@ export async function POST(request: Request) {
           } catch (e) {
             reject(e);
           }
-        }, i * 100) // Lower delay so both run quickly
+        }, i * 100)
       )
     );
 
