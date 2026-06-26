@@ -295,40 +295,23 @@ export default function StartScreen() {
   };
 
   // ── Wake Greeting ─────────────────────────────────────────────────────────
-  // Fires once when weather data first loads — greets with time, date & weather
+  // Stores the greeting text once weather loads — played on first COMM LINK click
+  // (Audio requires a user gesture; auto-playing on mount is blocked on Vercel/HTTPS)
   const hasGreetedRef = useRef(false);
+  const pendingGreetingRef = useRef<string | null>(null);
+
   useEffect(() => {
-    if (!weatherData || hasGreetedRef.current) return;
-    hasGreetedRef.current = true;
+    if (!weatherData || pendingGreetingRef.current) return;
 
     const now = new Date();
     const hour = now.getHours();
-
     const timeOfDay =
       hour >= 5 && hour < 12  ? 'morning' :
       hour >= 12 && hour < 17 ? 'afternoon' :
       hour >= 17 && hour < 21 ? 'evening' : 'night';
 
-    const dayName = now.toLocaleDateString('en-IN', { weekday: 'long' });
-    const dateStr = now.toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' });
-    const timeStr = now.toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit', hour12: true });
-
-    const weather = weatherData;
-    const forecast = weather.forecast[0];
-
-    // Simple, quick wake greeting
-    const greeting = `System online. How may I help you, Master Umesh?`;
-
-    // Small delay so audio context is ready after page load
-    setTimeout(() => {
-      setStatusState('speaking');
-      setTranscript(greeting);
-      speak(greeting, () => {
-        // After greeting finishes, go straight into listening mode
-        shouldListenRef.current = true;
-        startListening();
-      });
-    }, 1800);
+    // Store greeting — will be spoken on first user click (COMM LINK)
+    pendingGreetingRef.current = `Good ${timeOfDay}, Master Umesh. System online. How may I help you?`;
   }, [weatherData]);
   // ─────────────────────────────────────────────────────────────────────────
 
@@ -481,11 +464,26 @@ export default function StartScreen() {
       shouldListenRef.current = false;
       stopListening();
       setStatusState('idle');
+      setTranscript('BAT-ASSISTANT offline.');
     } else {
       setIsSystemOnline(true);
       isSystemOnlineRef.current = true;
-      shouldListenRef.current = true;
-      startListening();
+
+      // Play pending greeting on first click — user gesture unlocks audio on all browsers
+      if (!hasGreetedRef.current && pendingGreetingRef.current) {
+        hasGreetedRef.current = true;
+        const greeting = pendingGreetingRef.current;
+        setStatusState('speaking');
+        setTranscript(greeting);
+        speak(greeting, () => {
+          shouldListenRef.current = true;
+          startListening();
+        });
+      } else {
+        shouldListenRef.current = true;
+        startListening();
+        setTranscript('Voice link active. Start speaking...');
+      }
     }
   };
 
@@ -555,7 +553,7 @@ export default function StartScreen() {
   const callOpenAIAndStream = async (userMsg: string) => {
     const lowerCmd = userMsg.toLowerCase().trim();
     if (lowerCmd.includes("enter system") || lowerCmd.includes("start the application") || lowerCmd.includes("open the app")) {
-      speakStreamedSentence("Entering the Architect System, sir.");
+      speakStreamedSentence("Entering the Architect System, Master Umesh.");
       return;
     }
 
@@ -866,7 +864,7 @@ ${newsStr}`;
     // Voice Navigation Command Protocols
     if (lowerCmd.includes("render zone") || lowerCmd.includes("project archive") || lowerCmd.includes("projects") || lowerCmd.includes("open projects") || lowerCmd.includes("open render zone")) {
       setActiveMenuTab('render-zone');
-      await speak("Accessing Project Archive, sir.", () => {
+      await speak("Accessing Project Archive, Master Umesh.", () => {
         router.push('/projects');
       });
       return;
@@ -874,7 +872,7 @@ ${newsStr}`;
     if (lowerCmd.includes("edit matrix") || lowerCmd.includes("open edit") || (lowerCmd.includes("edit") && !lowerCmd.includes("credits"))) {
       setActiveMenuTab('edit');
       setStorePhase('edit');
-      await speak("Entering Edit Matrix, sir.", () => {
+      await speak("Entering Edit Matrix, Master Umesh.", () => {
         router.push('/edit');
       });
       return;
@@ -882,7 +880,7 @@ ${newsStr}`;
     if (lowerCmd.includes("3d render") || lowerCmd.includes("3d visualization") || lowerCmd.includes("three d render") || lowerCmd.includes("open 3d render") || lowerCmd.includes("open 3d")) {
       setActiveMenuTab('3d-render');
       setStorePhase('edit');
-      await speak("Initializing 3D visualization, sir.", () => {
+      await speak("Initializing 3D visualization, Master Umesh.", () => {
         router.push('/3d-render');
       });
       return;
@@ -890,7 +888,7 @@ ${newsStr}`;
     if (lowerCmd.includes("flythrough") || lowerCmd.includes("flightpath") || lowerCmd.includes("open flythrough")) {
       setActiveMenuTab('flythrough');
       setStorePhase('edit');
-      await speak("Flightpath parameters loaded, sir.");
+      await speak("Flightpath parameters loaded, Master Umesh.");
       return;
     }
 
@@ -918,26 +916,26 @@ ${newsStr}`;
     setActiveMenuTab(stageId);
     
     if (stageId === 'render-zone') {
-      speak("Accessing Project Archive, sir.", () => {
+      speak("Accessing Project Archive, Master Umesh.", () => {
         router.push('/projects');
       });
     } else if (stageId === 'edit') {
       setStorePhase('edit');
-      speak("Entering Edit Matrix, sir.", () => {
+      speak("Entering Edit Matrix, Master Umesh.", () => {
         router.push('/edit');
       });
     } else if (stageId === '3d-render') {
       setStorePhase('edit');
-      speak("Initializing 3D visualization, sir.", () => {
+      speak("Initializing 3D visualization, Master Umesh.", () => {
         router.push('/3d-render');
       });
     } else if (stageId === 'png-to-dxf') {
-      speak("Initiating vector conversion suite, sir.", () => {
+      speak("Initiating vector conversion suite, Master Umesh.", () => {
         router.push('/png-to-dxf');
       });
     } else if (stageId === 'flythrough') {
       setStorePhase('edit');
-      speak("Flightpath parameters loaded, sir.");
+      speak("Flightpath parameters loaded, Master Umesh.");
     }
   };
 

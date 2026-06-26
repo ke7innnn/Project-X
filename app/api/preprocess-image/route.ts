@@ -3,7 +3,7 @@ import sharp from 'sharp';
 
 const FAL_KEY = process.env.FAL_KEY!;
 
-export const maxDuration = 60; // 60s timeout for Vercel functions/FAL AI calls
+export const maxDuration = 60;
 
 /**
  * POST /api/preprocess-image
@@ -12,7 +12,8 @@ export const maxDuration = 60; // 60s timeout for Vercel functions/FAL AI calls
  *
  * Pipeline:
  * 1. Local Sharp (Grayscale, Normalize, Upscale 3x, Sharpen, Gentle Contrast)
- * 2. FAL-AI SeedVR Upscale (Secondary AI upscaling for perfect lines and 100% resolution)
+ * 2. Upload Sharp output to FAL storage to get a public HTTPS URL
+ * 3. FAL-AI SeedVR Upscale using that public URL (data URLs are NOT accepted by FAL)
  */
 export async function POST(request: Request) {
   try {
@@ -30,31 +31,55 @@ export async function POST(request: Request) {
     const metadata = await image.metadata();
     const targetWidth = Math.min(4096, Math.max(3000, (metadata.width || 1000) * 3));
 
-    // Step 1: High-quality hardcoded preprocessing
+    // Step 1: High-quality hardcoded preprocessing with Sharp
     const processedBuffer = await image
-      // Upscale 3x+ with smooth Lanczos3 interpolation
       .resize({ width: targetWidth, kernel: sharp.kernel.lanczos3 })
-      // Grayscale
       .greyscale()
-      // Normalize to stretch contrast naturally
       .normalise()
-      // Sharpen to make lines and details extremely crisp without diffusing or erasing them
       .sharpen({ sigma: 0.8, m1: 0.5, m2: 1.0 })
-      // Very gentle contrast stretch to clean the background without eroding thin/dashed lines
       .linear(1.15, -19)
-      // Output PNG — lossless
       .png()
       .toBuffer();
 
     const base64Preprocessed = processedBuffer.toString('base64');
     const fallbackDataUrl = `data:image/png;base64,${base64Preprocessed}`;
 
-    // Step 2: Send to FAL-AI seedvr/upscale/image for secondary AI upscaling
+    // Step 2: Upload processed image to FAL storage to get a public HTTPS URL
+    // FAL's SeedVR endpoint requires a real HTTP URL — it rejects base64 data URLs
     if (!FAL_KEY) {
       console.warn('[preprocess-image] FAL_KEY not configured. Returning local upscale.');
       return NextResponse.json({ dataUrl: fallbackDataUrl });
     }
 
+    let publicImageUrl: string;
+    try {
+      console.log('[preprocess-image] Uploading preprocessed image to FAL storage...');
+      const uploadForm = new FormData();
+      const blob = new Blob([new Uint8Array(processedBuffer)], { type: 'image/png' });
+      uploadForm.append('file', blob, 'floorplan.png');
+
+      const uploadRes = await fetch('https://fal.run/storage/upload', {
+        method: 'POST',
+        headers: { 'Authorization': `Key ${FAL_KEY}` },
+        body: uploadForm,
+        signal: AbortSignal.timeout(20000),
+      });
+
+      if (!uploadRes.ok) {
+        const errText = await uploadRes.text();
+        throw new Error(`FAL storage upload failed (${uploadRes.status}): ${errText}`);
+      }
+
+      const uploadData = await uploadRes.json();
+      publicImageUrl = uploadData?.url;
+      if (!publicImageUrl) throw new Error('FAL storage did not return a URL');
+      console.log('[preprocess-image] Uploaded to FAL storage:', publicImageUrl);
+    } catch (uploadErr: any) {
+      console.error('[preprocess-image] FAL storage upload failed, using fallback:', uploadErr.message);
+      return NextResponse.json({ dataUrl: fallbackDataUrl });
+    }
+
+    // Step 3: Send public URL to SeedVR for AI upscaling
     try {
       console.log('[preprocess-image] Triggering fal-ai/seedvr/upscale/image...');
       const response = await fetch('https://fal.run/fal-ai/seedvr/upscale/image', {
@@ -64,31 +89,31 @@ export async function POST(request: Request) {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          image_url: fallbackDataUrl,
+          image_url: publicImageUrl,
           upscale_mode: 'factor',
           upscale_factor: 2.0,
           output_format: 'png',
         }),
-        signal: AbortSignal.timeout(45000), // 45s timeout for FAL AI
+        signal: AbortSignal.timeout(45000),
       });
 
       if (!response.ok) {
         const errText = await response.text();
-        console.error(`[preprocess-image] FAL AI error ${response.status}: ${errText}`);
-        return NextResponse.json({ dataUrl: fallbackDataUrl }); // Fallback to local sharp output
+        console.error(`[preprocess-image] SeedVR error ${response.status}: ${errText}`);
+        return NextResponse.json({ dataUrl: fallbackDataUrl });
       }
 
       const data = await response.json();
       const upscaledUrl = data?.image?.url;
       if (!upscaledUrl) {
-        console.error('[preprocess-image] FAL AI response did not contain image URL:', data);
+        console.error('[preprocess-image] SeedVR did not return image URL:', data);
         return NextResponse.json({ dataUrl: fallbackDataUrl });
       }
 
       console.log('[preprocess-image] Downloading AI upscaled image from FAL CDN:', upscaledUrl);
-      const imgRes = await fetch(upscaledUrl, { signal: AbortSignal.timeout(10000) });
+      const imgRes = await fetch(upscaledUrl, { signal: AbortSignal.timeout(15000) });
       if (!imgRes.ok) {
-        console.error('[preprocess-image] Failed to download image from FAL CDN:', imgRes.statusText);
+        console.error('[preprocess-image] Failed to download from FAL CDN:', imgRes.statusText);
         return NextResponse.json({ dataUrl: fallbackDataUrl });
       }
 
@@ -96,10 +121,10 @@ export async function POST(request: Request) {
       const upscaledBase64 = Buffer.from(imgBuffer).toString('base64');
       const finalDataUrl = `data:image/png;base64,${upscaledBase64}`;
 
-      console.log('[preprocess-image] 100% upscaled image successfully generated.');
+      console.log('[preprocess-image] SeedVR AI upscale complete.');
       return NextResponse.json({ dataUrl: finalDataUrl });
-    } catch (falError: any) {
-      console.error('[preprocess-image] FAL AI processing failed, falling back to sharp output:', falError.message);
+    } catch (seedvrErr: any) {
+      console.error('[preprocess-image] SeedVR failed, using Sharp fallback:', seedvrErr.message);
       return NextResponse.json({ dataUrl: fallbackDataUrl });
     }
   } catch (error: any) {

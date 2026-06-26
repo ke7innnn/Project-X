@@ -61,36 +61,55 @@ export default function ProjectsDashboard() {
   };
 
   const handleDeleteProject = async (sessId: string) => {
-    const ok = window.confirm("Are you sure you want to delete this project? This action cannot be undone.");
+    const ok = window.confirm("Delete this project? This cannot be undone.");
     if (!ok) return;
 
     try {
-      const { error } = await supabase
-        .from('projects')
-        .delete()
-        .eq('session_id', sessId);
+      const res = await fetch('/api/delete-project', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ session_id: sessId }),
+      });
+      if (!res.ok) throw new Error(await res.text());
 
-      if (error) throw error;
-
-      // Update state
+      // Remove from local state
       setProjects(prev => prev.filter(p => p.session_id !== sessId));
-      
-      // If we just deleted the active session, clear the store session ID too
+
+      // Clear localStorage if this was the active session (prevents re-save)
       const store = useArchitectStore.getState();
       if (store.sessionId === sessId) {
-        store.replaceState({
-          sessionId: null,
-          isRestored: false,
-          projectName: null,
-          placeName: null,
-        });
+        store.replaceState({ sessionId: null, isRestored: false, projectName: null, placeName: null });
         localStorage.removeItem('architect_session_id');
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error deleting project:', err);
-      alert('Failed to delete the project. Please try again.');
+      alert('Failed to delete. Please try again.');
     }
   };
+
+  const handleClearAll = async () => {
+    const ok = window.confirm("Delete ALL projects permanently? This cannot be undone.");
+    if (!ok) return;
+
+    try {
+      const res = await fetch('/api/delete-project', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ all: true }),
+      });
+      if (!res.ok) throw new Error(await res.text());
+
+      setProjects([]);
+      // Clear localStorage so workspace doesn't re-save deleted sessions
+      localStorage.removeItem('architect_session_id');
+      const store = useArchitectStore.getState();
+      store.replaceState({ sessionId: null, isRestored: false, projectName: null, placeName: null });
+    } catch (err: any) {
+      console.error('Error clearing all projects:', err);
+      alert('Failed to clear projects. Please try again.');
+    }
+  };
+
 
   return (
     <div className="min-h-screen bg-[#0a0a0f] font-mono text-[#FFB000] p-8">
@@ -122,6 +141,15 @@ export default function ProjectsDashboard() {
         >
           <Plus size={18} /> Initialize Project
         </button>
+        {projects.length > 0 && (
+          <button
+            onClick={handleClearAll}
+            className="flex items-center gap-2 px-4 py-3 border border-red-500/40 text-red-400 hover:bg-red-500/10 hover:border-red-500 font-bold uppercase tracking-widest rounded-lg transition-all text-xs"
+          >
+            <Trash2 size={16} /> Clear All
+          </button>
+        )}
+
       </header>
 
       {/* Main Grid */}
