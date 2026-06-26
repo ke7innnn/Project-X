@@ -28,6 +28,13 @@ export default function Render3DPage() {
   const [isSaveModalOpen, setIsSaveModalOpen] = useState(false);
   const [saveSuccessMsg, setSaveSuccessMsg] = useState<string | null>(null);
 
+  // Render image editing state
+  const [editRenderPrompt, setEditRenderPrompt] = useState('');
+  const [isEditingRender, setIsEditingRender] = useState(false);
+  const [editedRenderBase64, setEditedRenderBase64] = useState<string | null>(null);
+  const [editRenderError, setEditRenderError] = useState<string | null>(null);
+  const editPromptRef = useRef<HTMLTextAreaElement>(null);
+
   // Pre-page Project Selection Dashboard state
   const [showSelector, setShowSelector] = useState(true);
   const [projects, setProjects] = useState<any[]>([]);
@@ -101,6 +108,39 @@ export default function Render3DPage() {
       setError('Network error. Please check your connection and try again.');
     } finally {
       setIsRendering(false);
+    }
+  };
+
+  const handleEditRender = async (sourceBase64: string) => {
+    if (!editRenderPrompt.trim() || isEditingRender) return;
+    setIsEditingRender(true);
+    setEditedRenderBase64(null);
+    setEditRenderError(null);
+    try {
+      const res = await fetch('/api/edit-render', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ renderBase64: sourceBase64, editPrompt: editRenderPrompt })
+      });
+      const data = await res.json();
+      if (data.editedRender) {
+        setEditedRenderBase64(data.editedRender);
+        // Also push to render history
+        const newItem: RenderHistoryItem = {
+          id: Math.random().toString(),
+          base64: data.editedRender,
+          style: selectedStyle + ' (Edited)',
+          sunpath: sunpath
+        };
+        setRenderHistory(prev => [...prev, newItem]);
+        setFinalRender(data.editedRender);
+      } else {
+        setEditRenderError(data.error || 'Edit failed. Please try again.');
+      }
+    } catch (err) {
+      setEditRenderError('Network error. Please try again.');
+    } finally {
+      setIsEditingRender(false);
     }
   };
 
@@ -247,7 +287,12 @@ export default function Render3DPage() {
                         
                         <div className="flex gap-1.5 mt-2">
                           <button
-                            onClick={() => setViewingHistoryId(item.id)}
+                            onClick={() => {
+                            setEditedRenderBase64(null);
+                            setEditRenderPrompt('');
+                            setEditRenderError(null);
+                            setViewingHistoryId(item.id);
+                          }}
                             className="flex-1 py-1.5 bg-[#FFB000]/10 border border-[#FFB000]/30 hover:border-[#FFB000] text-[#FFB000] hover:text-[#0a0a0f] hover:bg-[#FFB000] font-bold uppercase tracking-widest text-[8px] rounded transition-all cursor-pointer font-mono"
                           >
                             Inspect
@@ -511,12 +556,68 @@ export default function Render3DPage() {
               </div>
               
               {/* Modal Body */}
-              <div className="flex-1 overflow-y-auto p-6 bg-black/40 flex items-center justify-center min-h-0">
-                <img 
-                  src={activeItem.base64.startsWith('data:image/') ? activeItem.base64 : `data:image/jpeg;base64,${activeItem.base64}`} 
-                  alt="Detailed 3D Render" 
-                  className="max-w-full max-h-[70vh] object-contain rounded-lg shadow-2xl border border-zinc-800" 
-                />
+              <div className="flex-1 overflow-y-auto bg-black/40 flex flex-col min-h-0">
+                {/* Render image */}
+                <div className="flex items-center justify-center p-6">
+                  <img 
+                    src={(editedRenderBase64 || activeItem.base64).startsWith('data:image/') ? (editedRenderBase64 || activeItem.base64) : `data:image/jpeg;base64,${editedRenderBase64 || activeItem.base64}`} 
+                    alt="Detailed 3D Render" 
+                    className="max-w-full max-h-[55vh] object-contain rounded-lg shadow-2xl border border-zinc-800" 
+                  />
+                </div>
+
+                {/* Edit panel */}
+                <div className="border-t border-zinc-800 bg-[#07070d] p-5 flex flex-col gap-3">
+                  <div className="flex items-center gap-2">
+                    <Sparkles size={13} className="text-[#FFB000]" />
+                    <span className="text-[10px] font-bold uppercase tracking-[3px] text-[#FFB000]">Edit This Render with Grok</span>
+                  </div>
+                  <p className="text-[9px] text-zinc-500 uppercase tracking-wider">Describe what to change — lighting, materials, landscaping, time of day, colours, etc.</p>
+
+                  {editRenderError && (
+                    <div className="text-red-400 text-[9px] uppercase tracking-wide border border-red-500/30 bg-red-500/10 rounded px-3 py-2">
+                      ⚠️ {editRenderError}
+                    </div>
+                  )}
+                  {editedRenderBase64 && !isEditingRender && (
+                    <div className="text-green-400 text-[9px] uppercase tracking-wide border border-green-500/30 bg-green-500/10 rounded px-3 py-2">
+                      ✓ Edit applied — saved to render history
+                    </div>
+                  )}
+
+                  <div className="flex gap-2 items-end">
+                    <textarea
+                      ref={editPromptRef}
+                      value={editRenderPrompt}
+                      onChange={e => setEditRenderPrompt(e.target.value)}
+                      onKeyDown={e => {
+                        if (e.key === 'Enter' && !e.shiftKey) {
+                          e.preventDefault();
+                          handleEditRender(editedRenderBase64 || activeItem.base64);
+                        }
+                      }}
+                      placeholder="E.G. change the sky to golden hour sunset, add lush greenery around the building..."
+                      rows={2}
+                      disabled={isEditingRender}
+                      className="flex-1 bg-[#0a0a0f] border border-zinc-700 focus:border-[#FFB000] text-white text-xs rounded-lg px-3 py-2.5 resize-none outline-none font-mono placeholder:text-zinc-600 transition-colors disabled:opacity-50"
+                    />
+                    <button
+                      onClick={() => handleEditRender(editedRenderBase64 || activeItem.base64)}
+                      disabled={!editRenderPrompt.trim() || isEditingRender}
+                      className="flex items-center gap-2 px-4 py-2.5 bg-[#FFB000] hover:bg-[#e09c00] text-black font-black uppercase tracking-widest text-[10px] rounded-lg transition-all disabled:opacity-40 disabled:cursor-not-allowed shadow-[0_0_12px_rgba(255,176,0,0.3)] cursor-pointer whitespace-nowrap"
+                    >
+                      {isEditingRender ? <Loader2 size={13} className="animate-spin" /> : <Sparkles size={13} />}
+                      {isEditingRender ? 'Editing...' : 'Apply Edit'}
+                    </button>
+                  </div>
+
+                  {isEditingRender && (
+                    <div className="flex items-center gap-2 text-[#FFB000] text-[9px] uppercase tracking-widest animate-pulse">
+                      <Loader2 size={11} className="animate-spin" />
+                      Grok is processing your edit...
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           </div>
