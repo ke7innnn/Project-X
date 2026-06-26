@@ -573,24 +573,15 @@ export default function StartScreen() {
       const currentMarketData = marketDataRef.current;
       if (currentMarketData) {
         const stocksList = [
-          { name: "S&P 500", sym: "^GSPC" },
-          { name: "Dow Jones", sym: "^DJI" },
-          { name: "Nasdaq", sym: "^IXIC" },
-          { name: "Autodesk", sym: "ADSK" },
-          { name: "Nvidia", sym: "NVDA" },
-          { name: "Apple", sym: "AAPL" },
-          { name: "Tesla", sym: "TSLA" },
-          { name: "Microsoft", sym: "MSFT" },
-          { name: "Home Depot", sym: "HD" },
-          { name: "Lennar", sym: "LEN" },
-          { name: "Bitcoin", sym: "BTC-USD" }
+          { name: "Reliance Industries", sym: "RELIANCE.NS" },
+          { name: "TCS", sym: "TCS.NS" },
+          { name: "HDFC Bank", sym: "HDFCBANK.NS" }
         ];
         marketStr = stocksList
           .map(s => {
             const val = currentMarketData[s.sym];
             if (val === undefined) return `- ${s.name}: N/A`;
-            const isIndex = s.sym.startsWith('^');
-            return `- ${s.name} (${s.sym.replace('^', '')}): ${isIndex ? '' : '$'}${val.toFixed(2)}`;
+            return `- ${s.name}: ₹${val.toFixed(2)}`;
           })
           .join('\n');
       }
