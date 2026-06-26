@@ -98,7 +98,11 @@ export const FLOORPLAN_GENERATION_PROMPT = (params: any, natureImageDescription:
 You are an expert biomimicry architect. Generate a STRICTLY TOP-DOWN 2D AutoCAD architectural floor plan with clean, plain lines.
 
 BIOMIMICRY INSPIRATION: ${natureImageDescription}
-CRITICAL INSTRUCTION (SILHOUETTE MATCHING): The outer exterior wall of the floor plan MUST EXACTLY TRACE the silhouette of the second reference image (the natural object). Look closely at the reference image: if it has multiple lobes, points, sharp angles, curves, or jagged edges, YOUR EXTERIOR WALL MUST HAVE THOSE EXACT SAME LOBES, POINTS, AND CURVES. DO NOT draw a generic simplified oval, ellipse, or basic leaf! You must strictly map the specific physical outline of the provided image into a thick outer structural wall.
+CRITICAL INSTRUCTION (LITERAL EDGE-TRACING): You MUST act as a literal tracing machine. The outer exterior wall of the floor plan MUST EXACTLY TRACE the 2D pixel silhouette/mask of the second reference image provided. 
+- DO NOT rely on your conceptual understanding of what the object is. (If the image is a leaf, DO NOT draw your own generic idea of a leaf. You MUST trace the exact specific physical leaf shown in the image).
+- If the reference image has multiple irregular lobes, bizarre curves, sharp points, or asymmetrical shapes, YOUR EXTERIOR WALL MUST HAVE THOSE EXACT SAME IRREGULARITIES.
+- DO NOT smooth it out into a standard circle, oval, or generic polygon.
+- Your entire building floor plan MUST fit exactly inside this custom, traced perimeter wall.
 
 MARGIN RULE (CRITICAL): Do NOT draw any dashed plot lines or borders around the building. The user interface handles the plot boundary visually. However, you MUST leave a MASSIVE empty white margin gap around the entire building so it sits comfortably in the absolute center of the 1:1 canvas.
 BUILDING PLACEMENT: Draw the floor plan SMALLER so it easily fits inside the center of the image. The true proportions of the building must be based on a mathematical ${w}:${h} ratio (${aspectInstruction}).
