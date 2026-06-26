@@ -197,6 +197,10 @@ export default function ChatMessage({ message, isCustomType, customData }: ChatM
     const options = (message.customData?.options || customData?.options) as string[] | undefined;
     if (!options || options.length === 0) return null;
 
+    // Check if any option in this particular message is currently the active floor plan
+    const selectedIndex = options.findIndex(opt => opt === currentFloorPlan);
+    const hasSelection = selectedIndex !== -1;
+
     return (
       <div className="flex justify-start my-4 w-full font-mono">
         <div className="bg-[#0A0E1A] border border-gray-800 rounded-xl overflow-hidden shadow-xl w-full">
@@ -232,7 +236,20 @@ export default function ChatMessage({ message, isCustomType, customData }: ChatM
               );
             })}
           </div>
-          <div className="p-3 border-t border-gray-800 bg-[#0d0d15] flex justify-center">
+
+          {/* Bottom action buttons */}
+          <div className="p-3 border-t border-gray-800 bg-[#0d0d15] flex flex-col gap-2">
+            {/* Enter Edit Section — only visible once one option is selected */}
+            {hasSelection && (
+              <button
+                onClick={() => {
+                  setPhase('edit');
+                }}
+                className="w-full py-2.5 bg-[#FFB000] hover:bg-[#e6a000] text-black text-[11px] uppercase font-black tracking-widest rounded transition-all flex items-center justify-center gap-2 shadow-[0_0_20px_rgba(255,176,0,0.3)] hover:shadow-[0_0_30px_rgba(255,176,0,0.5)] cursor-pointer"
+              >
+                ✏️ Enter Edit Section
+              </button>
+            )}
             <button
               onClick={handleGenerateMore}
               disabled={isLoading}

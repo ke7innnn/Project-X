@@ -13,8 +13,17 @@ CONVERSATION RULES:
 3. When user says something architecturally impossible, correct them: "That won't work because [reason]. Instead I suggest [alternative]."
 4. Proactively suggest improvements based on space analysis
 5. Guide the user through phases naturally — always confirm parameters clearly before generating
-6. When you have enough parameters (plot size, orientation, rooms), confirm them and ask if the user wants to generate
-7. Only generate floor plans when user explicitly says "show me", "generate", "go ahead", "yes", "perfect", "create" or similar affirmation
+6. PARAMETER COLLECTION ORDER — collect these in sequence (one question at a time, never dump all questions at once):
+   a) Plot dimensions (width × height in metres)
+   b) Plot orientation (north/south/east/west facing)
+   c) Rooms required (list all rooms/spaces the user wants)
+   d) Number of floors (single/multi-storey)
+   e) Vastu Shastra compliance — always ask: "Would you like the layout to follow Vastu Shastra principles?"
+   f) Garden — always ask: "Do you need a garden or landscaping area?"
+   g) Parking — always ask: "Do you need a parking / garage space?"
+   h) Any additional special requirements
+   Once ALL of the above are collected, confirm the full summary and ask if user is ready to generate.
+7. Only generate floor plans when user explicitly says "show me", "generate", "go ahead", "yes", "perfect", "create" or similar affirmation AFTER parameters are confirmed
 8. Always sign off questions with exactly ONE question — never ask multiple questions at once
 9. For Vastu: Northeast = prayer/entrance, Southeast = kitchen, Southwest = master bedroom, Northwest = guest/children room
 10. Always calculate plot area when dimensions are given: area = width × height
@@ -87,28 +96,88 @@ Extract information from the entire conversation history to populate "updatedPar
 export const FLOORPLAN_GENERATION_PROMPT = (params: any, natureImageDescription: string) => {
   const w = parseFloat(params.plotWidth) || 10;
   const h = parseFloat(params.plotHeight) || 10;
-  const aspectInstruction = w > h ? "landscape" : w < h ? "portrait" : "square";
+  const aspectInstruction = w > h 
+    ? `The floor plan layout should be wider than it is tall (LANDSCAPE orientation — wider than tall).`
+    : w < h 
+    ? `The floor plan layout should be taller than it is wide (PORTRAIT orientation — taller than wide).`
+    : `The floor plan layout should be roughly square (equal width and height).`;
 
   const roomList = Array.isArray(params.rooms) && params.rooms.length > 0
     ? params.rooms.map((r: string, i: number) => `${String.fromCharCode(65 + i)} - ${r}`).join(', ')
-    : 'living room, kitchen, 2 bedrooms, 1 bathroom';
+    : 'A - Living Room, B - Kitchen, C - Master Bedroom, D - Bedroom 2, E - Bathroom';
 
-  const vastu = Array.isArray(params.vastuRules) && params.vastuRules.length > 0 ? params.vastuRules.join(', ') : 'Standard Vastu';
-  const notes = Array.isArray(params.additionalNotes) && params.additionalNotes.length > 0 ? params.additionalNotes.join(', ') : 'None';
+  const vastuList = Array.isArray(params.vastuRules) && params.vastuRules.length > 0
+    ? params.vastuRules.join('; ')
+    : 'Northeast zone: entrance/prayer room. Southeast zone: kitchen. Southwest zone: master bedroom. Northwest zone: guest/children room.';
 
-  return `CRITICAL: The building's outer wall MUST PERFECTLY trace the exact silhouette of the reference image (e.g. leaf). NO generic rectangular borders. 
-The floor plan MUST be entirely inside this exact irregular border, tightly packed with NO white gaps or empty spaces between rooms or the border.
-STYLE: Professional AutoCAD blueprint. Crisp black & white. Double-line walls, clear doors/windows, micro furniture for scale. Label every room ("A - Living Room").
+  const gardenNote = params.garden 
+    ? 'Include a clearly labeled GARDEN or LANDSCAPE ZONE within the building footprint boundary.'
+    : 'No separate garden zone needed.';
 
-Params:
-Nature shape: ${natureImageDescription}
-Orientation: ${aspectInstruction}
-Rooms: ${roomList}
-Vastu: ${vastu}
-Garden: ${params.garden ? 'Yes' : 'No'}
-Parking: ${params.parking ? 'Yes' : 'No'}
-Floors: ${params.floors || 1}
-Notes: ${notes}`;
+  const parkingNote = params.parking
+    ? 'Include a clearly labeled PARKING / GARAGE zone within the building footprint boundary.'
+    : 'No parking needed.';
+
+  const floorsNote = params.floors && params.floors > 1
+    ? `This is a MULTI-STOREY building with ${params.floors} floors. Draw the ground floor plan only but label it "Ground Floor Plan" and add a clear staircase block.`
+    : 'This is a single-storey building. No staircase needed.';
+
+  const notes = Array.isArray(params.additionalNotes) && params.additionalNotes.length > 0
+    ? 'Additional requirements: ' + params.additionalNotes.join('; ')
+    : '';
+
+  return `You are a professional AutoCAD drafter creating a precise, technical architectural floor plan.
+
+═══════════════════════════════════════════════════════
+  RULE 1 — THE OUTER BOUNDARY (MOST CRITICAL RULE)
+═══════════════════════════════════════════════════════
+The attached reference image shows a shape (e.g. a leaf, a geometric form, an organic silhouette).
+Your floor plan's OUTER BUILDING WALL must trace THIS EXACT SHAPE as its exterior boundary.
+
+• Leave a small, uniform margin/gap (~5-8% of image size) between the edge of the image and the start of the outer wall — this is the "plot boundary setback". The building wall sits just inside this margin.
+• The outer wall line MUST follow every curve, lobe, and point of the reference silhouette exactly.
+• Do NOT replace the shape with a rectangle or any other generic form.
+• ABSOLUTELY NO ROOMS, WALLS, OR TEXT may extend outside this outer wall silhouette.
+
+═══════════════════════════════════════════════════════
+  RULE 2 — INTERIOR SPACE UTILIZATION
+═══════════════════════════════════════════════════════
+• Every part of the interior of the silhouette MUST be divided into the requested rooms.
+• Rooms must pack tightly against each other and against the outer wall — NO large white gaps or empty zones anywhere inside.
+• Use the irregular corners and lobes of the shape creatively — odd-shaped spaces become bathrooms, storage, or corridors.
+• Interior partition walls must use double-line wall style matching the exterior wall thickness.
+
+═══════════════════════════════════════════════════════
+  RULE 3 — AUTOCAD BLUEPRINT DRAWING STYLE
+═══════════════════════════════════════════════════════
+• Output: Pure black lines on solid white background. No colours, no grey fills.
+• Walls: Double-line walls throughout (exterior walls slightly thicker than interior partitions).
+• Doors: Standard 90-degree door swing arc indicator in every door opening.
+• Windows: Short parallel lines embedded in the wall where windows occur.
+• Furniture: Small, simplified plan-view furniture symbols (bed outline, sofa L-shape, dining table + chairs, kitchen counter L, WC symbol, basin circle) placed inside rooms to indicate scale and function.
+• Labels: Every room must have a clear uppercase label — the letter code and room name (e.g. "A - Living Room") — positioned neatly in the center of the room, sized to fit.
+• Title block: Small professional title block in one corner with: "FLOOR PLAN", scale indicator, and a north arrow (↑N).
+• Line quality: Razor-sharp, clean, precise technical drawing lines throughout.
+
+═══════════════════════════════════════════════════════
+  PROJECT PARAMETERS
+═══════════════════════════════════════════════════════
+Nature-inspired boundary shape: ${natureImageDescription}
+Layout orientation: ${aspectInstruction}
+Plot dimensions: ${w}m wide × ${h}m tall (Plot area: ${(w*h).toFixed(0)} sqm)
+
+Rooms to include (in priority order):
+${roomList}
+
+Vastu Shastra rules to apply:
+${vastuList}
+
+${gardenNote}
+${parkingNote}
+${floorsNote}
+${notes}
+
+FINAL CHECK before outputting: Confirm that (1) the outer wall perfectly traces the reference image silhouette, (2) zero rooms extend outside the outer wall, (3) the interior is 100% utilized with no large white gaps, and (4) the drawing uses proper AutoCAD black-and-white style.`;
 };
 
 export const EDIT_FLOORPLAN_PROMPT = (editInstruction: string, params: any) => {
