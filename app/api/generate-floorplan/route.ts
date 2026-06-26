@@ -18,56 +18,20 @@ async function fetchImageBuffer(url: string): Promise<Buffer> {
 }
 
 /**
- * Convert a reference photo into a stark BLACK silhouette on WHITE background.
- *
- * Pipeline:
- *  1. Resize to max 800px (enough detail, fast to process)
- *  2. Convert to greyscale
- *  3. Normalise contrast (stretch full range 0–255)
- *  4. Threshold at 128 → pure black/white pixels
- *     (subject becomes BLACK, background becomes WHITE)
- *  5. Invert if image is mostly light (background is naturally white already)
- *
- * The resulting PNG is an unambiguous flat black silhouette that Gemini can
- * trivially trace — no photographed colour detail to confuse it.
+ * Resize a reference photo to standard size for faster transfer and lower cost,
+ * while keeping all original details and colors intact.
  */
-async function extractSilhouette(inputBuffer: Buffer): Promise<{ data: string; mimeType: string }> {
-  const img = sharp(inputBuffer);
-  const metadata = await img.metadata();
-
-  // Determine if the image is mostly bright (background white) or dark
-  // We do this by computing the mean of a tiny downscale of the greyscale
-  const { data: sampleData } = await sharp(inputBuffer)
-    .resize(50, 50, { fit: 'fill' })
-    .greyscale()
-    .raw()
-    .toBuffer({ resolveWithObject: true });
-  const mean = sampleData.reduce((s, v) => s + v, 0) / sampleData.length;
-  const isLightBackground = mean > 128; // true = background is white/bright
-
-  // Max 800px wide for speed; never enlarge tiny images much
-  const targetWidth = Math.min(800, Math.max(400, (metadata.width || 800)));
-
-  let pipeline = sharp(inputBuffer)
-    .resize({ width: targetWidth, withoutEnlargement: true, kernel: sharp.kernel.lanczos3 })
-    .greyscale()
-    .normalise();
-
-  // Threshold to pure black/white at mid-point
-  // After threshold: values > 128 become white (255), values <= 128 become black (0)
-  const silhouetteBuffer = await pipeline
-    .threshold(128)
-    // If the background is light, the subject is now black — perfect silhouette
-    // If the background was dark, we need to invert so subject = black, bg = white
-    .negate(isLightBackground ? false : true)
-    .png()
-    .toBuffer();
-
-  const b64 = silhouetteBuffer.toString('base64');
-  console.log(
-    `[generate-floorplan] Silhouette extracted — mean brightness: ${mean.toFixed(1)}, isLightBg: ${isLightBackground}, silhouette size: ${b64.length}`
-  );
-  return { data: b64, mimeType: 'image/png' };
+async function resizeImage(buffer: Buffer): Promise<{ data: string; mimeType: string }> {
+  try {
+    const resizedBuffer = await sharp(buffer)
+      .resize({ width: 1024, height: 1024, fit: 'inside', withoutEnlargement: true })
+      .jpeg({ quality: 85 })
+      .toBuffer();
+    return { data: resizedBuffer.toString('base64'), mimeType: 'image/jpeg' };
+  } catch (err: any) {
+    console.error('[generate-floorplan] Sharp resize failed, returning original image base64:', err.message);
+    return { data: buffer.toString('base64'), mimeType: 'image/jpeg' };
+  }
 }
 
 export async function POST(request: Request) {
@@ -108,21 +72,13 @@ export async function POST(request: Request) {
       }
     }
 
-    // ── Step 2: Convert to stark B&W silhouette ───────────────────────────
-    // This is the KEY step. Instead of sending the photograph, we send a clean
-    // black silhouette so Gemini MUST trace the exact shape outline.
+    // ── Step 2: Resize image to reasonable bounds ───────────────────────────
     let imagePart: any | undefined;
 
     if (rawBuffer) {
-      try {
-        const silhouette = await extractSilhouette(rawBuffer);
-        imagePart = { inlineData: { mimeType: silhouette.mimeType, data: silhouette.data } };
-        console.log('[generate-floorplan] Silhouette ready — sending to Gemini');
-      } catch (silErr: any) {
-        // Silhouette extraction failed — fall back to raw image
-        console.warn('[generate-floorplan] Silhouette extraction failed, using raw image:', silErr.message);
-        imagePart = { inlineData: { mimeType: 'image/jpeg', data: rawBuffer.toString('base64') } };
-      }
+      const resized = await resizeImage(rawBuffer);
+      imagePart = { inlineData: { mimeType: resized.mimeType, data: resized.data } };
+      console.log('[generate-floorplan] Image resized and ready — sending to Gemini');
     } else {
       console.error('[generate-floorplan] CRITICAL: No image available — Gemini has no shape to trace!');
     }
