@@ -329,6 +329,7 @@ export default function StartScreen() {
   const isSystemOnlineRef = useRef(true);
   const marketDataRef = useRef<Record<string, number> | null>(null);
   const newsDataRef = useRef<NewsArticle[] | null>(null);
+  const fetchAbortControllerRef = useRef<AbortController | null>(null);
   // Always points to the latest processCommand — avoids stale closure inside the recognition useEffect
   const processCommandRef = useRef<(cmd: string) => void>(() => {});
 
@@ -433,6 +434,9 @@ export default function StartScreen() {
     isStreamingRef.current = false;
     audioQueueRef.current = [];
     isPlayingAudioRef.current = false;
+    if (fetchAbortControllerRef.current) {
+      fetchAbortControllerRef.current.abort();
+    }
     if (currentAudioRef.current) {
       try { currentAudioRef.current.pause(); } catch(e){}
       currentAudioRef.current = null;
@@ -586,7 +590,10 @@ ${newsStr}`;
 
       isStreamingRef.current = true;
 
+      fetchAbortControllerRef.current = new AbortController();
+
       const response = await fetch('/api/openai-chat', {
+        signal: fetchAbortControllerRef.current.signal,
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -667,7 +674,11 @@ ${newsStr}`;
       
       chatHistoryRef.current = [...chatHistoryRef.current, {role: 'user', content: userMsg}, {role: 'assistant', content: completeResponse}].slice(-10);
 
-    } catch (e) {
+    } catch (e: any) {
+      if (e.name === 'AbortError') {
+        console.log("OpenAI stream aborted.");
+        return;
+      }
       console.error("OpenAI stream failed:", e);
       speakStreamedSentence("Sorry, I am having trouble connecting to my systems right now.");
     } finally {
@@ -889,6 +900,9 @@ ${newsStr}`;
 
     // Clear past queues
     audioQueueRef.current = [];
+    if (fetchAbortControllerRef.current) {
+      fetchAbortControllerRef.current.abort();
+    }
     if (currentAudioRef.current) {
       try { currentAudioRef.current.pause(); } catch(e) {}
     }

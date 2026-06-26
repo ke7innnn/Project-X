@@ -87,42 +87,28 @@ Extract information from the entire conversation history to populate "updatedPar
 export const FLOORPLAN_GENERATION_PROMPT = (params: any, natureImageDescription: string) => {
   const w = parseFloat(params.plotWidth) || 10;
   const h = parseFloat(params.plotHeight) || 10;
-  const aspectInstruction = w > h 
-    ? `The floor plan layout should be wider than it is tall (landscape orientation).`
-    : w < h 
-    ? `The floor plan layout should be taller than it is wide (portrait orientation).`
-    : `The floor plan layout should be roughly square.`;
+  const aspectInstruction = w > h ? "landscape" : w < h ? "portrait" : "square";
 
   const roomList = Array.isArray(params.rooms) && params.rooms.length > 0
     ? params.rooms.map((r: string, i: number) => `${String.fromCharCode(65 + i)} - ${r}`).join(', ')
     : 'living room, kitchen, 2 bedrooms, 1 bathroom';
 
-  return `CRITICAL SHAPE & BORDER RULE (TRACE EXACT SILHOUETTE):
-- The attached image is the absolute reference for the outer silhouette of the building footprint.
-- You MUST trace the exact outline of this shape as the outer exterior wall of the building.
-- Do NOT draw any separate outer plot box/rectangle; the border of the building itself MUST match the silhouette shape in the attached image exactly.
+  const vastu = Array.isArray(params.vastuRules) && params.vastuRules.length > 0 ? params.vastuRules.join(', ') : 'Standard Vastu';
+  const notes = Array.isArray(params.additionalNotes) && params.additionalNotes.length > 0 ? params.additionalNotes.join(', ') : 'None';
 
-INTERIOR SPACE PACKING & NO GAPS RULE:
-- All rooms, corridors, and spaces MUST be tightly packed to fill the ENTIRE interior of the silhouette.
-- Do NOT leave any unnecessary empty spaces, large white gaps, or unutilized areas between rooms or between rooms and the outer exterior walls.
-- Every square inch of the silhouette shape's interior must be divided and allocated to the requested rooms, showing a dense, efficient, and professional layout.
+  return `CRITICAL: The building's outer wall MUST PERFECTLY trace the exact silhouette of the reference image (e.g. leaf). NO generic rectangular borders. 
+The floor plan MUST be entirely inside this exact irregular border, tightly packed with NO white gaps or empty spaces between rooms or the border.
+STYLE: Professional AutoCAD blueprint. Crisp black & white. Double-line walls, clear doors/windows, micro furniture for scale. Label every room ("A - Living Room").
 
-AUTOCAD BLUEPRINT SPECIAL STYLE:
-- Style: Pure monochrome black-and-white drawing on a solid white background. No colors or greys.
-- Linework: Clean, precise, razor-sharp architectural CAD lines. Double-line walls for both exterior and interior walls.
-- Details: Include standard door swing indicator arcs (quarter-circles), window indicators in walls, and tiny, simplified furniture symbols (beds, dining table, sofa, kitchen countertops, bath fixtures) positioned to show scale.
-- Labels: Label every single room clearly with a unique letter and its name (e.g. "A - Living Room", "B - Kitchen"). The text labels must be clean, professional, and properly scaled inside each room.
-- Elements: Include a small, elegant north arrow symbol (↑N) in one corner.
-
-Parameters:
-- Nature inspiration: ${natureImageDescription}
-- Orientation: ${aspectInstruction}
-- Rooms to include: ${roomList}
-- Vastu rules: ${Array.isArray(params.vastuRules) && params.vastuRules.length > 0 ? params.vastuRules.join(', ') : 'Standard residential Vastu alignment'}
-- Garden: ${params.garden ? 'Include a dedicated garden zone within the layout.' : 'No separate garden needed.'}
-- Parking: ${params.parking ? 'Include a dedicated parking space within the layout.' : 'No separate parking needed.'}
-- Floors: ${params.floors || 1}
-- Additional notes: ${Array.isArray(params.additionalNotes) && params.additionalNotes.length > 0 ? params.additionalNotes.join(', ') : 'None'}`;
+Params:
+Nature shape: ${natureImageDescription}
+Orientation: ${aspectInstruction}
+Rooms: ${roomList}
+Vastu: ${vastu}
+Garden: ${params.garden ? 'Yes' : 'No'}
+Parking: ${params.parking ? 'Yes' : 'No'}
+Floors: ${params.floors || 1}
+Notes: ${notes}`;
 };
 
 export const EDIT_FLOORPLAN_PROMPT = (editInstruction: string, params: any) => {
