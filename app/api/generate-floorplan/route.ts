@@ -9,12 +9,27 @@ export const maxDuration = 60;
  * Fetch raw image bytes from a URL.
  */
 async function fetchImageBuffer(url: string): Promise<Buffer> {
-  const res = await fetch(url, {
-    signal: AbortSignal.timeout(15000),
-    headers: { 'User-Agent': 'Mozilla/5.0 (compatible; ArchitectBot/1.0)' },
-  });
-  if (!res.ok) throw new Error(`HTTP ${res.status} fetching image`);
-  return Buffer.from(await res.arrayBuffer());
+  const fetchWithProxy = async (targetUrl: string) => {
+    const res = await fetch(targetUrl, {
+      signal: AbortSignal.timeout(15000),
+      headers: { 
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept': 'image/avif,image/webp,image/apng,image/*,*/*;q=0.8',
+        'Referer': 'https://www.pexels.com/',
+        'Accept-Language': 'en-US,en;q=0.9',
+      },
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return Buffer.from(await res.arrayBuffer());
+  };
+
+  try {
+    return await fetchWithProxy(url);
+  } catch (err: any) {
+    console.warn(`[generate-floorplan] Direct fetch failed (${err.message}), retrying with proxy...`);
+    const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(url)}`;
+    return await fetchWithProxy(proxyUrl);
+  }
 }
 
 /**
