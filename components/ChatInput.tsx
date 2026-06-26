@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Send, Paperclip, X } from 'lucide-react';
 import { useArchitectStore } from '@/store/useArchitectStore';
 
@@ -14,6 +14,18 @@ export default function ChatInput({ onSend, disabled }: ChatInputProps) {
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  // Auto focus when disabled changes to false (loading finishes)
+  useEffect(() => {
+    if (!disabled) {
+      // Small timeout to ensure the DOM has updated and element is enabled
+      const timer = setTimeout(() => {
+        textareaRef.current?.focus();
+      }, 50);
+      return () => clearTimeout(timer);
+    }
+  }, [disabled]);
   
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -57,6 +69,7 @@ export default function ChatInput({ onSend, disabled }: ChatInputProps) {
       
       <form onSubmit={handleSubmit} className="flex flex-col relative">
         <textarea
+          ref={textareaRef}
           value={text}
           onChange={(e) => setText(e.target.value)}
           placeholder="Type your message..."

@@ -20,6 +20,55 @@ export default function ChatMessage({ message, isCustomType, customData }: ChatM
   const setSelectedOption = useArchitectStore(state => state.setSelectedOption);
   const setCurrentFloorPlan = useArchitectStore(state => state.setCurrentFloorPlan);
   const setPhase = useArchitectStore(state => state.setPhase);
+  const isLoading = useArchitectStore(state => state.isLoading);
+
+  const handleGenerateMore = async () => {
+    const store = useArchitectStore.getState();
+    store.setIsLoading(true);
+    store.setLoadingMessage('Generating more floor plans...');
+    store.setSelectedOption(null as any, null as any);
+    store.setPhase('generate');
+
+    try {
+      // Add a user-like message to show they requested more designs
+      store.addMessage({
+        role: 'user',
+        parts: [{ text: "Generate more designs" }]
+      });
+
+      const genRes = await fetch('/api/generate-floorplan', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          collectedParameters: store.collectedParameters,
+          natureImageUrl: store.selectedNatureImage?.url || store.selectedNatureImage?.thumbUrl,
+          natureImageDescription: store.selectedNatureImage?.description,
+          customImageBase64: store.lastUploadedImage,
+          customImageDescription: store.lastUploadedImageDescription
+        })
+      });
+      const genData = await genRes.json();
+      
+      if (genData.options && genData.options.length > 0) {
+        store.setGeneratedOptions(genData.options);
+        
+        store.addMessage({
+          role: 'model',
+          parts: [{ text: "Here are the new generated concept layouts based on your design requirements:" }],
+          customType: 'floorplan-drafts',
+          customData: { options: genData.options }
+        });
+      } else {
+        console.error("Floor plan generation failed:", genData);
+        store.addMessage({ role: 'model', parts: [{ text: "I hit a snag generating the images. Let's try again." }] });
+      }
+    } catch (e) {
+      console.error("Floor plan generation failed:", e);
+      store.addMessage({ role: 'model', parts: [{ text: "Generation encountered an error." }] });
+    } finally {
+      store.setIsLoading(false);
+    }
+  };
 
   const handleDownload = async () => {
     setIsDownloading(true);
@@ -182,6 +231,15 @@ export default function ChatMessage({ message, isCustomType, customData }: ChatM
                 </div>
               );
             })}
+          </div>
+          <div className="p-3 border-t border-gray-800 bg-[#0d0d15] flex justify-center">
+            <button
+              onClick={handleGenerateMore}
+              disabled={isLoading}
+              className="w-full py-2 bg-transparent hover:bg-[#FFB000]/10 border border-[#FFB000]/40 hover:border-[#FFB000] text-[#FFB000] hover:text-white text-[10px] uppercase font-bold tracking-widest rounded transition-all disabled:opacity-30 disabled:pointer-events-none flex items-center justify-center gap-2 cursor-pointer font-mono"
+            >
+              🔄 Generate More Options
+            </button>
           </div>
         </div>
       </div>
