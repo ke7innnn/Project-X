@@ -1172,6 +1172,15 @@ NOTE: Each time Master Umesh asks for the brief, these stories are shuffled rand
                  'START_COMMS'}
               </span>
             </button>
+
+            {statusState === 'speaking' && (
+              <button
+                onClick={(e) => { e.stopPropagation(); interruptSpeech(); }}
+                className="w-full py-2 px-4 mt-1 rounded border border-red-500/50 bg-red-500/10 text-red-400 hover:bg-red-500/20 hover:text-red-300 uppercase tracking-wider font-bold text-[10px] transition-all duration-300 flex items-center justify-center cursor-pointer shadow-[0_0_8px_rgba(239,68,68,0.2)]"
+              >
+                STOP TALKING
+              </button>
+            )}
             
             {/* Waveform indicator */}
             <div className="flex items-center gap-1 h-6 pl-2 mt-2">
