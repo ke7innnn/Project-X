@@ -8,37 +8,37 @@ export const runtime = 'edge';
 /**
  * DELETE /api/delete-project
  * Body: { session_id: string } | { all: true }
- * Uses Supabase REST API with Prefer: return=minimal to delete rows.
+ * Deletes from both `projects` and `project_images` tables.
  */
 export async function DELETE(request: Request) {
   try {
     const body = await request.json();
     const { session_id, all } = body;
 
-    let url: string;
+    const headers = {
+      'apikey': SUPABASE_ANON_KEY,
+      'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+      'Prefer': 'return=minimal',
+    };
 
-    if (all) {
-      // Delete all projects — use a filter that matches all rows
-      url = `${SUPABASE_URL}/rest/v1/projects?id=neq.00000000-0000-0000-0000-000000000000`;
-    } else if (session_id) {
-      url = `${SUPABASE_URL}/rest/v1/projects?session_id=eq.${encodeURIComponent(session_id)}`;
-    } else {
-      return NextResponse.json({ error: 'Must provide session_id or all:true' }, { status: 400 });
-    }
+    const tables = ['projects', 'project_images'];
 
-    const res = await fetch(url, {
-      method: 'DELETE',
-      headers: {
-        'apikey': SUPABASE_ANON_KEY,
-        'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
-        'Prefer': 'return=minimal',
-      },
-    });
+    for (const table of tables) {
+      let url: string;
+      if (all) {
+        url = `${SUPABASE_URL}/rest/v1/${table}?id=neq.00000000-0000-0000-0000-000000000000`;
+      } else if (session_id) {
+        url = `${SUPABASE_URL}/rest/v1/${table}?session_id=eq.${encodeURIComponent(session_id)}`;
+      } else {
+        return NextResponse.json({ error: 'Must provide session_id or all:true' }, { status: 400 });
+      }
 
-    if (!res.ok) {
-      const text = await res.text();
-      console.error('[delete-project] Supabase error:', res.status, text);
-      return NextResponse.json({ error: `Supabase error ${res.status}: ${text}` }, { status: res.status });
+      const res = await fetch(url, { method: 'DELETE', headers });
+      if (!res.ok) {
+        const text = await res.text();
+        console.error(`[delete-project] Supabase error on ${table}:`, res.status, text);
+        // Continue deleting from other tables even if one fails
+      }
     }
 
     return NextResponse.json({ success: true });
