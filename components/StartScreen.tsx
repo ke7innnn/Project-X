@@ -1421,7 +1421,7 @@ NOTE: Each time Master Umesh asks for the brief, these stories are shuffled rand
       {/* Never covers Batman's face. Compact, scrollable, max 4 lines.       */}
       {responseHtml && (
         <div
-          className="fixed bottom-[148px] left-1/2 -translate-x-1/2 z-30 pointer-events-none"
+          className="fixed bottom-[148px] left-1/2 -translate-x-1/2 z-30 pointer-events-auto"
           style={{ width: 'min(600px, 90vw)' }}
         >
           <div className="
