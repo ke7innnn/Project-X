@@ -641,31 +641,24 @@ ${newsStr}
 NOTE: Each time Master Umesh asks for the brief, these stories are shuffled randomly. Always pick a DIFFERENT combination of 3 stories than what you may have mentioned before. Never repeat the same story in the same session.`;
 
       // ── WEB SEARCH INJECTION ─────────────────────────────────────────────────
-      // Detect if this question likely needs live web data.
-      // Runs silently — user never sees this, Batman just answers with fresh info.
-      const needsWebSearch = (() => {
-        const q = lowerCmd.trim();
-        
-        // Skip web search for: stock/news brief, navigation (already handled with fresh data above)
-        if (isBriefRequest) return false;
-        
-        // Trigger on: factual questions, "what is", "who is", "how much", "latest", "current", etc.
-        const searchTriggers = [
-          'what is', 'what are', 'what was', 'what were', 'what does', 'what happened',
-          'who is', 'who are', 'who was', 'who were', 'who invented', 'who made',
-          'where is', 'where are', 'where was', 'where can',
-          'when is', 'when was', 'when did', 'when will',
-          'how much', 'how many', 'how does', 'how do', 'how can', 'how to',
-          'why is', 'why are', 'why was', 'why does',
-          'tell me about', 'explain', 'define', 'meaning of',
-          'latest', 'current', 'recent', 'today', 'this week', 'new update',
-          'difference between', 'compare', 'best way to', 'top', 'recommend',
-          'price of', 'cost of', 'how to make', 'recipe', 'history of',
-          'news about', 'update on', 'status of',
-        ];
-        
-        return searchTriggers.some(trigger => q.startsWith(trigger) || q.includes(` ${trigger} `));
-      })();
+      // Smart Pre-flight check: Ask a fast 8B model if this query actually needs web data
+      let needsWebSearch = false;
+      if (!isBriefRequest) {
+        try {
+          const classRes = await fetch('/api/openai-classify-search', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ message: userMsg }),
+            signal: AbortSignal.timeout(3000), // Very fast timeout, skip search if slow
+          });
+          if (classRes.ok) {
+            const classData = await classRes.json();
+            needsWebSearch = classData.needsSearch === true;
+          }
+        } catch (e) {
+          console.warn('[Batman] Pre-flight search classification failed, defaulting to no search.');
+        }
+      }
 
       let webSearchContext = '';
       if (needsWebSearch) {
