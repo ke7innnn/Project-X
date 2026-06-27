@@ -704,6 +704,11 @@ NOTE: Each time Master Umesh asks for the brief, these stories are shuffled rand
         })
       });
 
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`API returned ${response.status}: ${errorText}`);
+      }
+
       if (!response.body) throw new Error("No response body");
 
       const reader = response.body.getReader();
@@ -771,6 +776,7 @@ NOTE: Each time Master Umesh asks for the brief, these stories are shuffled rand
         return;
       }
       console.error("OpenAI stream failed:", e);
+      setResponseHtml(`<span style="color:#ff4444; font-family:monospace; font-size:12px;">SYSTEM ERROR: ${e.message}</span>`);
       speakStreamedSentence("Sorry, I am having trouble connecting to my systems right now.");
     } finally {
       isStreamingRef.current = false;
