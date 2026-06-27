@@ -640,6 +640,60 @@ BREAKING ARCHITECTURAL NEWS & DIGEST (freshly fetched — pick any 3, they are i
 ${newsStr}
 NOTE: Each time Master Umesh asks for the brief, these stories are shuffled randomly. Always pick a DIFFERENT combination of 3 stories than what you may have mentioned before. Never repeat the same story in the same session.`;
 
+      // ── WEB SEARCH INJECTION ─────────────────────────────────────────────────
+      // Detect if this question likely needs live web data.
+      // Runs silently — user never sees this, Batman just answers with fresh info.
+      const needsWebSearch = (() => {
+        const q = lowerCmd.trim();
+        
+        // Skip web search for: stock/news brief, navigation (already handled with fresh data above)
+        if (isBriefRequest) return false;
+        
+        // Trigger on: factual questions, "what is", "who is", "how much", "latest", "current", etc.
+        const searchTriggers = [
+          'what is', 'what are', 'what was', 'what were', 'what does', 'what happened',
+          'who is', 'who are', 'who was', 'who were', 'who invented', 'who made',
+          'where is', 'where are', 'where was', 'where can',
+          'when is', 'when was', 'when did', 'when will',
+          'how much', 'how many', 'how does', 'how do', 'how can', 'how to',
+          'why is', 'why are', 'why was', 'why does',
+          'tell me about', 'explain', 'define', 'meaning of',
+          'latest', 'current', 'recent', 'today', 'this week', 'new update',
+          'difference between', 'compare', 'best way to', 'top', 'recommend',
+          'price of', 'cost of', 'how to make', 'recipe', 'history of',
+          'news about', 'update on', 'status of',
+        ];
+        
+        return searchTriggers.some(trigger => q.startsWith(trigger) || q.includes(` ${trigger} `));
+      })();
+
+      let webSearchContext = '';
+      if (needsWebSearch) {
+        try {
+          console.log('[Batman] Running web search for:', userMsg);
+          const searchRes = await fetch('/api/web-search', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ query: userMsg }),
+            signal: AbortSignal.timeout(10000),
+          });
+          if (searchRes.ok) {
+            const searchData = await searchRes.json();
+            if (searchData.answer || searchData.results?.length) {
+              const snippets = (searchData.results || [])
+                .map((r: any) => `• ${r.title}: ${r.content}`)
+                .join('\n');
+              webSearchContext = `\n\nWEB SEARCH RESULTS for "${userMsg}" (use this to answer accurately — do NOT say you don't have information):\nSummary: ${searchData.answer || 'No direct answer found.'}\nSources:\n${snippets}`;
+              console.log('[Batman] Web search injected successfully.');
+            }
+          }
+        } catch (e) {
+          console.warn('[Batman] Web search failed silently, continuing without it:', e);
+        }
+      }
+
+      const finalContextStr = contextStr + webSearchContext;
+
       isStreamingRef.current = true;
 
       fetchAbortControllerRef.current = new AbortController();
@@ -649,7 +703,7 @@ NOTE: Each time Master Umesh asks for the brief, these stories are shuffled rand
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          systemContext: contextStr,
+          systemContext: finalContextStr,
           messages: [
             ...chatHistoryRef.current,
             { role: 'user', content: userMsg }
