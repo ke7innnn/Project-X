@@ -156,7 +156,7 @@ Your floor plan's OUTER BUILDING WALL must trace THIS EXACT SHAPE as its exterio
 • Windows: Short parallel lines embedded in the wall where windows occur.
 • Furniture: Small, simplified plan-view furniture symbols (bed outline, sofa L-shape, dining table + chairs, kitchen counter L, WC symbol, basin circle) placed inside rooms to indicate scale and function.
 • Labels: Every room must have a clear uppercase label — the letter code and room name (e.g. "A - Living Room") — positioned neatly in the center of the room, sized to fit.
-• Title block: Small professional title block in one corner with: "FLOOR PLAN", scale indicator, and a north arrow (↑N).
+• NO DIMENSIONS OR TITLES: Do NOT draw any dimension lines, measurement text, scale bars, north arrows, title blocks, or outer rectangular plot borders. The drawing must ONLY contain the floor plan itself on a pure white background.
 • Line quality: Razor-sharp, clean, precise technical drawing lines throughout.
 
 ═══════════════════════════════════════════════════════
