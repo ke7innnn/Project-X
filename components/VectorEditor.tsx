@@ -108,9 +108,9 @@ export default function VectorEditor({ onClose }: VectorEditorProps) {
       triggerVectorize(currentFloorPlan, canvas);
     } else {
       const store = useArchitectStore.getState();
-      if (store.plotWidth && store.plotHeight) {
-        const pW = store.plotWidth;
-        const pH = store.plotHeight;
+      if (store.collectedParameters.plotWidth && store.collectedParameters.plotHeight) {
+        const pW = store.collectedParameters.plotWidth;
+        const pH = store.collectedParameters.plotHeight;
         const pxPerMeter = 10;
         const rectW = pW * pxPerMeter;
         const rectH = pH * pxPerMeter;
