@@ -546,7 +546,7 @@ export default function StartScreen() {
       const store = useArchitectStore.getState();
       const phase = store.phase;
       const params = store.collectedParameters;
-      const rooms = params.rooms.length > 0 ? params.rooms.join(', ') : 'None';
+      const rooms = (params.rooms && params.rooms.length > 0) ? params.rooms.join(', ') : 'None';
       const plotArea = params.plotArea;
       const orientation = params.orientation;
       const hasFloorPlan = !!store.currentFloorPlan;
