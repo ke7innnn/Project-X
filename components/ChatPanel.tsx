@@ -221,51 +221,63 @@ export default function ChatPanel() {
       (textLower === 'generate more');
 
     if (isGenerateMoreRequest && phase !== 'search') {
-      try {
-        setIsLoading(true);
-        // Clear option index to keep UI clean
-        useArchitectStore.getState().setSelectedOption(null as any, null as any);
-        useArchitectStore.getState().setPhase('generate');
-        
-        addMessage({
-          role: 'model',
-          parts: [{ text: "I will start generating more floor plan options for you right away!" }]
-        });
-        
-        useArchitectStore.getState().setLoadingMessage('Generating floor plans...');
-        
-        const genRes = await fetch('/api/generate-floorplan', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ 
-            collectedParameters: useArchitectStore.getState().collectedParameters,
-            natureImageUrl: useArchitectStore.getState().selectedNatureImage?.url || useArchitectStore.getState().selectedNatureImage?.thumbUrl,
-            natureImageDescription: useArchitectStore.getState().selectedNatureImage?.description,
-            customImageBase64: useArchitectStore.getState().lastUploadedImage,
-            customImageDescription: useArchitectStore.getState().lastUploadedImageDescription
-          })
-        });
-        const genData = await genRes.json();
-        
-        if (genData.options && genData.options.length > 0) {
-          useArchitectStore.getState().setGeneratedOptions(genData.options);
-          
-          addMessage({
-            role: 'model',
-            parts: [{ text: "Here are the new generated concept layouts based on your design requirements:" }],
-            customType: 'floorplan-drafts',
-            customData: { options: genData.options }
+      const MAX_GEN_RETRIES = 3;
+      let genSuccess = false;
+
+      for (let genAttempt = 0; genAttempt < MAX_GEN_RETRIES && !genSuccess; genAttempt++) {
+        try {
+          if (genAttempt === 0) setIsLoading(true);
+          useArchitectStore.getState().setSelectedOption(null as any, null as any);
+          useArchitectStore.getState().setPhase('generate');
+
+          if (genAttempt === 0) {
+            addMessage({
+              role: 'model',
+              parts: [{ text: "I will start generating more floor plan options for you right away!" }]
+            });
+          }
+
+          useArchitectStore.getState().setLoadingMessage(
+            genAttempt > 0 ? `Retrying... (attempt ${genAttempt + 1})` : 'Generating floor plans...'
+          );
+
+          const genRes = await fetch('/api/generate-floorplan', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+              collectedParameters: useArchitectStore.getState().collectedParameters,
+              natureImageUrl: useArchitectStore.getState().selectedNatureImage?.url || useArchitectStore.getState().selectedNatureImage?.thumbUrl,
+              natureImageDescription: useArchitectStore.getState().selectedNatureImage?.description,
+              customImageBase64: useArchitectStore.getState().lastUploadedImage,
+              customImageDescription: useArchitectStore.getState().lastUploadedImageDescription
+            })
           });
-        } else {
-          console.error("Floor plan generation failed:", genData);
-          addMessage({ role: 'model', parts: [{ text: "I hit a snag generating the images. Let's try again." }] });
+          const genData = await genRes.json();
+
+          if (genData.options && genData.options.length > 0) {
+            useArchitectStore.getState().setGeneratedOptions(genData.options);
+            addMessage({
+              role: 'model',
+              parts: [{ text: "Here are the new generated concept layouts based on your design requirements:" }],
+              customType: 'floorplan-drafts',
+              customData: { options: genData.options }
+            });
+            genSuccess = true;
+          } else {
+            console.error(`[generate-more] Attempt ${genAttempt + 1} returned no options:`, genData);
+            if (genAttempt === MAX_GEN_RETRIES - 1) {
+              addMessage({ role: 'model', parts: [{ text: "Generation took too long this time. Please say 'generate more' to try again." }] });
+            }
+          }
+        } catch (e) {
+          console.error(`[generate-more] Attempt ${genAttempt + 1} threw:`, e);
+          if (genAttempt === MAX_GEN_RETRIES - 1) {
+            addMessage({ role: 'model', parts: [{ text: "Generation encountered a network error. Please try again." }] });
+          }
         }
-      } catch (e) {
-        console.error("Floor plan generation failed:", e);
-        addMessage({ role: 'model', parts: [{ text: "Generation encountered an error." }] });
-      } finally {
-        setIsLoading(false);
       }
+
+      setIsLoading(false);
       return;
     }
 
@@ -359,39 +371,49 @@ export default function ChatPanel() {
       const stayedInGenerateWithTrigger = data.newPhase === null && targetPhase === 'generate' && triggersRegen;
       const wasInConceptAndTriggered = !alreadyEditing && conceptPhases.includes(phase) && triggersRegen && data.newPhase === null;
       if (!alreadyEditing && (phaseJumpedToGenerate || stayedInGenerateWithTrigger)) {
-        useArchitectStore.getState().setLoadingMessage('Generating floor plans...');
-        try {
-          const genRes = await fetch('/api/generate-floorplan', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ 
-              collectedParameters: useArchitectStore.getState().collectedParameters,
-              // Always prefer the full-resolution URL over the thumbnail — Gemini needs to clearly see the shape
-              natureImageUrl: useArchitectStore.getState().selectedNatureImage?.url || useArchitectStore.getState().selectedNatureImage?.thumbUrl,
-              natureImageDescription: useArchitectStore.getState().selectedNatureImage?.description,
-              customImageBase64: useArchitectStore.getState().lastUploadedImage,
-              customImageDescription: useArchitectStore.getState().lastUploadedImageDescription
-            })
-          });
-          const genData = await genRes.json();
-          
-          if (genData.options && genData.options.length > 0) {
-            useArchitectStore.getState().setGeneratedOptions(genData.options);
-            
-            // Append generated drafts to chat history
-            addMessage({
-              role: 'model',
-              parts: [{ text: "Here are the generated concept layouts based on your design requirements:" }],
-              customType: 'floorplan-drafts',
-              customData: { options: genData.options }
+        const MAX_GEN_RETRIES = 3;
+        let genSuccess = false;
+
+        for (let genAttempt = 0; genAttempt < MAX_GEN_RETRIES && !genSuccess; genAttempt++) {
+          try {
+            useArchitectStore.getState().setLoadingMessage(
+              genAttempt > 0 ? `Retrying generation... (attempt ${genAttempt + 1})` : 'Generating floor plans...'
+            );
+
+            const genRes = await fetch('/api/generate-floorplan', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ 
+                collectedParameters: useArchitectStore.getState().collectedParameters,
+                natureImageUrl: useArchitectStore.getState().selectedNatureImage?.url || useArchitectStore.getState().selectedNatureImage?.thumbUrl,
+                natureImageDescription: useArchitectStore.getState().selectedNatureImage?.description,
+                customImageBase64: useArchitectStore.getState().lastUploadedImage,
+                customImageDescription: useArchitectStore.getState().lastUploadedImageDescription
+              })
             });
-          } else {
-             console.error("Floor plan generation failed:", genData);
-             addMessage({ role: 'model', parts: [{ text: "I hit a snag generating the images. Let's try again." }] });
+            const genData = await genRes.json();
+
+            if (genData.options && genData.options.length > 0) {
+              useArchitectStore.getState().setGeneratedOptions(genData.options);
+              addMessage({
+                role: 'model',
+                parts: [{ text: "Here are the generated concept layouts based on your design requirements:" }],
+                customType: 'floorplan-drafts',
+                customData: { options: genData.options }
+              });
+              genSuccess = true;
+            } else {
+              console.error(`[generate] Attempt ${genAttempt + 1} returned no options:`, genData);
+              if (genAttempt === MAX_GEN_RETRIES - 1) {
+                addMessage({ role: 'model', parts: [{ text: "Generation took too long. Just say 'generate more' to try again!" }] });
+              }
+            }
+          } catch (e) {
+            console.error(`[generate] Attempt ${genAttempt + 1} threw:`, e);
+            if (genAttempt === MAX_GEN_RETRIES - 1) {
+              addMessage({ role: 'model', parts: [{ text: "Generation encountered a network error. Say 'generate more' to retry." }] });
+            }
           }
-        } catch (e) {
-          console.error("Floor plan generation failed:", e);
-          addMessage({ role: 'model', parts: [{ text: "Generation encountered an error." }] });
         }
       }
 
@@ -406,40 +428,51 @@ export default function ChatPanel() {
       if ((targetPhase === 'edit' || targetPhase === 'measure') && data.newPhase !== 'export' && (data.isEditCommand || isRetryEdit) && effectiveEditInstruction.trim().length > 0) {
         // Save instruction so we can retry if it fails
         if (data.isEditCommand) lastEditInstructionRef.current = text;
-        useArchitectStore.getState().setLoadingMessage('Editing floor plan...');
-        try {
-          const editRes = await fetch('/api/edit-floorplan', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ 
-              currentFloorPlanBase64: useArchitectStore.getState().currentFloorPlan,
-              editInstruction: effectiveEditInstruction,
-              collectedParameters: useArchitectStore.getState().collectedParameters,
-              roomDimensions: useArchitectStore.getState().roomDimensions
-            })
-          });
-          const editData = await editRes.json();
-          
-          if (editData.editedFloorPlan) {
-            useArchitectStore.getState().setCurrentFloorPlan(editData.editedFloorPlan);
-            if (useArchitectStore.getState().phase !== 'edit') {
-              useArchitectStore.getState().setPhase('edit');
-            }
-            
-            // Append edited floor plan to chat history
-            addMessage({
-              role: 'model',
-              parts: [{ text: `Here is the updated floor plan after applying: "${effectiveEditInstruction}"` }],
-              customType: 'floorplan-edit',
-              customData: { editedFloorPlan: editData.editedFloorPlan, instruction: effectiveEditInstruction }
+        
+        const MAX_EDIT_RETRIES = 3;
+        let editSuccess = false;
+
+        for (let editAttempt = 0; editAttempt < MAX_EDIT_RETRIES && !editSuccess; editAttempt++) {
+          useArchitectStore.getState().setLoadingMessage(
+            editAttempt > 0 ? `Retrying edit... (attempt ${editAttempt + 1})` : 'Editing floor plan...'
+          );
+          try {
+            const editRes = await fetch('/api/edit-floorplan', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ 
+                currentFloorPlanBase64: useArchitectStore.getState().currentFloorPlan,
+                editInstruction: effectiveEditInstruction,
+                collectedParameters: useArchitectStore.getState().collectedParameters,
+                roomDimensions: useArchitectStore.getState().roomDimensions
+              })
             });
-          } else {
-             console.error("Floor plan edit failed:", editData);
-             addMessage({ role: 'model', parts: [{ text: "I hit a snag editing the floor plan. Just say 'try again' and I'll retry the same change." }] });
+            const editData = await editRes.json();
+
+            if (editData.editedFloorPlan) {
+              useArchitectStore.getState().setCurrentFloorPlan(editData.editedFloorPlan);
+              if (useArchitectStore.getState().phase !== 'edit') {
+                useArchitectStore.getState().setPhase('edit');
+              }
+              addMessage({
+                role: 'model',
+                parts: [{ text: `Here is the updated floor plan after applying: "${effectiveEditInstruction}"` }],
+                customType: 'floorplan-edit',
+                customData: { editedFloorPlan: editData.editedFloorPlan, instruction: effectiveEditInstruction }
+              });
+              editSuccess = true;
+            } else {
+              console.error(`[edit] Attempt ${editAttempt + 1} returned no image:`, editData);
+              if (editAttempt === MAX_EDIT_RETRIES - 1) {
+                addMessage({ role: 'model', parts: [{ text: "The edit took too long to process. Say 'try again' to retry the same change." }] });
+              }
+            }
+          } catch (e) {
+            console.error(`[edit] Attempt ${editAttempt + 1} threw:`, e);
+            if (editAttempt === MAX_EDIT_RETRIES - 1) {
+              addMessage({ role: 'model', parts: [{ text: "Editing encountered a network error. Say 'try again' to retry." }] });
+            }
           }
-        } catch (e) {
-          console.error("Floor plan edit failed:", e);
-          addMessage({ role: 'model', parts: [{ text: "Editing encountered an error. Say 'try again' to retry." }] });
         }
       }
       

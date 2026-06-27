@@ -3,7 +3,7 @@ import { callGemini } from '@/lib/gemini';
 import { FLOORPLAN_GENERATION_PROMPT } from '@/lib/prompts';
 import sharp from 'sharp';
 
-export const maxDuration = 60;
+export const maxDuration = 120;
 
 /**
  * Fetch raw image bytes from a URL.
@@ -33,8 +33,7 @@ async function fetchImageBuffer(url: string): Promise<Buffer> {
 }
 
 /**
- * Resize a reference photo to standard size for faster transfer and lower cost,
- * while keeping all original details and colors intact.
+ * Resize a reference photo to standard size for faster transfer and lower cost.
  */
 async function resizeImage(buffer: Buffer): Promise<{ data: string; mimeType: string }> {
   try {
@@ -44,9 +43,62 @@ async function resizeImage(buffer: Buffer): Promise<{ data: string; mimeType: st
       .toBuffer();
     return { data: resizedBuffer.toString('base64'), mimeType: 'image/jpeg' };
   } catch (err: any) {
-    console.error('[generate-floorplan] Sharp resize failed, returning original image base64:', err.message);
+    console.error('[generate-floorplan] Sharp resize failed, using original:', err.message);
     return { data: buffer.toString('base64'), mimeType: 'image/jpeg' };
   }
+}
+
+/** 
+ * Models to try in order for image generation.
+ * Each model attempted with retries before moving to next.
+ */
+const IMAGE_GEN_MODELS = [
+  'gemini-3.1-flash-image-preview',
+  'gemini-2.5-flash-image',
+] as const;
+
+/**
+ * Generate a single floor plan image with retries across models.
+ */
+async function generateSingleFloorPlan(parts: any[], variationIndex: number): Promise<string> {
+  let lastError: any;
+
+  for (const model of IMAGE_GEN_MODELS) {
+    // Try each model up to 2 times
+    for (let attempt = 0; attempt < 2; attempt++) {
+      try {
+        console.log(`[generate-floorplan] Var ${variationIndex}: trying ${model}, attempt ${attempt + 1}`);
+        
+        const res = await callGemini({
+          model,
+          message: undefined,
+          temperature: 0.9,
+          responseModalities: ['image', 'text'],
+          timeoutMs: 50000,
+          _customContents: [{ role: 'user', parts }],
+        } as any);
+
+        const part = res.candidates?.[0]?.content?.parts?.find((p: any) => p.inlineData);
+        if (!part?.inlineData?.data) {
+          throw new Error(`No image in ${model} response`);
+        }
+
+        console.log(`[generate-floorplan] Var ${variationIndex}: success with ${model}`);
+        return part.inlineData.data;
+
+      } catch (e: any) {
+        lastError = e;
+        console.warn(`[generate-floorplan] Var ${variationIndex} / ${model} attempt ${attempt + 1} failed: ${e.message}`);
+        
+        // Small delay before retry
+        if (attempt === 0) {
+          await new Promise(r => setTimeout(r, 2000));
+        }
+      }
+    }
+  }
+
+  throw lastError || new Error('All models exhausted for floor plan generation');
 }
 
 export async function POST(request: Request) {
@@ -68,11 +120,10 @@ export async function POST(request: Request) {
     console.log('[generate-floorplan] Nature URL:', natureImageUrl);
     console.log('[generate-floorplan] Custom image provided:', !!customImageBase64);
 
-    // ── Step 1: Get raw image bytes ───────────────────────────────────────
+    // ── Step 1: Get raw image bytes ─────────────────────────────────────────
     let rawBuffer: Buffer | null = null;
 
     if (customImageBase64) {
-      // Uploaded image — decode base64 to buffer
       const raw = customImageBase64.includes(',')
         ? customImageBase64.split(',')[1]
         : customImageBase64;
@@ -87,67 +138,40 @@ export async function POST(request: Request) {
       }
     }
 
-    // ── Step 2: Resize image to reasonable bounds ───────────────────────────
+    // ── Step 2: Resize image ────────────────────────────────────────────────
     let imagePart: any | undefined;
 
     if (rawBuffer) {
       const resized = await resizeImage(rawBuffer);
       imagePart = { inlineData: { mimeType: resized.mimeType, data: resized.data } };
-      console.log('[generate-floorplan] Image resized and ready — sending to Gemini');
+      console.log('[generate-floorplan] Image resized and ready');
     } else {
-      console.error('[generate-floorplan] CRITICAL: No image available — Gemini has no shape to trace!');
+      console.warn('[generate-floorplan] No reference image available — generating without shape reference');
     }
 
-    // ── Step 3: Build prompt parts ────────────────────────────────────────
-    // IMPORTANT: Image MUST come first so Gemini uses it as the primary context
-    // before reading the text instruction. Putting text first causes the model
-    // to ignore the shape and hallucinate a default (e.g. leaf/oval).
+    // ── Step 3: Build prompt parts ──────────────────────────────────────────
+    // Image MUST come first so Gemini uses it as the primary context
     const buildParts = () => {
       const parts: any[] = [];
-      if (imagePart) {
-        parts.push(imagePart);
-      }
+      if (imagePart) parts.push(imagePart);
       parts.push({ text: prompt });
       return parts;
     };
 
-    // ── Step 4: Generate 2 variations in parallel ─────────────────────────
-    const promises = [0, 1].map((_, i) =>
+    // ── Step 4: Generate 2 variations in parallel ───────────────────────────
+    // Each variation has its own model fallback chain, so we won't fail entirely
+    // unless both APIs are completely down.
+    const promises = [0, 1].map((i) =>
+      // Stagger starts by 200ms to avoid simultaneous rate limits
       new Promise<string>((resolve, reject) =>
         setTimeout(async () => {
           try {
-            let res;
-            try {
-              res = await callGemini({
-                model: 'gemini-3.1-flash-image-preview',
-                message: undefined,
-                temperature: 0.9,
-                responseModalities: ['image', 'text'],
-                timeoutMs: 45000,
-                _customContents: [{ role: 'user', parts: buildParts() }],
-              } as any);
-            } catch (err: any) {
-              console.warn(`[generate-floorplan] gemini-3.1-flash-image-preview var ${i} failed: ${err.message}. Falling back to gemini-2.5-flash-image...`);
-              res = await callGemini({
-                model: 'gemini-2.5-flash-image',
-                message: undefined,
-                temperature: 0.9,
-                responseModalities: ['image', 'text'],
-                timeoutMs: 45000,
-                _customContents: [{ role: 'user', parts: buildParts() }],
-              } as any);
-            }
-
-            const part = res.candidates?.[0]?.content?.parts?.find((p: any) => p.inlineData);
-            if (!part?.inlineData?.data) {
-              console.error('[generate-floorplan] Gemini Response:', JSON.stringify(res));
-              throw new Error('No image found in Gemini response');
-            }
-            resolve(part.inlineData.data);
+            const result = await generateSingleFloorPlan(buildParts(), i);
+            resolve(result);
           } catch (e) {
             reject(e);
           }
-        }, i * 150)
+        }, i * 200)
       )
     );
 
@@ -163,9 +187,11 @@ export async function POST(request: Request) {
       throw new Error(`Floor plan generation failed. Details: ${JSON.stringify(errors)}`);
     }
 
+    console.log(`[generate-floorplan] Done — returning ${options.length} option(s)`);
     return NextResponse.json({ options });
+
   } catch (error: any) {
-    console.error('[generate-floorplan] Error:', error);
+    console.error('[generate-floorplan] Fatal error:', error.message);
     return NextResponse.json({ error: error.message, retry: true }, { status: 500 });
   }
 }

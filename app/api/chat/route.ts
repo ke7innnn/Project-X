@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
 import { ARCHITECT_SYSTEM_PROMPT } from '@/lib/prompts';
 import { ConversationMessage, Phase } from '@/types';
-import { callGemini } from '@/lib/gemini';
+
+export const maxDuration = 120;
 
 function detectPhaseTransition(messageText: string, currentPhase: Phase): Phase | null {
   const text = messageText.toLowerCase();
@@ -28,87 +29,100 @@ function detectPhaseTransition(messageText: string, currentPhase: Phase): Phase 
   return null;
 }
 
-function cleanJsonResponse(text: string): string {
+function extractJsonFromText(text: string): string {
+  // Method 1: direct brace extraction
   const firstBrace = text.indexOf('{');
-  if (firstBrace === -1) return text;
-  
-  let openBraces = 0;
-  for (let i = firstBrace; i < text.length; i++) {
-    if (text[i] === '{') openBraces++;
-    if (text[i] === '}') {
-      openBraces--;
-      if (openBraces === 0) {
-        return text.substring(firstBrace, i + 1);
+  if (firstBrace !== -1) {
+    let openBraces = 0;
+    for (let i = firstBrace; i < text.length; i++) {
+      if (text[i] === '{') openBraces++;
+      if (text[i] === '}') {
+        openBraces--;
+        if (openBraces === 0) {
+          return text.substring(firstBrace, i + 1);
+        }
       }
+    }
+    // Partial — try last closing brace
+    const lastBrace = text.lastIndexOf('}');
+    if (lastBrace !== -1) {
+      return text.substring(firstBrace, lastBrace + 1);
     }
   }
   
-  const lastBrace = text.lastIndexOf('}');
-  if (lastBrace !== -1) {
-    return text.substring(firstBrace, lastBrace + 1);
-  }
+  // Method 2: markdown code block
+  const codeBlockMatch = text.match(/```(?:json)?\s*([\s\S]*?)```/);
+  if (codeBlockMatch) return codeBlockMatch[1].trim();
+  
   return text;
+}
+
+// Models with their capabilities
+const MODEL_CONFIG = [
+  { model: 'deepseek/deepseek-chat', jsonMode: true, timeout: 45000 },
+  { model: 'google/gemini-2.5-flash', jsonMode: true, timeout: 45000 },
+  { model: 'meta-llama/llama-3.3-70b-instruct', jsonMode: false, timeout: 45000 },
+  { model: 'anthropic/claude-3-haiku', jsonMode: true, timeout: 45000 },
+];
+
+async function callModelWithRetry(
+  apiKey: string,
+  messages: any[],
+  config: typeof MODEL_CONFIG[0],
+  maxRetries = 2
+): Promise<any> {
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      const body: any = {
+        model: config.model,
+        messages,
+        temperature: 0.7,
+      };
+      if (config.jsonMode) {
+        body.response_format = { type: 'json_object' };
+      }
+
+      const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${apiKey}`,
+          'HTTP-Referer': 'http://localhost:3000',
+          'X-Title': 'Architect AI',
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(body),
+        signal: AbortSignal.timeout(config.timeout),
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        const rawText = data.choices?.[0]?.message?.content || '{}';
+        return { rawText, model: config.model };
+      }
+
+      if (res.status === 429) throw new Error('429');
+      
+      const errText = await res.text().catch(() => 'unknown error');
+      throw new Error(`${res.status}: ${errText}`);
+    } catch (e: any) {
+      if (e.message === '429') throw e; // Don't retry rate limits
+      if (attempt === maxRetries) throw e;
+      // Exponential backoff before retry
+      const delay = 1000 * Math.pow(2, attempt);
+      console.warn(`[chat] Model ${config.model} attempt ${attempt + 1} failed: ${e.message}. Retrying in ${delay}ms...`);
+      await new Promise(r => setTimeout(r, delay));
+    }
+  }
+  throw new Error(`All retries exhausted for ${config.model}`);
 }
 
 export async function POST(request: Request) {
   try {
     const { message, imageBase64, conversationHistory, collectedParameters, phase } = await request.json();
 
-    // The logic: 
-    // We send the parameters to Gemini injected in the system prompt.
     const systemPrompt = ARCHITECT_SYSTEM_PROMPT
       .replace('{PARAMETERS_JSON}', JSON.stringify(collectedParameters, null, 2))
       .replace('{CURRENT_PHASE}', phase);
-
-    const responseSchema = {
-      type: "OBJECT",
-      properties: {
-        reply: {
-          type: "STRING",
-          description: "Conversational response to the user. Maintain your architect persona and sign off with exactly ONE question."
-        },
-        newPhase: {
-          type: "STRING",
-          description: "The next phase if transitioning, otherwise null. The phase flow is: 'concept' -> 'parameters' -> 'vastu' -> 'generate' -> 'measure' -> 'edit' -> 'export'.",
-          enum: ["concept", "parameters", "vastu", "generate", "measure", "edit", "export"]
-        },
-        isEditCommand: {
-          type: "BOOLEAN",
-          description: "Set to true ONLY if the user's message is an explicit imperative instruction to modify or edit the layout (e.g. 'add pool', 'remove room'). Set to false if they are asking a question (e.g., starting with 'can we', 'is it possible', 'why', 'how') or just chatting."
-        },
-        updatedParameters: {
-          type: "OBJECT",
-          description: "Partially or fully updated collected parameters based on new information from the user's message. Preserve existing values if they are not updated.",
-          properties: {
-            plotWidth: { type: "NUMBER" },
-            plotHeight: { type: "NUMBER" },
-            plotArea: { type: "NUMBER" },
-            orientation: { type: "STRING" },
-            rooms: { 
-              type: "ARRAY", 
-              items: { type: "STRING" },
-              description: "Concise list of room requirements requested by the user. Limit to maximum 10 items."
-            },
-            vastuRules: { 
-              type: "ARRAY", 
-              items: { type: "STRING" },
-              description: "Vastu Shastra rules mentioned or requested by the user. Keep this concise and limit to maximum 5 items. Only include rules explicitly agreed upon."
-            },
-            sunPath: { type: "STRING" },
-            garden: { type: "BOOLEAN" },
-            parking: { type: "BOOLEAN" },
-            floors: { type: "INTEGER" },
-            surroundings: { type: "STRING" },
-            additionalNotes: { 
-              type: "ARRAY", 
-              items: { type: "STRING" },
-              description: "Any other miscellaneous requirements or notes. Limit to maximum 5 items."
-            }
-          }
-        }
-      },
-      required: ["reply", "isEditCommand"]
-    };
 
     const openRouterKey = process.env.OPENROUTER_API_KEY;
     if (!openRouterKey) throw new Error('No OPENROUTER_API_KEY found in environment');
@@ -122,6 +136,7 @@ export async function POST(request: Request) {
       rawMessages.push({ role: 'user', content: message });
     }
 
+    // Squash consecutive same-role messages (some models reject them)
     const squashedMessages: any[] = [];
     for (const msg of rawMessages) {
       if (squashedMessages.length > 0 && squashedMessages[squashedMessages.length - 1].role === msg.role) {
@@ -139,100 +154,59 @@ export async function POST(request: Request) {
       ...squashedMessages
     ];
 
-    const fallbackModels = [
-      'deepseek/deepseek-chat',           // Primary: Smartest & Cheapest
-      'google/gemini-2.5-flash',          // Fallback 1: Extremely fast & reliable
-      'meta-llama/llama-3.3-70b-instruct' // Fallback 2: Powerful open source
-    ];
-
-    let parsed: any = {};
+    // Try each model in order, with per-model retries
     let rawText = '{}';
-    let lastError = null;
     let successfulModel = '';
-    let openRouterResponse;
+    let lastError: any = null;
 
-    for (const modelToUse of fallbackModels) {
-      console.log(`[OpenRouter] Trying ${modelToUse} for chat. History length: ${conversationHistory.length}`);
+    for (const config of MODEL_CONFIG) {
       try {
-        openRouterResponse = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${openRouterKey}`,
-            'HTTP-Referer': 'http://localhost:3000',
-            'X-Title': 'Architect AI',
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            model: modelToUse,
-            messages,
-            temperature: 0.7,
-            response_format: { type: 'json_object' }
-          }),
-          signal: AbortSignal.timeout(30000)
-        });
-
-        if (openRouterResponse.ok) {
-          lastError = null;
-          successfulModel = modelToUse;
-          break; // Success! Break out of the fallback loop
-        } else {
-          if (openRouterResponse.status === 429) {
-             throw new Error('429'); // Pass rate limit directly if out of credits
-          }
-          const errText = await openRouterResponse.text();
-          throw new Error(`${openRouterResponse.status} - ${errText}`);
-        }
+        console.log(`[chat] Trying ${config.model}...`);
+        const result = await callModelWithRetry(openRouterKey, messages, config);
+        rawText = result.rawText;
+        successfulModel = result.model;
+        console.log(`[chat] Success with ${successfulModel}`);
+        lastError = null;
+        break;
       } catch (e: any) {
         lastError = e;
-        console.warn(`[OpenRouter Waterfall] Model ${modelToUse} failed: ${e.message}. Trying next model...`);
+        if (e.message === '429') throw e; // Propagate rate limit immediately
+        console.warn(`[chat] Model ${config.model} exhausted all retries: ${e.message}`);
       }
     }
 
+    if (lastError) throw lastError; // All models failed
+
+    // Parse JSON — try multiple strategies
+    let parsed: any = {};
     try {
-      if (lastError && !openRouterResponse?.ok) {
-         throw lastError; // All models failed
-      }
-
-      console.log(`[OpenRouter] Success using ${successfulModel}`);
-      const orData = await openRouterResponse!.json();
-      rawText = orData.choices?.[0]?.message?.content || '{}';
-      
-      const cleanedText = cleanJsonResponse(rawText);
+      const cleanedText = extractJsonFromText(rawText);
       parsed = JSON.parse(cleanedText.trim());
-    } catch (e: any) {
-      if (e.message === '429') throw e; // Pass rate limit up
-      console.error('Failed to parse OpenRouter JSON response:', rawText, e);
+    } catch (parseErr: any) {
+      // Final fallback: regex-extract just the reply field so the user at least sees something
+      console.error('[chat] JSON parse failed for model', successfulModel, ':', parseErr.message);
+      console.error('[chat] Raw text was:', rawText.substring(0, 500));
+      
       const replyMatch = rawText.match(/"reply"\s*:\s*"((?:[^"\\]|\\.)*)"/);
-      let salvagedReply = "I'm processing your requirements but encountered a glitch. Could you repeat that?";
-      if (replyMatch && replyMatch[1]) {
-        try {
-          salvagedReply = JSON.parse(`"${replyMatch[1]}"`);
-        } catch(err) {
-          salvagedReply = replyMatch[1];
-        }
-      }
-      parsed = {
-        reply: salvagedReply,
-        newPhase: null,
-        updatedParameters: {}
-      };
+      const salvagedReply = replyMatch?.[1]
+        ? replyMatch[1].replace(/\\n/g, '\n').replace(/\\"/g, '"')
+        : "I'm here and listening. Could you rephrase that?";
+      
+      parsed = { reply: salvagedReply, newPhase: null, updatedParameters: {} };
     }
 
-    let replyText = parsed.reply || "I'm not sure what to say.";
+    let replyText = parsed.reply || "I'm listening. What would you like to do?";
     const updatedParameters = parsed.updatedParameters || {};
     let newPhase = parsed.newPhase || detectPhaseTransition(message, phase);
     const isEditCommand = parsed.isEditCommand !== undefined ? !!parsed.isEditCommand : false;
     let customMessage = null;
 
-    // CRITICAL: Never allow phase to regress back to 'generate' once the user is
-    // in edit or measure. The AI sometimes sets newPhase='generate' when it says
-    // "shall I generate?" — this would reset the user to the concept selection screen.
+    // Prevent phase regression from edit/measure back to generate
     if ((phase === 'edit' || phase === 'measure') && newPhase === 'generate') {
-      newPhase = null; // Stay in current phase, never go back to concept selection
+      newPhase = null;
     }
 
-    // CRITICAL: Only allow export phase transition if the user EXPLICITLY asked for it or confirmed/affirmed it.
-    // Prevent the AI's "shall I export?" → user says "yes [to something else]" → accidental export.
+    // Prevent accidental export phase transition
     const exportKeywords = [
       'export', 'download', 'dwg', 'dxf', 'autocad', 
       'give me the file', 'get the file', 'next step', 
@@ -245,7 +219,7 @@ export async function POST(request: Request) {
     const userExplicitlyWantsExport = exportKeywords.some(kw => userMessageLower.includes(kw)) || 
                                      (affirmations.some(aff => userMessageLower.includes(aff)) && !isEditCommand);
     if (newPhase === 'export' && !userExplicitlyWantsExport) {
-      newPhase = null; // Stay in edit phase, user didn't ask for export
+      newPhase = null;
     }
 
     if (newPhase === 'generate' && phase !== 'edit' && phase !== 'measure') {
@@ -257,18 +231,12 @@ export async function POST(request: Request) {
         role: 'model',
         parts: [{ text: 'Your DXF file is ready! Import it into AutoCAD Raster Design — it will automatically trace all walls and rooms. Come back after your adjustments and upload the refined drawing here.' }],
         customType: 'download-button',
-        customData: {
-          url: '/api/export-dwg',
-        }
+        customData: { url: '/api/export-dwg' }
       };
     }
 
-    // Add model response to history
     const updatedHistory = [...conversationHistory, { role: 'model', parts: [{ text: replyText }] }];
-    
-    if (customMessage) {
-      updatedHistory.push(customMessage);
-    }
+    if (customMessage) updatedHistory.push(customMessage);
 
     return NextResponse.json({ 
       reply: replyText, 
@@ -278,7 +246,7 @@ export async function POST(request: Request) {
       updatedParameters
     });
   } catch (error: any) {
-    console.error('Chat error:', error);
+    console.error('[chat] Fatal error:', error.message);
     if (error.message === '429') {
       return NextResponse.json({ reply: "I'm thinking hard! Give me a moment...", retry: true }, { status: 429 });
     }
