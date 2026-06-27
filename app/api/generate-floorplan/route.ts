@@ -50,11 +50,12 @@ async function resizeImage(buffer: Buffer): Promise<{ data: string; mimeType: st
 
 /** 
  * Models to try in order for image generation.
- * Each model attempted with retries before moving to next.
+ * MUST be shape-aware models — 2.5-flash cannot accurately trace organic shapes.
+ * Each model is attempted with retries before moving to next.
  */
 const IMAGE_GEN_MODELS = [
-  'gemini-3.1-flash-image-preview',
-  'gemini-2.5-flash-image',
+  'gemini-3.1-flash-image-preview', // Primary: fastest, highest quality shape tracing
+  'gemini-3-pro-image',             // Fallback: Pro model, slower but excellent shape precision
 ] as const;
 
 /**
