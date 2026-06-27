@@ -43,15 +43,26 @@ export default function ProjectsDashboard() {
     }
   };
 
-  const handleCreateProject = (e: React.FormEvent) => {
+  const handleCreateProject = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newProjectName.trim()) return;
 
     const newSessionId = uuidv4();
     switchSession(newSessionId, newProjectName, newPlaceName);
+
+    // Explicitly insert an initial shell into Supabase so it appears instantly
+    // even if the user clicks 'Back' before the autosave debouncer fires.
+    await supabase.from('projects').insert({
+      session_id: newSessionId,
+      state: {
+        projectName: newProjectName,
+        placeName: newPlaceName,
+        phase: 'search'
+      }
+    });
+
     router.push('/workspace/' + newSessionId);
   };
-
   const handleOpenProject = (project: ProjectRow) => {
     const pName = project.state?.projectName || 'Untitled Project';
     const pPlace = project.state?.placeName || 'Unknown Location';
