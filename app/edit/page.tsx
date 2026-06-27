@@ -39,9 +39,14 @@ export default function EditPage() {
   }, [sessionId]);
 
   useEffect(() => {
+    let interval: NodeJS.Timeout;
     if (showSelector) {
       fetchProjects();
+      interval = setInterval(fetchProjects, 3000);
     }
+    return () => {
+      if (interval) clearInterval(interval);
+    };
   }, [showSelector]);
 
   const fetchProjects = async () => {

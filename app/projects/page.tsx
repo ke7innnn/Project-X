@@ -25,6 +25,8 @@ export default function ProjectsDashboard() {
 
   useEffect(() => {
     fetchProjects();
+    const interval = setInterval(fetchProjects, 3000);
+    return () => clearInterval(interval);
   }, []);
 
   const fetchProjects = async () => {
