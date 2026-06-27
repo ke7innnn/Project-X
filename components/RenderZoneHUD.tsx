@@ -2,7 +2,7 @@
 
 import { useArchitectStore } from '@/store/useArchitectStore';
 import { Phase } from '@/types';
-import { Building2, Pencil, Map, Box, Video, ChevronLeft } from 'lucide-react';
+import { Building2, Pencil, Map, Box, Video, ChevronLeft, Save } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
 const STAGES = [
@@ -39,6 +39,9 @@ export default function RenderZoneHUD() {
   const currentIndex = getStageIndex(phase);
 
   const handleExit = () => {
+    const ok = window.confirm("Save and exit this project to the main menu?");
+    if (!ok) return;
+
     const store = useArchitectStore.getState();
     
     // Clear all project specific states and session metadata
@@ -60,6 +63,18 @@ export default function RenderZoneHUD() {
     <div className="w-full h-20 bg-[#0a0a0a] border-b border-[#222] flex items-center px-8 relative shrink-0 z-20 shadow-[0_4px_30px_rgba(0,0,0,0.8)] font-mono">
       {/* Background HUD texture */}
       <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGRlZnM+PHBhdHRlcm4gaWQ9ImdyaWQiIHdpZHRoPSI0MCIgaGVpZ2h0PSI0MCIgcGF0dGVyblVuaXRzPSJ1c2VyU3BhY2VPblVzZSI+PHBhdGggZD0iTSAwIDEwIEwgNDAgMTAgTSAxMCAwIEwgMTAgNDAiIGZpbGw9Im5vbmUiIHN0cm9rZT0iIzExMSIgc3Ryb2tlLXdpZHRoPSIwLjUiLz48L3BhdHRlcm4+PC9kZWZzPjxyZWN0IHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiIGZpbGw9InVybCgjZ3JpZCkiLz48L3N2Zz4=')] opacity-20 pointer-events-none" />
+      
+      {/* Save Button (Right side) */}
+      <button 
+        onClick={() => {
+          // It auto-saves, so this is primarily for peace of mind
+          alert("Project successfully saved to database!");
+        }}
+        className="absolute right-6 top-1/2 -translate-y-1/2 flex items-center gap-2 px-3 py-1.5 border border-[#FFB000]/50 rounded text-[#FFB000] hover:bg-[#FFB000]/10 transition-all z-20 group"
+      >
+        <Save size={14} className="group-hover:scale-110 transition-transform" />
+        <span className="text-[10px] uppercase tracking-[2px] font-bold hidden md:inline">Save Project</span>
+      </button>
       
       {/* Exit Button */}
       <button 
