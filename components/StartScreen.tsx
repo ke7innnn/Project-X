@@ -870,6 +870,73 @@ NOTE: Each time Master Umesh asks for the brief, these stories are shuffled rand
     speakStreamedSentence(text, onComplete);
   };
 
+  // ── SMART NAVIGATION INTENT DETECTOR ───────────────────────────────────────
+  // This runs BEFORE calling the LLM — it catches the vast majority of navigation
+  // commands instantly without burning tokens or waiting for a stream to complete.
+  // Returns the route to navigate to, or null if it's not a navigation command.
+  const detectNavigationIntent = (cmd: string): { tab: string; route: string; label: string } | null => {
+    const t = cmd.toLowerCase().trim();
+
+    // ── Render Zone / Projects ────────────────────────────────────────────────
+    const renderZoneKws = [
+      'render zone', 'renderzone', 'project archive', 'projects', 'my projects',
+      'open project', 'view project', 'project section', 'project list', 'saved project',
+      'open archive', 'go to archive', 'go to projects', 'take me to projects',
+      'show me projects', 'show projects', 'project page', 'history', 'past projects',
+    ];
+    if (renderZoneKws.some(kw => t.includes(kw))) {
+      return { tab: 'render-zone', route: '/projects', label: 'Accessing Project Archive' };
+    }
+
+    // ── Edit / Floor Plan Edit ────────────────────────────────────────────────
+    const editKws = [
+      'edit matrix', 'edit section', 'edit mode', 'edit page', 'edit floor',
+      'floor plan edit', 'editing', 'open edit', 'go to edit', 'take me to edit',
+      'let me edit', 'i want to edit', 'start editing', 'edit the plan',
+      'edit my plan', 'modify plan', 'modify floor', 'change the plan',
+    ];
+    // exclude "edit credits" or "edit voice" etc from accidentally triggering
+    const editExclusions = ['credit', 'voice', 'batman', 'profile', 'account'];
+    if (editKws.some(kw => t.includes(kw)) && !editExclusions.some(ex => t.includes(ex))) {
+      return { tab: 'edit', route: '/edit', label: 'Entering Edit Matrix' };
+    }
+
+    // ── 3D Render ────────────────────────────────────────────────────────────
+    const render3dKws = [
+      '3d render', '3d section', '3d visualization', '3d view', '3d model',
+      'three d render', 'three d', '3d page', 'open 3d', 'go to 3d',
+      'take me to 3d', 'show me 3d', 'let me see the 3d', 'do 3d',
+      'render my plan', 'render section', 'render the plan', 'create render',
+      'generate render', 'final render', 'visualize', 'visualization',
+    ];
+    if (render3dKws.some(kw => t.includes(kw))) {
+      return { tab: '3d-render', route: '/3d-render', label: 'Initializing 3D Visualization' };
+    }
+
+    // ── Flythrough / Flightpath ───────────────────────────────────────────────
+    const flythroughKws = [
+      'flythrough', 'fly through', 'flightpath', 'flight path', 'fly path',
+      'walkthrough', 'walk through', 'camera path', 'animation', 'animated view',
+      'open flythrough', 'go to flythrough', 'show flythrough', 'take me to flythrough',
+    ];
+    if (flythroughKws.some(kw => t.includes(kw))) {
+      return { tab: 'flythrough', route: '/flythrough', label: 'Loading Flightpath Module' };
+    }
+
+    // ── PNG to DXF / Vector ───────────────────────────────────────────────────
+    const dxfKws = [
+      'png to dxf', 'png dxf', 'dxf', 'vector', 'vectorize', 'to autocad',
+      'export plan', 'export floor plan', 'export to autocad', 'open png',
+      'open vector', 'convert to vector', 'convert to dxf', 'open dxf',
+      'go to dxf', 'download dxf', 'cad file', 'autocad file',
+    ];
+    if (dxfKws.some(kw => t.includes(kw))) {
+      return { tab: 'png-to-dxf', route: '/png-to-dxf', label: 'Initiating Vector Conversion Suite' };
+    }
+
+    return null;
+  };
+
   // Keep processCommandRef in sync with the latest closure every render
   const processCommand = async (cmd: string) => {
     if (!isSystemOnlineRef.current) return;
@@ -893,6 +960,7 @@ NOTE: Each time Master Umesh asks for the brief, these stories are shuffled rand
     setResponseHtml(null);
 
     const lowerCmd = cmd.toLowerCase().trim();
+
     if (lowerCmd.includes("enter system") || lowerCmd.includes("start the application") || lowerCmd.includes("open the app")) {
       await speak("Entering the Architect System.", () => {
         setIsAppStarted(true);
@@ -900,82 +968,47 @@ NOTE: Each time Master Umesh asks for the brief, these stories are shuffled rand
       return;
     }
 
-    // Check if the user is affirming a suggestion from Batman
-    const isAffirmative = ["yes", "sure", "do it", "please", "yeah", "open", "yep", "ok", "okay"].some(word => lowerCmd.includes(word));
+    // ── STEP 1: Smart Navigation Intent Detection (instant, no LLM needed) ───
+    const navIntent = detectNavigationIntent(lowerCmd);
+    if (navIntent) {
+      setActiveMenuTab(navIntent.tab);
+      if (navIntent.tab === 'edit' || navIntent.tab === '3d-render' || navIntent.tab === 'flythrough') {
+        setStorePhase('edit');
+      }
+      const response = `${navIntent.label}, Master Umesh.`;
+      if (navIntent.route && navIntent.route !== '/flythrough') {
+        await speak(response, () => router.push(navIntent.route));
+      } else {
+        await speak(response);
+      }
+      return;
+    }
+
+    // ── STEP 2: Affirmation of a previous Batman suggestion ──────────────────
+    const isAffirmative = ["yes", "sure", "do it", "please", "yeah", "yep", "ok", "okay", "go ahead", "confirm", "proceed"].some(word => lowerCmd.includes(word));
     if (isAffirmative) {
-      // Find the last thing Batman said
       const lastAssistantMsg = [...chatHistoryRef.current].reverse().find(msg => msg.role === 'assistant');
       if (lastAssistantMsg) {
         const contentStr = lastAssistantMsg.content.toLowerCase();
-        // Be more flexible with the prompt matching to handle slight LLM variations
-        if (contentStr.includes("open the") || contentStr.includes("navigate") || contentStr.includes("would you like me to")) {
-          if (contentStr.includes("render zone")) {
-           setActiveMenuTab('render-zone');
-           await speak("Accessing Project Archive, Master Umesh.", () => router.push('/projects'));
-           return;
-        } else if (contentStr.includes("edit")) {
-           setActiveMenuTab('edit');
-           setStorePhase('edit');
-           await speak("Entering Edit Matrix, Master Umesh.", () => router.push('/edit'));
-           return;
-        } else if (contentStr.includes("3d render")) {
-           setActiveMenuTab('3d-render');
-           setStorePhase('edit');
-           await speak("Initializing 3D visualization, Master Umesh.", () => router.push('/3d-render'));
-           return;
-        } else if (contentStr.includes("png to dxf") || contentStr.includes("vector")) {
-           setActiveMenuTab('png-to-dxf');
-           await speak("Initiating vector conversion suite, Master Umesh.", () => router.push('/png-to-dxf'));
-           return;
-        } else if (contentStr.includes("flythrough") || contentStr.includes("flightpath")) {
-           setActiveMenuTab('flythrough');
-           setStorePhase('edit');
-           await speak("Flightpath parameters loaded, Master Umesh.");
-           return;
-        }
+        // Use the same smart detector on what Batman last said to figure out what he was suggesting
+        const suggestedIntent = detectNavigationIntent(contentStr);
+        if (suggestedIntent) {
+          setActiveMenuTab(suggestedIntent.tab);
+          if (suggestedIntent.tab === 'edit' || suggestedIntent.tab === '3d-render' || suggestedIntent.tab === 'flythrough') {
+            setStorePhase('edit');
+          }
+          const response = `${suggestedIntent.label}, Master Umesh.`;
+          if (suggestedIntent.route && suggestedIntent.route !== '/flythrough') {
+            await speak(response, () => router.push(suggestedIntent.route));
+          } else {
+            await speak(response);
+          }
+          return;
         }
       }
     }
 
-    // Voice Navigation Command Protocols
-    if (lowerCmd.includes("render zone") || lowerCmd.includes("project archive") || lowerCmd.includes("projects") || lowerCmd.includes("open projects") || lowerCmd.includes("open render zone")) {
-      setActiveMenuTab('render-zone');
-      await speak("Accessing Project Archive, Master Umesh.", () => {
-        router.push('/projects');
-      });
-      return;
-    }
-    if (lowerCmd.includes("edit matrix") || lowerCmd.includes("open edit") || (lowerCmd.includes("edit") && !lowerCmd.includes("credits"))) {
-      setActiveMenuTab('edit');
-      setStorePhase('edit');
-      await speak("Entering Edit Matrix, Master Umesh.", () => {
-        router.push('/edit');
-      });
-      return;
-    }
-    if (lowerCmd.includes("3d render") || lowerCmd.includes("3d visualization") || lowerCmd.includes("three d render") || lowerCmd.includes("open 3d render") || lowerCmd.includes("open 3d")) {
-      setActiveMenuTab('3d-render');
-      setStorePhase('edit');
-      await speak("Initializing 3D visualization, Master Umesh.", () => {
-        router.push('/3d-render');
-      });
-      return;
-    }
-    if (lowerCmd.includes("flythrough") || lowerCmd.includes("flightpath") || lowerCmd.includes("open flythrough")) {
-      setActiveMenuTab('flythrough');
-      setStorePhase('edit');
-      await speak("Flightpath parameters loaded, Master Umesh.");
-      return;
-    }
-    if (lowerCmd.includes("png to dxf") || lowerCmd.includes("vector") || lowerCmd.includes("open png") || lowerCmd.includes("open vector")) {
-      setActiveMenuTab('png-to-dxf');
-      await speak("Initiating vector conversion suite, Master Umesh.", () => {
-        router.push('/png-to-dxf');
-      });
-      return;
-    }
-
-    // Trigger Streaming Chat
+    // ── STEP 3: Send to LLM for everything else ──────────────────────────────
     await callOpenAIAndStream(cmd);
   };
 
