@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { createClient } from '@supabase/supabase-js';
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
@@ -8,37 +9,35 @@ export const runtime = 'edge';
 /**
  * DELETE /api/delete-project
  * Body: { session_id: string } | { all: true }
- * Deletes from both `projects` and `project_images` tables.
+ * Performs a SOFT DELETE by adding { isDeleted: true } to the state JSON.
  */
 export async function DELETE(request: Request) {
   try {
     const body = await request.json();
     const { session_id, all } = body;
 
-    const headers = {
-      'apikey': SUPABASE_ANON_KEY,
-      'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
-      'Prefer': 'return=minimal',
-    };
+    const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-    const tables = ['projects', 'project_images'];
-
-    for (const table of tables) {
-      let url: string;
-      if (all) {
-        url = `${SUPABASE_URL}/rest/v1/${table}?id=neq.00000000-0000-0000-0000-000000000000`;
-      } else if (session_id) {
-        url = `${SUPABASE_URL}/rest/v1/${table}?session_id=eq.${encodeURIComponent(session_id)}`;
-      } else {
-        return NextResponse.json({ error: 'Must provide session_id or all:true' }, { status: 400 });
+    if (all) {
+      // Fetch all projects to update their state
+      const { data: projects } = await supabase.from('projects').select('session_id, state');
+      if (projects) {
+        for (const proj of projects) {
+          await supabase.from('projects').update({
+            state: { ...proj.state, isDeleted: true }
+          }).eq('session_id', proj.session_id);
+        }
       }
-
-      const res = await fetch(url, { method: 'DELETE', headers });
-      if (!res.ok) {
-        const text = await res.text();
-        console.error(`[delete-project] Supabase error on ${table}:`, res.status, text);
-        // Continue deleting from other tables even if one fails
+    } else if (session_id) {
+      // Fetch single project to update its state
+      const { data: proj } = await supabase.from('projects').select('state').eq('session_id', session_id).single();
+      if (proj) {
+        await supabase.from('projects').update({
+          state: { ...proj.state, isDeleted: true }
+        }).eq('session_id', session_id);
       }
+    } else {
+      return NextResponse.json({ error: 'Must provide session_id or all:true' }, { status: 400 });
     }
 
     return NextResponse.json({ success: true });
