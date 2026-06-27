@@ -106,6 +106,55 @@ export default function VectorEditor({ onClose }: VectorEditorProps) {
     // Initial vectorize if a floor plan exists
     if (currentFloorPlan) {
       triggerVectorize(currentFloorPlan, canvas);
+    } else {
+      const store = useArchitectStore.getState();
+      if (store.plotWidth && store.plotHeight) {
+        const pW = store.plotWidth;
+        const pH = store.plotHeight;
+        const pxPerMeter = 10;
+        const rectW = pW * pxPerMeter;
+        const rectH = pH * pxPerMeter;
+
+        const rect = new Rect({
+          left: (width - rectW) / 2,
+          top: (height - rectH) / 2,
+          width: rectW,
+          height: rectH,
+          fill: 'transparent',
+          stroke: '#00f0ff',
+          strokeWidth: 4,
+          strokeDashArray: [10, 10],
+          selectable: false,
+          evented: false
+        });
+        canvas.add(rect);
+        
+        const text = new IText(`PLOT BOUNDARY\n${pW}m x ${pH}m`, {
+          left: width / 2,
+          top: (height - rectH) / 2 - 40,
+          fontSize: 16,
+          fill: '#00f0ff',
+          fontFamily: 'monospace',
+          textAlign: 'center',
+          originX: 'center',
+          originY: 'bottom',
+          selectable: false,
+          evented: false
+        });
+        canvas.add(text);
+        
+        canvas.renderAll();
+        
+        // Auto-save this basic outline to the store so it doesn't "vanish"
+        setTimeout(() => {
+          try {
+            const base64 = canvas.toDataURL({ format: 'png', multiplier: 2 }).split(',')[1];
+            store.setCurrentFloorPlan(base64);
+          } catch (e) {
+            console.error("Failed to save initial plot boundary", e);
+          }
+        }, 500);
+      }
     }
 
     // Set up canvas event listeners for custom drawing modes
