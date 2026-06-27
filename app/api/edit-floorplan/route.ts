@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { EDIT_FLOORPLAN_PROMPT } from '@/lib/prompts';
+import { callGemini } from '@/lib/gemini';
 
 const FAL_KEY = process.env.FAL_KEY!;
 
@@ -13,7 +14,7 @@ async function callFalGeminiEdit(params: {
   currentFloorPlanBase64: string;
   editInstruction: string;
   collectedParameters: any;
-}, maxRetries = 3): Promise<string> {
+}, maxRetries = 2): Promise<string> {
   const prompt = EDIT_FLOORPLAN_PROMPT(params.editInstruction, params.collectedParameters);
 
   const floorPlanDataUri = params.currentFloorPlanBase64.startsWith('data:')
@@ -60,14 +61,71 @@ async function callFalGeminiEdit(params: {
     } catch (e: any) {
       lastError = e;
       if (attempt < maxRetries) {
-        const delay = 1500 * Math.pow(2, attempt); // 1.5s, 3s, 6s
-        console.warn(`[edit-floorplan] Attempt ${attempt + 1} failed: ${e.message}. Retrying in ${delay}ms...`);
+        const delay = 1000 * Math.pow(2, attempt); // 1s, 2s
+        console.warn(`[edit-floorplan] Attempt ${attempt + 1} failed: ${e.message}. Retrying...`);
         await new Promise(r => setTimeout(r, delay));
       }
     }
   }
 
   throw lastError;
+}
+
+/**
+ * Fallback: Call Google Gemini's multimodal image-to-image pipeline.
+ * Tries gemini-3.1-flash-image-preview, falling back to gemini-3-pro-image.
+ */
+async function callGeminiEdit(params: {
+  currentFloorPlanBase64: string;
+  editInstruction: string;
+  collectedParameters: any;
+}): Promise<string> {
+  const prompt = EDIT_FLOORPLAN_PROMPT(params.editInstruction, params.collectedParameters);
+  
+  // Clean base64 header if present
+  const rawBase64 = params.currentFloorPlanBase64.includes(',')
+    ? params.currentFloorPlanBase64.split(',')[1]
+    : params.currentFloorPlanBase64;
+    
+  const parts = [
+    {
+      inlineData: {
+        mimeType: 'image/png',
+        data: rawBase64
+      }
+    },
+    { text: prompt }
+  ];
+
+  const models = ['gemini-3.1-flash-image-preview', 'gemini-3-pro-image'] as const;
+  let lastError: any;
+
+  for (const model of models) {
+    try {
+      console.log(`[edit-floorplan-fallback] Trying Gemini model: ${model}...`);
+      const res = await callGemini({
+        model,
+        message: undefined,
+        temperature: 0.9,
+        responseModalities: ['image', 'text'],
+        timeoutMs: 50000,
+        _customContents: [{ role: 'user', parts }]
+      } as any);
+
+      const part = res.candidates?.[0]?.content?.parts?.find((p: any) => p.inlineData);
+      if (!part?.inlineData?.data) {
+        throw new Error(`No image returned from Gemini model ${model}`);
+      }
+
+      console.log(`[edit-floorplan-fallback] Success using ${model}`);
+      return part.inlineData.data;
+    } catch (e: any) {
+      lastError = e;
+      console.warn(`[edit-floorplan-fallback] ${model} failed: ${e.message}`);
+    }
+  }
+
+  throw lastError || new Error('All Gemini fallback models failed to edit floorplan');
 }
 
 
@@ -80,15 +138,31 @@ export async function POST(request: Request) {
     }
 
     console.log(`[edit-floorplan] Editing. Instruction: "${editInstruction}"`);
-    const editedFloorPlan = await callFalGeminiEdit({
-      currentFloorPlanBase64,
-      editInstruction,
-      collectedParameters,
-    });
+    
+    let editedFloorPlan: string;
+    let modelUsed = 'grok-imagine-image/edit';
 
-    return NextResponse.json({ editedFloorPlan, modelUsed: 'grok-imagine-image/edit' });
+    try {
+      // Primary: Call fal.ai (Grok Imagine Image Edit)
+      editedFloorPlan = await callFalGeminiEdit({
+        currentFloorPlanBase64,
+        editInstruction,
+        collectedParameters,
+      });
+    } catch (falError: any) {
+      console.warn(`[edit-floorplan] Fal.ai edit failed (${falError.message}). Falling back to Google Gemini...`);
+      // Fallback: Use Gemini Image-to-Image pipeline
+      editedFloorPlan = await callGeminiEdit({
+        currentFloorPlanBase64,
+        editInstruction,
+        collectedParameters,
+      });
+      modelUsed = 'gemini-edit-fallback';
+    }
+
+    return NextResponse.json({ editedFloorPlan, modelUsed });
   } catch (error: any) {
-    console.error('[edit-floorplan] All retries failed:', error.message);
+    console.error('[edit-floorplan] All editing avenues failed:', error.message);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
