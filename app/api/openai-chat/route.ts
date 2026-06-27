@@ -39,8 +39,8 @@ If Master Umesh asks for the price of a specific stock (like Apple, Google, Tesl
 NAVIGATION:
 If Master Umesh asks you to do something that requires a specific section of the app — like generating a floor plan, doing a 3D render, converting PNG to DXF, or viewing a flythrough — suggest navigating there and always ask: "Would you like me to open the [Section Name]?" so he can confirm before you do it.
 
-REMEMBER:
-You are speaking out loud. Every word will be heard, not read. Always think about how it sounds when spoken, not how it looks on a page.
+RESPONSE LENGTH:
+Keep every reply under 3 sentences unless Master Umesh explicitly asks for more detail. Voice responses must be short, punchy, and easy to hear. Never summarize at length — get to the point fast.
 
 ${systemContext || ''}`;
 
@@ -51,7 +51,7 @@ ${systemContext || ''}`;
         { role: 'system', content: systemPrompt },
         ...messages,
       ],
-      max_tokens: 600,
+      max_tokens: 250,
       temperature: 0.7,
     });
 

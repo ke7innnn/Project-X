@@ -84,7 +84,7 @@ export default function StartScreen() {
   const [isSystemOnline, setIsSystemOnline] = useState(true);
   const [statusState, setStatusState] = useState<'idle' | 'listening' | 'thinking' | 'speaking'>('idle');
   const [transcript, setTranscript] = useState('System ready. Click COMM LINK on the left to start.');
-  const [responseHtml, setResponseHtml] = useState<React.ReactNode>(null);
+  const [responseHtml, setResponseHtml] = useState<string | null>(null);
   const chatHistoryRef = useRef<{role: string, content: string}[]>([]);
   const [marketData, setMarketData] = useState<Record<string, number> | null>(null);
   const bgMusicRef = useRef<HTMLAudioElement | null>(null);
@@ -683,11 +683,7 @@ NOTE: Each time Master Umesh asks for the brief, these stories are shuffled rand
               completeResponse += token;
               currentSentence += token;
               
-              setResponseHtml(
-                <div className="bg-[#0f0f18] border border-[#1e1810] rounded-xl p-4 mb-2 text-[#c8a84b] font-mono font-bold">
-                  {completeResponse}
-                </div>
-              );
+              setResponseHtml(completeResponse);
 
               // Use our smart sentence/clause/word-count extractor to queue speaking early!
               let splitResult = extractSpeakableChunk(currentSentence);
@@ -710,11 +706,7 @@ NOTE: Each time Master Umesh asks for the brief, these stories are shuffled rand
             completeResponse += token;
             currentSentence += token;
             
-            setResponseHtml(
-              <div className="bg-[#0f0f18] border border-[#1e1810] rounded-xl p-4 mb-2 text-[#c8a84b] font-mono font-bold">
-                {completeResponse}
-              </div>
-            );
+            setResponseHtml(completeResponse);
           }
         } catch (e) {}
       }
@@ -750,11 +742,7 @@ NOTE: Each time Master Umesh asks for the brief, these stories are shuffled rand
       return;
     }
     
-    setResponseHtml(
-      <div className="bg-[#0f0f18] border border-[#1e1810] rounded-xl p-4 mb-2 text-[#c8a84b] font-mono font-bold">
-        {res.greeting || res.message}
-      </div>
-    );
+    setResponseHtml(res.greeting || res.message);
   };
 
   const processAudioQueue = async () => {
@@ -1371,14 +1359,45 @@ NOTE: Each time Master Umesh asks for the brief, these stories are shuffled rand
           <div className="text-[13px] text-[#c8a84b]">{transcript}</div>
         </div>
 
-        {/* Response */}
-        <div className="w-full mb-4">
-          {responseHtml}
-        </div>
-
-        {/* Render Zone Button (Removed as per user request) */}
+        {/* Response is now shown in the fixed bottom HUD strip, not here */}
 
       </div>
+
+      {/* ── BAT-ASSISTANT RESPONSE HUD STRIP ──────────────────────────────── */}
+      {/* Fixed bottom-center, between Batman's face and the controls panel.  */}
+      {/* Never covers Batman's face. Compact, scrollable, max 4 lines.       */}
+      {responseHtml && (
+        <div
+          className="fixed bottom-[148px] left-1/2 -translate-x-1/2 z-30 pointer-events-none"
+          style={{ width: 'min(600px, 90vw)' }}
+        >
+          <div className="
+            relative
+            bg-black/75 backdrop-blur-md
+            border border-[#c8a84b]/30
+            rounded-xl
+            px-5 py-3
+            shadow-[0_0_24px_rgba(200,168,75,0.12)]
+          ">
+            {/* Corner accents */}
+            <div className="absolute top-0 left-0 w-3 h-3 border-t border-l border-[#c8a84b]/60 rounded-tl-xl" />
+            <div className="absolute top-0 right-0 w-3 h-3 border-t border-r border-[#c8a84b]/60 rounded-tr-xl" />
+            <div className="absolute bottom-0 left-0 w-3 h-3 border-b border-l border-[#c8a84b]/60 rounded-bl-xl" />
+            <div className="absolute bottom-0 right-0 w-3 h-3 border-b border-r border-[#c8a84b]/60 rounded-br-xl" />
+
+            {/* Label */}
+            <div className="text-[8px] tracking-[3px] text-[#c8a84b]/40 uppercase font-mono mb-1.5">BAT-ASSISTANT</div>
+
+            {/* Response text — max 5 lines, scrollable */}
+            <div
+              className="text-[13px] leading-relaxed text-[#e8c96b] font-mono overflow-y-auto"
+              style={{ maxHeight: '6.5rem' }}
+            >
+              {responseHtml}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
