@@ -129,14 +129,15 @@ export const FLOORPLAN_GENERATION_PROMPT = (params: any, natureImageDescription:
   return `You are a professional AutoCAD drafter creating a precise, technical architectural floor plan.
 
 ═══════════════════════════════════════════════════════
-  RULE 1 — THE OUTER BOUNDARY (MOST CRITICAL RULE)
+  RULE 1 — THE EXACT SHAPE (ABSOLUTELY CRITICAL)
 ═══════════════════════════════════════════════════════
-The attached reference image shows a shape (e.g. a leaf, a geometric form, an organic silhouette).
-Your floor plan's OUTER BUILDING WALL must trace THIS EXACT SHAPE as its exterior boundary.
+The attached reference image shows a VERY SPECIFIC SHAPE (e.g. a crescent moon, a leaf, an irregular polygon, etc).
+YOU MUST TRACE THIS EXACT SHAPE TO BE THE OUTER WALL OF THE BUILDING.
 
-• Leave a small, uniform margin/gap (~5-8% of image size) between the edge of the image and the start of the outer wall — this is the "plot boundary setback". The building wall sits just inside this margin.
-• The outer wall line MUST follow every curve, lobe, and point of the reference silhouette exactly.
-• Do NOT replace the shape with a rectangle or any other generic form.
+• CRITICAL FAILURE WARNING: Do NOT draw a generic circle. Do NOT draw a rectangle. You MUST follow the exact curves, spikes, lobes, and irregular geometry of the reference image perfectly.
+• If the reference image is a crescent, your building must be a crescent. If it is a star, your building must be a star.
+• Leave a small, uniform white margin/gap (~5-8% of image size) between the edge of the image and the start of your outer wall.
+• Your outer wall must be a continuous double-line boundary following the exact silhouette provided.
 • ABSOLUTELY NO ROOMS, WALLS, OR TEXT may extend outside this outer wall silhouette.
 
 ═══════════════════════════════════════════════════════
@@ -156,8 +157,7 @@ Your floor plan's OUTER BUILDING WALL must trace THIS EXACT SHAPE as its exterio
 • Windows: Short parallel lines embedded in the wall where windows occur.
 • Furniture: Small, simplified plan-view furniture symbols (bed outline, sofa L-shape, dining table + chairs, kitchen counter L, WC symbol, basin circle) placed inside rooms to indicate scale and function.
 • Labels: Every room must have a clear uppercase label — the letter code and room name (e.g. "A - Living Room") — positioned neatly in the center of the room, sized to fit.
-• NO DIMENSIONS OR TITLES: Do NOT draw any dimension lines, measurement text, scale bars, north arrows, title blocks, or outer rectangular plot borders. The drawing must ONLY contain the floor plan itself on a pure white background.
-• Line quality: Razor-sharp, clean, precise technical drawing lines throughout.
+• ABSOLUTELY NO DIMENSIONS, GRIDS, OR TITLES: This is a CRITICAL rule. You must NOT draw any dimension lines, measurement text, grid lines, scale bars, north arrows, title blocks, or outer rectangular plot borders. The image MUST contain ONLY the pure floor plan floating on a solid white background. Do NOT frame the drawing in a box.
 
 ═══════════════════════════════════════════════════════
   PROJECT PARAMETERS
