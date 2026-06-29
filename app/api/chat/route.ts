@@ -146,6 +146,18 @@ export async function POST(request: Request) {
       }
     }
 
+    // Append image to the last user message if provided
+    if (imageBase64 && squashedMessages.length > 0) {
+      const lastMsg = squashedMessages[squashedMessages.length - 1];
+      if (lastMsg.role === 'user') {
+        const textContent = lastMsg.content;
+        lastMsg.content = [
+          { type: 'text', text: textContent || "Here is the reference image." },
+          { type: 'image_url', image_url: { url: `data:image/jpeg;base64,${imageBase64}` } }
+        ];
+      }
+    }
+
     const messages = [
       {
         role: 'system',
@@ -154,12 +166,17 @@ export async function POST(request: Request) {
       ...squashedMessages
     ];
 
+    // Filter models: if image is present, only use models that support vision
+    const availableModels = imageBase64 
+      ? MODEL_CONFIG.filter(m => m.model.includes('gemini') || m.model.includes('claude'))
+      : MODEL_CONFIG;
+
     // Try each model in order, with per-model retries
     let rawText = '{}';
     let successfulModel = '';
     let lastError: any = null;
 
-    for (const config of MODEL_CONFIG) {
+    for (const config of availableModels) {
       try {
         console.log(`[chat] Trying ${config.model}...`);
         const result = await callModelWithRetry(openRouterKey, messages, config);

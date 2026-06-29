@@ -314,7 +314,7 @@ export default function ChatPanel() {
               const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
               resolve(dataUrl.split(',')[1]);
             };
-            img.onerror = reject;
+            img.onerror = () => reject(new Error('Failed to load image. Ensure it is a valid format (e.g. JPG, PNG).'));
             img.src = e.target?.result as string;
           };
           reader.readAsDataURL(file);
@@ -482,8 +482,9 @@ export default function ChatPanel() {
 
     } catch (err: any) {
       console.error(err);
-      if (err.message !== "429") {
-        addMessage({ role: 'model', parts: [{ text: `Error: ${err.message}` }] });
+      if (err?.message !== "429") {
+        const errorMsg = err?.message || (typeof err === 'string' ? err : 'Unknown error occurred');
+        addMessage({ role: 'model', parts: [{ text: `Error: ${errorMsg}` }] });
       }
     } finally {
       setIsLoading(false);
