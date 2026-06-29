@@ -174,7 +174,39 @@ export default function SupabaseSyncProvider({ children }: { children: React.Rea
           // Restore images (separate table) and merge in
           const imageState = await restoreImages(activeSessionId);
           if (Object.keys(imageState).length > 0) {
-            useArchitectStore.getState().replaceState(imageState);
+            const history = [...(restoredState.conversationHistory || [])];
+            
+            if (imageState.generatedOptions && imageState.generatedOptions.length > 0) {
+              const lastDraftIdx = history.findLastIndex(msg => msg.customType === 'floorplan-drafts');
+              if (lastDraftIdx !== -1) {
+                history[lastDraftIdx] = {
+                  ...history[lastDraftIdx],
+                  customData: { ...history[lastDraftIdx].customData, options: imageState.generatedOptions }
+                };
+              }
+            }
+            
+            if (imageState.lastUploadedImage) {
+              const lastUploadIdx = history.findLastIndex(msg => msg.customType === 'uploaded-image');
+              if (lastUploadIdx !== -1) {
+                history[lastUploadIdx] = {
+                  ...history[lastUploadIdx],
+                  customData: { ...history[lastUploadIdx].customData, base64: imageState.lastUploadedImage }
+                };
+              }
+            }
+            
+            if (imageState.currentFloorPlan) {
+              const lastEditIdx = history.findLastIndex(msg => msg.customType === 'floorplan-edit');
+              if (lastEditIdx !== -1) {
+                history[lastEditIdx] = {
+                  ...history[lastEditIdx],
+                  customData: { ...history[lastEditIdx].customData, editedFloorPlan: imageState.currentFloorPlan }
+                };
+              }
+            }
+
+            useArchitectStore.getState().replaceState({ ...imageState, conversationHistory: history });
           }
         }
       } catch (err) {
