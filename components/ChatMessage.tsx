@@ -151,6 +151,19 @@ export default function ChatMessage({ message, isCustomType, customData }: ChatM
   if (isCustomType === 'uploaded-image') {
     const imgData = message.customData || customData;
     if (!imgData) return null;
+    
+    if (!imgData.base64) {
+      return (
+        <div className="flex justify-start my-4 w-full">
+          <div className="bg-[#0A0E1A] border border-gray-800 rounded-xl p-4 shadow-xl max-w-[85%] w-full">
+             <span className="text-[10px] text-[#FFB000] tracking-wider uppercase font-bold mb-2 block">🖼️ Uploaded Design Reference</span>
+             <p className="text-xs text-white font-semibold">{imgData.description || 'Custom reference image'}</p>
+             <p className="text-[10px] text-gray-500 mt-2 italic">[Image data removed from archive to optimize storage limit]</p>
+          </div>
+        </div>
+      );
+    }
+
     return (
       <div className="flex justify-start my-4 w-full">
         <div className="bg-[#0A0E1A] border border-gray-800 rounded-xl overflow-hidden shadow-xl max-w-[85%] w-full">
@@ -195,7 +208,16 @@ export default function ChatMessage({ message, isCustomType, customData }: ChatM
 
   if (isCustomType === 'floorplan-drafts') {
     const options = (message.customData?.options || customData?.options) as string[] | undefined;
-    if (!options || options.length === 0) return null;
+    if (!options || options.length === 0) {
+      return (
+        <div className={`flex justify-start my-4`}>
+          <div className="max-w-[85%] rounded-2xl p-3 text-sm glass text-gray-200 rounded-tl-sm">
+            <div className="whitespace-pre-wrap">{text}</div>
+            <div className="text-[10px] text-gray-500 mt-2 italic">[Archived draft images have been removed to optimize database storage. Generate new ones to view!]</div>
+          </div>
+        </div>
+      );
+    }
 
     // Check if any option in this particular message is currently the active floor plan
     const selectedIndex = options.findIndex(opt => opt === currentFloorPlan);
@@ -266,7 +288,17 @@ export default function ChatMessage({ message, isCustomType, customData }: ChatM
   if (isCustomType === 'floorplan-edit') {
     const editPlan = message.customData?.editedFloorPlan || customData?.editedFloorPlan;
     const instruction = message.customData?.instruction || customData?.instruction || 'Edit';
-    if (!editPlan) return null;
+    if (!editPlan) {
+      return (
+        <div className={`flex justify-start my-4`}>
+          <div className="max-w-[85%] rounded-2xl p-3 text-sm glass text-gray-200 rounded-tl-sm">
+            <div className="whitespace-pre-wrap">{text}</div>
+            <div className="text-[10px] text-gray-400 mt-2">Instruction: "{instruction}"</div>
+            <div className="text-[10px] text-gray-500 mt-1 italic">[Archived edit image removed to optimize storage]</div>
+          </div>
+        </div>
+      );
+    }
 
     const isActive = currentFloorPlan === editPlan;
 
