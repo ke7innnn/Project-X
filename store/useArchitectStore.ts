@@ -17,6 +17,7 @@ const defaultParameters: CollectedParameters = {
   surroundings: null,
   additionalNotes: [],
   aspectRatio: null,
+  buildingShape: null,
 };
 
 export const useArchitectStore = create<ArchitectStore>((set) => ({

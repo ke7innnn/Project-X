@@ -46,6 +46,7 @@ export interface CollectedParameters {
   additionalNotes: string[];
   aspectRatio: string | null;
   isPlotBurned?: boolean;
+  buildingShape: string | null;
 }
 
 export interface ArchitectStore {
