@@ -151,8 +151,9 @@ export async function POST(request: Request) {
       const lastMsg = squashedMessages[squashedMessages.length - 1];
       if (lastMsg.role === 'user') {
         const textContent = lastMsg.content;
+        const systemDirective = "\\n\\n[SYSTEM: The user just uploaded a reference image. Acknowledge it immediately according to CONVERSATION RULE 2.]";
         lastMsg.content = [
-          { type: 'text', text: textContent || "Here is the reference image." },
+          { type: 'text', text: textContent ? textContent + systemDirective : systemDirective },
           { type: 'image_url', image_url: { url: `data:image/jpeg;base64,${imageBase64}` } }
         ];
       }
@@ -218,9 +219,13 @@ export async function POST(request: Request) {
     const isEditCommand = parsed.isEditCommand !== undefined ? !!parsed.isEditCommand : false;
     let customMessage = null;
 
-    // Prevent phase regression from edit/measure back to generate
+    // Prevent accidental phase regression from edit/measure back to generate
     if ((phase === 'edit' || phase === 'measure') && newPhase === 'generate') {
-      newPhase = null;
+      const generateKeywords = ['regenerate', 'generate again', 'start over', 'new draft', 'new options', 'new floor plans', 'new layout', 'generate'];
+      const userMessageLower = message.toLowerCase().trim();
+      if (!generateKeywords.some(kw => userMessageLower.includes(kw))) {
+        newPhase = null;
+      }
     }
 
     // Prevent accidental export phase transition

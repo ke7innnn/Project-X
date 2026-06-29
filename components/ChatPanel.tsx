@@ -134,7 +134,6 @@ export default function ChatPanel() {
               canvas.height = height;
               const ctx = canvas.getContext('2d');
               ctx?.drawImage(img, 0, 0, width, height);
-              
               const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
               resolve(dataUrl.split(',')[1]);
             };
@@ -143,28 +142,51 @@ export default function ChatPanel() {
           };
           reader.readAsDataURL(file);
         });
+
+        useArchitectStore.getState().setLastUploadedImage(base64Image, text || 'Custom reference image');
         
-        // Save uploaded image in store
-        useArchitectStore.getState().setLastUploadedImage(base64Image, text || "Custom uploaded reference image");
-        useArchitectStore.setState({ selectedNatureImage: null });
-        
-        // Transition to concept phase with history update
-        const updatedHistory = [...conversationHistory];
-        updatedHistory.push({
-          role: 'user',
+        // Add it to the UI history so the user sees it
+        const userMsg = {
+          role: 'user' as const,
           parts: [{ text: text || "Uploaded reference image" }],
-          customType: 'uploaded-image',
+          customType: 'uploaded-image' as const,
           customData: { base64: base64Image, description: text || 'Custom reference image' }
-        });
-        updatedHistory.push({
-          role: 'model',
-          parts: [{
-            text: `Excellent! I have saved your uploaded image/drawing as our design reference. ✦\n\nLet's begin the **Concept** phase. Could you please tell me about:\n1. Your **plot dimensions** (width and height in meters)?\n2. The **plot orientation** (e.g., North-facing, East-facing)?\n3. The **rooms/spaces** you want to include (e.g., 3 bedrooms, double-height living room, kitchen, etc.)?`
-          }]
+        };
+        addMessage(userMsg);
+
+        // Then call the chat API just like a normal message, but include the image
+        const currentParams = useArchitectStore.getState().collectedParameters;
+        
+        // We use the raw text if provided, or empty so the LLM can just process the image
+        const res = await fetch('/api/chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ 
+            message: text, 
+            imageBase64: base64Image,
+            conversationHistory: useArchitectStore.getState().conversationHistory.slice(0, -1), // Don't send the custom uploaded-image message object directly to the API, we send it inside imageBase64
+            collectedParameters: currentParams,
+            phase
+          }),
         });
         
-        useArchitectStore.getState().updateHistory(updatedHistory);
-        useArchitectStore.getState().setPhase('concept');
+        const data = await res.json();
+        
+        if (data.updatedParameters) {
+          useArchitectStore.getState().updateParameters(data.updatedParameters);
+        }
+        
+        if (data.newPhase) {
+          useArchitectStore.getState().setPhase(data.newPhase);
+        }
+        
+        if (data.updatedHistory) {
+          // The updatedHistory from the API doesn't have our uploaded-image object, because we stripped it above.
+          // We need to inject our custom uploaded-image object into the updated history array at the right spot.
+          const finalHistory = [...data.updatedHistory];
+          finalHistory.splice(finalHistory.length - 1, 0, userMsg);
+          useArchitectStore.getState().updateHistory(finalHistory);
+        }
       } catch (err) {
         console.error("Failed to process uploaded reference image:", err);
         addMessage({ 
