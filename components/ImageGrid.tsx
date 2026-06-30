@@ -1,17 +1,23 @@
 'use client';
 
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { NatureImage } from '@/types';
 import NatureImageCard from './NatureImageCard';
 import { useArchitectStore } from '@/store/useArchitectStore';
+import { useShallow } from 'zustand/react/shallow';
 import { ExternalLink, Globe, Search, Download } from 'lucide-react';
 
-export default function ImageGrid({ initialImages, query }: { initialImages: NatureImage[], query: string }) {
+const ImageGrid = React.memo(function ImageGrid({ initialImages, query }: { initialImages: NatureImage[], query: string }) {
   const [images, setImages] = useState<NatureImage[]>(initialImages);
   const [page, setPage] = useState(2);
   const [loading, setLoading] = useState(false);
   const [googleUrl] = useState(`https://www.google.com/search?tbm=isch&q=${encodeURIComponent(query + ' architecture reference')}`);
-  const { selectedNatureImage, setSelectedNatureImage, setHoveredNatureImage, addMessage } = useArchitectStore();
+  const { selectedNatureImage, setSelectedNatureImage, setHoveredNatureImage, addMessage } = useArchitectStore(useShallow(state => ({
+    selectedNatureImage: state.selectedNatureImage,
+    setSelectedNatureImage: state.setSelectedNatureImage,
+    setHoveredNatureImage: state.setHoveredNatureImage,
+    addMessage: state.addMessage
+  })));
 
   const loadMore = async () => {
     setLoading(true);
@@ -79,4 +85,6 @@ export default function ImageGrid({ initialImages, query }: { initialImages: Nat
       </div>
     </div>
   );
-}
+});
+
+export default ImageGrid;

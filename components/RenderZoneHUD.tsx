@@ -5,6 +5,7 @@ import { Phase } from '@/types';
 import { Building2, Pencil, Map, Box, Video, ChevronLeft, Save, RotateCcw } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { playSound } from '@/lib/sounds';
+import { useShallow } from 'zustand/react/shallow';
 
 const STAGES = [
   { id: 'concept', label: 'Concept', icon: Building2 },
@@ -15,7 +16,11 @@ const STAGES = [
 ];
 
 export default function RenderZoneHUD() {
-  const { phase, setPhase, restartProject } = useArchitectStore();
+  const { phase, setPhase, restartProject } = useArchitectStore(useShallow((state) => ({
+    phase: state.phase,
+    setPhase: state.setPhase,
+    restartProject: state.restartProject
+  })));
   const router = useRouter();
   
   // Map internal phases to the 5 UI stages

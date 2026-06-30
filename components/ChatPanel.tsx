@@ -9,6 +9,8 @@ import { Loader2 } from 'lucide-react';
 import { RenderHistoryItem } from '@/types';
 import { playSound } from '@/lib/sounds';
 
+import { useShallow } from 'zustand/react/shallow';
+
 export default function ChatPanel() {
   const { 
     conversationHistory, 
@@ -29,7 +31,26 @@ export default function ChatPanel() {
     setCustomSunpath,
     addRenderHistoryItem,
     setViewingHistoryId
-  } = useArchitectStore();
+  } = useArchitectStore(useShallow((state) => ({
+    conversationHistory: state.conversationHistory,
+    addMessage: state.addMessage,
+    updateHistory: state.updateHistory,
+    phase: state.phase,
+    setPhase: state.setPhase,
+    collectedParameters: state.collectedParameters,
+    isLoading: state.isLoading,
+    setIsLoading: state.setIsLoading,
+    finalRender: state.finalRender,
+    setFinalRender: state.setFinalRender,
+    currentFloorPlan: state.currentFloorPlan,
+    selectedStyle: state.selectedStyle,
+    sunpath: state.sunpath,
+    setSunpath: state.setSunpath,
+    customSunpath: state.customSunpath,
+    setCustomSunpath: state.setCustomSunpath,
+    addRenderHistoryItem: state.addRenderHistoryItem,
+    setViewingHistoryId: state.setViewingHistoryId
+  })));
 
   const [isLocalRenderLoading, setIsLocalRenderLoading] = useState(false);
   

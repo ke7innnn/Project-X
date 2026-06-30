@@ -2,7 +2,7 @@ import { ConversationMessage } from '@/types';
 import LoadingIndicator from './LoadingIndicator';
 import ParametersSummary from './ParametersSummary';
 import { Download, Upload, Library, Type } from 'lucide-react';
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { useArchitectStore } from '@/store/useArchitectStore';
 
 interface ChatMessageProps {
@@ -11,7 +11,7 @@ interface ChatMessageProps {
   customData?: any;
 }
 
-export default function ChatMessage({ message, isCustomType, customData }: ChatMessageProps) {
+const ChatMessage = React.memo(function ChatMessage({ message, isCustomType, customData }: ChatMessageProps) {
   const isUser = message.role === 'user';
   const text = message.parts[0]?.text || '';
   const [isDownloading, setIsDownloading] = useState(false);
@@ -403,4 +403,6 @@ export default function ChatMessage({ message, isCustomType, customData }: ChatM
       </div>
     </div>
   );
-}
+});
+
+export default ChatMessage;

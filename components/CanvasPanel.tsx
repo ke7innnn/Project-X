@@ -11,6 +11,8 @@ import { playSound } from '@/lib/sounds';
 
 const VectorEditor = dynamic(() => import('./VectorEditor'), { ssr: false });
 
+import { useShallow } from 'zustand/react/shallow';
+
 export default function CanvasPanel() {
   const [isEditingVectors, setIsEditingVectors] = useState(false);
   const { 
@@ -38,7 +40,32 @@ export default function CanvasPanel() {
     setRenderHistory,
     viewingHistoryId,
     setViewingHistoryId
-  } = useArchitectStore();
+  } = useArchitectStore(useShallow((state) => ({
+    phase: state.phase,
+    selectedNatureImage: state.selectedNatureImage,
+    hoveredNatureImage: state.hoveredNatureImage,
+    isLoading: state.isLoading,
+    loadingMessage: state.loadingMessage,
+    currentFloorPlan: state.currentFloorPlan,
+    floorPlanHistory: state.floorPlanHistory,
+    previousFloorPlan: state.previousFloorPlan,
+    setPreviousFloorPlan: state.setPreviousFloorPlan,
+    setCurrentFloorPlan: state.setCurrentFloorPlan,
+    finalRender: state.finalRender,
+    setFinalRender: state.setFinalRender,
+    collectedParameters: state.collectedParameters,
+    updateParameters: state.updateParameters,
+    selectedStyle: state.selectedStyle,
+    setSelectedStyle: state.setSelectedStyle,
+    sunpath: state.sunpath,
+    setSunpath: state.setSunpath,
+    customSunpath: state.customSunpath,
+    setCustomSunpath: state.setCustomSunpath,
+    renderHistory: state.renderHistory,
+    setRenderHistory: state.setRenderHistory,
+    viewingHistoryId: state.viewingHistoryId,
+    setViewingHistoryId: state.setViewingHistoryId
+  })));
 
   const [styledFloorPlan, setStyledFloorPlan] = useState<string | null>(null);
   const [reimportedPlan, setReimportedPlan] = useState<string | null>(null);

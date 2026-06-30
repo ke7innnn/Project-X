@@ -1,9 +1,16 @@
 'use client';
 
+import React from 'react';
 import { useArchitectStore } from '@/store/useArchitectStore';
+import { useShallow } from 'zustand/react/shallow';
 
-export default function FloorPlanGrid() {
-  const { generatedOptions, selectedOptionIndex, setSelectedOption, setPhase } = useArchitectStore();
+const FloorPlanGrid = React.memo(function FloorPlanGrid() {
+  const { generatedOptions, selectedOptionIndex, setSelectedOption, setPhase } = useArchitectStore(useShallow(state => ({
+    generatedOptions: state.generatedOptions,
+    selectedOptionIndex: state.selectedOptionIndex,
+    setSelectedOption: state.setSelectedOption,
+    setPhase: state.setPhase
+  })));
 
   if (!generatedOptions || generatedOptions.length === 0) return null;
 
@@ -39,4 +46,6 @@ export default function FloorPlanGrid() {
       </div>
     </div>
   );
-}
+});
+
+export default FloorPlanGrid;
