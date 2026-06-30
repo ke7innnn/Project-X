@@ -157,7 +157,13 @@ export default function EditPage() {
         ctx.drawImage(imgRef.current, 0, 0, compositeCanvas.width, compositeCanvas.height);
         ctx.drawImage(canvasRef.current, 0, 0, compositeCanvas.width, compositeCanvas.height);
         finalPayloadBase64 = compositeCanvas.toDataURL('image/png');
-        finalPrompt = `Where there is green paint, replace that with: ${prompt}. Ensure the green color is completely removed in the output.`;
+        
+        const cleanPrompt = prompt.trim();
+        if (cleanPrompt.toLowerCase().includes('green paint') || cleanPrompt.toLowerCase().includes('green color') || cleanPrompt.toLowerCase().includes('green brush')) {
+          finalPrompt = `${cleanPrompt}. Ensure the green color is completely removed in the output.`;
+        } else {
+          finalPrompt = `Where there is green paint, replace that with: ${cleanPrompt}. Ensure the green color is completely removed in the output.`;
+        }
       }
     }
 
@@ -314,14 +320,14 @@ export default function EditPage() {
         {/* Left Side: Canvas / Image Area */}
         <div className="flex-1 flex flex-col items-center justify-center p-8 relative">
           {currentFloorPlan ? (
-            <div className="relative w-full max-w-4xl aspect-square bg-white rounded-xl shadow-2xl overflow-hidden border-2 border-cyan-500/20 group">
+            <div className="relative max-w-full max-h-[70vh] bg-white rounded-xl shadow-2xl overflow-hidden border-2 border-cyan-500/20 group">
               <img 
                 ref={imgRef}
                 src={currentFloorPlan.startsWith('data:image/') ? currentFloorPlan : `data:image/jpeg;base64,${currentFloorPlan}`} 
                 alt="Current Floor Plan" 
-                className={`w-full h-full object-contain transition-opacity duration-300 ${isEditing ? 'opacity-50 blur-sm' : 'opacity-100'} ${isInpaintMode ? 'pointer-events-none' : ''}`}
+                className={`max-w-full max-h-[70vh] w-auto h-auto block transition-opacity duration-300 ${isEditing ? 'opacity-50 blur-sm' : 'opacity-100'} ${isInpaintMode ? 'pointer-events-none' : ''}`}
                 onLoad={() => {
-                  if (isInpaintMode && imgRef.current && canvasRef.current) {
+                  if (imgRef.current && canvasRef.current) {
                     canvasRef.current.width = imgRef.current.clientWidth;
                     canvasRef.current.height = imgRef.current.clientHeight;
                   }
@@ -336,7 +342,7 @@ export default function EditPage() {
                 onTouchStart={startDrawing}
                 onTouchMove={draw}
                 onTouchEnd={stopDrawing}
-                className={`absolute top-0 left-0 w-full h-full object-contain z-10 touch-none ${!isInpaintMode ? 'hidden' : 'cursor-crosshair'}`}
+                className={`absolute top-0 left-0 w-full h-full z-10 touch-none ${!isInpaintMode ? 'hidden' : 'cursor-crosshair'}`}
               />
               {isEditing && (
                 <div className="absolute inset-0 flex flex-col items-center justify-center bg-[#0a0a0f]/60 backdrop-blur-sm z-20">
