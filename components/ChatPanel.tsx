@@ -360,31 +360,43 @@ export default function ChatPanel() {
         useArchitectStore.getState().setLastUploadedImage(base64Image, text || "Custom uploaded reference image");
       }
 
-      const res = await fetch('/api/chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          message: text,
-          imageBase64: base64Image,
-          conversationHistory: [...conversationHistory, userMsg],
-          collectedParameters,
-          phase,
-          onboardingMode: useArchitectStore.getState().onboardingMode,
-          inpaintActive,
-          inpaintRenderActive
-        })
-      });
+      let data: any;
+      
+      if (inpaintActive || inpaintRenderActive) {
+        // Completely bypass the conversational LLM when an inpaint mask is active
+        data = {
+          reply: `Processing inpaint modification: "${text}"...`,
+          newPhase: null,
+          isEditCommand: true
+        };
+      } else {
+        const res = await fetch('/api/chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            message: text,
+            imageBase64: base64Image,
+            conversationHistory: [...conversationHistory, userMsg],
+            collectedParameters,
+            phase,
+            onboardingMode: useArchitectStore.getState().onboardingMode,
+            inpaintActive,
+            inpaintRenderActive
+          })
+        });
 
-      if (!res.ok) {
-        const errData = await res.json().catch(() => ({}));
-        if (res.status === 429) {
-           alert(errData.reply || "The system is overloaded right now. Please wait a moment and try again.");
-           return;
+        if (!res.ok) {
+          const errData = await res.json().catch(() => ({}));
+          if (res.status === 429) {
+            alert(errData.reply || "The system is overloaded right now. Please wait a moment and try again.");
+            setIsLoading(false);
+            return;
+          }
+          throw new Error(errData.error || `Chat request failed with status ${res.status}`);
         }
-        throw new Error(errData.error || `Chat request failed with status ${res.status}`);
-      }
 
-      const data = await res.json();
+        data = await res.json();
+      }
       
       if (data.reply) {
         updateHistory(data.updatedHistory);
@@ -710,7 +722,9 @@ export default function ChatPanel() {
         onSend={handleSend} 
         disabled={isLoading || (phase === 'search' && useArchitectStore.getState().onboardingMode === 'select')} 
         placeholder={
-          phase === 'search' 
+          (inpaintActive || inpaintRenderActive)
+            ? "DESCRIBE WHAT TO GENERATE IN THE MASKED AREA..."
+            : phase === 'search' 
             ? (useArchitectStore.getState().onboardingMode === 'select' ? "Please select an option above..." 
               : useArchitectStore.getState().onboardingMode === 'library' ? "What nature reference do you want to search?" 
               : useArchitectStore.getState().onboardingMode === 'text' ? "Describe the shape (e.g. 'clove shape')..."
@@ -718,6 +732,7 @@ export default function ChatPanel() {
             : "Type your message..."
         }
         hideAttachment={phase === 'search' && (useArchitectStore.getState().onboardingMode === 'library' || useArchitectStore.getState().onboardingMode === 'text')}
+        overrideColor={(inpaintActive || inpaintRenderActive) ? "border-[#FFB000] bg-[#FFB000]/10 shadow-[0_0_15px_rgba(255,176,0,0.2)]" : ""}
       />
     </div>
   );

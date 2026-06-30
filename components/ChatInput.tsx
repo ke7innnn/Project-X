@@ -9,9 +9,10 @@ interface ChatInputProps {
   disabled?: boolean;
   placeholder?: string;
   hideAttachment?: boolean;
+  overrideColor?: string;
 }
 
-export default function ChatInput({ onSend, disabled, placeholder = "Type your message...", hideAttachment = false }: ChatInputProps) {
+export default function ChatInput({ onSend, disabled, placeholder = "Type your message...", hideAttachment = false, overrideColor = "" }: ChatInputProps) {
   const [text, setText] = useState('');
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
@@ -76,7 +77,7 @@ export default function ChatInput({ onSend, disabled, placeholder = "Type your m
           onChange={(e) => setText(e.target.value)}
           placeholder={placeholder}
           disabled={disabled}
-          className="w-full bg-[#111827] text-white border border-gray-700 rounded-xl px-4 py-3 pr-24 resize-none focus:outline-none focus:ring-1 focus:ring-[#FFB000] disabled:opacity-50 h-[60px]"
+          className={`w-full bg-[#111827] text-white border ${overrideColor || 'border-gray-700'} rounded-xl px-4 py-3 pr-24 resize-none focus:outline-none focus:ring-1 focus:ring-[#FFB000] disabled:opacity-50 h-[60px] transition-all`}
           onKeyDown={(e) => {
             if (e.key === 'Enter' && !e.shiftKey) {
               e.preventDefault();
