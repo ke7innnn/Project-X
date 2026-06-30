@@ -3,7 +3,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useArchitectStore } from '@/store/useArchitectStore';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, Send, PenTool, Loader2, UploadCloud, Folder, Search, Plus, MapPin, Clock, Trash2, Map, Brush, Eraser, Undo2 } from 'lucide-react';
+import { ArrowLeft, Send, PenTool, Loader2, UploadCloud, Folder, Search, Plus, MapPin, Clock, Trash2, Map, Brush, Eraser, Undo2, Box } from 'lucide-react';
 import CinematicIntro from '@/components/CinematicIntro';
 import SaveToProjectModal from '@/components/SaveToProjectModal';
 import { supabase } from '@/lib/supabase';
@@ -449,7 +449,14 @@ YOUR TASK:
       <header className="relative z-10 flex items-center justify-between px-8 py-6 border-b border-[#1e1810] bg-[#0f0f18]/80 backdrop-blur-md shadow-[0_4px_20px_rgba(0,0,0,0.5)]">
         <div className="flex items-center gap-6">
           <button 
-            onClick={() => router.push('/')}
+            onClick={() => {
+              if (sessionId) {
+                useArchitectStore.setState({ phase: 'search' });
+                router.push(`/workspace/${sessionId}`);
+              } else {
+                router.push('/');
+              }
+            }}
             className="flex items-center justify-center w-10 h-10 rounded-full border border-cyan-500/30 hover:border-cyan-400 hover:bg-cyan-500/10 transition-all group"
           >
             <ArrowLeft className="text-cyan-500/70 group-hover:text-cyan-400" size={18} />
@@ -484,6 +491,15 @@ YOUR TASK:
               className="flex items-center gap-2 px-4 py-2 text-[10px] uppercase tracking-widest bg-[#1e1810] border border-cyan-500/30 text-cyan-400 hover:bg-cyan-500/10 hover:border-cyan-400 font-bold rounded transition-colors"
             >
               <Folder size={14} /> Save to Project
+            </button>
+          )}
+
+          {sessionId && (
+            <button 
+              onClick={() => router.push('/3d-render')}
+              className="flex items-center gap-2 px-4 py-2 text-[10px] uppercase tracking-widest bg-cyan-600/80 border border-cyan-400 text-white hover:bg-cyan-500 font-bold rounded shadow-[0_0_10px_rgba(6,182,212,0.3)] transition-all animate-pulse"
+            >
+              <Box size={14} /> Head to 3D Render Section
             </button>
           )}
 

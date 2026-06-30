@@ -200,7 +200,13 @@ export default function Render3DPage() {
       <header className="relative z-10 flex items-center justify-between px-8 py-6 border-b border-[#1e1810] bg-[#0f0f18]/80 backdrop-blur-md shadow-[0_4px_20px_rgba(0,0,0,0.5)]">
         <div className="flex items-center gap-6">
           <button 
-            onClick={() => router.push('/')}
+            onClick={() => {
+              if (sessionId) {
+                router.push(`/workspace/${sessionId}`);
+              } else {
+                router.push('/');
+              }
+            }}
             className="flex items-center justify-center w-10 h-10 rounded-full border border-[#FFB000]/30 hover:border-[#FFB000] hover:bg-[#FFB000]/10 transition-all group cursor-pointer"
           >
             <ArrowLeft className="text-[#FFB000]/70 group-hover:text-[#FFB000]" size={18} />
@@ -638,7 +644,13 @@ export default function Render3DPage() {
           <header className="relative z-10 max-w-7xl mx-auto flex items-center justify-between p-8 border-b border-[#FFB000]/20">
             <div className="flex items-center gap-6">
               <button 
-                onClick={() => router.push('/')}
+                onClick={() => {
+                  if (sessionId) {
+                    router.push(`/workspace/${sessionId}`);
+                  } else {
+                    router.push('/');
+                  }
+                }}
                 className="flex items-center justify-center w-10 h-10 rounded-full border border-[#FFB000]/30 hover:border-[#FFB000] hover:bg-[#FFB000]/10 transition-all group cursor-pointer"
               >
                 <ArrowLeft className="text-[#FFB000]/70 group-hover:text-[#FFB000]" size={18} />

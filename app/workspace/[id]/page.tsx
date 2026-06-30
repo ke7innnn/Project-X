@@ -6,7 +6,7 @@ import CanvasPanel from '@/components/CanvasPanel';
 import RenderZoneHUD from '@/components/RenderZoneHUD';
 import CinematicIntro from '@/components/CinematicIntro';
 import { useArchitectStore } from '@/store/useArchitectStore';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 
 export default function WorkspacePage() {
   const params = useParams();
@@ -16,6 +16,8 @@ export default function WorkspacePage() {
   const currentSessionId = useArchitectStore((state) => state.sessionId);
   const phase = useArchitectStore((state) => state.phase);
 
+  const router = useRouter();
+
   useEffect(() => {
     // If the URL ID is different from our store ID, update the store.
     // This will trigger SupabaseSyncProvider to fetch the new project.
@@ -24,6 +26,13 @@ export default function WorkspacePage() {
       setSessionId(id);
     }
   }, [id, currentSessionId, setSessionId]);
+
+  useEffect(() => {
+    // Auto-redirect to /edit when we enter the editing phase
+    if (isRestored && (phase === 'edit' || phase === 'measure')) {
+      router.push('/edit');
+    }
+  }, [phase, isRestored, router]);
 
   // While restoring from the database, show a cool loader
   if (id !== currentSessionId || !isRestored) {
