@@ -114,7 +114,7 @@ export default function ProjectsDashboard() {
     switchSession(newSessionId, newProjectName, newPlaceName);
 
     // Explicitly insert an initial shell into Supabase so it appears instantly
-    await supabase.from('projects').insert({
+    const insertPromise = supabase.from('projects').insert({
       session_id: newSessionId,
       project_name: newProjectName,
       place_name: newPlaceName,
@@ -122,6 +122,17 @@ export default function ProjectsDashboard() {
         phase: 'search'
       }
     });
+    
+    // Add a timeout fallback in case Supabase API hangs during an outage
+    const timeoutPromise = new Promise((_, reject) => 
+      setTimeout(() => reject(new Error('Supabase request timed out')), 5000)
+    );
+    
+    try {
+      await Promise.race([insertPromise, timeoutPromise]);
+    } catch (err) {
+      console.warn('Supabase insert timed out or failed, proceeding locally', err);
+    }
 
     router.push('/workspace/' + newSessionId);
   };
