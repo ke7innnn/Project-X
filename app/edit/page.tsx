@@ -38,6 +38,8 @@ export default function EditPage() {
   const [isDrawing, setIsDrawing] = useState(false);
   const [hasInpaint, setHasInpaint] = useState(false);
   const [drawingHistory, setDrawingHistory] = useState<string[]>([]);
+  const [strokeRedoHistory, setStrokeRedoHistory] = useState<string[]>([]);
+  const [floorPlanRedoStack, setFloorPlanRedoStack] = useState<string[]>([]);
 
   useEffect(() => {
     const resizeCanvas = () => {
@@ -57,6 +59,7 @@ export default function EditPage() {
     // Save current canvas state to history before drawing new stroke
     const canvas = canvasRef.current;
     setDrawingHistory(prev => [...prev, canvas.toDataURL()]);
+    setStrokeRedoHistory([]);
 
     setIsDrawing(true);
     const ctx = canvas.getContext('2d');
@@ -108,6 +111,7 @@ export default function EditPage() {
     }
     setHasInpaint(false);
     setDrawingHistory([]);
+    setStrokeRedoHistory([]);
   };
 
   const undoStroke = () => {
@@ -115,6 +119,9 @@ export default function EditPage() {
     const canvas = canvasRef.current;
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
+
+    const currentState = canvas.toDataURL();
+    setStrokeRedoHistory(prev => [...prev, currentState]);
 
     const previousStateDataUrl = drawingHistory[drawingHistory.length - 1];
     const img = new Image();
@@ -126,6 +133,26 @@ export default function EditPage() {
       if (drawingHistory.length === 1) {
         setHasInpaint(false);
       }
+    };
+  };
+
+  const redoStroke = () => {
+    if (strokeRedoHistory.length === 0 || !canvasRef.current) return;
+    const canvas = canvasRef.current;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    const currentState = canvas.toDataURL();
+    setDrawingHistory(prev => [...prev, currentState]);
+
+    const nextStateDataUrl = strokeRedoHistory[strokeRedoHistory.length - 1];
+    const img = new Image();
+    img.src = nextStateDataUrl;
+    img.onload = () => {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.drawImage(img, 0, 0);
+      setStrokeRedoHistory(prev => prev.slice(0, -1));
+      setHasInpaint(true);
     };
   };
 
@@ -183,11 +210,26 @@ export default function EditPage() {
         finalPayloadBase64 = compositeCanvas.toDataURL('image/png');
         
         const cleanPrompt = prompt.trim();
-        if (cleanPrompt.toLowerCase().includes('green paint') || cleanPrompt.toLowerCase().includes('green color') || cleanPrompt.toLowerCase().includes('green brush')) {
-          finalPrompt = `${cleanPrompt}. Ensure the green color is completely removed in the output.`;
+        const cleanLower = cleanPrompt.toLowerCase().replace(/^replace\s+green\s+with:\s*/, '').trim();
+        const displayPrompt = cleanPrompt.replace(/^replace\s+green\s+with:\s*/i, '').trim();
+
+        let coreInstruction = '';
+        if (cleanLower === 'empty' || cleanLower === 'empty room' || cleanLower === 'no furniture') {
+          coreInstruction = `Completely empty the room/area highlighted with green paint. Remove all furniture, fixtures, appliances, text labels, and structural details from inside this highlighted room, leaving the floor space entirely blank/empty. Retain the room's walls and doors.`;
         } else {
-          finalPrompt = `Where there is green paint, replace that with: ${cleanPrompt}. Ensure the green color is completely removed in the output.`;
+          coreInstruction = `Identify the room/area highlighted with green paint (even if only a portion of the room is painted, target the entire enclosing room). Replace the entire layout and design inside this room with: a well-detailed "${displayPrompt}". If the room currently contains furniture or a different layout, erase it completely and draw a new premium "${displayPrompt}" layout in its place.`;
         }
+
+        finalPrompt = `
+[CRITICAL DESIGN DIRECTIVE - TARGETED ROOM REPLACEMENT]
+You are an expert architectural draftsperson. The user has uploaded a floor plan where a specific room or area is marked with a semi-transparent green paint overlay.
+
+Your exact instructions are:
+1. Target ONLY the room/area covered by the green paint. Even if the green paint only covers a part of the room, apply the change to the entire enclosing room.
+2. Action: ${coreInstruction}
+3. STRICT PRESERVATION: Do NOT modify, add, remove, or alter ANY walls, doors, windows, text labels, room layouts, furniture, or structures in any other part of the floor plan outside of the green-highlighted area. The rest of the floor plan MUST remain 100% identical to the original image.
+4. Clean Output: Completely remove the green paint overlay in the final generated image. No trace of green paint should remain.
+`;
       }
     }
 
@@ -208,6 +250,7 @@ export default function EditPage() {
         setCurrentFloorPlan(editData.editedFloorPlan);
         setPrompt('');
         clearInpaint();
+        setFloorPlanRedoStack([]); // Clear redo stack on new edit
       } else {
         setError('Edit failed. Please try a different instruction.');
       }
@@ -228,6 +271,7 @@ export default function EditPage() {
       if (base64) {
         setCurrentFloorPlan(base64);
         setPrompt('');
+        setFloorPlanRedoStack([]); // Clear redo stack on new upload
       }
     };
     reader.readAsDataURL(file);
@@ -241,12 +285,30 @@ export default function EditPage() {
   const handleUndo = () => {
     if (floorPlanHistory && floorPlanHistory.length > 1) {
       const newHistory = [...floorPlanHistory];
-      newHistory.pop(); // Remove current one
+      const poppedPlan = newHistory.pop(); // Remove current one
+      if (poppedPlan) {
+        setFloorPlanRedoStack(prev => [...prev, poppedPlan]);
+      }
       const prevPlan = newHistory[newHistory.length - 1];
       replaceState({
         currentFloorPlan: prevPlan,
         floorPlanHistory: newHistory
       });
+    }
+  };
+
+  const handleRedo = () => {
+    if (floorPlanRedoStack.length > 0) {
+      const newRedoStack = [...floorPlanRedoStack];
+      const nextPlan = newRedoStack.pop();
+      if (nextPlan) {
+        setFloorPlanRedoStack(newRedoStack);
+        const newHistory = [...floorPlanHistory, nextPlan];
+        replaceState({
+          currentFloorPlan: nextPlan,
+          floorPlanHistory: newHistory
+        });
+      }
     }
   };
 
@@ -318,6 +380,15 @@ export default function EditPage() {
             </button>
           )}
 
+          {floorPlanRedoStack.length > 0 && (
+            <button 
+              onClick={handleRedo}
+              className="px-4 py-2 text-[10px] uppercase tracking-widest border border-[#c8a84b]/40 text-[#c8a84b] hover:bg-[#c8a84b]/10 rounded transition-colors"
+            >
+              Redo Edit
+            </button>
+          )}
+
           {currentFloorPlan && (
             <>
               <button 
@@ -329,20 +400,32 @@ export default function EditPage() {
               >
                 <Brush size={14} /> {isInpaintMode ? 'Exit Inpaint' : 'Inpaint'}
               </button>
-              {isInpaintMode && hasInpaint && (
+              {isInpaintMode && (hasInpaint || strokeRedoHistory.length > 0) && (
                 <>
-                  <button 
-                    onClick={undoStroke}
-                    className="flex items-center gap-2 px-4 py-2 text-[10px] uppercase tracking-widest border border-yellow-500/50 text-yellow-400 hover:bg-yellow-500/10 rounded transition-colors"
-                  >
-                    <Undo2 size={14} /> Undo Stroke
-                  </button>
-                  <button 
-                    onClick={clearInpaint}
-                    className="flex items-center gap-2 px-4 py-2 text-[10px] uppercase tracking-widest border border-red-500/50 text-red-400 hover:bg-red-500/10 rounded transition-colors"
-                  >
-                    <Eraser size={14} /> Clear Brush
-                  </button>
+                  {hasInpaint && (
+                    <button 
+                      onClick={undoStroke}
+                      className="flex items-center gap-2 px-4 py-2 text-[10px] uppercase tracking-widest border border-yellow-500/50 text-yellow-400 hover:bg-yellow-500/10 rounded transition-colors"
+                    >
+                      <Undo2 size={14} /> Undo Stroke
+                    </button>
+                  )}
+                  {strokeRedoHistory.length > 0 && (
+                    <button 
+                      onClick={redoStroke}
+                      className="flex items-center gap-2 px-4 py-2 text-[10px] uppercase tracking-widest border border-yellow-500/50 text-yellow-400 hover:bg-yellow-500/10 rounded transition-colors"
+                    >
+                      <Undo2 size={14} /> Redo Stroke
+                    </button>
+                  )}
+                  {hasInpaint && (
+                    <button 
+                      onClick={clearInpaint}
+                      className="flex items-center gap-2 px-4 py-2 text-[10px] uppercase tracking-widest border border-red-500/50 text-red-400 hover:bg-red-500/10 rounded transition-colors"
+                    >
+                      <Eraser size={14} /> Clear Brush
+                    </button>
+                  )}
                 </>
               )}
             </>
@@ -424,21 +507,49 @@ export default function EditPage() {
               </div>
             )}
             
-            <form onSubmit={handleEdit} className="relative">
-              <textarea
-                value={prompt}
-                onChange={(e) => setPrompt(e.target.value)}
-                placeholder="ENTER EDIT INSTRUCTION..."
-                disabled={isEditing || !currentFloorPlan}
-                className="w-full h-32 bg-[#0a0a0f] border border-cyan-500/30 focus:border-cyan-400 rounded p-4 text-xs text-white placeholder-cyan-500/30 focus:outline-none focus:ring-1 focus:ring-cyan-400/50 resize-none custom-scrollbar transition-all uppercase tracking-wide disabled:opacity-50"
-              />
-              <button 
-                type="submit"
-                disabled={isEditing || !currentFloorPlan || !prompt.trim()}
-                className="absolute bottom-4 right-4 bg-cyan-500/20 hover:bg-cyan-500/40 text-cyan-400 p-2 rounded transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
-              >
-                {isEditing ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
-              </button>
+            <form onSubmit={handleEdit} className="relative flex flex-col gap-3">
+              {isInpaintMode ? (
+                <div className="flex flex-col gap-2 p-4 bg-[#0a0a0f] border border-cyan-500/30 rounded pr-16 relative">
+                  <div className="flex items-center gap-2">
+                    <span className="text-cyan-500/60 uppercase tracking-widest text-[10px] font-bold whitespace-nowrap">Replace green with:</span>
+                    <input 
+                      type="text"
+                      value={prompt}
+                      onChange={(e) => setPrompt(e.target.value)}
+                      placeholder="e.g. KITCHEN LAYOUT, EMPTY ROOM"
+                      disabled={isEditing || !currentFloorPlan}
+                      className="flex-1 bg-transparent border-b border-cyan-500/30 focus:border-cyan-400 text-xs text-white placeholder-cyan-500/20 focus:outline-none py-1 uppercase tracking-wide disabled:opacity-50"
+                    />
+                  </div>
+                  <span className="text-[9px] text-cyan-500/40 tracking-wider uppercase">
+                    Paint the target room green and enter the new design above. Try "EMPTY ROOM" to remove furniture.
+                  </span>
+                  <button 
+                    type="submit"
+                    disabled={isEditing || !currentFloorPlan || !prompt.trim()}
+                    className="absolute top-1/2 -translate-y-1/2 right-4 bg-cyan-500/20 hover:bg-cyan-500/40 text-cyan-400 p-2 rounded transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                  >
+                    {isEditing ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
+                  </button>
+                </div>
+              ) : (
+                <div className="relative">
+                  <textarea
+                    value={prompt}
+                    onChange={(e) => setPrompt(e.target.value)}
+                    placeholder="ENTER EDIT INSTRUCTION..."
+                    disabled={isEditing || !currentFloorPlan}
+                    className="w-full h-32 bg-[#0a0a0f] border border-cyan-500/30 focus:border-cyan-400 rounded p-4 text-xs text-white placeholder-cyan-500/30 focus:outline-none focus:ring-1 focus:ring-cyan-400/50 resize-none custom-scrollbar transition-all uppercase tracking-wide disabled:opacity-50"
+                  />
+                  <button 
+                    type="submit"
+                    disabled={isEditing || !currentFloorPlan || !prompt.trim()}
+                    className="absolute bottom-4 right-4 bg-cyan-500/20 hover:bg-cyan-500/40 text-cyan-400 p-2 rounded transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                  >
+                    {isEditing ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
+                  </button>
+                </div>
+              )}
             </form>
           </div>
         </div>
