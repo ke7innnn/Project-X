@@ -485,16 +485,19 @@ export default function ChatPanel() {
       }
 
       // Determine if we should run an edit:
-      // - Normal case: user is in edit/measure and isEditCommand is true
+      // - Normal case: user is in edit/measure and isEditCommand is true OR they have drawn an inpaint mask
       // - Retry case: user is in edit/measure and says "try again" / "retry" after a failed edit
       const lowerText = text.toLowerCase().trim();
       const isRetryEdit = alreadyEditing && !data.isEditCommand && lastEditInstructionRef.current &&
         (lowerText.includes('try again') || lowerText.includes('retry') || lowerText.includes('yes try') || lowerText === 'yes');
       const effectiveEditInstruction = isRetryEdit ? lastEditInstructionRef.current : text;
+      
+      const forceEditDueToInpaint = !!(inpaintActive && paintedFloorPlan) || !!(inpaintRenderActive && paintedRender);
+      const shouldRunEdit = data.isEditCommand || isRetryEdit || forceEditDueToInpaint;
 
-      if ((targetPhase === 'edit' || targetPhase === 'measure') && data.newPhase !== 'export' && (data.isEditCommand || isRetryEdit) && effectiveEditInstruction.trim().length > 0) {
+      if ((targetPhase === 'edit' || targetPhase === 'measure') && data.newPhase !== 'export' && shouldRunEdit && effectiveEditInstruction.trim().length > 0) {
         // Save instruction so we can retry if it fails
-        if (data.isEditCommand) lastEditInstructionRef.current = text;
+        if (shouldRunEdit && !isRetryEdit) lastEditInstructionRef.current = text;
         
         const MAX_EDIT_RETRIES = 3;
         let editSuccess = false;
@@ -549,7 +552,7 @@ export default function ChatPanel() {
       }
 
       // ── Edit/Inpainting phase for 3D Render ──────────────────────────────────────────────────
-      if ((targetPhase === 'export' || targetPhase === 'reimport') && data.isEditCommand && viewingHistoryId && effectiveEditInstruction.trim().length > 0) {
+      if ((targetPhase === 'export' || targetPhase === 'reimport') && shouldRunEdit && viewingHistoryId && effectiveEditInstruction.trim().length > 0) {
         const activeRender = renderHistory.find(h => h.id === viewingHistoryId);
         if (activeRender) {
           const MAX_RENDER_EDIT_RETRIES = 3;
