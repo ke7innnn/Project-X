@@ -201,7 +201,8 @@ Let's begin the **Concept** phase. Could you please tell me about:
       phase: 'search',
       conversationHistory: [{
         role: 'model',
-        parts: [{ text: "Welcome! I'm your AI Architect Assistant 🏛️ To get started, would you like to search our library for nature-inspired design references, or upload your own reference image/floor plan?" }]
+        parts: [{ text: "Welcome! I'm your AI Architect Assistant 🏛️ How would you like to provide the reference shape for your floor plan?" }],
+        customType: 'onboarding-options'
       }],
       selectedNatureImage: null,
       hoveredNatureImage: null,
@@ -233,7 +234,8 @@ Let's begin the **Concept** phase. Could you please tell me about:
     phase: 'search',
     conversationHistory: [{
       role: 'model',
-      parts: [{ text: "Welcome! I'm your AI Architect Assistant 🏛️ To get started, would you like to search our library for nature-inspired design references, or upload your own reference image/floor plan?" }]
+      parts: [{ text: "Welcome! I'm your AI Architect Assistant 🏛️ How would you like to provide the reference shape for your floor plan?" }],
+      customType: 'onboarding-options'
     }],
     selectedNatureImage: null,
     hoveredNatureImage: null,
