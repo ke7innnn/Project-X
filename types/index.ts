@@ -69,6 +69,7 @@ export interface ArchitectStore {
   roomDimensions: Record<string, string>;
   currentFloorPlan: string | null;
   previousFloorPlan: string | null;
+  floorPlanHistory: string[];
   finalRender: string | null;
   isLoading: boolean;
   loadingMessage: string;
@@ -99,7 +100,7 @@ export interface ArchitectStore {
   setLoadingMessage: (message: string) => void;
   setLastUploadedImage: (base64: string | null, description: string | null) => void;
   setIsAppStarted: (started: boolean) => void;
-  setSessionId: (id: string) => void;
+  setSessionId: (id: string | null) => void;
   setIsRestored: (restored: boolean) => void;
   setIsAuthenticated: (auth: boolean) => void;
   setSelectedStyle: (style: string) => void;
@@ -110,5 +111,6 @@ export interface ArchitectStore {
   addRenderHistoryItem: (item: RenderHistoryItem) => void;
   replaceState: (state: Partial<ArchitectStore>) => void;
   resetStore: () => void;
+  restartProject: () => void;
   switchSession: (sessionId: string, projectName: string, placeName: string) => void;
 }

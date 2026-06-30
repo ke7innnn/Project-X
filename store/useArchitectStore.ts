@@ -42,6 +42,7 @@ export const useArchitectStore = create<ArchitectStore>((set) => ({
   roomDimensions: {},
   currentFloorPlan: null,
   previousFloorPlan: null,
+  floorPlanHistory: [],
   finalRender: null,
   isLoading: false,
   loadingMessage: '',
@@ -66,6 +67,43 @@ export const useArchitectStore = create<ArchitectStore>((set) => ({
   })),
 
   updateHistory: (history) => set({ conversationHistory: history }),
+  
+  restartProject: () => set((state) => ({
+    projectName: null,
+    placeName: null,
+    phase: 'search',
+    onboardingMode: 'select',
+    conversationHistory: [{
+      role: 'model',
+      parts: [{ text: "Welcome! I'm your AI Architect Assistant 🏛️ How would you like to provide the reference shape for your floor plan?" }],
+      customType: 'onboarding-options'
+    }],
+    selectedNatureImage: null,
+    hoveredNatureImage: null,
+    lastUploadedImage: null,
+    lastUploadedImageDescription: null,
+    collectedParameters: {
+      plotWidth: null, plotHeight: null, plotArea: null, orientation: null,
+      rooms: [], vastuRules: [], sunPath: null, garden: false, parking: false,
+      floors: 1, surroundings: null, additionalNotes: [], aspectRatio: null, buildingShape: null
+    },
+    generatedOptions: [],
+    selectedOptionIndex: null,
+    selectedOptionUrl: null,
+    roomLabels: {},
+    roomDimensions: {},
+    currentFloorPlan: null,
+    previousFloorPlan: null,
+    floorPlanHistory: [],
+    finalRender: null,
+    isLoading: false,
+    loadingMessage: '',
+    selectedStyle: 'Normal',
+    sunpath: 'North',
+    customSunpath: '',
+    renderHistory: [],
+    viewingHistoryId: null,
+  })),
   
   setSelectedNatureImage: (image) => set((state) => {
     const nextPhase = state.phase === 'search' && image ? 'concept' : state.phase;
@@ -118,10 +156,17 @@ Let's begin the **Concept** phase. Could you please tell me about:
   
   setRoomDimensions: (dimensions) => set({ roomDimensions: dimensions }),
   
-  setCurrentFloorPlan: (planUrl) => set((state) => ({ 
-    previousFloorPlan: state.currentFloorPlan,
-    currentFloorPlan: planUrl 
-  })),
+  setCurrentFloorPlan: (planUrl) => set((state) => {
+    if (!planUrl) return { currentFloorPlan: null };
+    const newHistory = [...state.floorPlanHistory];
+    if (newHistory.length === 0 || newHistory[newHistory.length - 1] !== planUrl) {
+      newHistory.push(planUrl);
+    }
+    return {
+      currentFloorPlan: planUrl,
+      floorPlanHistory: newHistory
+    };
+  }),
   
   setPreviousFloorPlan: (planUrl) => set({ previousFloorPlan: planUrl }),
   

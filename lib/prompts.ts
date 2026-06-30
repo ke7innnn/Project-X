@@ -214,3 +214,18 @@ Here are the current floor plan parameters for context (do not mention them unle
 ${JSON.stringify(params, null, 2)}
 `;
 };
+
+export const FINAL_RENDER_PROMPT = (params: any) => {
+  const { renderStyle, sunpathDirection, buildingShape, floors } = params;
+  return `Create a high-quality, photorealistic 3D architectural render based strictly on the provided 2D floor plan.
+Style: ${renderStyle || 'Modern minimalist'}
+Sunlight Direction: ${sunpathDirection || 'Natural daylight'}
+Number of Floors: ${floors || 1}
+Shape / Structure: ${buildingShape || 'Following the exact footprint of the floor plan'}
+
+CRITICAL INSTRUCTIONS:
+- Extrude the walls exactly according to the 2D floor plan. Do not invent new structures outside the footprint.
+- Apply high-quality textures, realistic global illumination, and ray-traced shadows.
+- Ensure the lighting direction strictly matches the requested sunpath direction.
+- The environment should reflect the requested style beautifully.`;
+};

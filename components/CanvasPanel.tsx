@@ -19,6 +19,7 @@ export default function CanvasPanel() {
     isLoading, 
     loadingMessage,
     currentFloorPlan,
+    floorPlanHistory,
     previousFloorPlan,
     setPreviousFloorPlan,
     setCurrentFloorPlan,
@@ -264,21 +265,27 @@ export default function CanvasPanel() {
           </div>
         )}
         
-        {previousFloorPlan && (
-          <div className="absolute top-4 right-4 z-40 bg-[#0A0E1A] p-2 rounded-lg border border-gray-700 shadow-xl w-48">
-            <p className="text-xs text-gray-400 mb-2">Previous Version</p>
-            <img src={`data:image/jpeg;base64,${previousFloorPlan}`} alt="Previous" className="w-full aspect-square object-contain rounded bg-white" />
-            <button 
-              onClick={() => {
-                setCurrentFloorPlan(previousFloorPlan);
-                setPreviousFloorPlan(null);
-                updateParameters({ isPlotBurned: false });
-                resetZoom();
-              }}
-              className="mt-2 w-full text-xs py-1 border border-[#FFB000] text-[#FFB000] rounded hover:bg-[#FFB000]/10"
-            >
-              ↩ Restore
-            </button>
+        {floorPlanHistory && floorPlanHistory.length > 1 && (
+          <div className="absolute left-6 top-6 bottom-6 w-24 bg-[#0A0E1A]/80 backdrop-blur-md border border-[#222] rounded-xl z-40 flex flex-col items-center py-4 overflow-y-auto shadow-2xl space-y-6 custom-scrollbar hidden md:flex">
+            <h3 className="text-[10px] uppercase tracking-widest text-[#666] font-bold mb-2">History</h3>
+            {floorPlanHistory.map((historyBase64, idx) => {
+              const isCurrent = historyBase64 === currentFloorPlan;
+              return (
+                <div 
+                  key={idx}
+                  onClick={() => {
+                    setCurrentFloorPlan(historyBase64);
+                    updateParameters({ isPlotBurned: false });
+                    resetZoom();
+                  }}
+                  className={`relative w-16 h-16 rounded-lg cursor-pointer transition-all duration-300 border-2 flex-shrink-0 ${isCurrent ? 'border-[#FFB000] scale-110 shadow-[0_0_15px_rgba(255,176,0,0.4)]' : 'border-transparent opacity-50 hover:opacity-100 hover:border-[#444]'}`}
+                  title={`Version ${idx + 1}`}
+                >
+                  <img src={historyBase64.startsWith('data:') ? historyBase64 : `data:image/jpeg;base64,${historyBase64}`} alt={`v${idx+1}`} className="w-full h-full object-cover rounded bg-white" />
+                  <div className="absolute -bottom-5 left-0 right-0 text-center text-[9px] text-[#888] font-bold">V{idx + 1}</div>
+                </div>
+              );
+            })}
           </div>
         )}
 
