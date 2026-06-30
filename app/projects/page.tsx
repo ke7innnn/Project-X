@@ -21,25 +21,38 @@ function ProjectThumbnail({ session_id, projectName }: { session_id: string, pro
   useEffect(() => {
     if (!thumb && !isFetching) {
       setIsFetching(true);
-      // First try project_images (new projects)
-      supabase.from('project_images')
-        .select('final_render, current_floor_plan')
-        .eq('session_id', session_id)
-        .single()
-        .then(({ data }) => {
+      
+      const fetchThumb = async () => {
+        try {
+          // First try project_images (new projects)
+          const { data } = await supabase
+            .from('project_images')
+            .select('final_render, current_floor_plan')
+            .eq('session_id', session_id)
+            .single();
+
           if (data && (data.final_render || data.current_floor_plan)) {
             setThumb(data.final_render || data.current_floor_plan);
-            setIsFetching(false);
           } else {
             // Fallback for old projects: fetch massive blob specifically for this one row
-            supabase.from('projects').select('finalRender:state->>finalRender, currentFloorPlan:state->>currentFloorPlan').eq('session_id', session_id).single()
-              .then(({ data: oldData }) => {
-                 if (oldData) setThumb(oldData.finalRender || oldData.currentFloorPlan);
-                 setIsFetching(false);
-              }).catch(() => setIsFetching(false));
+            const { data: oldData } = await supabase
+              .from('projects')
+              .select('finalRender:state->>finalRender, currentFloorPlan:state->>currentFloorPlan')
+              .eq('session_id', session_id)
+              .single();
+              
+            if (oldData) {
+              setThumb(oldData.finalRender || oldData.currentFloorPlan);
+            }
           }
-        })
-        .catch(() => setIsFetching(false));
+        } catch (err) {
+          console.error("Error fetching thumbnail:", err);
+        } finally {
+          setIsFetching(false);
+        }
+      };
+
+      fetchThumb();
     }
   }, [session_id, thumb, isFetching]);
 
@@ -232,7 +245,6 @@ export default function ProjectsDashboard() {
             {projects.map((proj: any) => {
               const name = proj.projectName || proj.state?.projectName || 'Untitled Project';
               const place = proj.placeName || proj.state?.placeName || 'Unknown Location';
-              const fallbackThumb = proj.finalRender || proj.currentFloorPlan || proj.state?.finalRender || proj.state?.currentFloorPlan;
               const date = new Date(proj.updated_at).toLocaleDateString();
 
               return (
@@ -242,7 +254,7 @@ export default function ProjectsDashboard() {
                   className="group bg-[#0f0f18]/80 backdrop-blur border border-[#FFB000]/20 hover:border-[#FFB000] rounded-xl overflow-hidden cursor-pointer transition-all duration-300 shadow-lg hover:shadow-[0_0_30px_rgba(255,176,0,0.2)] flex flex-col"
                 >
                   <div className="relative aspect-video bg-[#0a0a0f] flex items-center justify-center border-b border-[#FFB000]/10 overflow-hidden">
-                    <ProjectThumbnail session_id={proj.session_id} fallbackThumb={fallbackThumb} projectName={name} />
+                    <ProjectThumbnail session_id={proj.session_id} projectName={name} />
                     <div className="absolute inset-0 bg-gradient-to-t from-[#0f0f18] to-transparent opacity-80" />
                     <button
                       onClick={(e) => {
