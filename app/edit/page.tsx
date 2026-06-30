@@ -3,7 +3,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useArchitectStore } from '@/store/useArchitectStore';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, Send, PenTool, Loader2, UploadCloud, Folder, Search, Plus, MapPin, Clock, Trash2, Map, Brush, Eraser } from 'lucide-react';
+import { ArrowLeft, Send, PenTool, Loader2, UploadCloud, Folder, Search, Plus, MapPin, Clock, Trash2, Map, Brush, Eraser, Undo2 } from 'lucide-react';
 import CinematicIntro from '@/components/CinematicIntro';
 import SaveToProjectModal from '@/components/SaveToProjectModal';
 import { supabase } from '@/lib/supabase';
@@ -11,9 +11,8 @@ import { v4 as uuidv4 } from 'uuid';
 
 export default function EditPage() {
   const router = useRouter();
-  const { currentFloorPlan, previousFloorPlan, setCurrentFloorPlan, setPreviousFloorPlan, collectedParameters, roomDimensions, sessionId, projectName, placeName } = useArchitectStore();
+  const { currentFloorPlan, floorPlanHistory, setCurrentFloorPlan, collectedParameters, roomDimensions, sessionId, projectName, placeName, replaceState } = useArchitectStore();
   const switchSession = useArchitectStore(state => state.switchSession);
-  const { replaceState } = useArchitectStore();
 
   const [prompt, setPrompt] = useState('');
   const [isEditing, setIsEditing] = useState(false);
@@ -38,6 +37,7 @@ export default function EditPage() {
   const imgRef = useRef<HTMLImageElement>(null);
   const [isDrawing, setIsDrawing] = useState(false);
   const [hasInpaint, setHasInpaint] = useState(false);
+  const [drawingHistory, setDrawingHistory] = useState<string[]>([]);
 
   useEffect(() => {
     const resizeCanvas = () => {
@@ -53,8 +53,12 @@ export default function EditPage() {
 
   const startDrawing = (e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) => {
     if (!isInpaintMode || !canvasRef.current) return;
-    setIsDrawing(true);
+    
+    // Save current canvas state to history before drawing new stroke
     const canvas = canvasRef.current;
+    setDrawingHistory(prev => [...prev, canvas.toDataURL()]);
+
+    setIsDrawing(true);
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
     
@@ -103,6 +107,26 @@ export default function EditPage() {
       }
     }
     setHasInpaint(false);
+    setDrawingHistory([]);
+  };
+
+  const undoStroke = () => {
+    if (drawingHistory.length === 0 || !canvasRef.current) return;
+    const canvas = canvasRef.current;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    const previousStateDataUrl = drawingHistory[drawingHistory.length - 1];
+    const img = new Image();
+    img.src = previousStateDataUrl;
+    img.onload = () => {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.drawImage(img, 0, 0);
+      setDrawingHistory(prev => prev.slice(0, -1));
+      if (drawingHistory.length === 1) {
+        setHasInpaint(false);
+      }
+    };
   };
 
   useEffect(() => {
@@ -202,7 +226,6 @@ export default function EditPage() {
     reader.onload = (event) => {
       const base64 = event.target?.result as string;
       if (base64) {
-        setPreviousFloorPlan(currentFloorPlan); // Save current state for undo
         setCurrentFloorPlan(base64);
         setPrompt('');
       }
@@ -216,9 +239,14 @@ export default function EditPage() {
   };
 
   const handleUndo = () => {
-    if (previousFloorPlan) {
-      setCurrentFloorPlan(previousFloorPlan);
-      setPreviousFloorPlan(null);
+    if (floorPlanHistory && floorPlanHistory.length > 1) {
+      const newHistory = [...floorPlanHistory];
+      newHistory.pop(); // Remove current one
+      const prevPlan = newHistory[newHistory.length - 1];
+      replaceState({
+        currentFloorPlan: prevPlan,
+        floorPlanHistory: newHistory
+      });
     }
   };
 
@@ -281,12 +309,12 @@ export default function EditPage() {
             Switch Project
           </button>
           
-          {previousFloorPlan && (
+          {floorPlanHistory && floorPlanHistory.length > 1 && (
             <button 
               onClick={handleUndo}
               className="px-4 py-2 text-[10px] uppercase tracking-widest border border-[#c8a84b]/40 text-[#c8a84b] hover:bg-[#c8a84b]/10 rounded transition-colors"
             >
-              Undo Last Edit
+              Undo Edit
             </button>
           )}
 
@@ -302,12 +330,20 @@ export default function EditPage() {
                 <Brush size={14} /> {isInpaintMode ? 'Exit Inpaint' : 'Inpaint'}
               </button>
               {isInpaintMode && hasInpaint && (
-                <button 
-                  onClick={clearInpaint}
-                  className="flex items-center gap-2 px-4 py-2 text-[10px] uppercase tracking-widest border border-red-500/50 text-red-400 hover:bg-red-500/10 rounded transition-colors"
-                >
-                  <Eraser size={14} /> Clear Brush
-                </button>
+                <>
+                  <button 
+                    onClick={undoStroke}
+                    className="flex items-center gap-2 px-4 py-2 text-[10px] uppercase tracking-widest border border-yellow-500/50 text-yellow-400 hover:bg-yellow-500/10 rounded transition-colors"
+                  >
+                    <Undo2 size={14} /> Undo Stroke
+                  </button>
+                  <button 
+                    onClick={clearInpaint}
+                    className="flex items-center gap-2 px-4 py-2 text-[10px] uppercase tracking-widest border border-red-500/50 text-red-400 hover:bg-red-500/10 rounded transition-colors"
+                  >
+                    <Eraser size={14} /> Clear Brush
+                  </button>
+                </>
               )}
             </>
           )}
