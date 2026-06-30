@@ -200,19 +200,29 @@ FINAL CHECK before outputting: Confirm that (1) the outer wall perfectly traces 
 export const EDIT_FLOORPLAN_PROMPT = (editInstruction: string, params: any) => {
   const instructionStr = editInstruction.toLowerCase();
 
+  if (instructionStr.includes('merge') || instructionStr.includes('join') || instructionStr.includes('combine') || instructionStr.includes('remove wall') || instructionStr.includes('delete wall') || instructionStr.includes('open plan') || (instructionStr.includes('remove') && instructionStr.includes('wall'))) {
+    return `This is an architectural floor plan drawing. Look at this specific instruction regarding combining or merging rooms: "${editInstruction}".
+Follow that instruction exactly. Erase the specified partition/dividing walls, creating a clean, open, and continuous interior space. Erase the old separate room labels and write a unified, clear label centered inside the newly merged room. If the user specifies a specific flat or unit (e.g., "B - Guest Room"), ONLY modify the walls for that specific unit and leave the other units (e.g. Unit A) completely untouched. Do NOT alter outer boundaries, structural columns, or other unrelated room setups. Maintain the exact same black and white CAD drawing style throughout.`;
+  }
+
+  if (instructionStr.includes('partition') || instructionStr.includes('split') || instructionStr.includes('divide') || instructionStr.includes('divider') || instructionStr.includes('half')) {
+    return `This is an architectural floor plan drawing. Look at this specific instruction regarding splitting or partitioning a room: "${editInstruction}".
+Follow that instruction exactly. Draw a new straight wall (matching the exact double-line thickness of the existing interior walls) to split the space. Add a door arc or entryway in the partition wall if requested, and clean up or rename the room labels/letters inside the new sub-divided spaces. Do NOT change other outer building outlines, staircases, or unrelated room configurations. Maintain the exact same black and white CAD drawing style throughout.`;
+  }
+
   if (instructionStr.includes('furniture') || instructionStr.includes('remove') || instructionStr.includes('empty')) {
     return `This is an architectural floor plan drawing. Look at this specific instruction regarding furniture: "${editInstruction}".
-Follow that instruction exactly. If instructed to remove furniture, fill those areas with clean solid white. Do NOT touch or modify any walls, wall lines, room dividers, doors, door arcs, windows, room labels, text, staircases, or the outer building boundary/outline. The structural elements must remain exactly identical. Only the specified furniture is modified. Maintain the exact same black and white architectural drawing style throughout.`;
+Follow that instruction exactly. If instructed to remove furniture, fill those areas with clean solid white. Do NOT touch or modify any walls, wall lines, room dividers, doors, door arcs, windows, room labels, text, staircases, or the outer building boundary/outline. The structural elements must remain exactly identical. Only the specified furniture is modified. If the user specifies a specific flat or unit (e.g., "B - Guest Room" or "A-"), ONLY modify the furniture for that specific unit and leave all other units completely untouched. Maintain the exact same black and white architectural drawing style throughout.`;
   }
 
   if (instructionStr.includes('swap') || instructionStr.includes('exchange') || instructionStr.includes('position')) {
     return `This is an architectural floor plan drawing. Look at this specific instruction regarding moving or swapping rooms: "${editInstruction}".
-Follow that instruction exactly. Move the requested furniture and appliances to the new rooms as instructed. The room shapes, sizes and wall positions must stay exactly the same. Do NOT modify any walls, wall lines, room dividers, doors, door arcs, windows, room labels, text, staircases, or the outer building boundary/outline. Only the furniture inside the specified rooms moves position. Maintain the exact same black and white architectural drawing style throughout.`;
+Follow that instruction exactly. Move the requested furniture and appliances to the new rooms as instructed. The room shapes, sizes and wall positions must stay exactly the same. Do NOT modify any walls, wall lines, room dividers, doors, door arcs, windows, room labels, text, staircases, or the outer building boundary/outline. Only the furniture inside the specified rooms moves position. If the user specifies a specific flat or unit, ONLY apply changes to that unit. Maintain the exact same black and white architectural drawing style throughout.`;
   }
 
   if (instructionStr.includes('replace') || instructionStr.includes('text') || instructionStr.includes('label') || instructionStr.includes('6x6') || instructionStr.includes('6mm')) {
     return `This is an architectural floor plan drawing. Look at this specific instruction regarding text replacement: "${editInstruction}".
-Follow that instruction exactly to replace the requested text. CRITICAL TEXT SIZE: The new text must be medium-sized and perfectly readable. It should be exactly the same scale as the other room labels in the drawing—not too giant, and not microscopically small. Keep it in the exact same position and same clear black font style. Do NOT change anything else — do not modify any walls, wall lines, room dividers, doors, door arcs, windows, furniture, staircases, or the outer building boundary/outline. Only the specific requested text changes. Maintain the exact same black and white architectural drawing style throughout.`;
+Follow that instruction exactly to replace the requested text. CRITICAL TEXT SIZE: The new text must be medium-sized and perfectly readable. It should be exactly the same scale as the other room labels in the drawing—not too giant, and not microscopically small. Keep it in the exact same position and same clear black font style. Do NOT change anything else — do not modify any walls, wall lines, room dividers, doors, door arcs, windows, furniture, staircases, or the outer building boundary/outline. Only the specific requested text changes. If the user specifies a specific flat or unit, ONLY modify text in that unit. Maintain the exact same black and white architectural drawing style throughout.`;
   }
 
   if (instructionStr.includes('door') || instructionStr.includes('gate') || instructionStr.includes('entryway')) {
@@ -223,16 +233,6 @@ Follow that instruction exactly. If adding a door, create a clean gap in the dou
   if (instructionStr.includes('window') || instructionStr.includes('glazing')) {
     return `This is an architectural floor plan drawing. Look at this specific instruction regarding windows: "${editInstruction}".
 Follow that instruction exactly. If adding a window, draw it as neat parallel lines embedded inside the wall line. If removing, replace it with a solid double-line wall. Ensure all window frames align perfectly with the walls. Do NOT modify other walls, rooms, doors, text, or the general layout. Maintain the exact same black and white CAD drawing style throughout.`;
-  }
-
-  if (instructionStr.includes('partition') || instructionStr.includes('split') || instructionStr.includes('divide') || instructionStr.includes('divider') || instructionStr.includes('half')) {
-    return `This is an architectural floor plan drawing. Look at this specific instruction regarding splitting or partitioning a room: "${editInstruction}".
-Follow that instruction exactly. Draw a new straight wall (matching the exact double-line thickness of the existing interior walls) to split the space. Add a door arc or entryway in the partition wall if requested, and clean up or rename the room labels/letters inside the new sub-divided spaces. Do NOT change other outer building outlines, staircases, or unrelated room configurations. Maintain the exact same black and white CAD drawing style throughout.`;
-  }
-
-  if (instructionStr.includes('merge') || instructionStr.includes('join') || instructionStr.includes('combine') || instructionStr.includes('remove wall') || instructionStr.includes('open plan')) {
-    return `This is an architectural floor plan drawing. Look at this specific instruction regarding combining or merging rooms: "${editInstruction}".
-Follow that instruction exactly. Erase the specified partition/dividing walls, creating a clean, open, and continuous interior space. Erase the old separate room labels and write a unified, clear label centered inside the newly merged room. Do NOT alter outer boundaries, structural columns, or other unrelated room setups. Maintain the exact same black and white CAD drawing style throughout.`;
   }
 
   if (instructionStr.includes('stairs') || instructionStr.includes('staircase') || instructionStr.includes('lift') || instructionStr.includes('elevator')) {
