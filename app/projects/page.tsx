@@ -97,7 +97,7 @@ export default function ProjectsDashboard() {
       if (error) throw error;
       
       // Filter out soft-deleted projects
-      const activeProjects = (data || []).filter(p => !p.is_deleted);
+      const activeProjects = (data || []).filter((p: any) => !p.is_deleted);
       setProjects(activeProjects as any);
     } catch (err) {
       console.error('Error fetching projects:', err);
