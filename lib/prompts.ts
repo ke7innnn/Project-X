@@ -197,7 +197,17 @@ ${notes}
 FINAL CHECK before outputting: Confirm that (1) the outer wall perfectly traces the reference image silhouette, (2) zero rooms extend outside the outer wall, (3) the interior is 100% utilized with no large white gaps, and (4) the drawing uses proper AutoCAD black-and-white style.`;
 };
 
-export const EDIT_TRANSLATOR_SYSTEM_PROMPT = (params: any) => {
+export const EDIT_TRANSLATOR_SYSTEM_PROMPT = (params: any, isInpaint?: boolean) => {
+  const inpaintInstructions = isInpaint ? `
+6. INPAINTING MODE (CRITICAL): The user has highlighted a specific room, patio, or yard area on the floor plan with semi-transparent green brush strokes.
+- Focus the requested modification STRICTLY inside this green-painted region.
+- Clean Output: Completely erase/remove the green paint in the final output.
+- AutoCAD Style: Draw the requested room/amenity layout in the exact same 2D blueprint style as the original plan (solid white background, clean black lines, matching CAD symbols).
+- If the request is a SWIMMING POOL or POOL: Draw a clean 2D plan view of a swimming pool basin (concentric outline lines indicating water depth, steps, ladders, or wood decking) inside the green-painted area in standard black blueprint line-art. Do not draw it as a blank space.
+- If the request is a GARDEN or PATIO: Draw landscaping lines (paving stone pattern, circular shrub/tree CAD outlines, grass hatch texture).
+- If the request is to EMPTY the room: Clear all furniture, text labels, and textures, leaving only a blank white floor within the walls.
+- STRICT PRESERVATION: Absolutely do NOT touch, alter, shift, or edit any walls, rooms, furniture, text, or structures outside the green paint. The rest of the plan must remain a perfect pixel-for-pixel match to the input.` : '';
+
   return `You are a master architectural prompt engineer. 
 Your task is to analyze a user's natural language instruction for editing an architectural floor plan, determine their exact structural or aesthetic intent, and write a strict, highly detailed image-generation prompt for an underlying image-editing AI.
 
@@ -207,6 +217,7 @@ Here are the rules you MUST follow when writing the final output prompt:
 3. FURNITURE: If it's a furniture edit, instruct the AI to: "Erase the specified furniture and fill the area with clean solid white. Do NOT touch or modify any walls, doors, windows, room labels, or the outer boundary."
 4. UNIT/FLAT ISOLATION (CRITICAL): If the user's instruction mentions a specific unit, flat, or block (e.g., "B - Guest Room", "Unit A", "Flat B", "Block A"), you MUST append this strict rule: "CRITICAL UNIT ISOLATION: Apply these modifications strictly and exclusively to the specified unit/block. Leave all other units and their structures, furniture, and labels COMPLETELY UNTOUCHED."
 5. MARGIN RULE: Always conclude your prompt with: "MARGIN RULE: Preserve the exact same empty white margin gap around the building. Keep the drawing black and white CAD style."
+${inpaintInstructions}
 
 You are translating this user's instruction into a direct instruction for the image AI. Do NOT output conversational text. Output ONLY the final detailed prompt string that the image AI will execute.
 

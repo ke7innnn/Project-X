@@ -189,6 +189,37 @@ export default function EditPage() {
     }
   };
 
+const getRoomSpecificCADInstructions = (userInput: string) => {
+  const clean = userInput.toLowerCase();
+  
+  if (clean.includes('pool') || clean.includes('swimming')) {
+    return 'Draw a detailed 2D plan view architectural swimming pool layout inside the green area. Use standard black blueprint drawing symbols: show the pool outline, steps/stairs, water depth lines, and an optional wood deck or tile coping border surrounding the pool. Keep it strictly in the black and white 2D drafting style.';
+  }
+  if (clean.includes('kitchen')) {
+    return 'Draw a standard 2D kitchen layout inside the green area: countertops, kitchen sink basin, range/stove burners, refrigerator space, and cabinets in black CAD outline style.';
+  }
+  if (clean.includes('bath') || clean.includes('toilet') || clean.includes('washroom')) {
+    return 'Draw bathroom details in 2D plan view: a bathtub, toilet, washbasin, and shower cabinet using standard black blueprint CAD symbols.';
+  }
+  if (clean.includes('bed')) {
+    return 'Draw a detailed bedroom layout: double or single bed outlines with pillows, bedside tables, wardrobes, and closets in black line art.';
+  }
+  if (clean.includes('living') || clean.includes('lounge') || clean.includes('hall')) {
+    return 'Draw living room furniture configurations: couch/sofa outlines, a coffee table, media console, and armchairs in clean black CAD lines.';
+  }
+  if (clean.includes('garden') || clean.includes('yard') || clean.includes('lawn') || clean.includes('outdoor') || clean.includes('patio')) {
+    return 'Draw outdoor landscaping features inside the green area: paving stones grid, circular tree/shrub blueprint symbols, grass hatch texturing, and simple patio furniture symbols.';
+  }
+  if (clean.includes('parking') || clean.includes('garage') || clean.includes('car')) {
+    return 'Draw car parking layouts: parking spaces with clean 2D outline symbols of parked cars.';
+  }
+  if (clean === 'empty' || clean === 'empty room' || clean === 'no furniture') {
+    return 'Completely vacate the space. Erase all furniture, fixtures, appliances, text labels, and structural details from inside this room, leaving it entirely blank/empty. Keep only the outer bounding walls and doors.';
+  }
+  
+  return `Erase the existing contents and draw a clean, detailed 2D plan view layout for a "${userInput}" inside this room. Use standard architectural CAD blueprint furniture symbols.`;
+};
+
   const handleEdit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!prompt.trim() || !currentFloorPlan || isEditing) return;
@@ -213,22 +244,18 @@ export default function EditPage() {
         const cleanLower = cleanPrompt.toLowerCase().replace(/^replace\s+green\s+with:\s*/, '').trim();
         const displayPrompt = cleanPrompt.replace(/^replace\s+green\s+with:\s*/i, '').trim();
 
-        let coreInstruction = '';
-        if (cleanLower === 'empty' || cleanLower === 'empty room' || cleanLower === 'no furniture') {
-          coreInstruction = `Completely empty the room/area highlighted with green paint. Remove all furniture, fixtures, appliances, text labels, and structural details from inside this highlighted room, leaving the floor space entirely blank/empty. Retain the room's walls and doors.`;
-        } else {
-          coreInstruction = `Identify the room/area highlighted with green paint (even if only a portion of the room is painted, target the entire enclosing room). Replace the entire layout and design inside this room with: a well-detailed "${displayPrompt}". If the room currently contains furniture or a different layout, erase it completely and draw a new premium "${displayPrompt}" layout in its place.`;
-        }
+        const coreInstruction = getRoomSpecificCADInstructions(cleanLower);
 
         finalPrompt = `
-[CRITICAL DESIGN DIRECTIVE - TARGETED ROOM REPLACEMENT]
-You are an expert architectural draftsperson. The user has uploaded a floor plan where a specific room or area is marked with a semi-transparent green paint overlay.
+[CRITICAL ARCHITECTURAL BLUEPRINT EDIT DIRECTIVE]
+You are a precise CAD software compiler and master architect. The user has uploaded a floor plan image. A specific room/area has been marked with a semi-transparent green paint brush stroke.
 
-Your exact instructions are:
-1. Target ONLY the room/area covered by the green paint. Even if the green paint only covers a part of the room, apply the change to the entire enclosing room.
-2. Action: ${coreInstruction}
-3. STRICT PRESERVATION: Do NOT modify, add, remove, or alter ANY walls, doors, windows, text labels, room layouts, furniture, or structures in any other part of the floor plan outside of the green-highlighted area. The rest of the floor plan MUST remain 100% identical to the original image.
-4. Clean Output: Completely remove the green paint overlay in the final generated image. No trace of green paint should remain.
+YOUR TASK:
+1. TARGET ZONE: Modify ONLY the room or outdoor area covered by the green paint. Even if the green paint only covers a part of the room, apply the change to the entire enclosing room.
+2. ACTION: ${coreInstruction}
+3. CAD STYLE MATCHING: You MUST draw in the exact same 2D blueprint drafting style as the original image: clean black lines on a solid white background. Match the line weights, hatching, labels, and drawing style of the existing plan.
+4. STRICT PRESERVATION PROTOCOL: Do not modify, change, shift, or delete ANY walls, doors, windows, labels, layouts, furniture, cars, or details in any other part of the floor plan outside of the green-painted area. The rest of the plan MUST remain 100% identical to the input image down to the pixel.
+5. NO COLOR: The output must remain in black and white CAD blueprint style. Remove the green paint overlay completely. No green color or other colors should appear in the final output.
 `;
       }
     }
@@ -241,7 +268,8 @@ Your exact instructions are:
           currentFloorPlanBase64: finalPayloadBase64,
           editInstruction: finalPrompt,
           collectedParameters,
-          roomDimensions
+          roomDimensions,
+          isInpaint: isInpaintMode && hasInpaint
         })
       });
       const editData = await editRes.json();
