@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { EDIT_FLOORPLAN_PROMPT } from '@/lib/prompts';
+import { EDIT_TRANSLATOR_SYSTEM_PROMPT } from '@/lib/prompts';
 import { callGemini } from '@/lib/gemini';
 
 const FAL_KEY = process.env.FAL_KEY!;
@@ -12,17 +12,14 @@ export const maxDuration = 120;
  */
 async function callFalGeminiEdit(params: {
   currentFloorPlanBase64: string;
-  editInstruction: string;
-  collectedParameters: any;
+  translatedPrompt: string;
 }, maxRetries = 2): Promise<string> {
-  const prompt = EDIT_FLOORPLAN_PROMPT(params.editInstruction, params.collectedParameters);
-
   const floorPlanDataUri = params.currentFloorPlanBase64.startsWith('data:')
     ? params.currentFloorPlanBase64
     : `data:image/png;base64,${params.currentFloorPlanBase64}`;
 
   const body = {
-    prompt,
+    prompt: params.translatedPrompt,
     image_urls: [floorPlanDataUri]
   };
 
@@ -77,11 +74,8 @@ async function callFalGeminiEdit(params: {
  */
 async function callGeminiEdit(params: {
   currentFloorPlanBase64: string;
-  editInstruction: string;
-  collectedParameters: any;
+  translatedPrompt: string;
 }): Promise<string> {
-  const prompt = EDIT_FLOORPLAN_PROMPT(params.editInstruction, params.collectedParameters);
-  
   // Clean base64 header if present
   const rawBase64 = params.currentFloorPlanBase64.includes(',')
     ? params.currentFloorPlanBase64.split(',')[1]
@@ -94,29 +88,33 @@ async function callGeminiEdit(params: {
         data: rawBase64
       }
     },
-    { text: prompt }
+    { text: params.translatedPrompt }
   ];
 
   const models = ['gemini-3.1-flash-image-preview', 'gemini-3-pro-image'] as const;
+  
   let lastError: any;
 
   for (const model of models) {
     try {
-      console.log(`[edit-floorplan-fallback] Trying Gemini model: ${model}...`);
-      const res = await callGemini({
+      console.log(`[edit-floorplan-fallback] Trying ${model}...`);
+      const response = await callGemini({
         model,
-        message: undefined,
-        temperature: 0.9,
+        message: 'Execute edit',
+        history: [{ role: 'user', parts, isFloorPlan: false }],
         responseModalities: ['image', 'text'],
-        timeoutMs: 50000,
-        _customContents: [{ role: 'user', parts }]
+        timeoutMs: 45000
       } as any);
 
-      const part = res.candidates?.[0]?.content?.parts?.find((p: any) => p.inlineData);
+      const dataStr = typeof response === 'string' ? response : JSON.stringify(response);
+      const data = JSON.parse(dataStr);
+      const candidates = data.candidates || [];
+      const part = candidates[0]?.content?.parts?.find((p: any) => p.inlineData);
+      
       if (!part?.inlineData?.data) {
-        throw new Error(`No image returned from Gemini model ${model}`);
+        throw new Error(`Model ${model} returned no image data`);
       }
-
+      
       console.log(`[edit-floorplan-fallback] Success using ${model}`);
       return part.inlineData.data;
     } catch (e: any) {
@@ -139,6 +137,17 @@ export async function POST(request: Request) {
 
     console.log(`[edit-floorplan] Editing. Instruction: "${editInstruction}"`);
     
+    // 1. LLM Contextual Translation Pass
+    console.log(`[edit-floorplan] Translating instruction via Gemini Flash Lite...`);
+    const translatedPrompt = await callGemini({
+      model: 'gemini-2.5-flash-lite', // Extremely fast text processing
+      systemPrompt: EDIT_TRANSLATOR_SYSTEM_PROMPT(collectedParameters),
+      message: editInstruction,
+      maxOutputTokens: 800,
+      temperature: 0.1, // Strict translation
+    });
+    console.log(`[edit-floorplan] Translated Prompt:\n${translatedPrompt}`);
+    
     let editedFloorPlan: string;
     let modelUsed = 'grok-imagine-image/edit';
 
@@ -146,16 +155,14 @@ export async function POST(request: Request) {
       // Primary: Call fal.ai (Grok Imagine Image Edit)
       editedFloorPlan = await callFalGeminiEdit({
         currentFloorPlanBase64,
-        editInstruction,
-        collectedParameters,
+        translatedPrompt,
       });
     } catch (falError: any) {
       console.warn(`[edit-floorplan] Fal.ai edit failed (${falError.message}). Falling back to Google Gemini...`);
       // Fallback: Use Gemini Image-to-Image pipeline
       editedFloorPlan = await callGeminiEdit({
         currentFloorPlanBase64,
-        editInstruction,
-        collectedParameters,
+        translatedPrompt,
       });
       modelUsed = 'gemini-edit-fallback';
     }
