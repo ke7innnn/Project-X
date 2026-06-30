@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useArchitectStore } from '@/store/useArchitectStore';
 import ChatMessage from './ChatMessage';
 import ChatInput from './ChatInput';
+import InpaintInput from './InpaintInput';
 import ImageGrid from './ImageGrid';
 import { Loader2 } from 'lucide-react';
 import { RenderHistoryItem } from '@/types';
@@ -718,22 +719,26 @@ export default function ChatPanel() {
         </div>
       )}
       
-      <ChatInput 
-        onSend={handleSend} 
-        disabled={isLoading || (phase === 'search' && useArchitectStore.getState().onboardingMode === 'select')} 
-        placeholder={
-          (inpaintActive || inpaintRenderActive)
-            ? "DESCRIBE WHAT TO GENERATE IN THE MASKED AREA..."
-            : phase === 'search' 
-            ? (useArchitectStore.getState().onboardingMode === 'select' ? "Please select an option above..." 
-              : useArchitectStore.getState().onboardingMode === 'library' ? "What nature reference do you want to search?" 
-              : useArchitectStore.getState().onboardingMode === 'text' ? "Describe the shape (e.g. 'clove shape')..."
-              : "Click the 📎 icon to upload an image...")
-            : "Type your message..."
-        }
-        hideAttachment={phase === 'search' && (useArchitectStore.getState().onboardingMode === 'library' || useArchitectStore.getState().onboardingMode === 'text')}
-        overrideColor={(inpaintActive || inpaintRenderActive) ? "border-[#FFB000] bg-[#FFB000]/10 shadow-[0_0_15px_rgba(255,176,0,0.2)]" : ""}
-      />
+      {(inpaintActive || inpaintRenderActive) ? (
+        <InpaintInput 
+          onSend={(text) => handleSend(text)} 
+          disabled={isLoading} 
+        />
+      ) : (
+        <ChatInput 
+          onSend={handleSend} 
+          disabled={isLoading || (phase === 'search' && useArchitectStore.getState().onboardingMode === 'select')} 
+          placeholder={
+            phase === 'search' 
+              ? (useArchitectStore.getState().onboardingMode === 'select' ? "Please select an option above..." 
+                : useArchitectStore.getState().onboardingMode === 'library' ? "What nature reference do you want to search?" 
+                : useArchitectStore.getState().onboardingMode === 'text' ? "Describe the shape (e.g. 'clove shape')..."
+                : "Click the 📎 icon to upload an image...")
+              : "Type your message..."
+          }
+          hideAttachment={phase === 'search' && (useArchitectStore.getState().onboardingMode === 'library' || useArchitectStore.getState().onboardingMode === 'text')}
+        />
+      )}
     </div>
   );
 }
