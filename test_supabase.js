@@ -1,15 +1,11 @@
 const { createClient } = require('@supabase/supabase-js');
-
-const supabase = createClient(
-  'https://gaonkbzjzreudcztgtdm.supabase.co',
-  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imdhb25rYnpqenJldWRjenRndGRtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIxMTI3MjUsImV4cCI6MjA5NzY4ODcyNX0.U75SVhFmlXt0UIDexS-o4RQYIuwC-kEmMa08Kd2Xsq4'
-);
-
+require('dotenv').config({ path: '.env.local' });
+const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
 async function test() {
   console.log("Fetching...");
-  const { data, error } = await supabase.from('projects').select('session_id, updated_at, state').order('updated_at', { ascending: false });
-  console.log("Data:", data ? data.length : null);
+  const t0 = Date.now();
+  const { data, error } = await supabase.from('projects').select('fake_column').limit(1);
+  console.log("Time:", Date.now() - t0, "ms");
   console.log("Error:", error);
 }
-
 test();

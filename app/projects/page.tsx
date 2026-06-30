@@ -82,11 +82,17 @@ export default function ProjectsDashboard() {
 
   const fetchProjects = async () => {
     try {
-      const { data, error } = await supabase
+      const fetchPromise = supabase
         .from('projects')
         .select('session_id, updated_at, project_name, place_name, is_deleted')
         .order('updated_at', { ascending: false })
         .limit(50); 
+        
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Supabase request timed out')), 8000)
+      );
+      
+      const { data, error } = await Promise.race([fetchPromise, timeoutPromise]) as any;
 
       if (error) throw error;
       

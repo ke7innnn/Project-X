@@ -131,12 +131,18 @@ export default function SupabaseSyncProvider({ children }: { children: React.Rea
       if (isRestored) return;
 
       try {
-        // Fetch lean state from main projects table
-        const { data, error } = await supabase
+        // Fetch lean state from main projects table with a timeout to prevent infinite hangs
+        const fetchPromise = supabase
           .from('projects')
           .select('state')
           .eq('session_id', activeSessionId)
           .single();
+          
+        const timeoutPromise = new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Supabase request timed out')), 8000)
+        );
+        
+        const { data, error } = await Promise.race([fetchPromise, timeoutPromise]) as any;
 
         if (error && error.code !== 'PGRST116') {
           console.error('[SupabaseSyncProvider] Error fetching session:', error);
@@ -165,8 +171,18 @@ export default function SupabaseSyncProvider({ children }: { children: React.Rea
 
           useArchitectStore.getState().replaceState(restoredState);
 
-          // Restore images (separate table) and merge in
-          const imageState = await restoreImages(activeSessionId);
+          // Restore images (separate table) and merge in with a timeout
+          const imageTimeout = new Promise((_, reject) => 
+            setTimeout(() => reject(new Error('Image restore timed out')), 5000)
+          );
+          
+          let imageState: any = {};
+          try {
+            imageState = await Promise.race([restoreImages(activeSessionId), imageTimeout]);
+          } catch (err) {
+            console.warn('[SupabaseSyncProvider] Image restore skipped due to timeout');
+          }
+          
           if (Object.keys(imageState).length > 0) {
             const history = [...(restoredState.conversationHistory || [])];
             
