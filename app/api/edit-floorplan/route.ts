@@ -138,14 +138,36 @@ export async function POST(request: Request) {
     console.log(`[edit-floorplan] Editing. Instruction: "${editInstruction}"`);
     
     // 1. LLM Contextual Translation Pass
-    console.log(`[edit-floorplan] Translating instruction via Gemini Flash Lite...`);
-    const translatedPrompt = await callGemini({
-      model: 'gemini-2.5-flash-lite', // Extremely fast text processing
-      systemPrompt: EDIT_TRANSLATOR_SYSTEM_PROMPT(collectedParameters),
-      message: editInstruction,
-      maxOutputTokens: 800,
-      temperature: 0.1, // Strict translation
+    console.log(`[edit-floorplan] Translating instruction via OpenRouter (Gemini Flash Lite)...`);
+    const openRouterKey = process.env.OPENROUTER_API_KEY;
+    if (!openRouterKey) throw new Error('No OPENROUTER_API_KEY found');
+
+    const orResponse = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${openRouterKey}`,
+        'HTTP-Referer': 'http://localhost:3000',
+        'X-Title': 'Architect AI',
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        model: 'google/gemini-2.5-flash-lite',
+        messages: [
+          { role: 'system', content: EDIT_TRANSLATOR_SYSTEM_PROMPT(collectedParameters) },
+          { role: 'user', content: editInstruction }
+        ],
+        temperature: 0.1,
+        max_tokens: 800
+      }),
+      signal: AbortSignal.timeout(15000),
     });
+
+    if (!orResponse.ok) {
+      throw new Error(`OpenRouter translation failed: ${await orResponse.text()}`);
+    }
+
+    const orData = await orResponse.json();
+    const translatedPrompt = (orData.choices?.[0]?.message?.content || editInstruction).trim();
     console.log(`[edit-floorplan] Translated Prompt:\n${translatedPrompt}`);
     
     let editedFloorPlan: string;
