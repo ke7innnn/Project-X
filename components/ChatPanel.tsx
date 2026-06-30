@@ -196,6 +196,9 @@ export default function ChatPanel() {
       } finally {
         setIsLoading(false);
       }
+      return;
+    }
+    
     const userMsg = { role: 'user' as const, parts: [{ text }] };
     addMessage(userMsg);
 
