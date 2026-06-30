@@ -118,12 +118,16 @@ async function callModelWithRetry(
 
 export async function POST(request: Request) {
   try {
-    const { message, imageBase64, conversationHistory, collectedParameters, phase, onboardingMode } = await request.json();
+    const { message, imageBase64, conversationHistory, collectedParameters, phase, onboardingMode, inpaintActive, inpaintRenderActive } = await request.json();
 
-    const systemPrompt = ARCHITECT_SYSTEM_PROMPT
+    let systemPrompt = ARCHITECT_SYSTEM_PROMPT
       .replace('{PARAMETERS_JSON}', JSON.stringify(collectedParameters, null, 2))
       .replace('{CURRENT_PHASE}', phase)
       .replace('{ONBOARDING_MODE}', onboardingMode || 'unknown');
+
+    if (inpaintActive || inpaintRenderActive) {
+      systemPrompt += "\n\nCRITICAL DIRECTIVE: The user has applied a green inpaint mask to their drawing/render and is asking you to modify it. You MUST set `isEditCommand: true` in your JSON output so their instruction is sent to the image generation backend.";
+    }
 
     const openRouterKey = process.env.OPENROUTER_API_KEY;
     if (!openRouterKey) throw new Error('No OPENROUTER_API_KEY found in environment');

@@ -369,7 +369,9 @@ export default function ChatPanel() {
           conversationHistory: [...conversationHistory, userMsg],
           collectedParameters,
           phase,
-          onboardingMode: useArchitectStore.getState().onboardingMode
+          onboardingMode: useArchitectStore.getState().onboardingMode,
+          inpaintActive,
+          inpaintRenderActive
         })
       });
 
