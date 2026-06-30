@@ -55,6 +55,10 @@ export const useArchitectStore = create<ArchitectStore>((set) => ({
   customSunpath: '',
   renderHistory: [],
   viewingHistoryId: null,
+  inpaintActive: false,
+  paintedFloorPlan: null,
+  inpaintRenderActive: false,
+  paintedRender: null,
 
   setOnboardingMode: (mode) => set({ onboardingMode: mode }),
 
@@ -103,6 +107,10 @@ export const useArchitectStore = create<ArchitectStore>((set) => ({
     customSunpath: '',
     renderHistory: [],
     viewingHistoryId: null,
+    inpaintActive: false,
+    paintedFloorPlan: null,
+    inpaintRenderActive: false,
+    paintedRender: null,
   })),
   
   setSelectedNatureImage: (image) => set((state) => {
@@ -190,6 +198,10 @@ Let's begin the **Concept** phase. Could you please tell me about:
   setRenderHistory: (renderHistory) => set({ renderHistory }),
   setViewingHistoryId: (viewingHistoryId) => set({ viewingHistoryId }),
   addRenderHistoryItem: (item) => set((state) => ({ renderHistory: [...state.renderHistory, item] })),
+  setInpaintActive: (inpaintActive) => set({ inpaintActive }),
+  setPaintedFloorPlan: (paintedFloorPlan) => set({ paintedFloorPlan }),
+  setInpaintRenderActive: (inpaintRenderActive) => set({ inpaintRenderActive }),
+  setPaintedRender: (paintedRender) => set({ paintedRender }),
   
   replaceState: (newState) => set((state) => ({ ...state, ...newState })),
 
@@ -225,6 +237,8 @@ Let's begin the **Concept** phase. Could you please tell me about:
       customSunpath: '',
       renderHistory: [],
       viewingHistoryId: null,
+      inpaintActive: false,
+      paintedFloorPlan: null,
     });
   },
 
@@ -255,5 +269,7 @@ Let's begin the **Concept** phase. Could you please tell me about:
     customSunpath: '',
     renderHistory: [],
     viewingHistoryId: null,
+    inpaintActive: false,
+    paintedFloorPlan: null,
   })
 }));

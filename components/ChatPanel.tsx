@@ -30,7 +30,14 @@ export default function ChatPanel() {
     customSunpath,
     setCustomSunpath,
     addRenderHistoryItem,
-    setViewingHistoryId
+    setInpaintActive,
+    setPaintedFloorPlan,
+    viewingHistoryId,
+    renderHistory,
+    inpaintRenderActive,
+    paintedRender,
+    setInpaintRenderActive,
+    setPaintedRender
   } = useArchitectStore(useShallow((state) => ({
     conversationHistory: state.conversationHistory,
     addMessage: state.addMessage,
@@ -49,7 +56,16 @@ export default function ChatPanel() {
     customSunpath: state.customSunpath,
     setCustomSunpath: state.setCustomSunpath,
     addRenderHistoryItem: state.addRenderHistoryItem,
-    setViewingHistoryId: state.setViewingHistoryId
+    inpaintActive: state.inpaintActive,
+    paintedFloorPlan: state.paintedFloorPlan,
+    setInpaintActive: state.setInpaintActive,
+    setPaintedFloorPlan: state.setPaintedFloorPlan,
+    viewingHistoryId: state.viewingHistoryId,
+    renderHistory: state.renderHistory,
+    inpaintRenderActive: state.inpaintRenderActive,
+    paintedRender: state.paintedRender,
+    setInpaintRenderActive: state.setInpaintRenderActive,
+    setPaintedRender: state.setPaintedRender
   })));
 
   const [isLocalRenderLoading, setIsLocalRenderLoading] = useState(false);
@@ -482,14 +498,16 @@ export default function ChatPanel() {
             editAttempt > 0 ? `Retrying edit... (attempt ${editAttempt + 1})` : 'Editing floor plan...'
           );
           try {
+            const useInpaint = inpaintActive && paintedFloorPlan;
             const editRes = await fetch('/api/edit-floorplan', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ 
-                currentFloorPlanBase64: useArchitectStore.getState().currentFloorPlan,
+                currentFloorPlanBase64: useInpaint ? paintedFloorPlan : useArchitectStore.getState().currentFloorPlan,
                 editInstruction: effectiveEditInstruction,
                 collectedParameters: useArchitectStore.getState().collectedParameters,
-                roomDimensions: useArchitectStore.getState().roomDimensions
+                roomDimensions: useArchitectStore.getState().roomDimensions,
+                isInpaint: !!useInpaint
               })
             });
             const editData = await editRes.json();
@@ -499,6 +517,8 @@ export default function ChatPanel() {
               if (useArchitectStore.getState().phase !== 'edit') {
                 useArchitectStore.getState().setPhase('edit');
               }
+              setInpaintActive(false);
+              setPaintedFloorPlan(null);
               playSound('success');
               addMessage({
                 role: 'model',
@@ -519,6 +539,67 @@ export default function ChatPanel() {
               addMessage({ role: 'model', parts: [{ text: "Editing encountered a network error. Say 'try again' to retry." }] });
             }
           }
+        }
+      }
+
+      // ── Edit/Inpainting phase for 3D Render ──────────────────────────────────────────────────
+      if ((targetPhase === 'export' || targetPhase === 'reimport') && data.isEditCommand && viewingHistoryId && effectiveEditInstruction.trim().length > 0) {
+        const activeRender = renderHistory.find(h => h.id === viewingHistoryId);
+        if (activeRender) {
+          const MAX_RENDER_EDIT_RETRIES = 3;
+          let renderEditSuccess = false;
+
+          for (let editAttempt = 0; editAttempt < MAX_RENDER_EDIT_RETRIES && !renderEditSuccess; editAttempt++) {
+            useArchitectStore.getState().setLoadingMessage(
+              editAttempt > 0 ? `Retrying render edit... (attempt ${editAttempt + 1})` : 'Editing 3D Render...'
+            );
+            try {
+              const useInpaint = inpaintRenderActive && paintedRender;
+              const editRes = await fetch('/api/edit-render', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ 
+                  renderBase64: useInpaint ? paintedRender : activeRender.base64,
+                  editInstruction: effectiveEditInstruction,
+                  isInpaint: !!useInpaint,
+                  collectedParameters: useArchitectStore.getState().collectedParameters
+                })
+              });
+              const editData = await editRes.json();
+
+              if (editData.editedRender) {
+                const newItem: RenderHistoryItem = {
+                  id: Math.random().toString(36).substr(2, 9),
+                  base64: editData.editedRender,
+                  style: activeRender.style + ' (Edited)',
+                  sunpath: activeRender.sunpath
+                };
+                useArchitectStore.getState().addRenderHistoryItem(newItem);
+                useArchitectStore.getState().setViewingHistoryId(newItem.id);
+                
+                setInpaintRenderActive(false);
+                setPaintedRender(null);
+                playSound('success');
+                addMessage({
+                  role: 'model',
+                  parts: [{ text: `Here is the updated 3D Render after applying: "${effectiveEditInstruction}"` }],
+                });
+                renderEditSuccess = true;
+              } else {
+                console.error(`[edit-render] Attempt ${editAttempt + 1} returned no image:`, editData);
+                if (editAttempt === MAX_RENDER_EDIT_RETRIES - 1) {
+                  addMessage({ role: 'model', parts: [{ text: "The render edit took too long to process. Say 'try again' to retry." }] });
+                }
+              }
+            } catch (e) {
+              console.error(`[edit-render] Attempt ${editAttempt + 1} threw:`, e);
+              if (editAttempt === MAX_RENDER_EDIT_RETRIES - 1) {
+                addMessage({ role: 'model', parts: [{ text: "Editing the render encountered a network error. Say 'try again' to retry." }] });
+              }
+            }
+          }
+        } else {
+          addMessage({ role: 'model', parts: [{ text: "Please select a 3D Render from the history first before asking to edit it." }] });
         }
       }
       

@@ -240,3 +240,27 @@ CRITICAL INSTRUCTIONS:
 - Ensure the lighting direction strictly matches the requested sunpath direction.
 - The environment should reflect the requested style beautifully.`;
 };
+
+export const EDIT_RENDER_TRANSLATOR_SYSTEM_PROMPT = (params: any, isInpaint?: boolean) => {
+  const inpaintInstructions = isInpaint ? `
+6. INPAINTING MODE (CRITICAL): The user has highlighted a specific piece of furniture, structure, or area on the 3D Render with semi-transparent green brush strokes.
+- Focus the requested modification STRICTLY inside this green-painted region.
+- Clean Output: Completely erase/remove the green paint in the final output.
+- Photorealism: Ensure the newly generated object/modification matches the photorealistic lighting, perspective, shadows, and architectural style of the surrounding render.
+- STRICT PRESERVATION: Absolutely do NOT touch, alter, shift, or edit anything outside the green paint. The rest of the 3D render must remain a perfect pixel-for-pixel match to the input.` : '';
+
+  return `You are a master architectural prompt engineer. 
+Your task is to analyze a user's natural language instruction for editing a photorealistic 3D architectural render, determine their exact aesthetic or structural intent, and write a strict, highly detailed image-generation prompt for an underlying image-editing AI.
+
+Here are the rules you MUST follow when writing the final output prompt:
+1. MATCH THE CONTEXT: Instruct the image AI to seamlessly blend the requested changes with the existing 3D render's lighting, perspective, and architectural style.
+2. PRESERVE THE SCENE: Instruct the image AI to strictly preserve all unrelated structures, furniture, and landscaping.
+${inpaintInstructions}
+
+You are translating this user's instruction into a direct instruction for the image AI. Do NOT output conversational text. Output ONLY the final detailed prompt string that the image AI will execute.
+
+Here are the current floor plan parameters for context (do not mention them unless relevant to the edit):
+${JSON.stringify(params, null, 2)}
+`;
+};
+

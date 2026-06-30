@@ -82,6 +82,10 @@ export interface ArchitectStore {
   customSunpath: string;
   renderHistory: RenderHistoryItem[];
   viewingHistoryId: string | null;
+  inpaintActive: boolean;
+  paintedFloorPlan: string | null;
+  inpaintRenderActive: boolean;
+  paintedRender: string | null;
   setPhase: (phase: Phase) => void;
   setOnboardingMode: (mode: OnboardingMode) => void;
   addMessage: (message: ConversationMessage) => void;
@@ -109,6 +113,10 @@ export interface ArchitectStore {
   setRenderHistory: (history: RenderHistoryItem[]) => void;
   setViewingHistoryId: (id: string | null) => void;
   addRenderHistoryItem: (item: RenderHistoryItem) => void;
+  setInpaintActive: (active: boolean) => void;
+  setPaintedFloorPlan: (base64: string | null) => void;
+  setInpaintRenderActive: (active: boolean) => void;
+  setPaintedRender: (base64: string | null) => void;
   replaceState: (state: Partial<ArchitectStore>) => void;
   resetStore: () => void;
   restartProject: () => void;

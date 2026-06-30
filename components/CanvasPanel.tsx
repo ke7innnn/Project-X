@@ -4,7 +4,7 @@ import { useArchitectStore } from '@/store/useArchitectStore';
 import { useRef, useEffect, useState } from 'react';
 import FloorPlanGrid from './FloorPlanGrid';
 import InteractivePlotBox from './InteractivePlotBox';
-import { Download, Upload, Palette, ZoomIn, ZoomOut, Maximize, Loader2, FileDown } from 'lucide-react';
+import { Download, Upload, Palette, ZoomIn, ZoomOut, Maximize, Loader2, FileDown, Pencil } from 'lucide-react';
 import dynamic from 'next/dynamic';
 import { RenderHistoryItem } from '@/types';
 import { playSound } from '@/lib/sounds';
@@ -39,7 +39,11 @@ export default function CanvasPanel() {
     renderHistory,
     setRenderHistory,
     viewingHistoryId,
-    setViewingHistoryId
+    setViewingHistoryId,
+    inpaintActive,
+    paintedFloorPlan,
+    setInpaintActive,
+    setPaintedFloorPlan
   } = useArchitectStore(useShallow((state) => ({
     phase: state.phase,
     selectedNatureImage: state.selectedNatureImage,
@@ -64,7 +68,15 @@ export default function CanvasPanel() {
     renderHistory: state.renderHistory,
     setRenderHistory: state.setRenderHistory,
     viewingHistoryId: state.viewingHistoryId,
-    setViewingHistoryId: state.setViewingHistoryId
+    setViewingHistoryId: state.setViewingHistoryId,
+    inpaintActive: state.inpaintActive,
+    paintedFloorPlan: state.paintedFloorPlan,
+    setInpaintActive: state.setInpaintActive,
+    setPaintedFloorPlan: state.setPaintedFloorPlan,
+    inpaintRenderActive: state.inpaintRenderActive,
+    setInpaintRenderActive: state.setInpaintRenderActive,
+    paintedRender: state.paintedRender,
+    setPaintedRender: state.setPaintedRender
   })));
 
   const [styledFloorPlan, setStyledFloorPlan] = useState<string | null>(null);
@@ -74,6 +86,180 @@ export default function CanvasPanel() {
   const isRenderLoadingRef = useRef(false);
   const [renderError, setRenderError] = useState<string | null>(null);
   const [renderAttempted, setRenderAttempted] = useState(false);
+
+  const paintCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const imgRef = useRef<HTMLImageElement | null>(null);
+  const paintRenderCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const renderImgRef = useRef<HTMLImageElement | null>(null);
+  const [isPainting, setIsPainting] = useState(false);
+  const [brushSize, setBrushSize] = useState(25);
+  const [paintTool, setPaintTool] = useState<'brush' | 'eraser'>('brush');
+
+  const getCanvasCoords = (e: React.PointerEvent<HTMLCanvasElement>) => {
+    const canvas = paintCanvasRef.current;
+    if (!canvas) return { x: 0, y: 0 };
+    const rect = canvas.getBoundingClientRect();
+    const x = ((e.clientX - rect.left) / rect.width) * canvas.width;
+    const y = ((e.clientY - rect.top) / rect.height) * canvas.height;
+    return { x, y };
+  };
+
+  const handlePointerDown = (e: React.PointerEvent<HTMLCanvasElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const canvas = paintCanvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    setIsPainting(true);
+    const { x, y } = getCanvasCoords(e);
+    ctx.beginPath();
+    ctx.moveTo(x, y);
+
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    if (paintTool === 'brush') {
+      ctx.globalCompositeOperation = 'source-over';
+      ctx.strokeStyle = 'rgba(34, 197, 94, 0.45)'; // Semi-transparent green
+      ctx.lineWidth = brushSize;
+    } else {
+      ctx.globalCompositeOperation = 'destination-out';
+      ctx.strokeStyle = 'rgba(0,0,0,1)';
+      ctx.lineWidth = brushSize;
+    }
+    
+    ctx.lineTo(x, y);
+    ctx.stroke();
+  };
+
+  const handlePointerMove = (e: React.PointerEvent<HTMLCanvasElement>) => {
+    if (!isPainting) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const canvas = paintCanvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    const { x, y } = getCanvasCoords(e);
+    ctx.lineTo(x, y);
+    ctx.stroke();
+  };
+
+  const handlePointerUp = () => {
+    if (!isPainting) return;
+    setIsPainting(false);
+    
+    const canvas = paintCanvasRef.current;
+    const img = imgRef.current;
+    if (!canvas || !img) return;
+
+    const offscreen = document.createElement('canvas');
+    offscreen.width = img.naturalWidth || 1024;
+    offscreen.height = img.naturalHeight || 1024;
+    
+    const ctx = offscreen.getContext('2d');
+    if (!ctx) return;
+
+    ctx.drawImage(img, 0, 0, offscreen.width, offscreen.height);
+    ctx.drawImage(canvas, 0, 0, offscreen.width, offscreen.height);
+
+    const base64 = offscreen.toDataURL('image/jpeg', 0.95).split(',')[1];
+    setPaintedFloorPlan(base64);
+  };
+
+  const clearPaintCanvas = () => {
+    const canvas = paintCanvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    setPaintedFloorPlan(null);
+  };
+
+  const getRenderCanvasCoords = (e: React.PointerEvent<HTMLCanvasElement>) => {
+    const canvas = paintRenderCanvasRef.current;
+    if (!canvas) return { x: 0, y: 0 };
+    const rect = canvas.getBoundingClientRect();
+    const x = ((e.clientX - rect.left) / rect.width) * canvas.width;
+    const y = ((e.clientY - rect.top) / rect.height) * canvas.height;
+    return { x, y };
+  };
+
+  const handleRenderPointerDown = (e: React.PointerEvent<HTMLCanvasElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const canvas = paintRenderCanvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    setIsPainting(true);
+    const { x, y } = getRenderCanvasCoords(e);
+    ctx.beginPath();
+    ctx.moveTo(x, y);
+
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    if (paintTool === 'brush') {
+      ctx.globalCompositeOperation = 'source-over';
+      ctx.strokeStyle = 'rgba(34, 197, 94, 0.45)'; // Semi-transparent green
+      ctx.lineWidth = brushSize;
+    } else {
+      ctx.globalCompositeOperation = 'destination-out';
+      ctx.strokeStyle = 'rgba(0,0,0,1)';
+      ctx.lineWidth = brushSize;
+    }
+    
+    ctx.lineTo(x, y);
+    ctx.stroke();
+  };
+
+  const handleRenderPointerMove = (e: React.PointerEvent<HTMLCanvasElement>) => {
+    if (!isPainting) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const canvas = paintRenderCanvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    const { x, y } = getRenderCanvasCoords(e);
+    ctx.lineTo(x, y);
+    ctx.stroke();
+  };
+
+  const handleRenderPointerUp = () => {
+    if (!isPainting) return;
+    setIsPainting(false);
+    
+    const canvas = paintRenderCanvasRef.current;
+    const img = renderImgRef.current;
+    if (!canvas || !img) return;
+
+    const offscreen = document.createElement('canvas');
+    offscreen.width = img.naturalWidth || 1024;
+    offscreen.height = img.naturalHeight || 1024;
+    
+    const ctx = offscreen.getContext('2d');
+    if (!ctx) return;
+
+    ctx.drawImage(img, 0, 0, offscreen.width, offscreen.height);
+    ctx.drawImage(canvas, 0, 0, offscreen.width, offscreen.height);
+
+    const base64 = offscreen.toDataURL('image/jpeg', 0.95).split(',')[1];
+    setPaintedRender(base64);
+  };
+
+  const clearRenderPaintCanvas = () => {
+    const canvas = paintRenderCanvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    setPaintedRender(null);
+  };
 
   const generateRender = async (styleVal?: string, sunpathVal?: string) => {
     if (!styledFloorPlan && !currentFloorPlan) {
@@ -412,32 +598,116 @@ export default function CanvasPanel() {
             onWheel={handleWheel}
           >
             <div
-              onMouseDown={handlePanMouseDown}
+              onMouseDown={!inpaintActive ? handlePanMouseDown : undefined}
               onDoubleClick={resetZoom}
               style={{
                 transform: `scale(${zoom}) translate(${pan.x / zoom}px, ${pan.y / zoom}px)`,
                 transformOrigin: 'center center',
                 transition: isZoomTransition ? 'transform 0.25s cubic-bezier(0.25, 0.46, 0.45, 0.94)' : 'none',
-                cursor: zoom > 1 ? (isPanning ? 'grabbing' : 'grab') : 'default',
+                cursor: zoom > 1 ? (inpaintActive ? 'crosshair' : (isPanning ? 'grabbing' : 'grab')) : (inpaintActive ? 'crosshair' : 'default'),
                 width: '100%',
                 height: '100%',
               }}
               className="bg-white p-16 flex items-center justify-center"
             >
-              <img 
-                src={`data:image/jpeg;base64,${currentFloorPlan}`} 
-                alt="Current Floor Plan" 
-                className="w-full h-full object-contain select-none pointer-events-none"
-                draggable={false}
-              />
-              {!collectedParameters.isPlotBurned && <InteractivePlotBox />}
+              <div className="relative w-full h-full flex items-center justify-center">
+                <img 
+                  ref={imgRef}
+                  src={`data:image/jpeg;base64,${currentFloorPlan}`} 
+                  alt="Current Floor Plan" 
+                  className="w-full h-full object-contain select-none pointer-events-none"
+                  draggable={false}
+                />
+                
+                {inpaintActive && (
+                  <canvas
+                    ref={paintCanvasRef}
+                    width={1024}
+                    height={1024}
+                    onPointerDown={handlePointerDown}
+                    onPointerMove={handlePointerMove}
+                    onPointerUp={handlePointerUp}
+                    onPointerLeave={handlePointerUp}
+                    className="absolute inset-0 w-full h-full cursor-crosshair z-10 touch-none"
+                    style={{
+                      objectFit: 'contain'
+                    }}
+                  />
+                )}
+
+                {!collectedParameters.isPlotBurned && !inpaintActive && <InteractivePlotBox />}
+              </div>
             </div>
           </div>
         )}
 
-        {/* Zoom Controls */}
+        {/* Inpaint Tool Settings Overlay */}
+        {inpaintActive && (
+          <div className="absolute top-6 left-1/2 -translate-x-1/2 z-40 flex items-center gap-4 bg-[#0A0E1A]/95 backdrop-blur-md px-5 py-3 rounded-2xl border border-[#FFB000]/30 shadow-[0_0_20px_rgba(255,176,0,0.15)] text-xs font-mono text-gray-200">
+            <span className="text-[#FFB000] font-bold tracking-wider uppercase mr-2">✏️ Inpaint Mask</span>
+            
+            <div className="h-4 w-px bg-gray-700" />
+            
+            {/* Tool Selection */}
+            <div className="flex items-center gap-1.5">
+              <button
+                onClick={() => setPaintTool('brush')}
+                className={`px-3 py-1 rounded-md transition-all ${paintTool === 'brush' ? 'bg-[#FFB000] text-black font-bold' : 'hover:bg-white/5 text-gray-400'}`}
+              >
+                Brush
+              </button>
+              <button
+                onClick={() => setPaintTool('eraser')}
+                className={`px-3 py-1 rounded-md transition-all ${paintTool === 'eraser' ? 'bg-[#FFB000] text-black font-bold' : 'hover:bg-white/5 text-gray-400'}`}
+              >
+                Eraser
+              </button>
+            </div>
+
+            <div className="h-4 w-px bg-gray-700" />
+
+            {/* Brush Size */}
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] text-gray-400">Size:</span>
+              <input
+                type="range"
+                min="10"
+                max="80"
+                value={brushSize}
+                onChange={(e) => setBrushSize(Number(e.target.value))}
+                className="w-20 accent-[#FFB000] cursor-pointer"
+              />
+              <span className="w-6 text-[10px] text-right">{brushSize}px</span>
+            </div>
+
+            <div className="h-4 w-px bg-gray-700" />
+
+            {/* Clear Mask */}
+            <button
+              onClick={clearPaintCanvas}
+              className="text-[#f87171] hover:text-red-400 transition-colors uppercase tracking-wider font-semibold text-[10px]"
+            >
+              Clear Mask
+            </button>
+          </div>
+        )}
+
+        {/* Zoom & Inpaint Controls */}
         {currentFloorPlan && (
           <div className="absolute bottom-6 right-6 z-30 flex flex-col gap-1 bg-[#0A0E1A]/90 backdrop-blur-md rounded-xl border border-gray-700/50 shadow-2xl p-1.5">
+            <button
+              onClick={() => {
+                setInpaintActive(!inpaintActive);
+                if (inpaintActive) {
+                  setPaintedFloorPlan(null);
+                }
+              }}
+              className={`w-9 h-9 flex items-center justify-center rounded-lg transition-all duration-200 ${inpaintActive ? 'bg-[#FFB000] text-black font-bold' : 'text-gray-300 hover:text-[#FFB000] hover:bg-[#FFB000]/10'}`}
+              title="Toggle Inpaint Mask"
+            >
+              <Pencil size={18} />
+            </button>
+            <div className="w-full h-px bg-gray-700/50 my-0.5" />
             <button
               onClick={zoomIn}
               className="w-9 h-9 flex items-center justify-center rounded-lg text-gray-300 hover:text-[#FFB000] hover:bg-[#FFB000]/10 transition-all duration-200"
@@ -781,12 +1051,92 @@ export default function CanvasPanel() {
                 </div>
                 
                 {/* Modal Body */}
-                <div className="flex-1 overflow-y-auto p-6 bg-black/40 flex items-center justify-center min-h-0">
-                  <img 
-                    src={`data:image/jpeg;base64,${activeItem.base64}`} 
-                    alt="Detailed 3D Render" 
-                    className="max-w-full max-h-[70vh] object-contain rounded-lg shadow-2xl border border-zinc-800" 
-                  />
+                <div className="flex-1 overflow-y-auto p-6 bg-black/40 flex items-center justify-center min-h-0 relative">
+                  {inpaintRenderActive && (
+                    <div className="absolute top-6 left-1/2 -translate-x-1/2 z-40 flex items-center gap-4 bg-[#0A0E1A]/95 backdrop-blur-md px-5 py-3 rounded-2xl border border-[#FFB000]/30 shadow-[0_0_20px_rgba(255,176,0,0.15)] text-xs font-mono text-gray-200">
+                      <span className="text-[#FFB000] font-bold tracking-wider uppercase mr-2">✏️ Inpaint Render</span>
+                      
+                      <div className="h-4 w-px bg-gray-700" />
+                      
+                      <div className="flex items-center gap-1.5">
+                        <button
+                          onClick={() => setPaintTool('brush')}
+                          className={`px-3 py-1 rounded-md transition-all ${paintTool === 'brush' ? 'bg-[#FFB000] text-black font-bold' : 'hover:bg-white/5 text-gray-400'}`}
+                        >
+                          Brush
+                        </button>
+                        <button
+                          onClick={() => setPaintTool('eraser')}
+                          className={`px-3 py-1 rounded-md transition-all ${paintTool === 'eraser' ? 'bg-[#FFB000] text-black font-bold' : 'hover:bg-white/5 text-gray-400'}`}
+                        >
+                          Eraser
+                        </button>
+                      </div>
+
+                      <div className="h-4 w-px bg-gray-700" />
+
+                      <div className="flex items-center gap-2">
+                        <span className="text-[10px] text-gray-400">Size:</span>
+                        <input
+                          type="range"
+                          min="10"
+                          max="80"
+                          value={brushSize}
+                          onChange={(e) => setBrushSize(Number(e.target.value))}
+                          className="w-20 accent-[#FFB000] cursor-pointer"
+                        />
+                        <span className="w-6 text-[10px] text-right">{brushSize}px</span>
+                      </div>
+
+                      <div className="h-4 w-px bg-gray-700" />
+
+                      <button
+                        onClick={clearRenderPaintCanvas}
+                        className="text-[#f87171] hover:text-red-400 transition-colors uppercase tracking-wider font-semibold text-[10px]"
+                      >
+                        Clear Mask
+                      </button>
+                    </div>
+                  )}
+
+                  <div className="relative inline-block max-w-full max-h-full">
+                    <img 
+                      ref={renderImgRef}
+                      src={`data:image/jpeg;base64,${activeItem.base64}`} 
+                      alt="Detailed 3D Render" 
+                      className="max-w-full max-h-[70vh] object-contain rounded-lg shadow-2xl border border-zinc-800 select-none pointer-events-none" 
+                      draggable={false}
+                    />
+                    
+                    {inpaintRenderActive && (
+                      <canvas
+                        ref={paintRenderCanvasRef}
+                        width={1024}
+                        height={1024}
+                        onPointerDown={handleRenderPointerDown}
+                        onPointerMove={handleRenderPointerMove}
+                        onPointerUp={handleRenderPointerUp}
+                        onPointerLeave={handleRenderPointerUp}
+                        className="absolute inset-0 w-full h-full cursor-crosshair z-10 touch-none"
+                        style={{ objectFit: 'contain' }}
+                      />
+                    )}
+                  </div>
+                  
+                  <div className="absolute bottom-6 right-6 z-30 flex flex-col gap-1 bg-[#0A0E1A]/90 backdrop-blur-md rounded-xl border border-gray-700/50 shadow-2xl p-1.5">
+                    <button
+                      onClick={() => {
+                        setInpaintRenderActive(!inpaintRenderActive);
+                        if (inpaintRenderActive) {
+                          setPaintedRender(null);
+                        }
+                      }}
+                      className={`w-9 h-9 flex items-center justify-center rounded-lg transition-all duration-200 ${inpaintRenderActive ? 'bg-[#FFB000] text-black font-bold' : 'text-gray-300 hover:text-[#FFB000] hover:bg-[#FFB000]/10'}`}
+                      title="Toggle Inpaint Mask"
+                    >
+                      <Pencil size={18} />
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
