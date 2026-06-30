@@ -7,6 +7,7 @@ import ChatInput from './ChatInput';
 import ImageGrid from './ImageGrid';
 import { Loader2 } from 'lucide-react';
 import { RenderHistoryItem } from '@/types';
+import { playSound } from '@/lib/sounds';
 
 export default function ChatPanel() {
   const { 
@@ -417,6 +418,7 @@ export default function ChatPanel() {
 
             if (genData.options && genData.options.length > 0) {
               useArchitectStore.getState().setGeneratedOptions(genData.options);
+              playSound('woosh');
               addMessage({
                 role: 'model',
                 parts: [{ text: "Here are the generated concept layouts based on your design requirements:" }],
@@ -476,6 +478,7 @@ export default function ChatPanel() {
               if (useArchitectStore.getState().phase !== 'edit') {
                 useArchitectStore.getState().setPhase('edit');
               }
+              playSound('success');
               addMessage({
                 role: 'model',
                 parts: [{ text: `Here is the updated floor plan after applying: "${effectiveEditInstruction}"` }],
