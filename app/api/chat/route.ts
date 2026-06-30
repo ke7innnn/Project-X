@@ -118,11 +118,12 @@ async function callModelWithRetry(
 
 export async function POST(request: Request) {
   try {
-    const { message, imageBase64, conversationHistory, collectedParameters, phase } = await request.json();
+    const { message, imageBase64, conversationHistory, collectedParameters, phase, onboardingMode } = await request.json();
 
     const systemPrompt = ARCHITECT_SYSTEM_PROMPT
       .replace('{PARAMETERS_JSON}', JSON.stringify(collectedParameters, null, 2))
-      .replace('{CURRENT_PHASE}', phase);
+      .replace('{CURRENT_PHASE}', phase)
+      .replace('{ONBOARDING_MODE}', onboardingMode || 'unknown');
 
     const openRouterKey = process.env.OPENROUTER_API_KEY;
     if (!openRouterKey) throw new Error('No OPENROUTER_API_KEY found in environment');

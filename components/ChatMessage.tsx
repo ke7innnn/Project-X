@@ -1,13 +1,13 @@
 import { ConversationMessage } from '@/types';
 import LoadingIndicator from './LoadingIndicator';
 import ParametersSummary from './ParametersSummary';
-import { Download } from 'lucide-react';
+import { Download, Upload, Library, Type } from 'lucide-react';
 import { useState } from 'react';
 import { useArchitectStore } from '@/store/useArchitectStore';
 
 interface ChatMessageProps {
   message: ConversationMessage;
-  isCustomType?: 'image-grid' | 'parameters-summary' | 'download-button' | 'upload-prompt' | 'loading' | 'selected-image' | 'floorplan-drafts' | 'floorplan-edit' | 'uploaded-image';
+  isCustomType?: 'image-grid' | 'parameters-summary' | 'download-button' | 'upload-prompt' | 'loading' | 'selected-image' | 'floorplan-drafts' | 'floorplan-edit' | 'uploaded-image' | 'onboarding-options';
   customData?: any;
 }
 
@@ -144,6 +144,58 @@ export default function ChatMessage({ message, isCustomType, customData }: ChatM
         <div className="bg-blue-900/40 border border-blue-500/50 text-blue-100 p-3 rounded-xl max-w-[90%] text-sm">
           {text}
         </div>
+      </div>
+    );
+  }
+
+  if (isCustomType === 'onboarding-options') {
+    return (
+      <div className="flex flex-col gap-2 w-full my-4">
+        <p className="text-gray-300 text-sm mb-2">Please select one of the options below to begin:</p>
+        <button 
+          onClick={() => {
+            useArchitectStore.getState().setOnboardingMode('upload');
+            useArchitectStore.getState().addMessage({ role: 'user', parts: [{ text: "I want to upload my own reference image." }]});
+            useArchitectStore.getState().addMessage({ role: 'model', parts: [{ text: "Great! Please use the attachment (📎) icon below to upload your image or sketch." }]});
+          }}
+          className="flex items-center gap-3 bg-[#111] hover:bg-[#222] border border-[#333] text-white p-3 rounded-lg transition-colors text-left"
+        >
+          <div className="bg-[#333] p-2 rounded"><Upload size={16} className="text-[#FFB000]" /></div>
+          <div>
+            <div className="font-semibold text-sm">Upload Reference Image</div>
+            <div className="text-xs text-gray-500">Upload your own photo or hand-drawn sketch</div>
+          </div>
+        </button>
+        
+        <button 
+          onClick={() => {
+            useArchitectStore.getState().setOnboardingMode('library');
+            useArchitectStore.getState().addMessage({ role: 'user', parts: [{ text: "I want to search the App Library." }]});
+            useArchitectStore.getState().addMessage({ role: 'model', parts: [{ text: "Awesome! What kind of nature reference are you looking for? (e.g. coral, leaf, honeycomb)" }]});
+          }}
+          className="flex items-center gap-3 bg-[#111] hover:bg-[#222] border border-[#333] text-white p-3 rounded-lg transition-colors text-left"
+        >
+          <div className="bg-[#333] p-2 rounded"><Library size={16} className="text-[#FFB000]" /></div>
+          <div>
+            <div className="font-semibold text-sm">Search App Library</div>
+            <div className="text-xs text-gray-500">Find nature-inspired shapes in our Pexels library</div>
+          </div>
+        </button>
+
+        <button 
+          onClick={() => {
+            useArchitectStore.getState().setOnboardingMode('text');
+            useArchitectStore.getState().addMessage({ role: 'user', parts: [{ text: "I just want to type a text prompt." }]});
+            useArchitectStore.getState().addMessage({ role: 'model', parts: [{ text: "Perfect! Please describe the shape you want for your floor plan (e.g. 'L-shaped', 'clove shaped leaves', 'conch shell')." }]});
+          }}
+          className="flex items-center gap-3 bg-[#111] hover:bg-[#222] border border-[#333] text-white p-3 rounded-lg transition-colors text-left"
+        >
+          <div className="bg-[#333] p-2 rounded"><Type size={16} className="text-[#FFB000]" /></div>
+          <div>
+            <div className="font-semibold text-sm">Text Prompt Only</div>
+            <div className="text-xs text-gray-500">Describe the shape using text only</div>
+          </div>
+        </button>
       </div>
     );
   }

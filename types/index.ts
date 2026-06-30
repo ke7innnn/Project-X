@@ -27,7 +27,7 @@ export interface NatureImage {
 export interface ConversationMessage {
   role: 'user' | 'model';
   parts: { text: string }[];
-  customType?: 'image-grid' | 'parameters-summary' | 'download-button' | 'upload-prompt' | 'selected-image' | 'floorplan-drafts' | 'floorplan-edit' | 'uploaded-image';
+  customType?: 'image-grid' | 'parameters-summary' | 'download-button' | 'upload-prompt' | 'selected-image' | 'floorplan-drafts' | 'floorplan-edit' | 'uploaded-image' | 'onboarding-options';
   customData?: any;
 }
 
@@ -49,10 +49,13 @@ export interface CollectedParameters {
   buildingShape: string | null;
 }
 
+export type OnboardingMode = 'select' | 'upload' | 'library' | 'text' | null;
+
 export interface ArchitectStore {
   projectName: string | null;
   placeName: string | null;
   phase: Phase;
+  onboardingMode: OnboardingMode;
   conversationHistory: ConversationMessage[];
   selectedNatureImage: NatureImage | null;
   hoveredNatureImage: NatureImage | null;
@@ -79,6 +82,7 @@ export interface ArchitectStore {
   renderHistory: RenderHistoryItem[];
   viewingHistoryId: string | null;
   setPhase: (phase: Phase) => void;
+  setOnboardingMode: (mode: OnboardingMode) => void;
   addMessage: (message: ConversationMessage) => void;
   updateHistory: (history: ConversationMessage[]) => void;
   setSelectedNatureImage: (image: NatureImage | null) => void;

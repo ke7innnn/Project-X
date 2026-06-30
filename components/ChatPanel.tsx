@@ -326,7 +326,8 @@ export default function ChatPanel() {
           imageBase64: base64Image,
           conversationHistory: [...conversationHistory, userMsg],
           collectedParameters,
-          phase
+          phase,
+          onboardingMode: useArchitectStore.getState().onboardingMode
         })
       });
 
@@ -591,7 +592,19 @@ export default function ChatPanel() {
         </div>
       )}
       
-      <ChatInput onSend={handleSend} disabled={isLoading} />
+      <ChatInput 
+        onSend={handleSend} 
+        disabled={isLoading || (phase === 'search' && useArchitectStore.getState().onboardingMode === 'select')} 
+        placeholder={
+          phase === 'search' 
+            ? (useArchitectStore.getState().onboardingMode === 'select' ? "Please select an option above..." 
+              : useArchitectStore.getState().onboardingMode === 'library' ? "What nature reference do you want to search?" 
+              : useArchitectStore.getState().onboardingMode === 'text' ? "Describe the shape (e.g. 'clove shape')..."
+              : "Click the 📎 icon to upload an image...")
+            : "Type your message..."
+        }
+        hideAttachment={phase === 'search' && (useArchitectStore.getState().onboardingMode === 'library' || useArchitectStore.getState().onboardingMode === 'text')}
+      />
     </div>
   );
 }

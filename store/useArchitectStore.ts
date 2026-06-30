@@ -24,9 +24,11 @@ export const useArchitectStore = create<ArchitectStore>((set) => ({
   projectName: null,
   placeName: null,
   phase: 'search',
+  onboardingMode: 'select',
   conversationHistory: [{
     role: 'model',
-    parts: [{ text: "Welcome! I'm your AI Architect Assistant 🏛️ What nature reference would you like to explore for design inspiration? Try typing something like leaf, coral, honeycomb, pebble, or shell." }]
+    parts: [{ text: "Welcome! I'm your AI Architect Assistant 🏛️ How would you like to provide the reference shape for your floor plan?" }],
+    customType: 'onboarding-options'
   }],
   selectedNatureImage: null,
   hoveredNatureImage: null,
@@ -52,6 +54,8 @@ export const useArchitectStore = create<ArchitectStore>((set) => ({
   customSunpath: '',
   renderHistory: [],
   viewingHistoryId: null,
+
+  setOnboardingMode: (mode) => set({ onboardingMode: mode }),
 
   setLastUploadedImage: (base64, description) => set({ lastUploadedImage: base64, lastUploadedImageDescription: description }),
 

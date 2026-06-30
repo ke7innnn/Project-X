@@ -7,9 +7,11 @@ import { useArchitectStore } from '@/store/useArchitectStore';
 interface ChatInputProps {
   onSend: (message: string, file?: File | null) => void;
   disabled?: boolean;
+  placeholder?: string;
+  hideAttachment?: boolean;
 }
 
-export default function ChatInput({ onSend, disabled }: ChatInputProps) {
+export default function ChatInput({ onSend, disabled, placeholder = "Type your message...", hideAttachment = false }: ChatInputProps) {
   const [text, setText] = useState('');
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
@@ -72,7 +74,7 @@ export default function ChatInput({ onSend, disabled }: ChatInputProps) {
           ref={textareaRef}
           value={text}
           onChange={(e) => setText(e.target.value)}
-          placeholder="Type your message..."
+          placeholder={placeholder}
           disabled={disabled}
           className="w-full bg-[#111827] text-white border border-gray-700 rounded-xl px-4 py-3 pr-24 resize-none focus:outline-none focus:ring-1 focus:ring-[#FFB000] disabled:opacity-50 h-[60px]"
           onKeyDown={(e) => {
@@ -84,14 +86,16 @@ export default function ChatInput({ onSend, disabled }: ChatInputProps) {
         />
         
         <div className="absolute right-2 top-2 flex space-x-2">
-          <button
-            type="button"
-            onClick={() => fileInputRef.current?.click()}
-            disabled={disabled}
-            className="p-2 text-gray-400 hover:text-[#FFB000] transition-colors disabled:opacity-50"
-          >
-            <Paperclip size={20} />
-          </button>
+          {!hideAttachment && (
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={disabled}
+              className="p-2 text-gray-400 hover:text-[#FFB000] transition-colors disabled:opacity-50"
+            >
+              <Paperclip size={20} />
+            </button>
+          )}
           
           <button
             type="submit"
