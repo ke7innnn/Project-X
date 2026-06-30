@@ -13,6 +13,43 @@ interface ProjectRow {
   state: any;
 }
 
+// Lazy loading thumbnail component for modern projects where images are stored separately
+function ProjectThumbnail({ session_id, projectName }: { session_id: string, projectName: string }) {
+  const [thumb, setThumb] = useState<string | null>(null);
+  const [isFetching, setIsFetching] = useState(false);
+
+  useEffect(() => {
+    if (!thumb && !isFetching) {
+      setIsFetching(true);
+      // First try project_images (new projects)
+      supabase.from('project_images')
+        .select('final_render, current_floor_plan')
+        .eq('session_id', session_id)
+        .single()
+        .then(({ data }) => {
+          if (data && (data.final_render || data.current_floor_plan)) {
+            setThumb(data.final_render || data.current_floor_plan);
+            setIsFetching(false);
+          } else {
+            // Fallback for old projects: fetch massive blob specifically for this one row
+            supabase.from('projects').select('finalRender:state->>finalRender, currentFloorPlan:state->>currentFloorPlan').eq('session_id', session_id).single()
+              .then(({ data: oldData }) => {
+                 if (oldData) setThumb(oldData.finalRender || oldData.currentFloorPlan);
+                 setIsFetching(false);
+              }).catch(() => setIsFetching(false));
+          }
+        })
+        .catch(() => setIsFetching(false));
+    }
+  }, [session_id, thumb, isFetching]);
+
+  if (thumb) {
+    return <img src={thumb.startsWith('data:image/') ? thumb : `data:image/jpeg;base64,${thumb}`} alt={projectName} className="w-full h-full object-cover opacity-80 group-hover:opacity-100 group-hover:scale-105 transition-all duration-500" />;
+  }
+  
+  return <Map size={48} className="text-[#FFB000]/20" />;
+}
+
 export default function ProjectsDashboard() {
   const router = useRouter();
   const switchSession = useArchitectStore(state => state.switchSession);
@@ -27,22 +64,24 @@ export default function ProjectsDashboard() {
 
   useEffect(() => {
     fetchProjects();
-    const interval = setInterval(fetchProjects, 3000);
-    return () => clearInterval(interval);
+    // Removed 3-second polling interval to prevent massive database overload & timeouts
   }, []);
 
   const fetchProjects = async () => {
     try {
+      // FIX: Only extract the specific fields from the massive JSONB state column
+      // removed finalRender and currentFloorPlan from this query to prevent timeout!
       const { data, error } = await supabase
         .from('projects')
-        .select('session_id, updated_at, state')
-        .order('updated_at', { ascending: false });
+        .select('session_id, updated_at, projectName:state->>projectName, placeName:state->>placeName, isDeleted:state->>isDeleted')
+        .order('updated_at', { ascending: false })
+        .limit(50); // Add a limit just to be completely safe against timeouts
 
       if (error) throw error;
       
       // Filter out soft-deleted projects
-      const activeProjects = (data || []).filter(p => !p.state?.isDeleted);
-      setProjects(activeProjects);
+      const activeProjects = (data || []).filter(p => p.isDeleted !== 'true');
+      setProjects(activeProjects as any);
     } catch (err) {
       console.error('Error fetching projects:', err);
     } finally {
@@ -72,8 +111,8 @@ export default function ProjectsDashboard() {
   };
   
   const handleOpenProject = (project: ProjectRow) => {
-    const pName = project.state?.projectName || 'Untitled Project';
-    const pPlace = project.state?.placeName || 'Unknown Location';
+    const pName = (project as any).projectName || project.state?.projectName || 'Untitled Project';
+    const pPlace = (project as any).placeName || project.state?.placeName || 'Unknown Location';
     
     switchSession(project.session_id, pName, pPlace);
     router.push('/workspace/' + project.session_id);
@@ -82,50 +121,47 @@ export default function ProjectsDashboard() {
   const confirmDeleteProject = async () => {
     if (!deleteConfirmId) return;
     const sessId = deleteConfirmId;
+    
+    // OPTIMISTIC UPDATE: Remove instantly from UI
     setDeleteConfirmId(null);
+    setProjects(prev => prev.filter(p => p.session_id !== sessId));
+    
+    // Clear localStorage if this was the active session (prevents re-save)
+    const store = useArchitectStore.getState();
+    if (store.sessionId === sessId) {
+      store.replaceState({ sessionId: null, isRestored: false, projectName: null, placeName: null });
+      localStorage.removeItem('architect_session_id');
+    }
 
     try {
-      const res = await fetch('/api/delete-project', {
+      await fetch('/api/delete-project', {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ session_id: sessId }),
       });
-      if (!res.ok) throw new Error(await res.text());
-
-      // Remove from local state
-      setProjects(prev => prev.filter(p => p.session_id !== sessId));
-
-      // Clear localStorage if this was the active session (prevents re-save)
-      const store = useArchitectStore.getState();
-      if (store.sessionId === sessId) {
-        store.replaceState({ sessionId: null, isRestored: false, projectName: null, placeName: null });
-        localStorage.removeItem('architect_session_id');
-      }
     } catch (err: any) {
       console.error('Error deleting project:', err);
-      alert('Failed to delete. Please try again.');
     }
   };
 
   const confirmClearAll = async () => {
+    // OPTIMISTIC UPDATE: Remove instantly from UI
     setIsClearingAll(false);
+    setProjects([]);
+    
+    // Clear localStorage so workspace doesn't re-save deleted sessions
+    localStorage.removeItem('architect_session_id');
+    const store = useArchitectStore.getState();
+    store.replaceState({ sessionId: null, isRestored: false, projectName: null, placeName: null });
 
     try {
-      const res = await fetch('/api/delete-project', {
+      await fetch('/api/delete-project', {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ all: true }),
       });
-      if (!res.ok) throw new Error(await res.text());
-
-      setProjects([]);
-      // Clear localStorage so workspace doesn't re-save deleted sessions
-      localStorage.removeItem('architect_session_id');
-      const store = useArchitectStore.getState();
-      store.replaceState({ sessionId: null, isRestored: false, projectName: null, placeName: null });
     } catch (err: any) {
       console.error('Error clearing all projects:', err);
-      alert('Failed to clear projects. Please try again.');
     }
   };
 
@@ -193,10 +229,10 @@ export default function ProjectsDashboard() {
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            {projects.map((proj) => {
-              const name = proj.state?.projectName || 'Untitled Project';
-              const place = proj.state?.placeName || 'Unknown Location';
-              const thumb = proj.state?.finalRender || proj.state?.currentFloorPlan;
+            {projects.map((proj: any) => {
+              const name = proj.projectName || proj.state?.projectName || 'Untitled Project';
+              const place = proj.placeName || proj.state?.placeName || 'Unknown Location';
+              const fallbackThumb = proj.finalRender || proj.currentFloorPlan || proj.state?.finalRender || proj.state?.currentFloorPlan;
               const date = new Date(proj.updated_at).toLocaleDateString();
 
               return (
@@ -206,11 +242,7 @@ export default function ProjectsDashboard() {
                   className="group bg-[#0f0f18]/80 backdrop-blur border border-[#FFB000]/20 hover:border-[#FFB000] rounded-xl overflow-hidden cursor-pointer transition-all duration-300 shadow-lg hover:shadow-[0_0_30px_rgba(255,176,0,0.2)] flex flex-col"
                 >
                   <div className="relative aspect-video bg-[#0a0a0f] flex items-center justify-center border-b border-[#FFB000]/10 overflow-hidden">
-                    {thumb ? (
-                      <img src={thumb.startsWith('data:image/') ? thumb : `data:image/jpeg;base64,${thumb}`} alt={name} className="w-full h-full object-cover opacity-80 group-hover:opacity-100 group-hover:scale-105 transition-all duration-500" />
-                    ) : (
-                      <Map size={48} className="text-[#FFB000]/20" />
-                    )}
+                    <ProjectThumbnail session_id={proj.session_id} fallbackThumb={fallbackThumb} projectName={name} />
                     <div className="absolute inset-0 bg-gradient-to-t from-[#0f0f18] to-transparent opacity-80" />
                     <button
                       onClick={(e) => {
