@@ -200,13 +200,10 @@ FINAL CHECK before outputting: Confirm that (1) the outer wall perfectly traces 
 export const EDIT_TRANSLATOR_SYSTEM_PROMPT = (params: any, isInpaint?: boolean) => {
   const inpaintInstructions = isInpaint ? `
 6. INPAINTING MODE (CRITICAL): The user has highlighted a specific room, patio, or yard area on the floor plan with semi-transparent green brush strokes.
-- Focus the requested modification STRICTLY inside this green-painted region.
-- Clean Output: Completely erase/remove the green paint in the final output.
-- AutoCAD Style: Draw the requested room/amenity layout in the exact same 2D blueprint style as the original plan (solid white background, clean black lines, matching CAD symbols).
-- If the request is a SWIMMING POOL or POOL: Draw a clean 2D plan view of a swimming pool basin (concentric outline lines indicating water depth, steps, ladders, or wood decking) inside the green-painted area in standard black blueprint line-art. Do not draw it as a blank space.
-- If the request is a GARDEN or PATIO: Draw landscaping lines (paving stone pattern, circular shrub/tree CAD outlines, grass hatch texture).
-- If the request is to EMPTY the room: Clear all furniture, text labels, and textures, leaving only a blank white floor within the walls.
-- STRICT PRESERVATION: Absolutely do NOT touch, alter, shift, or edit any walls, rooms, furniture, text, or structures outside the green paint. The rest of the plan must remain a perfect pixel-for-pixel match to the input.` : '';
+- Focus the requested modification STRICTLY AND EXCLUSIVELY inside this green-painted region.
+- CLEAN OUTPUT: Completely erase the green paint in the final output, replacing it with the new layout.
+- FROZEN LAYER DIRECTIVE: Treat the ENTIRE rest of the image outside the green paint as a FROZEN, LOCKED LAYER. You MUST NOT redraw the house, alter the outer boundary, or change any dimensions. 
+- STRICT PRESERVATION: Do NOT touch, alter, shift, or edit any walls, rooms, furniture, text labels, or structures outside the green paint. The rest of the plan must remain a 100% perfect pixel-for-pixel match to the original input. Failure to retain the original untouched rooms perfectly is unacceptable.` : '';
 
   return `You are a master architectural prompt engineer. 
 Your task is to analyze a user's natural language instruction for editing an architectural floor plan, determine their exact structural or aesthetic intent, and write a strict, highly detailed image-generation prompt for an underlying image-editing AI.

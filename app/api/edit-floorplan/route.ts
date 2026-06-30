@@ -13,36 +13,23 @@ export const maxDuration = 120;
 async function callFalGeminiEdit(params: {
   currentFloorPlanBase64: string;
   translatedPrompt: string;
-  maskBase64?: string;
 }, maxRetries = 2): Promise<string> {
   const floorPlanDataUri = params.currentFloorPlanBase64.startsWith('data:')
     ? params.currentFloorPlanBase64
     : `data:image/png;base64,${params.currentFloorPlanBase64}`;
 
-  const hasMask = !!params.maskBase64;
-  const endpoint = hasMask ? 'https://fal.run/fal-ai/flux-pro/v1/fill' : 'https://fal.run/xai/grok-imagine-image/edit';
-
-  const body: any = {
+  const body = {
     prompt: params.translatedPrompt,
+    image_urls: [floorPlanDataUri]
   };
-
-  if (hasMask) {
-    const maskDataUri = params.maskBase64!.startsWith('data:')
-      ? params.maskBase64
-      : `data:image/png;base64,${params.maskBase64}`;
-    body.image_url = floorPlanDataUri;
-    body.mask_url = maskDataUri;
-  } else {
-    body.image_urls = [floorPlanDataUri];
-  }
 
   let lastError: any;
 
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
     try {
-      console.log(`[edit-floorplan] Attempt ${attempt + 1}/${maxRetries + 1}... (Using ${hasMask ? 'flux-pro/fill' : 'grok-edit'})`);
+      console.log(`[edit-floorplan] Attempt ${attempt + 1}/${maxRetries + 1}...`);
 
-      const response = await fetch(endpoint, {
+      const response = await fetch('https://fal.run/xai/grok-imagine-image/edit', {
         method: 'POST',
         headers: {
           'Authorization': `Key ${FAL_KEY}`,
@@ -212,11 +199,10 @@ export async function POST(request: Request) {
     let modelUsed = 'grok-imagine-image/edit';
 
     try {
-      // Primary: Call fal.ai (Grok Imagine Image Edit or Flux Inpaint)
+      // Primary: Call fal.ai (Grok Imagine Image Edit)
       editedFloorPlan = await callFalGeminiEdit({
         currentFloorPlanBase64,
         translatedPrompt,
-        maskBase64
       });
     } catch (falError: any) {
       console.warn(`[edit-floorplan] Fal.ai edit failed (${falError.message}). Falling back to Google Gemini...`);
