@@ -43,7 +43,11 @@ export default function CanvasPanel() {
     inpaintActive,
     paintedFloorPlan,
     setInpaintActive,
-    setPaintedFloorPlan
+    setPaintedFloorPlan,
+    inpaintRenderActive,
+    setInpaintRenderActive,
+    paintedRender,
+    setPaintedRender
   } = useArchitectStore(useShallow((state) => ({
     phase: state.phase,
     selectedNatureImage: state.selectedNatureImage,
