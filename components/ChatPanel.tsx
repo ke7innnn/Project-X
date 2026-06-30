@@ -365,10 +365,12 @@ export default function ChatPanel() {
       
       if (inpaintActive || inpaintRenderActive) {
         // Completely bypass the conversational LLM when an inpaint mask is active
+        const replyText = `Processing inpaint modification: "${text}"...`;
         data = {
-          reply: `Processing inpaint modification: "${text}"...`,
+          reply: replyText,
           newPhase: null,
-          isEditCommand: true
+          isEditCommand: true,
+          updatedHistory: [...conversationHistory, userMsg, { role: 'model', parts: [{ text: replyText }] }]
         };
       } else {
         const res = await fetch('/api/chat', {
