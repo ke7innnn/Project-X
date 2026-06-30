@@ -262,27 +262,56 @@ const blendImagesWithMask = (
     editedTempCtx.drawImage(editedImg, 0, 0, editedTempCanvas.width, editedTempCanvas.height);
   }
 
-  // 4. Perform pixel-level blending
-  const originalData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+  // 4. Calculate bounding box of the green strokes
   const maskData = maskTempCtx ? maskTempCtx.getImageData(0, 0, canvas.width, canvas.height) : null;
   const editedData = editedTempCtx ? editedTempCtx.getImageData(0, 0, canvas.width, canvas.height) : null;
 
   if (maskData && editedData) {
-    const pixels = originalData.data;
     const maskPixels = maskData.data;
-    const editedPixels = editedData.data;
+    let minX = canvas.width;
+    let maxX = 0;
+    let minY = canvas.height;
+    let maxY = 0;
+    let hasStrokes = false;
 
-    for (let i = 0; i < pixels.length; i += 4) {
-      const alpha = maskPixels[i + 3] / 255;
-      
-      if (alpha > 0.05) {
-        pixels[i] = editedPixels[i];
-        pixels[i + 1] = editedPixels[i + 1];
-        pixels[i + 2] = editedPixels[i + 2];
-        pixels[i + 3] = editedPixels[i + 3];
+    for (let y = 0; y < canvas.height; y++) {
+      for (let x = 0; x < canvas.width; x++) {
+        const idx = (y * canvas.width + x) * 4;
+        const alpha = maskPixels[idx + 3];
+        if (alpha > 12) { // painted pixel (alpha > ~5%)
+          hasStrokes = true;
+          if (x < minX) minX = x;
+          if (x > maxX) maxX = x;
+          if (y < minY) minY = y;
+          if (y > maxY) maxY = y;
+        }
       }
     }
-    ctx.putImageData(originalData, 0, 0);
+
+    if (hasStrokes) {
+      // Add 15% padding of the max image size to allow room layout edits to fit naturally
+      const padding = Math.round(Math.max(canvas.width, canvas.height) * 0.15);
+      const paddedMinX = Math.max(0, minX - padding);
+      const paddedMaxX = Math.min(canvas.width - 1, maxX + padding);
+      const paddedMinY = Math.max(0, minY - padding);
+      const paddedMaxY = Math.min(canvas.height - 1, maxY + padding);
+
+      const originalData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      const pixels = originalData.data;
+      const editedPixels = editedData.data;
+
+      // Copy pixels inside the padded bounding box from the edited image
+      for (let y = paddedMinY; y <= paddedMaxY; y++) {
+        for (let x = paddedMinX; x <= paddedMaxX; x++) {
+          const idx = (y * canvas.width + x) * 4;
+          pixels[idx] = editedPixels[idx];
+          pixels[idx + 1] = editedPixels[idx + 1];
+          pixels[idx + 2] = editedPixels[idx + 2];
+          pixels[idx + 3] = editedPixels[idx + 3];
+        }
+      }
+      ctx.putImageData(originalData, 0, 0);
+    }
   }
 
   return canvas.toDataURL('image/png');
