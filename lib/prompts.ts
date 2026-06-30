@@ -95,7 +95,8 @@ You MUST respond with a JSON object containing the following keys. Do not output
     "additionalNotes": Array of strings,
     "aspectRatio": "1:1" | "16:9" | "9:16" | "4:3" | "3:4" or null,
     "buildingShape": string or null (String describing the detected layout footprint, e.g., U-shape, L-shape, Rectangular, Trishul, etc., based on the user's uploaded image or text)
-  }
+  },
+  "searchQuery": string or null (If the user asks to search the library for a nature reference, set this to the keyword, e.g. "coral", "leaf". Otherwise, null)
 }
 Extract information from the entire conversation history to populate "updatedParameters". Maintain previous values if not explicitly modified by the user.
 `;

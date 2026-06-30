@@ -196,41 +196,10 @@ export default function ChatPanel() {
       } finally {
         setIsLoading(false);
       }
-      return;
-    }
-
     const userMsg = { role: 'user' as const, parts: [{ text }] };
     addMessage(userMsg);
-    
-    if (phase === 'search' && text.length > 0 && !file) {
-      try {
-        setIsLoading(true);
-        const res = await fetch(`/api/search-images?query=${encodeURIComponent(text)}&page=1&_t=${Date.now()}`);
-        const data = await res.json();
-        
-        if (data.images && data.images.length > 0) {
-          addMessage({ 
-            role: 'model', 
-            parts: [{ text: 'Here are some references from Pexels. You can also search Google Images below if you need something more specific:' }],
-            customType: 'image-grid',
-            customData: { images: data.images, query: text }
-          });
-        } else {
-          // Even with no Pexels results, show the grid with Google fallback options
-          addMessage({ 
-            role: 'model', 
-            parts: [{ text: `No results found on Pexels for "${text}". Try searching on Google Images below:` }],
-            customType: 'image-grid',
-            customData: { images: [], query: text }
-          });
-        }
-      } catch (err) {
-        addMessage({ role: 'model', parts: [{ text: "Failed to search images. Please try again." }] });
-      } finally {
-        setIsLoading(false);
-      }
-      return;
-    }
+
+    // We removed the hardcoded search bypass so the LLM can interpret if the user wants to search or not.
 
     // ── "Generate more" shortcut ──────────────────────────────────────────────
     // If the user says "generate more", "more designs", "more options", "more drafts", etc.
@@ -382,6 +351,33 @@ export default function ChatPanel() {
       }
       
       const targetPhase = data.newPhase || phase;
+
+      if (data.searchQuery) {
+        try {
+          useArchitectStore.getState().setLoadingMessage('Searching Pexels...');
+          const searchRes = await fetch(`/api/search-images?query=${encodeURIComponent(data.searchQuery)}&page=1&_t=${Date.now()}`);
+          const searchData = await searchRes.json();
+          
+          if (searchData.images && searchData.images.length > 0) {
+            addMessage({ 
+              role: 'model', 
+              parts: [{ text: 'Here are some references from Pexels. You can also search Google Images below if you need something more specific:' }],
+              customType: 'image-grid',
+              customData: { images: searchData.images, query: data.searchQuery }
+            });
+          } else {
+            addMessage({ 
+              role: 'model', 
+              parts: [{ text: `No results found on Pexels for "${data.searchQuery}". Try searching on Google Images below:` }],
+              customType: 'image-grid',
+              customData: { images: [], query: data.searchQuery }
+            });
+          }
+        } catch (err) {
+          console.error("Search failed:", err);
+          addMessage({ role: 'model', parts: [{ text: "Failed to search images. Please try again." }] });
+        }
+      }
 
       // Only allow generation if we are NOT already in edit/measure phase.
       // This prevents "yes try again" in edit mode from resetting the user back to concept selection.

@@ -217,6 +217,7 @@ export async function POST(request: Request) {
     const updatedParameters = parsed.updatedParameters || {};
     let newPhase = parsed.newPhase || detectPhaseTransition(message, phase);
     const isEditCommand = parsed.isEditCommand !== undefined ? !!parsed.isEditCommand : false;
+    const searchQuery = parsed.searchQuery || null;
     let customMessage = null;
 
     // Prevent accidental phase regression from edit/measure back to generate
@@ -265,7 +266,8 @@ export async function POST(request: Request) {
       updatedHistory,
       newPhase,
       isEditCommand,
-      updatedParameters
+      updatedParameters,
+      searchQuery
     });
   } catch (error: any) {
     console.error('[chat] Fatal error:', error.message);
