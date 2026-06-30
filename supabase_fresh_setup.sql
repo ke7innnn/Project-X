@@ -26,6 +26,9 @@ $$ LANGUAGE plpgsql;
 CREATE TABLE public.projects (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   session_id TEXT UNIQUE NOT NULL,
+  project_name TEXT,
+  place_name TEXT,
+  is_deleted BOOLEAN DEFAULT false,
   state JSONB NOT NULL DEFAULT '{}'::jsonb,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL

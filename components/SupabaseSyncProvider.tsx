@@ -122,15 +122,9 @@ export default function SupabaseSyncProvider({ children }: { children: React.Rea
     const initSession = async () => {
       let activeSessionId = sessionId;
 
-      // If no session ID in store, load from localStorage or create new
+      // If no session ID in store, do not attempt to sync
       if (!activeSessionId) {
-        activeSessionId = localStorage.getItem('architect_session_id') || '';
-        if (!activeSessionId) {
-          activeSessionId = uuidv4();
-          localStorage.setItem('architect_session_id', activeSessionId);
-        }
-        useArchitectStore.getState().setSessionId(activeSessionId);
-        return; // setSessionId will trigger a re-run of this effect
+        return; 
       }
 
       // If we've already restored this session, do nothing
@@ -219,25 +213,7 @@ export default function SupabaseSyncProvider({ children }: { children: React.Rea
     initSession();
   }, [sessionId, isRestored]);
 
-  // ── 1.5. Prevent Ghost Projects (Cross-Tab Deletion) ────────────────────────
-  useEffect(() => {
-    const handleStorageChange = (e: StorageEvent) => {
-      if (e.key === 'architect_session_id' && e.newValue === null) {
-        // The active session was deleted in another tab!
-        // Immediately clear local state to stop any debounced autosaves.
-        useArchitectStore.getState().replaceState({ 
-          sessionId: null, 
-          isRestored: false, 
-          projectName: null, 
-          placeName: null 
-        });
-        // Force the user back to the projects dashboard
-        window.location.href = '/projects';
-      }
-    };
-    window.addEventListener('storage', handleStorageChange);
-    return () => window.removeEventListener('storage', handleStorageChange);
-  }, []);
+
 
   // ── 2. Syncing to Supabase ───────────────────────────────────────────────────
   useEffect(() => {
@@ -254,6 +230,8 @@ export default function SupabaseSyncProvider({ children }: { children: React.Rea
             .from('projects')
             .upsert({
               session_id: state.sessionId,
+              project_name: state.projectName,
+              place_name: state.placeName,
               state: leanState,
             }, { onConflict: 'session_id' });
 

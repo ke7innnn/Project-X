@@ -206,7 +206,6 @@ Let's begin the **Concept** phase. Could you please tell me about:
   replaceState: (newState) => set((state) => ({ ...state, ...newState })),
 
   switchSession: (sessionId, projectName, placeName) => {
-    localStorage.setItem('architect_session_id', sessionId);
     set({
       projectName,
       placeName,

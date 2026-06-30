@@ -82,18 +82,16 @@ export default function ProjectsDashboard() {
 
   const fetchProjects = async () => {
     try {
-      // FIX: Only extract the specific fields from the massive JSONB state column
-      // removed finalRender and currentFloorPlan from this query to prevent timeout!
       const { data, error } = await supabase
         .from('projects')
-        .select('session_id, updated_at, projectName:state->>projectName, placeName:state->>placeName, isDeleted:state->>isDeleted')
+        .select('session_id, updated_at, project_name, place_name, is_deleted')
         .order('updated_at', { ascending: false })
-        .limit(50); // Add a limit just to be completely safe against timeouts
+        .limit(50); 
 
       if (error) throw error;
       
       // Filter out soft-deleted projects
-      const activeProjects = (data || []).filter(p => p.isDeleted !== 'true');
+      const activeProjects = (data || []).filter(p => !p.is_deleted);
       setProjects(activeProjects as any);
     } catch (err) {
       console.error('Error fetching projects:', err);
@@ -110,12 +108,11 @@ export default function ProjectsDashboard() {
     switchSession(newSessionId, newProjectName, newPlaceName);
 
     // Explicitly insert an initial shell into Supabase so it appears instantly
-    // even if the user clicks 'Back' before the autosave debouncer fires.
     await supabase.from('projects').insert({
       session_id: newSessionId,
+      project_name: newProjectName,
+      place_name: newPlaceName,
       state: {
-        projectName: newProjectName,
-        placeName: newPlaceName,
         phase: 'search'
       }
     });
@@ -139,11 +136,10 @@ export default function ProjectsDashboard() {
     setDeleteConfirmId(null);
     setProjects(prev => prev.filter(p => p.session_id !== sessId));
     
-    // Clear localStorage if this was the active session (prevents re-save)
+    // Clear session from store if it was the active session
     const store = useArchitectStore.getState();
     if (store.sessionId === sessId) {
       store.replaceState({ sessionId: null, isRestored: false, projectName: null, placeName: null });
-      localStorage.removeItem('architect_session_id');
     }
 
     try {
@@ -162,8 +158,6 @@ export default function ProjectsDashboard() {
     setIsClearingAll(false);
     setProjects([]);
     
-    // Clear localStorage so workspace doesn't re-save deleted sessions
-    localStorage.removeItem('architect_session_id');
     const store = useArchitectStore.getState();
     store.replaceState({ sessionId: null, isRestored: false, projectName: null, placeName: null });
 

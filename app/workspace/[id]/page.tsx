@@ -20,8 +20,6 @@ export default function WorkspacePage() {
     // If the URL ID is different from our store ID, update the store.
     // This will trigger SupabaseSyncProvider to fetch the new project.
     if (id && id !== currentSessionId) {
-      // Also update localStorage so it remembers the last project if we go to '/'
-      localStorage.setItem('architect_session_id', id);
       useArchitectStore.setState({ isRestored: false }); // Force a re-fetch
       setSessionId(id);
     }
