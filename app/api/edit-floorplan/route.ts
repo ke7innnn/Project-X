@@ -129,65 +129,69 @@ async function callGeminiEdit(params: {
 
 export async function POST(request: Request) {
   try {
-    const { currentFloorPlanBase64, editInstruction, collectedParameters } = await request.json();
+    const { currentFloorPlanBase64, editInstruction, collectedParameters, isInpaint, skipTranslation } = await request.json();
 
     if (!currentFloorPlanBase64) {
       return NextResponse.json({ error: 'Missing current floor plan image' }, { status: 400 });
     }
 
-    console.log(`[edit-floorplan] Editing. Instruction: "${editInstruction}"`);
+    console.log(`[edit-floorplan] Editing. Instruction: "${editInstruction}", isInpaint: ${isInpaint}, skipTranslation: ${skipTranslation}`);
     
-    // 1. LLM Contextual Translation Pass
-    console.log(`[edit-floorplan] Translating instruction via OpenRouter (Gemini Flash Lite)...`);
-    const openRouterKey = process.env.OPENROUTER_API_KEY;
-    if (!openRouterKey) throw new Error('No OPENROUTER_API_KEY found');
-
     let translatedPrompt = editInstruction; // Default fallback
-    const maxRetries = 2;
-    
-    for (let attempt = 0; attempt <= maxRetries; attempt++) {
-      try {
-        const orResponse = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${openRouterKey}`,
-            'HTTP-Referer': 'http://localhost:3000',
-            'X-Title': 'Architect AI',
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            model: 'google/gemini-2.5-flash-lite',
-            messages: [
-              { role: 'system', content: EDIT_TRANSLATOR_SYSTEM_PROMPT(collectedParameters) },
-              { role: 'user', content: editInstruction }
-            ],
-            temperature: 0.1,
-            max_tokens: 800
-          }),
-          signal: AbortSignal.timeout(15000),
-        });
 
-        if (!orResponse.ok) {
-          if (orResponse.status === 429) throw new Error('429 Rate Limit');
-          throw new Error(`OpenRouter translation failed: ${await orResponse.text()}`);
-        }
+    if (skipTranslation) {
+      console.log(`[edit-floorplan] Skipping translation pass. Using direct prompt: "${translatedPrompt}"`);
+    } else {
+      console.log(`[edit-floorplan] Translating instruction via OpenRouter (Gemini Flash Lite)...`);
+      const openRouterKey = process.env.OPENROUTER_API_KEY;
+      if (!openRouterKey) throw new Error('No OPENROUTER_API_KEY found');
 
-        const orData = await orResponse.json();
-        translatedPrompt = (orData.choices?.[0]?.message?.content || editInstruction).trim();
-        console.log(`[edit-floorplan] Translated Prompt:\n${translatedPrompt}`);
-        break; // Success, break the retry loop
-        
-      } catch (e: any) {
-        if (e.message.includes('429') && attempt < maxRetries) {
-          // Fall through to exponential backoff
-        } else if (attempt === maxRetries) {
-          console.warn(`[edit-floorplan] All OpenRouter retries failed. Proceeding with raw instruction. Error: ${e.message}`);
-          break;
+      const maxRetries = 2;
+      
+      for (let attempt = 0; attempt <= maxRetries; attempt++) {
+        try {
+          const orResponse = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${openRouterKey}`,
+              'HTTP-Referer': 'http://localhost:3000',
+              'X-Title': 'Architect AI',
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              model: 'google/gemini-2.5-flash-lite',
+              messages: [
+                { role: 'system', content: EDIT_TRANSLATOR_SYSTEM_PROMPT(collectedParameters, isInpaint) },
+                { role: 'user', content: editInstruction }
+              ],
+              temperature: 0.1,
+              max_tokens: 800
+            }),
+            signal: AbortSignal.timeout(15000),
+          });
+
+          if (!orResponse.ok) {
+            if (orResponse.status === 429) throw new Error('429 Rate Limit');
+            throw new Error(`OpenRouter translation failed: ${await orResponse.text()}`);
+          }
+
+          const orData = await orResponse.json();
+          translatedPrompt = (orData.choices?.[0]?.message?.content || editInstruction).trim();
+          console.log(`[edit-floorplan] Translated Prompt:\n${translatedPrompt}`);
+          break; // Success, break the retry loop
+          
+        } catch (e: any) {
+          if (e.message.includes('429') && attempt < maxRetries) {
+            // Fall through to exponential backoff
+          } else if (attempt === maxRetries) {
+            console.warn(`[edit-floorplan] All OpenRouter retries failed. Proceeding with raw instruction. Error: ${e.message}`);
+            break;
+          }
+          
+          const delay = 1000 * Math.pow(2, attempt); // 1s, 2s
+          console.warn(`[edit-floorplan] OpenRouter translation attempt ${attempt + 1} failed: ${e.message}. Retrying in ${delay}ms...`);
+          await new Promise(r => setTimeout(r, delay));
         }
-        
-        const delay = 1000 * Math.pow(2, attempt); // 1s, 2s
-        console.warn(`[edit-floorplan] OpenRouter translation attempt ${attempt + 1} failed: ${e.message}. Retrying in ${delay}ms...`);
-        await new Promise(r => setTimeout(r, delay));
       }
     }
     

@@ -220,6 +220,74 @@ const getRoomSpecificCADInstructions = (userInput: string) => {
   return `Erase the existing contents and draw a clean, detailed 2D plan view layout for a "${userInput}" inside this room. Use standard architectural CAD blueprint furniture symbols.`;
 };
 
+const loadImage = (src: string): Promise<HTMLImageElement> => {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.src = src.startsWith('data:') ? src : `data:image/png;base64,${src}`;
+    img.onload = () => resolve(img);
+    img.onerror = (e) => reject(e);
+  });
+};
+
+const blendImagesWithMask = (
+  originalImg: HTMLImageElement,
+  editedImg: HTMLImageElement,
+  maskCanvas: HTMLCanvasElement
+): string => {
+  const canvas = document.createElement('canvas');
+  canvas.width = originalImg.naturalWidth;
+  canvas.height = originalImg.naturalHeight;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return '';
+
+  // 1. Draw the original image first
+  ctx.drawImage(originalImg, 0, 0, canvas.width, canvas.height);
+
+  // 2. Create an offscreen canvas for the mask, scaled to the natural size
+  const maskTempCanvas = document.createElement('canvas');
+  maskTempCanvas.width = canvas.width;
+  maskTempCanvas.height = canvas.height;
+  const maskTempCtx = maskTempCanvas.getContext('2d');
+  if (maskTempCtx) {
+    maskTempCtx.drawImage(maskCanvas, 0, 0, maskTempCanvas.width, maskTempCanvas.height);
+  }
+
+  // 3. Create an offscreen canvas for the edited image
+  const editedTempCanvas = document.createElement('canvas');
+  editedTempCanvas.width = canvas.width;
+  editedTempCanvas.height = canvas.height;
+  const editedTempCtx = editedTempCanvas.getContext('2d');
+  if (editedTempCtx) {
+    editedTempCtx.drawImage(editedImg, 0, 0, editedTempCanvas.width, editedTempCanvas.height);
+  }
+
+  // 4. Perform pixel-level blending
+  const originalData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+  const maskData = maskTempCtx ? maskTempCtx.getImageData(0, 0, canvas.width, canvas.height) : null;
+  const editedData = editedTempCtx ? editedTempCtx.getImageData(0, 0, canvas.width, canvas.height) : null;
+
+  if (maskData && editedData) {
+    const pixels = originalData.data;
+    const maskPixels = maskData.data;
+    const editedPixels = editedData.data;
+
+    for (let i = 0; i < pixels.length; i += 4) {
+      const alpha = maskPixels[i + 3] / 255;
+      
+      if (alpha > 0.05) {
+        pixels[i] = editedPixels[i];
+        pixels[i + 1] = editedPixels[i + 1];
+        pixels[i + 2] = editedPixels[i + 2];
+        pixels[i + 3] = editedPixels[i + 3];
+      }
+    }
+    ctx.putImageData(originalData, 0, 0);
+  }
+
+  return canvas.toDataURL('image/png');
+};
+
   const handleEdit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!prompt.trim() || !currentFloorPlan || isEditing) return;
@@ -269,13 +337,29 @@ YOUR TASK:
           editInstruction: finalPrompt,
           collectedParameters,
           roomDimensions,
-          isInpaint: isInpaintMode && hasInpaint
+          isInpaint: isInpaintMode && hasInpaint,
+          skipTranslation: true
         })
       });
       const editData = await editRes.json();
       
       if (editData.editedFloorPlan) {
-        setCurrentFloorPlan(editData.editedFloorPlan);
+        let blendedPlan = editData.editedFloorPlan;
+
+        if (isInpaintMode && hasInpaint && canvasRef.current && imgRef.current) {
+          try {
+            const originalImg = imgRef.current;
+            const editedImg = await loadImage(editData.editedFloorPlan);
+            const blendedDataUrl = blendImagesWithMask(originalImg, editedImg, canvasRef.current);
+            if (blendedDataUrl) {
+              blendedPlan = blendedDataUrl;
+            }
+          } catch (blendError) {
+            console.error('Error blending inpaint images:', blendError);
+          }
+        }
+
+        setCurrentFloorPlan(blendedPlan);
         setPrompt('');
         clearInpaint();
         setFloorPlanRedoStack([]); // Clear redo stack on new edit
