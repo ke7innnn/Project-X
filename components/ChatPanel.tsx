@@ -523,15 +523,17 @@ export default function ChatPanel() {
           );
           try {
             const useInpaint = inpaintActive && paintedFloorPlan;
+            const currentPlan = useArchitectStore.getState().currentFloorPlan;
             const editRes = await fetch('/api/edit-floorplan', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ 
-                currentFloorPlanBase64: useInpaint ? paintedFloorPlan : useArchitectStore.getState().currentFloorPlan,
+                currentFloorPlanBase64: currentPlan,
                 editInstruction: effectiveEditInstruction,
                 collectedParameters: useArchitectStore.getState().collectedParameters,
                 roomDimensions: useArchitectStore.getState().roomDimensions,
-                isInpaint: !!useInpaint
+                isInpaint: !!useInpaint,
+                maskBase64: useInpaint ? useArchitectStore.getState().inpaintMask : null
               })
             });
             const editData = await editRes.json();
@@ -543,6 +545,7 @@ export default function ChatPanel() {
               }
               setInpaintActive(false);
               setPaintedFloorPlan(null);
+              useArchitectStore.getState().setInpaintMask(null);
               playSound('success');
               addMessage({
                 role: 'model',

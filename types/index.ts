@@ -84,6 +84,7 @@ export interface ArchitectStore {
   viewingHistoryId: string | null;
   inpaintActive: boolean;
   paintedFloorPlan: string | null;
+  inpaintMask: string | null;
   inpaintRenderActive: boolean;
   paintedRender: string | null;
   setPhase: (phase: Phase) => void;
@@ -115,6 +116,7 @@ export interface ArchitectStore {
   addRenderHistoryItem: (item: RenderHistoryItem) => void;
   setInpaintActive: (active: boolean) => void;
   setPaintedFloorPlan: (base64: string | null) => void;
+  setInpaintMask: (base64: string | null) => void;
   setInpaintRenderActive: (active: boolean) => void;
   setPaintedRender: (base64: string | null) => void;
   replaceState: (state: Partial<ArchitectStore>) => void;

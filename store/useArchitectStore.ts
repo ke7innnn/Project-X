@@ -57,6 +57,7 @@ export const useArchitectStore = create<ArchitectStore>((set) => ({
   viewingHistoryId: null,
   inpaintActive: false,
   paintedFloorPlan: null,
+  inpaintMask: null,
   inpaintRenderActive: false,
   paintedRender: null,
 
@@ -198,9 +199,10 @@ Let's begin the **Concept** phase. Could you please tell me about:
   setRenderHistory: (renderHistory) => set({ renderHistory }),
   setViewingHistoryId: (viewingHistoryId) => set({ viewingHistoryId }),
   addRenderHistoryItem: (item) => set((state) => ({ renderHistory: [...state.renderHistory, item] })),
-  setInpaintActive: (inpaintActive) => set({ inpaintActive }),
+  setInpaintActive: (active) => set({ inpaintActive: active }),
   setPaintedFloorPlan: (paintedFloorPlan) => set({ paintedFloorPlan }),
-  setInpaintRenderActive: (inpaintRenderActive) => set({ inpaintRenderActive }),
+  setInpaintMask: (inpaintMask) => set({ inpaintMask }),
+  setInpaintRenderActive: (active) => set({ inpaintRenderActive: active }),
   setPaintedRender: (paintedRender) => set({ paintedRender }),
   
   replaceState: (newState) => set((state) => ({ ...state, ...newState })),
@@ -270,5 +272,8 @@ Let's begin the **Concept** phase. Could you please tell me about:
     viewingHistoryId: null,
     inpaintActive: false,
     paintedFloorPlan: null,
+    inpaintMask: null,
+    inpaintRenderActive: false,
+    paintedRender: null,
   })
 }));

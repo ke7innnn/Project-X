@@ -13,23 +13,36 @@ export const maxDuration = 120;
 async function callFalGeminiEdit(params: {
   currentFloorPlanBase64: string;
   translatedPrompt: string;
+  maskBase64?: string;
 }, maxRetries = 2): Promise<string> {
   const floorPlanDataUri = params.currentFloorPlanBase64.startsWith('data:')
     ? params.currentFloorPlanBase64
     : `data:image/png;base64,${params.currentFloorPlanBase64}`;
 
-  const body = {
+  const hasMask = !!params.maskBase64;
+  const endpoint = hasMask ? 'https://fal.run/fal-ai/flux-pro/v1/fill' : 'https://fal.run/xai/grok-imagine-image/edit';
+
+  const body: any = {
     prompt: params.translatedPrompt,
-    image_urls: [floorPlanDataUri]
   };
+
+  if (hasMask) {
+    const maskDataUri = params.maskBase64!.startsWith('data:')
+      ? params.maskBase64
+      : `data:image/png;base64,${params.maskBase64}`;
+    body.image_url = floorPlanDataUri;
+    body.mask_url = maskDataUri;
+  } else {
+    body.image_urls = [floorPlanDataUri];
+  }
 
   let lastError: any;
 
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
     try {
-      console.log(`[edit-floorplan] Attempt ${attempt + 1}/${maxRetries + 1}...`);
+      console.log(`[edit-floorplan] Attempt ${attempt + 1}/${maxRetries + 1}... (Using ${hasMask ? 'flux-pro/fill' : 'grok-edit'})`);
 
-      const response = await fetch('https://fal.run/xai/grok-imagine-image/edit', {
+      const response = await fetch(endpoint, {
         method: 'POST',
         headers: {
           'Authorization': `Key ${FAL_KEY}`,
@@ -129,7 +142,7 @@ async function callGeminiEdit(params: {
 
 export async function POST(request: Request) {
   try {
-    const { currentFloorPlanBase64, editInstruction, collectedParameters, isInpaint, skipTranslation } = await request.json();
+    const { currentFloorPlanBase64, editInstruction, collectedParameters, isInpaint, skipTranslation, maskBase64 } = await request.json();
 
     if (!currentFloorPlanBase64) {
       return NextResponse.json({ error: 'Missing current floor plan image' }, { status: 400 });
@@ -150,47 +163,47 @@ export async function POST(request: Request) {
       
       for (let attempt = 0; attempt <= maxRetries; attempt++) {
         try {
-          const orResponse = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+          const translationRes = await fetch('https://openrouter.ai/api/v1/chat/completions', {
             method: 'POST',
             headers: {
               'Authorization': `Bearer ${openRouterKey}`,
-              'HTTP-Referer': 'http://localhost:3000',
-              'X-Title': 'Architect AI',
-              'Content-Type': 'application/json'
+              'Content-Type': 'application/json',
+              'HTTP-Referer': 'https://ai-architect.vercel.app',
+              'X-Title': 'AI Architect',
             },
             body: JSON.stringify({
-              model: 'google/gemini-2.5-flash-lite',
+              model: "google/gemini-2.5-flash-lite-preview",
               messages: [
-                { role: 'system', content: EDIT_TRANSLATOR_SYSTEM_PROMPT(collectedParameters, isInpaint) },
-                { role: 'user', content: editInstruction }
+                { role: "system", content: EDIT_TRANSLATOR_SYSTEM_PROMPT(isInpaint, collectedParameters) },
+                { role: "user", content: `Original user prompt: "${editInstruction}"` }
               ],
               temperature: 0.1,
-              max_tokens: 800
+              max_tokens: 500,
             }),
             signal: AbortSignal.timeout(15000),
           });
 
-          if (!orResponse.ok) {
-            if (orResponse.status === 429) throw new Error('429 Rate Limit');
-            throw new Error(`OpenRouter translation failed: ${await orResponse.text()}`);
+          if (!translationRes.ok) {
+            throw new Error(`OpenRouter translation failed: ${translationRes.status}`);
           }
 
-          const orData = await orResponse.json();
-          translatedPrompt = (orData.choices?.[0]?.message?.content || editInstruction).trim();
-          console.log(`[edit-floorplan] Translated Prompt:\n${translatedPrompt}`);
-          break; // Success, break the retry loop
+          const translationData = await translationRes.json();
+          const content = translationData.choices?.[0]?.message?.content;
           
-        } catch (e: any) {
-          if (e.message.includes('429') && attempt < maxRetries) {
-            // Fall through to exponential backoff
-          } else if (attempt === maxRetries) {
-            console.warn(`[edit-floorplan] All OpenRouter retries failed. Proceeding with raw instruction. Error: ${e.message}`);
+          if (content) {
+            translatedPrompt = content.trim();
+            console.log(`[edit-floorplan] Translated prompt: "${translatedPrompt}"`);
             break;
+          } else {
+            throw new Error('No content in translation response');
           }
-          
-          const delay = 1000 * Math.pow(2, attempt); // 1s, 2s
-          console.warn(`[edit-floorplan] OpenRouter translation attempt ${attempt + 1} failed: ${e.message}. Retrying in ${delay}ms...`);
-          await new Promise(r => setTimeout(r, delay));
+        } catch (error: any) {
+          console.warn(`[edit-floorplan] Translation attempt ${attempt + 1} failed: ${error.message}`);
+          if (attempt === maxRetries) {
+            console.warn(`[edit-floorplan] All translation retries failed. Falling back to original instruction.`);
+          } else {
+            await new Promise(resolve => setTimeout(resolve, 1000));
+          }
         }
       }
     }
@@ -199,10 +212,11 @@ export async function POST(request: Request) {
     let modelUsed = 'grok-imagine-image/edit';
 
     try {
-      // Primary: Call fal.ai (Grok Imagine Image Edit)
+      // Primary: Call fal.ai (Grok Imagine Image Edit or Flux Inpaint)
       editedFloorPlan = await callFalGeminiEdit({
         currentFloorPlanBase64,
         translatedPrompt,
+        maskBase64
       });
     } catch (falError: any) {
       console.warn(`[edit-floorplan] Fal.ai edit failed (${falError.message}). Falling back to Google Gemini...`);

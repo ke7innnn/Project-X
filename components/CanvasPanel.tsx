@@ -44,6 +44,7 @@ export default function CanvasPanel() {
     paintedFloorPlan,
     setInpaintActive,
     setPaintedFloorPlan,
+    setInpaintMask,
     inpaintRenderActive,
     setInpaintRenderActive,
     paintedRender,
@@ -77,6 +78,7 @@ export default function CanvasPanel() {
     paintedFloorPlan: state.paintedFloorPlan,
     setInpaintActive: state.setInpaintActive,
     setPaintedFloorPlan: state.setPaintedFloorPlan,
+    setInpaintMask: state.setInpaintMask,
     inpaintRenderActive: state.inpaintRenderActive,
     setInpaintRenderActive: state.setInpaintRenderActive,
     paintedRender: state.paintedRender,
@@ -166,11 +168,37 @@ export default function CanvasPanel() {
     const ctx = offscreen.getContext('2d');
     if (!ctx) return;
 
+    // 1. Composite the green strokes over the original image for the visual preview state
     ctx.drawImage(img, 0, 0, offscreen.width, offscreen.height);
     ctx.drawImage(canvas, 0, 0, offscreen.width, offscreen.height);
-
     const base64 = offscreen.toDataURL('image/jpeg', 0.95).split(',')[1];
     setPaintedFloorPlan(base64);
+
+    // 2. Generate the pure black-and-white mask required for Flux Inpaint API
+    const maskCanvas = document.createElement('canvas');
+    maskCanvas.width = offscreen.width;
+    maskCanvas.height = offscreen.height;
+    const maskCtx = maskCanvas.getContext('2d');
+    if (maskCtx) {
+      maskCtx.fillStyle = 'black';
+      maskCtx.fillRect(0, 0, maskCanvas.width, maskCanvas.height);
+      maskCtx.drawImage(canvas, 0, 0, maskCanvas.width, maskCanvas.height);
+      
+      const imgData = maskCtx.getImageData(0, 0, maskCanvas.width, maskCanvas.height);
+      const data = imgData.data;
+      for (let i = 0; i < data.length; i += 4) {
+        // If not purely black, make it purely white
+        if (data[i] !== 0 || data[i+1] !== 0 || data[i+2] !== 0) {
+          data[i] = 255;   // R
+          data[i+1] = 255; // G
+          data[i+2] = 255; // B
+          data[i+3] = 255; // Alpha
+        }
+      }
+      maskCtx.putImageData(imgData, 0, 0);
+      const maskBase64 = maskCanvas.toDataURL('image/png').split(',')[1];
+      setInpaintMask(maskBase64);
+    }
   };
 
   const clearPaintCanvas = () => {
@@ -180,6 +208,7 @@ export default function CanvasPanel() {
     if (!ctx) return;
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     setPaintedFloorPlan(null);
+    setInpaintMask(null);
   };
 
   const getRenderCanvasCoords = (e: React.PointerEvent<HTMLCanvasElement>) => {
@@ -704,6 +733,11 @@ export default function CanvasPanel() {
                 setInpaintActive(!inpaintActive);
                 if (inpaintActive) {
                   setPaintedFloorPlan(null);
+                  setInpaintMask(null);
+                  if (paintCanvasRef.current) {
+                    const ctx = paintCanvasRef.current.getContext('2d');
+                    ctx?.clearRect(0, 0, 1024, 1024);
+                  }
                 }
               }}
               className={`w-9 h-9 flex items-center justify-center rounded-lg transition-all duration-200 ${inpaintActive ? 'bg-[#FFB000] text-black font-bold' : 'text-gray-300 hover:text-[#FFB000] hover:bg-[#FFB000]/10'}`}
