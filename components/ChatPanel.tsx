@@ -12,6 +12,81 @@ import { playSound } from '@/lib/sounds';
 
 import { useShallow } from 'zustand/react/shallow';
 
+const loadImage = (src: string): Promise<HTMLImageElement> => {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    if (src.startsWith('data:') || src.startsWith('http://') || src.startsWith('https://')) {
+      img.src = src;
+    } else {
+      img.src = `data:image/png;base64,${src}`;
+    }
+    img.onload = () => resolve(img);
+    img.onerror = (e) => reject(e);
+  });
+};
+
+const blendImagesWithBWMask = (
+  originalImg: HTMLImageElement,
+  editedImg: HTMLImageElement,
+  maskImg: HTMLImageElement
+): string => {
+  const canvas = document.createElement('canvas');
+  canvas.width = originalImg.naturalWidth;
+  canvas.height = originalImg.naturalHeight;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return '';
+
+  // 1. Draw the original image first
+  ctx.drawImage(originalImg, 0, 0, canvas.width, canvas.height);
+
+  // 2. Create offscreen canvas for the black and white mask, with blur filter for smooth blending
+  const maskTempCanvas = document.createElement('canvas');
+  maskTempCanvas.width = canvas.width;
+  maskTempCanvas.height = canvas.height;
+  const maskTempCtx = maskTempCanvas.getContext('2d');
+  if (maskTempCtx) {
+    maskTempCtx.filter = 'blur(25px)';
+    maskTempCtx.drawImage(maskImg, 0, 0, maskTempCanvas.width, maskTempCanvas.height);
+  }
+
+  // 3. Create offscreen canvas for the edited image
+  const editedTempCanvas = document.createElement('canvas');
+  editedTempCanvas.width = canvas.width;
+  editedTempCanvas.height = canvas.height;
+  const editedTempCtx = editedTempCanvas.getContext('2d');
+  if (editedTempCtx) {
+    editedTempCtx.drawImage(editedImg, 0, 0, editedTempCanvas.width, editedTempCanvas.height);
+  }
+
+  // 4. Perform pixel-level blending
+  const originalData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+  const maskData = maskTempCtx ? maskTempCtx.getImageData(0, 0, canvas.width, canvas.height) : null;
+  const editedData = editedTempCtx ? editedTempCtx.getImageData(0, 0, canvas.width, canvas.height) : null;
+
+  if (maskData && editedData) {
+    const pixels = originalData.data;
+    const maskPixels = maskData.data;
+    const editedPixels = editedData.data;
+
+    for (let i = 0; i < pixels.length; i += 4) {
+      // In B&W mask: white represents the strokes (red channel > 0)
+      const maskVal = maskPixels[i]; 
+      
+      // If the dilated mask has even a tiny bit of brightness (> 5), we copy the edited pixels
+      if (maskVal > 5) {
+        pixels[i] = editedPixels[i];
+        pixels[i + 1] = editedPixels[i + 1];
+        pixels[i + 2] = editedPixels[i + 2];
+        pixels[i + 3] = editedPixels[i + 3];
+      }
+    }
+    ctx.putImageData(originalData, 0, 0);
+  }
+
+  return canvas.toDataURL('image/jpeg', 0.95);
+};
+
 const getRoomSpecificCADInstructions = (userInput: string) => {
   const clean = userInput.toLowerCase();
   
@@ -622,7 +697,21 @@ YOUR TASK:
             const editData = await editRes.json();
 
             if (editData.editedFloorPlan) {
-              useArchitectStore.getState().setCurrentFloorPlan(editData.editedFloorPlan);
+              let blendedPlan = editData.editedFloorPlan;
+              if (useInpaint) {
+                try {
+                  const originalImg = await loadImage(currentPlan!);
+                  const editedImg = await loadImage(editData.editedFloorPlan);
+                  const maskImg = await loadImage(useArchitectStore.getState().inpaintMask!);
+                  const blendedDataUrl = blendImagesWithBWMask(originalImg, editedImg, maskImg);
+                  if (blendedDataUrl) {
+                    blendedPlan = blendedDataUrl;
+                  }
+                } catch (blendError) {
+                  console.error('Error blending floorplan edit images:', blendError);
+                }
+              }
+              useArchitectStore.getState().setCurrentFloorPlan(blendedPlan);
               if (useArchitectStore.getState().phase !== 'edit') {
                 useArchitectStore.getState().setPhase('edit');
               }
@@ -699,9 +788,23 @@ YOUR TASK:
               const editData = await editRes.json();
 
               if (editData.editedRender) {
+                let blendedRender = editData.editedRender;
+                if (useInpaint) {
+                  try {
+                    const originalImg = await loadImage(activeRender.base64);
+                    const editedImg = await loadImage(editData.editedRender);
+                    const maskImg = await loadImage(useArchitectStore.getState().inpaintMask!);
+                    const blendedDataUrl = blendImagesWithBWMask(originalImg, editedImg, maskImg);
+                    if (blendedDataUrl) {
+                      blendedRender = blendedDataUrl;
+                    }
+                  } catch (blendError) {
+                    console.error('Error blending render edit images:', blendError);
+                  }
+                }
                 const newItem: RenderHistoryItem = {
                   id: Math.random().toString(36).substr(2, 9),
-                  base64: editData.editedRender,
+                  base64: blendedRender,
                   style: activeRender.style + ' (Edited)',
                   sunpath: activeRender.sunpath
                 };
@@ -710,6 +813,7 @@ YOUR TASK:
                 
                 setInpaintRenderActive(false);
                 setPaintedRender(null);
+                useArchitectStore.getState().setInpaintMask(null);
                 playSound('success');
                 addMessage({
                   role: 'model',

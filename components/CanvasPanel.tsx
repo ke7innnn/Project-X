@@ -278,11 +278,37 @@ export default function CanvasPanel() {
     const ctx = offscreen.getContext('2d');
     if (!ctx) return;
 
+    // 1. Composite the green strokes over the original image for the visual preview state
     ctx.drawImage(img, 0, 0, offscreen.width, offscreen.height);
     ctx.drawImage(canvas, 0, 0, offscreen.width, offscreen.height);
 
     const base64 = offscreen.toDataURL('image/jpeg', 0.95).split(',')[1];
     setPaintedRender(base64);
+
+    // 2. Generate the pure black-and-white mask for blending
+    const maskCanvas = document.createElement('canvas');
+    maskCanvas.width = offscreen.width;
+    maskCanvas.height = offscreen.height;
+    const maskCtx = maskCanvas.getContext('2d');
+    if (maskCtx) {
+      maskCtx.fillStyle = 'black';
+      maskCtx.fillRect(0, 0, maskCanvas.width, maskCanvas.height);
+      maskCtx.drawImage(canvas, 0, 0, maskCanvas.width, maskCanvas.height);
+      
+      const imgData = maskCtx.getImageData(0, 0, maskCanvas.width, maskCanvas.height);
+      const data = imgData.data;
+      for (let i = 0; i < data.length; i += 4) {
+        if (data[i] !== 0 || data[i+1] !== 0 || data[i+2] !== 0) {
+          data[i] = 255;   // R
+          data[i+1] = 255; // G
+          data[i+2] = 255; // B
+          data[i+3] = 255; // Alpha
+        }
+      }
+      maskCtx.putImageData(imgData, 0, 0);
+      const maskBase64 = maskCanvas.toDataURL('image/png').split(',')[1];
+      setInpaintMask(maskBase64);
+    }
   };
 
   const clearRenderPaintCanvas = () => {
@@ -292,6 +318,7 @@ export default function CanvasPanel() {
     if (!ctx) return;
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     setPaintedRender(null);
+    setInpaintMask(null);
   };
 
   const generateRender = async (styleVal?: string, sunpathVal?: string) => {
