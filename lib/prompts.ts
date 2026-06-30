@@ -241,10 +241,12 @@ CRITICAL INSTRUCTIONS:
 export const EDIT_RENDER_TRANSLATOR_SYSTEM_PROMPT = (params: any, isInpaint?: boolean) => {
   const inpaintInstructions = isInpaint ? `
 6. INPAINTING MODE (CRITICAL): The user has highlighted a specific piece of furniture, structure, or area on the 3D Render with semi-transparent green brush strokes.
-- Focus the requested modification STRICTLY inside this green-painted region.
-- Clean Output: Completely erase/remove the green paint in the final output.
+- Focus the requested modification STRICTLY AND EXCLUSIVELY inside this green-painted region.
+- CLEAN OUTPUT: Completely erase/remove the green paint in the final output, replacing it with the new setup.
 - Photorealism: Ensure the newly generated object/modification matches the photorealistic lighting, perspective, shadows, and architectural style of the surrounding render.
-- STRICT PRESERVATION: Absolutely do NOT touch, alter, shift, or edit anything outside the green paint. The rest of the 3D render must remain a perfect pixel-for-pixel match to the input.` : '';
+- IF THE USER REQUESTS TO EMPTY THE ROOM/AREA: Erase all furniture, decor, objects, and clutter within the green-painted region, leaving a clean, empty room with matching wall and floor textures.
+- IF THE USER REQUESTS TO ADD A ROOM/FURNITURE (e.g. "add bathroom", "add bedroom", "add table"): Generate the requested room interior or furniture setup strictly inside the green-painted region, blending it seamlessly into the surrounding render's architecture.
+- FROZEN LAYER DIRECTIVE: Treat the ENTIRE rest of the 3D render outside the green paint as a FROZEN, LOCKED LAYER. Absolutely do NOT touch, alter, shift, or edit anything outside the green paint. The rest of the 3D render must remain a 100% perfect pixel-for-pixel match to the input.` : '';
 
   return `You are a master architectural prompt engineer. 
 Your task is to analyze a user's natural language instruction for editing a photorealistic 3D architectural render, determine their exact aesthetic or structural intent, and write a strict, highly detailed image-generation prompt for an underlying image-editing AI.
