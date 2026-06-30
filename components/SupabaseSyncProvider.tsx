@@ -219,6 +219,26 @@ export default function SupabaseSyncProvider({ children }: { children: React.Rea
     initSession();
   }, [sessionId, isRestored]);
 
+  // ── 1.5. Prevent Ghost Projects (Cross-Tab Deletion) ────────────────────────
+  useEffect(() => {
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'architect_session_id' && e.newValue === null) {
+        // The active session was deleted in another tab!
+        // Immediately clear local state to stop any debounced autosaves.
+        useArchitectStore.getState().replaceState({ 
+          sessionId: null, 
+          isRestored: false, 
+          projectName: null, 
+          placeName: null 
+        });
+        // Force the user back to the projects dashboard
+        window.location.href = '/projects';
+      }
+    };
+    window.addEventListener('storage', handleStorageChange);
+    return () => window.removeEventListener('storage', handleStorageChange);
+  }, []);
+
   // ── 2. Syncing to Supabase ───────────────────────────────────────────────────
   useEffect(() => {
     const unsubscribe = useArchitectStore.subscribe((state) => {

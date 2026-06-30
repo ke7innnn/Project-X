@@ -22,6 +22,8 @@ export default function ProjectsDashboard() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [newProjectName, setNewProjectName] = useState('');
   const [newPlaceName, setNewPlaceName] = useState('');
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+  const [isClearingAll, setIsClearingAll] = useState(false);
 
   useEffect(() => {
     fetchProjects();
@@ -68,6 +70,7 @@ export default function ProjectsDashboard() {
 
     router.push('/workspace/' + newSessionId);
   };
+  
   const handleOpenProject = (project: ProjectRow) => {
     const pName = project.state?.projectName || 'Untitled Project';
     const pPlace = project.state?.placeName || 'Unknown Location';
@@ -76,9 +79,10 @@ export default function ProjectsDashboard() {
     router.push('/workspace/' + project.session_id);
   };
 
-  const handleDeleteProject = async (sessId: string) => {
-    const ok = window.confirm("Delete this project? This cannot be undone.");
-    if (!ok) return;
+  const confirmDeleteProject = async () => {
+    if (!deleteConfirmId) return;
+    const sessId = deleteConfirmId;
+    setDeleteConfirmId(null);
 
     try {
       const res = await fetch('/api/delete-project', {
@@ -103,9 +107,8 @@ export default function ProjectsDashboard() {
     }
   };
 
-  const handleClearAll = async () => {
-    const ok = window.confirm("Delete ALL projects permanently? This cannot be undone.");
-    if (!ok) return;
+  const confirmClearAll = async () => {
+    setIsClearingAll(false);
 
     try {
       const res = await fetch('/api/delete-project', {
@@ -151,21 +154,22 @@ export default function ProjectsDashboard() {
           </div>
         </div>
         
-        <button 
-          onClick={() => setIsModalOpen(true)}
-          className="flex items-center gap-2 px-6 py-3 bg-[#FFB000] text-[#0a0a0f] hover:bg-[#D8B78D] font-bold uppercase tracking-widest rounded-lg transition-all shadow-[0_0_20px_rgba(255,176,0,0.3)] hover:shadow-[0_0_30px_rgba(255,176,0,0.5)]"
-        >
-          <Plus size={18} /> Initialize Project
-        </button>
-        {projects.length > 0 && (
-          <button
-            onClick={handleClearAll}
-            className="flex items-center gap-2 px-4 py-3 border border-red-500/40 text-red-400 hover:bg-red-500/10 hover:border-red-500 font-bold uppercase tracking-widest rounded-lg transition-all text-xs"
+        <div className="flex items-center gap-4">
+          <button 
+            onClick={() => setIsModalOpen(true)}
+            className="flex items-center gap-2 px-6 py-3 bg-[#FFB000] text-[#0a0a0f] hover:bg-[#D8B78D] font-bold uppercase tracking-widest rounded-lg transition-all shadow-[0_0_20px_rgba(255,176,0,0.3)] hover:shadow-[0_0_30px_rgba(255,176,0,0.5)]"
           >
-            <Trash2 size={16} /> Clear All
+            <Plus size={18} /> Initialize Project
           </button>
-        )}
-
+          {projects.length > 0 && (
+            <button
+              onClick={() => setIsClearingAll(true)}
+              className="flex items-center gap-2 px-4 py-3 border border-red-500/40 text-red-400 hover:bg-red-500/10 hover:border-red-500 font-bold uppercase tracking-widest rounded-lg transition-all text-xs"
+            >
+              <Trash2 size={16} /> Clear All
+            </button>
+          )}
+        </div>
       </header>
 
       {/* Main Grid */}
@@ -211,7 +215,7 @@ export default function ProjectsDashboard() {
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
-                        handleDeleteProject(proj.session_id);
+                        setDeleteConfirmId(proj.session_id);
                       }}
                       className="absolute top-3 right-3 z-20 flex items-center justify-center w-8 h-8 rounded-full border border-red-500/30 bg-[#0a0a0f]/80 text-red-500/70 hover:text-red-500 hover:border-red-500 hover:bg-red-500/10 transition-all shadow-md cursor-pointer"
                       title="Delete Project"
@@ -236,6 +240,56 @@ export default function ProjectsDashboard() {
           </div>
         )}
       </main>
+
+      {/* Delete Single Project Modal */}
+      {deleteConfirmId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#0a0a0f]/90 backdrop-blur-sm">
+          <div className="bg-[#1a1212] border border-red-500/30 rounded-xl p-8 max-w-md w-full shadow-[0_0_50px_rgba(239,68,68,0.15)] relative text-center">
+            <Trash2 size={48} className="text-red-500/50 mx-auto mb-6" />
+            <h2 className="text-2xl font-bold uppercase tracking-[4px] text-white mb-4">Delete Project?</h2>
+            <p className="text-[#FFB000]/70 mb-8 uppercase tracking-widest text-sm">This action is permanent and cannot be reversed. Are you sure you want to delete this project?</p>
+            <div className="flex gap-4">
+              <button 
+                onClick={() => setDeleteConfirmId(null)}
+                className="flex-1 py-3 border border-[#FFB000]/50 text-[#FFB000]/80 hover:text-[#FFB000] hover:bg-[#FFB000]/10 uppercase tracking-widest font-bold rounded transition-colors"
+              >
+                Cancel
+              </button>
+              <button 
+                onClick={confirmDeleteProject}
+                className="flex-1 py-3 bg-red-500/80 text-white hover:bg-red-500 uppercase tracking-widest font-bold rounded transition-colors"
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Clear All Projects Modal */}
+      {isClearingAll && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#0a0a0f]/90 backdrop-blur-sm">
+          <div className="bg-[#1a1212] border border-red-500/50 rounded-xl p-8 max-w-md w-full shadow-[0_0_80px_rgba(239,68,68,0.2)] relative text-center">
+            <Trash2 size={48} className="text-red-500/80 mx-auto mb-6" />
+            <h2 className="text-2xl font-bold uppercase tracking-[4px] text-red-500 mb-4">Clear All Projects?</h2>
+            <p className="text-white/70 mb-8 uppercase tracking-widest text-sm leading-relaxed">WARNING: You are about to wipe your entire project archive. This will permanently destroy all drafted floor plans.</p>
+            <div className="flex gap-4">
+              <button 
+                onClick={() => setIsClearingAll(false)}
+                className="flex-1 py-3 border border-[#FFB000]/50 text-[#FFB000]/80 hover:text-[#FFB000] hover:bg-[#FFB000]/10 uppercase tracking-widest font-bold rounded transition-colors"
+              >
+                Cancel
+              </button>
+              <button 
+                onClick={confirmClearAll}
+                className="flex-1 py-3 bg-red-600 text-white hover:bg-red-500 uppercase tracking-widest font-bold rounded transition-colors shadow-[0_0_20px_rgba(220,38,38,0.5)]"
+              >
+                Wipe Archive
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Create Project Modal */}
       {isModalOpen && (
