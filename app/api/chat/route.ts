@@ -147,12 +147,19 @@ export async function POST(request: Request) {
       }
     }
 
+    // Ensure the current user message is always present at the end of the history
+    // If the client stripped it (e.g. search phase) and 'message' is empty but we have an image,
+    // we need to push an empty user message so the image has a place to attach.
+    if ((message || imageBase64) && (squashedMessages.length === 0 || squashedMessages[squashedMessages.length - 1].role !== 'user')) {
+      squashedMessages.push({ role: 'user', content: message || '' });
+    }
+
     // Append image to the last user message if provided
     if (imageBase64 && squashedMessages.length > 0) {
       const lastMsg = squashedMessages[squashedMessages.length - 1];
       if (lastMsg.role === 'user') {
         const textContent = lastMsg.content;
-        const systemDirective = "\\n\\n[SYSTEM: The user just uploaded a reference image. Acknowledge it immediately according to CONVERSATION RULE 2.]";
+        const systemDirective = "\n\n[SYSTEM: The user just uploaded a reference image. Acknowledge it immediately according to CONVERSATION RULE 2.]";
         lastMsg.content = [
           { type: 'text', text: textContent ? textContent + systemDirective : systemDirective },
           { type: 'image_url', image_url: { url: `data:image/jpeg;base64,${imageBase64}` } }
