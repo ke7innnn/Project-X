@@ -3,7 +3,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useArchitectStore } from '@/store/useArchitectStore';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, Send, PenTool, Loader2, UploadCloud, Folder, Search, Plus, MapPin, Clock, Trash2, Map } from 'lucide-react';
+import { ArrowLeft, Send, PenTool, Loader2, UploadCloud, Folder, Search, Plus, MapPin, Clock, Trash2, Map, Brush, Eraser } from 'lucide-react';
 import CinematicIntro from '@/components/CinematicIntro';
 import SaveToProjectModal from '@/components/SaveToProjectModal';
 import { supabase } from '@/lib/supabase';
@@ -31,6 +31,79 @@ export default function EditPage() {
   const [isNewProjectModalOpen, setIsNewProjectModalOpen] = useState(false);
   const [newProjectName, setNewProjectName] = useState('');
   const [newPlaceName, setNewPlaceName] = useState('');
+
+  // Inpaint State
+  const [isInpaintMode, setIsInpaintMode] = useState(false);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const imgRef = useRef<HTMLImageElement>(null);
+  const [isDrawing, setIsDrawing] = useState(false);
+  const [hasInpaint, setHasInpaint] = useState(false);
+
+  useEffect(() => {
+    const resizeCanvas = () => {
+      if (imgRef.current && canvasRef.current && isInpaintMode) {
+        canvasRef.current.width = imgRef.current.clientWidth;
+        canvasRef.current.height = imgRef.current.clientHeight;
+      }
+    };
+    window.addEventListener('resize', resizeCanvas);
+    setTimeout(resizeCanvas, 100);
+    return () => window.removeEventListener('resize', resizeCanvas);
+  }, [isInpaintMode, currentFloorPlan]);
+
+  const startDrawing = (e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) => {
+    if (!isInpaintMode || !canvasRef.current) return;
+    setIsDrawing(true);
+    const canvas = canvasRef.current;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    
+    const rect = canvas.getBoundingClientRect();
+    const x = ('touches' in e) ? e.touches[0].clientX - rect.left : (e as React.MouseEvent).clientX - rect.left;
+    const y = ('touches' in e) ? e.touches[0].clientY - rect.top : (e as React.MouseEvent).clientY - rect.top;
+    
+    ctx.beginPath();
+    ctx.moveTo(x, y);
+  };
+
+  const draw = (e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) => {
+    if (!isDrawing || !isInpaintMode || !canvasRef.current) return;
+    e.preventDefault();
+    
+    const canvas = canvasRef.current;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    
+    const rect = canvas.getBoundingClientRect();
+    const x = ('touches' in e) ? e.touches[0].clientX - rect.left : (e as React.MouseEvent).clientX - rect.left;
+    const y = ('touches' in e) ? e.touches[0].clientY - rect.top : (e as React.MouseEvent).clientY - rect.top;
+    
+    ctx.lineTo(x, y);
+    ctx.strokeStyle = 'rgba(0, 255, 0, 0.4)';
+    ctx.lineWidth = 30;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    ctx.stroke();
+    setHasInpaint(true);
+  };
+
+  const stopDrawing = () => {
+    if (!isDrawing) return;
+    setIsDrawing(false);
+    if (canvasRef.current) {
+      canvasRef.current.getContext('2d')?.closePath();
+    }
+  };
+
+  const clearInpaint = () => {
+    if (canvasRef.current) {
+      const ctx = canvasRef.current.getContext('2d');
+      if (ctx) {
+        ctx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
+      }
+    }
+    setHasInpaint(false);
+  };
 
   useEffect(() => {
     if (sessionId) {
@@ -72,13 +145,29 @@ export default function EditPage() {
     setIsEditing(true);
     setError(null);
     
+    let finalPayloadBase64 = currentFloorPlan;
+    let finalPrompt = prompt;
+
+    if (isInpaintMode && hasInpaint && canvasRef.current && imgRef.current) {
+      const compositeCanvas = document.createElement('canvas');
+      compositeCanvas.width = imgRef.current.naturalWidth;
+      compositeCanvas.height = imgRef.current.naturalHeight;
+      const ctx = compositeCanvas.getContext('2d');
+      if (ctx) {
+        ctx.drawImage(imgRef.current, 0, 0, compositeCanvas.width, compositeCanvas.height);
+        ctx.drawImage(canvasRef.current, 0, 0, compositeCanvas.width, compositeCanvas.height);
+        finalPayloadBase64 = compositeCanvas.toDataURL('image/png');
+        finalPrompt = `Where there is green paint, replace that with: ${prompt}. Ensure the green color is completely removed in the output.`;
+      }
+    }
+
     try {
       const editRes = await fetch('/api/edit-floorplan', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
-          currentFloorPlanBase64: currentFloorPlan,
-          editInstruction: prompt,
+          currentFloorPlanBase64: finalPayloadBase64,
+          editInstruction: finalPrompt,
           collectedParameters,
           roomDimensions
         })
@@ -88,6 +177,7 @@ export default function EditPage() {
       if (editData.editedFloorPlan) {
         setCurrentFloorPlan(editData.editedFloorPlan);
         setPrompt('');
+        clearInpaint();
       } else {
         setError('Edit failed. Please try a different instruction.');
       }
@@ -193,6 +283,28 @@ export default function EditPage() {
               Undo Last Edit
             </button>
           )}
+
+          {currentFloorPlan && (
+            <>
+              <button 
+                onClick={() => {
+                  setIsInpaintMode(!isInpaintMode);
+                  if (isInpaintMode) clearInpaint();
+                }}
+                className={`flex items-center gap-2 px-4 py-2 text-[10px] uppercase tracking-widest border rounded transition-colors ${isInpaintMode ? 'bg-cyan-500/20 border-cyan-400 text-cyan-400' : 'border-cyan-500/50 text-cyan-400 hover:bg-cyan-500/10'}`}
+              >
+                <Brush size={14} /> {isInpaintMode ? 'Exit Inpaint' : 'Inpaint'}
+              </button>
+              {isInpaintMode && hasInpaint && (
+                <button 
+                  onClick={clearInpaint}
+                  className="flex items-center gap-2 px-4 py-2 text-[10px] uppercase tracking-widest border border-red-500/50 text-red-400 hover:bg-red-500/10 rounded transition-colors"
+                >
+                  <Eraser size={14} /> Clear Brush
+                </button>
+              )}
+            </>
+          )}
         </div>
       </header>
 
@@ -204,9 +316,27 @@ export default function EditPage() {
           {currentFloorPlan ? (
             <div className="relative w-full max-w-4xl aspect-square bg-white rounded-xl shadow-2xl overflow-hidden border-2 border-cyan-500/20 group">
               <img 
+                ref={imgRef}
                 src={currentFloorPlan.startsWith('data:image/') ? currentFloorPlan : `data:image/jpeg;base64,${currentFloorPlan}`} 
                 alt="Current Floor Plan" 
-                className={`w-full h-full object-contain transition-opacity duration-300 ${isEditing ? 'opacity-50 blur-sm' : 'opacity-100'}`}
+                className={`w-full h-full object-contain transition-opacity duration-300 ${isEditing ? 'opacity-50 blur-sm' : 'opacity-100'} ${isInpaintMode ? 'pointer-events-none' : ''}`}
+                onLoad={() => {
+                  if (isInpaintMode && imgRef.current && canvasRef.current) {
+                    canvasRef.current.width = imgRef.current.clientWidth;
+                    canvasRef.current.height = imgRef.current.clientHeight;
+                  }
+                }}
+              />
+              <canvas
+                ref={canvasRef}
+                onMouseDown={startDrawing}
+                onMouseMove={draw}
+                onMouseUp={stopDrawing}
+                onMouseOut={stopDrawing}
+                onTouchStart={startDrawing}
+                onTouchMove={draw}
+                onTouchEnd={stopDrawing}
+                className={`absolute top-0 left-0 w-full h-full object-contain z-10 touch-none ${!isInpaintMode ? 'hidden' : 'cursor-crosshair'}`}
               />
               {isEditing && (
                 <div className="absolute inset-0 flex flex-col items-center justify-center bg-[#0a0a0f]/60 backdrop-blur-sm z-20">
