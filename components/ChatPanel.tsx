@@ -12,6 +12,68 @@ import { playSound } from '@/lib/sounds';
 
 import { useShallow } from 'zustand/react/shallow';
 
+const getRoomSpecificCADInstructions = (userInput: string) => {
+  const clean = userInput.toLowerCase();
+  
+  if (clean.includes('pool') || clean.includes('swimming')) {
+    return 'Draw a detailed 2D plan view architectural swimming pool layout inside the green area. Use standard black blueprint drawing symbols: show the pool outline, steps/stairs, water depth lines, and an optional wood deck or tile coping border surrounding the pool. Keep it strictly in the black and white 2D drafting style.';
+  }
+  if (clean.includes('kitchen')) {
+    return 'Draw a standard 2D kitchen layout inside the green area: countertops, kitchen sink basin, range/stove burners, refrigerator space, and cabinets in black CAD outline style.';
+  }
+  if (clean.includes('bath') || clean.includes('toilet') || clean.includes('washroom')) {
+    return 'Draw bathroom details in 2D plan view: a bathtub, toilet, washbasin, and shower cabinet using standard black blueprint CAD symbols.';
+  }
+  if (clean.includes('bed')) {
+    return 'Draw a detailed bedroom layout: double or single bed outlines with pillows, bedside tables, wardrobes, and closets in black line art.';
+  }
+  if (clean.includes('living') || clean.includes('lounge') || clean.includes('hall')) {
+    return 'Draw living room furniture configurations: couch/sofa outlines, a coffee table, media console, and armchairs in clean black CAD lines.';
+  }
+  if (clean.includes('garden') || clean.includes('yard') || clean.includes('lawn') || clean.includes('outdoor') || clean.includes('patio')) {
+    return 'Draw outdoor landscaping features inside the green area: paving stones grid, circular tree/shrub blueprint symbols, grass hatch texturing, and simple patio furniture symbols.';
+  }
+  if (clean.includes('parking') || clean.includes('garage') || clean.includes('car')) {
+    return 'Draw car parking layouts: parking spaces with clean 2D outline symbols of parked cars.';
+  }
+  if (clean === 'empty' || clean === 'empty room' || clean === 'no furniture') {
+    return 'Completely vacate the space. Erase all furniture, fixtures, appliances, text labels, and structural details from inside this room, leaving it entirely blank/empty. Keep only the outer bounding walls and doors.';
+  }
+  
+  return `Erase the existing contents and draw a clean, detailed 2D plan view layout for a "${userInput}" inside this room. Use standard architectural CAD blueprint furniture symbols.`;
+};
+
+const getRoomSpecific3DRenderInstructions = (userInput: string) => {
+  const clean = userInput.toLowerCase();
+  
+  if (clean.includes('pool') || clean.includes('swimming')) {
+    return 'Generate a photorealistic swimming pool with clear glowing blue water, ripples, steps, and modern surrounding decking or stone tiles matching the outdoor environment.';
+  }
+  if (clean.includes('kitchen')) {
+    return 'Generate a luxury modern kitchen setup: clean stone/marble countertops, modern faucet, oven/stove, cabinets, refrigerator, and elegant fixtures matching the architecture.';
+  }
+  if (clean.includes('bath') || clean.includes('toilet') || clean.includes('washroom') || clean.includes('shower')) {
+    return 'Generate a photorealistic bathroom interior: modern vanity, sink, mirror, glass shower cabin, toilet, and premium tile finishes matching the surrounding style.';
+  }
+  if (clean.includes('bed')) {
+    return 'Generate a photorealistic bedroom setup: double or single bed with premium sheets/pillows, modern bedside tables with table lamps, and a wardrobe.';
+  }
+  if (clean.includes('living') || clean.includes('lounge') || clean.includes('hall') || clean.includes('couch') || clean.includes('sofa')) {
+    return 'Generate a cozy living room setup: modern sofa/couch, matching throw pillows, coffee table, carpet, and a TV console or artwork.';
+  }
+  if (clean.includes('garden') || clean.includes('yard') || clean.includes('lawn') || clean.includes('outdoor') || clean.includes('patio')) {
+    return 'Generate beautiful outdoor landscaping: manicured green lawn grass, flowers, shrubs, garden beds, and optional outdoor patio table and chairs.';
+  }
+  if (clean.includes('parking') || clean.includes('garage')) {
+    return 'Generate a clean car parking space or garage area with premium paving or concrete floors.';
+  }
+  if (clean === 'empty' || clean === 'empty room' || clean === 'no furniture') {
+    return 'Completely vacate this room/area. Erase all furniture, decor, clutter, appliances, and items, leaving the space entirely empty with only the clean floor and walls matching the surrounding textures.';
+  }
+  
+  return `Erase the existing contents in this highlighted region and generate a photorealistic "${userInput}" setup matching the perspective, lighting, shadows, and style of the surrounding render.`;
+};
+
 export default function ChatPanel() {
   const { 
     conversationHistory, 
@@ -523,17 +585,38 @@ export default function ChatPanel() {
           );
           try {
             const useInpaint = inpaintActive && paintedFloorPlan;
+            let finalPrompt = effectiveEditInstruction;
+            let skipTranslation = false;
+
+            if (useInpaint) {
+              const cleanLower = effectiveEditInstruction.trim().toLowerCase().replace(/^replace\s+green\s+with:\s*/, '').trim();
+              const coreInstruction = getRoomSpecificCADInstructions(cleanLower);
+              finalPrompt = `
+[CRITICAL ARCHITECTURAL BLUEPRINT EDIT DIRECTIVE]
+You are a precise CAD software compiler and master architect. The user has uploaded a floor plan image. A specific room/area has been marked with a semi-transparent green paint brush stroke.
+
+YOUR TASK:
+1. TARGET ZONE: Modify ONLY the room or outdoor area covered by the green paint. Even if the green paint only covers a part of the room, apply the change to the entire enclosing room.
+2. ACTION: ${coreInstruction}
+3. CAD STYLE MATCHING: You MUST draw in the exact same 2D blueprint drafting style as the original image: clean black lines on a solid white background. Match the line weights, hatching, labels, and drawing style of the existing plan.
+4. STRICT PRESERVATION PROTOCOL: Do not modify, change, shift, or delete ANY walls, doors, windows, labels, layouts, furniture, cars, or details in any other part of the floor plan outside of the green-painted area. The rest of the plan MUST remain 100% identical to the input image down to the pixel.
+5. NO COLOR: The output must remain in black and white CAD blueprint style. Remove the green paint overlay completely. No green color or other colors should appear in the final output.
+`;
+              skipTranslation = true;
+            }
+
             const currentPlan = useArchitectStore.getState().currentFloorPlan;
             const editRes = await fetch('/api/edit-floorplan', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ 
                 currentFloorPlanBase64: currentPlan,
-                editInstruction: effectiveEditInstruction,
+                editInstruction: finalPrompt,
                 collectedParameters: useArchitectStore.getState().collectedParameters,
                 roomDimensions: useArchitectStore.getState().roomDimensions,
                 isInpaint: !!useInpaint,
-                maskBase64: useInpaint ? useArchitectStore.getState().inpaintMask : null
+                maskBase64: useInpaint ? useArchitectStore.getState().inpaintMask : null,
+                skipTranslation
               })
             });
             const editData = await editRes.json();
@@ -582,14 +665,35 @@ export default function ChatPanel() {
             );
             try {
               const useInpaint = inpaintRenderActive && paintedRender;
+              let finalPrompt = effectiveEditInstruction;
+              let skipTranslation = false;
+
+              if (useInpaint) {
+                const cleanLower = effectiveEditInstruction.trim().toLowerCase().replace(/^replace\s+green\s+with:\s*/, '').trim();
+                const coreInstruction = getRoomSpecific3DRenderInstructions(cleanLower);
+                finalPrompt = `
+[CRITICAL 3D ARCHITECTURAL RENDER EDIT DIRECTIVE]
+You are a master 3D visualization architect. The user has uploaded a photorealistic 3D render. A specific region or object has been highlighted with semi-transparent green paint brush strokes.
+
+YOUR TASK:
+1. TARGET ZONE: Modify ONLY the object, room, or structure covered by the green paint.
+2. ACTION: ${coreInstruction}
+3. PHOTOREALISTIC BLENDING: You MUST render the requested changes to perfectly match the lighting direction, shadow intensity, materials, perspective, and architectural design style of the surrounding scene.
+4. STRICT PRESERVATION PROTOCOL: Do not modify, change, shift, or delete any walls, windows, furniture, landscaping, lighting, or details in any other part of the 3D render outside of the green-painted area. The rest of the render MUST remain 100% identical to the input image down to the pixel.
+5. CLEAN OUTPUT: Remove the green paint overlay completely. No green paint residue should appear in the final output.
+`;
+                skipTranslation = true;
+              }
+
               const editRes = await fetch('/api/edit-render', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ 
                   renderBase64: useInpaint ? paintedRender : activeRender.base64,
-                  editInstruction: effectiveEditInstruction,
+                  editInstruction: finalPrompt,
                   isInpaint: !!useInpaint,
-                  collectedParameters: useArchitectStore.getState().collectedParameters
+                  collectedParameters: useArchitectStore.getState().collectedParameters,
+                  skipTranslation
                 })
               });
               const editData = await editRes.json();
