@@ -1,10 +1,12 @@
 import { NextResponse } from 'next/server';
 import { EDIT_TRANSLATOR_SYSTEM_PROMPT } from '@/lib/prompts';
 import { callGemini } from '@/lib/gemini';
+import sharp from 'sharp';
+import { fal } from '@fal-ai/client';
 
 const FAL_KEY = process.env.FAL_KEY!;
 
-export const maxDuration = 120;
+export const maxDuration = 300;
 
 /**
  * Calls fal.ai for professional floor plan edits.
@@ -13,59 +15,46 @@ export const maxDuration = 120;
 async function callFalGeminiEdit(params: {
   currentFloorPlanBase64: string;
   translatedPrompt: string;
-}, maxRetries = 2): Promise<string> {
-  const floorPlanDataUri = params.currentFloorPlanBase64.startsWith('data:')
-    ? params.currentFloorPlanBase64
-    : `data:image/png;base64,${params.currentFloorPlanBase64}`;
+}): Promise<string> {
+  const rawBase64 = params.currentFloorPlanBase64.includes(',') 
+    ? params.currentFloorPlanBase64.split(',')[1] 
+    : params.currentFloorPlanBase64;
+    
+  const buffer = Buffer.from(rawBase64, 'base64');
+  
+  // Set credentials for client
+  fal.config({ credentials: FAL_KEY });
 
-  const body = {
-    prompt: params.translatedPrompt,
-    image_url: floorPlanDataUri
-  };
+  // Resize and compress using sharp to ensure we stay under fal.ai payload limits (must be PNG for OpenAI)
+  const resizedBuffer = await sharp(buffer)
+    .resize({ width: 1024, height: 1024, fit: 'inside', withoutEnlargement: true })
+    .png({ compressionLevel: 8 })
+    .toBuffer();
 
-  let lastError: any;
+  console.log(`[edit-floorplan] Uploading PNG to fal.ai storage...`);
+  const uploadedUrl = await fal.storage.upload(resizedBuffer);
+  console.log(`[edit-floorplan] Uploaded to: ${uploadedUrl}`);
 
-  for (let attempt = 0; attempt <= maxRetries; attempt++) {
-    try {
-      console.log(`[edit-floorplan] Attempt ${attempt + 1}/${maxRetries + 1}...`);
+  console.log(`[edit-floorplan] Calling fal-ai/openai/gpt-image-2/edit...`);
+  const result = await fal.subscribe("openai/gpt-image-2/edit", {
+    input: {
+      prompt: params.translatedPrompt,
+      image_urls: [uploadedUrl]
+    },
+    logs: true
+  });
 
-      const response = await fetch('https://fal.run/openai/gpt-image-2/edit', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Key ${FAL_KEY}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(body),
-        signal: AbortSignal.timeout(55000),
-      });
-
-      if (!response.ok) {
-        const errText = await response.text().catch(() => 'unknown');
-        throw new Error(`fal.ai error ${response.status}: ${errText}`);
-      }
-
-      const data = await response.json();
-      const imageUrl = data?.images?.[0]?.url || data?.image?.url;
-      if (!imageUrl) throw new Error('fal.ai returned no image URL');
-
-      // Download the resulting image
-      const imgRes = await fetch(imageUrl, { signal: AbortSignal.timeout(20000) });
-      if (!imgRes.ok) throw new Error(`Failed to download edited image (status ${imgRes.status})`);
-      const imgBuffer = await imgRes.arrayBuffer();
-      console.log(`[edit-floorplan] Success on attempt ${attempt + 1}`);
-      return Buffer.from(imgBuffer).toString('base64');
-
-    } catch (e: any) {
-      lastError = e;
-      if (attempt < maxRetries) {
-        const delay = 1000 * Math.pow(2, attempt); // 1s, 2s
-        console.warn(`[edit-floorplan] Attempt ${attempt + 1} failed: ${e.message}. Retrying...`);
-        await new Promise(r => setTimeout(r, delay));
-      }
-    }
+  const imageUrl = (result.data as any)?.images?.[0]?.url || (result.data as any)?.image?.url;
+  if (!imageUrl) {
+    console.error('[edit-floorplan] fal.ai returned no image URL:', result);
+    throw new Error('fal.ai returned no image URL');
   }
 
-  throw lastError;
+  // Download the resulting image
+  const imgRes = await fetch(imageUrl, { signal: AbortSignal.timeout(20000) });
+  if (!imgRes.ok) throw new Error(`Failed to download edited image (status ${imgRes.status})`);
+  const imgBuffer = await imgRes.arrayBuffer();
+  return Buffer.from(imgBuffer).toString('base64');
 }
 
 /**
@@ -196,23 +185,14 @@ export async function POST(request: Request) {
     }
     
     let editedFloorPlan: string;
-    let modelUsed = 'grok-imagine-image/edit';
+    let modelUsed = 'fal-ai/gpt-image-2/edit';
 
-    try {
-      // Primary: Call fal.ai (Grok Imagine Image Edit)
-      editedFloorPlan = await callFalGeminiEdit({
-        currentFloorPlanBase64,
-        translatedPrompt,
-      });
-    } catch (falError: any) {
-      console.warn(`[edit-floorplan] Fal.ai edit failed (${falError.message}). Falling back to Google Gemini...`);
-      // Fallback: Use Gemini Image-to-Image pipeline
-      editedFloorPlan = await callGeminiEdit({
-        currentFloorPlanBase64,
-        translatedPrompt,
-      });
-      modelUsed = 'gemini-edit-fallback';
-    }
+    // Primary: Call fal.ai (GPT Image Edit)
+    // Removed Gemini fallback per user request to save costs
+    editedFloorPlan = await callFalGeminiEdit({
+      currentFloorPlanBase64,
+      translatedPrompt,
+    });
 
     return NextResponse.json({ editedFloorPlan, modelUsed });
   } catch (error: any) {

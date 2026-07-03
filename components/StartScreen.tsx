@@ -38,7 +38,7 @@ function getMoonPhase(date: Date): { phase: string; icon: string } {
   const synodicMonth = 29.530588853;
   const cyclePosition = (diffDays / synodicMonth) % 1;
   const normalized = cyclePosition < 0 ? cyclePosition + 1 : cyclePosition;
-  
+
   if (normalized < 0.03 || normalized > 0.97) return { phase: "New Moon", icon: "🌑" };
   if (normalized >= 0.03 && normalized < 0.22) return { phase: "Waxing Crescent", icon: "🌒" };
   if (normalized >= 0.22 && normalized < 0.28) return { phase: "First Quarter", icon: "🌓" };
@@ -67,8 +67,8 @@ export default function StartScreen() {
     { id: 'render-zone', label: 'RENDER ZONE' },
     { id: 'edit', label: 'EDIT' },
     { id: '3d-render', label: '3D RENDER' },
-    { id: 'png-to-dxf', label: 'PNG TO DXF', badge: 'NEW' },
     { id: 'enhancement', label: 'ENHANCEMENT', badge: 'NEW' },
+    { id: 'png-to-dxf', label: 'PNG TO DXF' },
     { id: 'flythrough', label: 'FLYTHROUGH' }
   ];
 
@@ -86,11 +86,11 @@ export default function StartScreen() {
   const [statusState, setStatusState] = useState<'idle' | 'listening' | 'thinking' | 'speaking'>('idle');
   const [transcript, setTranscript] = useState('System ready. Click COMM LINK on the left to start.');
   const [responseHtml, setResponseHtml] = useState<string | null>(null);
-  const chatHistoryRef = useRef<{role: string, content: string}[]>([]);
+  const chatHistoryRef = useRef<{ role: string, content: string }[]>([]);
   const [marketData, setMarketData] = useState<Record<string, number> | null>(null);
   const bgMusicRef = useRef<HTMLAudioElement | null>(null);
   const [isMusicPlaying, setIsMusicPlaying] = useState(false);
-  
+
   interface NewsArticle {
     title: string;
     link: string;
@@ -100,7 +100,7 @@ export default function StartScreen() {
   }
   const [newsData, setNewsData] = useState<NewsArticle[] | null>(null);
   const [newsLoading, setNewsLoading] = useState(true);
-  
+
   const [mountTime] = useState(Date.now());
   const [uptime, setUptime] = useState("00:00:00");
   const [currentDate, setCurrentDate] = useState(new Date());
@@ -139,7 +139,7 @@ export default function StartScreen() {
     bgMusicRef.current = audio;
 
     const tryPlay = () => {
-      audio.play().then(() => setIsMusicPlaying(true)).catch(() => {});
+      audio.play().then(() => setIsMusicPlaying(true)).catch(() => { });
     };
 
     // Try autoplay
@@ -171,7 +171,7 @@ export default function StartScreen() {
           setMarketData(data);
           marketDataRef.current = data;
         }
-      } catch (e) {}
+      } catch (e) { }
     };
     fetchMarket();
     const interval = setInterval(fetchMarket, 60000); // Refresh every minute
@@ -219,7 +219,7 @@ export default function StartScreen() {
               if (city && country) locationName = `${city}, ${country}`;
               else if (city) locationName = city;
             }
-          } catch (geoErr) {}
+          } catch (geoErr) { }
         }
 
         const weatherUrl = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,wind_speed_10m,wind_direction_10m,surface_pressure&daily=weather_code,temperature_2m_max,temperature_2m_min,sunrise,sunset&timezone=auto`;
@@ -233,7 +233,7 @@ export default function StartScreen() {
         const condObj = getWeatherCondition(current.weather_code);
 
         const formatTimeStr = (isoStr: string) => {
-          try { return new Date(isoStr).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }); } 
+          try { return new Date(isoStr).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }); }
           catch (e) { return isoStr.split("T")[1] || isoStr; }
         };
 
@@ -307,9 +307,9 @@ export default function StartScreen() {
     const now = new Date();
     const hour = now.getHours();
     const timeOfDay =
-      hour >= 5 && hour < 12  ? 'morning' :
-      hour >= 12 && hour < 17 ? 'afternoon' :
-      hour >= 17 && hour < 21 ? 'evening' : 'night';
+      hour >= 5 && hour < 12 ? 'morning' :
+        hour >= 12 && hour < 17 ? 'afternoon' :
+          hour >= 17 && hour < 21 ? 'evening' : 'night';
 
     // Store greeting — will be spoken on first user click (COMM LINK)
     pendingGreetingRef.current = `Good ${timeOfDay}, Master Umesh. System online. How may I help you?`;
@@ -333,7 +333,7 @@ export default function StartScreen() {
   const newsDataRef = useRef<NewsArticle[] | null>(null);
   const fetchAbortControllerRef = useRef<AbortController | null>(null);
   // Always points to the latest processCommand — avoids stale closure inside the recognition useEffect
-  const processCommandRef = useRef<(cmd: string) => void>(() => {});
+  const processCommandRef = useRef<(cmd: string) => void>(() => { });
 
   const resetSleepTimer = () => {
     if (sleepTimerRef.current) clearTimeout(sleepTimerRef.current);
@@ -368,7 +368,7 @@ export default function StartScreen() {
         try {
           recognition.start();
           isRunning = true;
-        } catch (e) {}
+        } catch (e) { }
       }
     };
 
@@ -426,7 +426,7 @@ export default function StartScreen() {
     return () => {
       shouldListenRef.current = false;
       isRunning = false;
-      try { recognition.stop(); } catch(e){}
+      try { recognition.stop(); } catch (e) { }
       interruptSpeech();
     };
   }, []);
@@ -441,15 +441,15 @@ export default function StartScreen() {
       fetchAbortControllerRef.current.abort();
     }
     if (currentAudioRef.current) {
-      try { currentAudioRef.current.pause(); } catch(e){}
+      try { currentAudioRef.current.pause(); } catch (e) { }
       currentAudioRef.current = null;
     }
     if (window.speechSynthesis) {
-      try { window.speechSynthesis.cancel(); } catch(e){}
+      try { window.speechSynthesis.cancel(); } catch (e) { }
     }
     setStatusState('idle');
   };
-  
+
   const startListening = () => {
     if (!recognitionRef.current || !shouldListenRef.current) return;
     setStatusState('listening');
@@ -463,7 +463,7 @@ export default function StartScreen() {
 
   const stopListening = () => {
     if (recognitionRef.current) {
-       try { recognitionRef.current.stop(); } catch (e) {}
+      try { recognitionRef.current.stop(); } catch (e) { }
     }
   };
 
@@ -523,7 +523,7 @@ export default function StartScreen() {
     // We strictly avoid splitting on commas or colons because splitting into tiny
     // audio chunks causes the browser to stutter/gap between playbacks.
     const boundaryMatch = trimmed.match(/[.?!]+(\s+|$)|(\n+)/);
-    
+
     if (boundaryMatch) {
       const splitIndex = (boundaryMatch.index ?? 0) + boundaryMatch[0].length;
       return {
@@ -721,11 +721,11 @@ NOTE: Each time Master Umesh asks for the brief, these stories are shuffled rand
       while (true) {
         const { value, done } = await reader.read();
         if (done) break;
-        
+
         streamBuffer += decoder.decode(value, { stream: true });
         const lines = streamBuffer.split('\n');
         streamBuffer = lines.pop() || "";
-        
+
         for (const line of lines) {
           if (line.startsWith('data: ') && line !== 'data: [DONE]') {
             try {
@@ -735,7 +735,7 @@ NOTE: Each time Master Umesh asks for the brief, these stories are shuffled rand
 
               completeResponse += token;
               currentSentence += token;
-              
+
               setResponseHtml(completeResponse);
 
               // Use our smart sentence/clause/word-count extractor to queue speaking early!
@@ -745,7 +745,7 @@ NOTE: Each time Master Umesh asks for the brief, these stories are shuffled rand
                 currentSentence = splitResult.remaining;
                 splitResult = extractSpeakableChunk(currentSentence);
               }
-            } catch (e) {}
+            } catch (e) { }
           }
         }
       }
@@ -758,18 +758,18 @@ NOTE: Each time Master Umesh asks for the brief, these stories are shuffled rand
           if (token) {
             completeResponse += token;
             currentSentence += token;
-            
+
             setResponseHtml(completeResponse);
           }
-        } catch (e) {}
+        } catch (e) { }
       }
 
       // Flush remaining text
       if (currentSentence.trim()) {
         speakStreamedSentence(currentSentence.trim());
       }
-      
-      chatHistoryRef.current = [...chatHistoryRef.current, {role: 'user', content: userMsg}, {role: 'assistant', content: completeResponse}].slice(-10);
+
+      chatHistoryRef.current = [...chatHistoryRef.current, { role: 'user', content: userMsg }, { role: 'assistant', content: completeResponse }].slice(-10);
 
     } catch (e: any) {
       if (e.name === 'AbortError') {
@@ -795,30 +795,30 @@ NOTE: Each time Master Umesh asks for the brief, these stories are shuffled rand
       setResponseHtml(null);
       return;
     }
-    
+
     setResponseHtml(res.greeting || res.message);
   };
 
   const processAudioQueue = async () => {
     if (isPlayingAudioRef.current || audioQueueRef.current.length === 0) return;
-    
+
     isPlayingAudioRef.current = true;
     const currentSessionId = audioSessionIdRef.current;
-    
+
     const audio = audioQueueRef.current.shift()!;
-    
+
     setStatusState('speaking');
     isAgentSpeakingRef.current = true;
 
     try {
       currentAudioRef.current = audio;
-      
+
       await new Promise<void>((resolve) => {
         // Safety timeout: if audio hangs for any reason (network, Vercel edge, etc.),
         // force-resolve after 15s so the mic is NEVER permanently blocked
         const safetyTimer = setTimeout(() => {
           console.warn('[Batman Audio] Safety timeout fired — forcing resolve');
-          try { audio.pause(); } catch(e) {} // Force pause so it doesn't resume randomly later
+          try { audio.pause(); } catch (e) { } // Force pause so it doesn't resume randomly later
           if (bgMusicRef.current) bgMusicRef.current.volume = 0.06;
           resolve();
         }, 15000);
@@ -837,7 +837,7 @@ NOTE: Each time Master Umesh asks for the brief, these stories are shuffled rand
         if (bgMusicRef.current) bgMusicRef.current.volume = 0.01;
         audio.onended = cleanup;
         audio.onerror = () => { console.warn('[Batman Audio] onerror fired'); cleanup(); };
-        
+
         // DO NOT call cleanup() on onstalled! 
         // Stalled just means buffering. If we cleanup() here, it advances the queue,
         // but this audio will suddenly resume playing when it finishes buffering, causing overlapping voices!
@@ -870,7 +870,7 @@ NOTE: Each time Master Umesh asks for the brief, these stories are shuffled rand
     }
 
     isPlayingAudioRef.current = false;
-    
+
     if (audioQueueRef.current.length > 0) {
       await processAudioQueue();
     } else {
@@ -888,18 +888,18 @@ NOTE: Each time Master Umesh asks for the brief, these stories are shuffled rand
 
   const speakStreamedSentence = (text: string, onComplete?: () => void) => {
     if (!text) return;
-    
+
     // Create the Audio object immediately! The browser will start fetching the stream in the background
     // right now, so by the time the current audio finishes, this one is already fully buffered!
     const audioUrl = `/api/openai-tts?text=${encodeURIComponent(text)}`;
     const audio = new Audio(audioUrl);
     audio.preload = "auto";
     audio.volume = 1.0; // Batman's voice at full volume
-    
+
     audioQueueRef.current.push(audio);
-    
+
     processAudioQueue().then(() => {
-       if (onComplete) onComplete();
+      if (onComplete) onComplete();
     });
   };
 
@@ -941,6 +941,16 @@ NOTE: Each time Master Umesh asks for the brief, these stories are shuffled rand
     const editExclusions = ['credit', 'voice', 'batman', 'profile', 'account'];
     if (editKws.some(kw => t.includes(kw)) && !editExclusions.some(ex => t.includes(ex))) {
       return { tab: 'edit', route: '/edit', label: 'Entering Edit Matrix' };
+    }
+
+    // ── Enhancement ────────────────────────────────────────────────────────
+    const enhanceKws = [
+      'enhance', 'enhancement', 'improve plan', 'improve my plan', 'clean up cad',
+      'clean cad', 'enhance plan', 'enhance floor', 'enhancement section',
+      'enhancement page', 'open enhancement'
+    ];
+    if (enhanceKws.some(kw => t.includes(kw))) {
+      return { tab: 'enhancement', route: '/enhancement', label: 'Initiating Enhancement Studio' };
     }
 
     // ── 3D Render ────────────────────────────────────────────────────────────
@@ -985,17 +995,6 @@ NOTE: Each time Master Umesh asks for the brief, these stories are shuffled rand
       return { tab: 'beta', route: '/vector-editor', label: 'Initializing Vector Sandbox Beta' };
     }
 
-    // ── Enhancement ──────────────────────────────────────────────────────────
-    const enhanceKws = [
-      'enhancement', 'enhance', 'enhance plan', 'improve plan', 'improve floor',
-      'clean up plan', 'clean the plan', 'refine plan', 'refine floor plan',
-      'go to enhancement', 'open enhancement', 'take me to enhancement',
-      'beautify', 'polish the plan', 'sharpen plan',
-    ];
-    if (enhanceKws.some(kw => t.includes(kw))) {
-      return { tab: 'enhancement', route: '/enhancement', label: 'Loading Enhancement Studio' };
-    }
-
     return null;
   };
 
@@ -1014,7 +1013,7 @@ NOTE: Each time Master Umesh asks for the brief, these stories are shuffled rand
     resetSleepTimer();
 
     stopListening();
-    
+
     // Synchronously lock state to 'thinking' (PROCESSING) to prevent parallel triggers
     statusStateRef.current = 'thinking';
     setStatusState('thinking');
@@ -1085,7 +1084,7 @@ NOTE: Each time Master Umesh asks for the brief, these stories are shuffled rand
   const handleMenuClick = (stageId: string) => {
     if (statusState === 'speaking' || statusState === 'thinking') return; // Prevent double trigger
     setActiveMenuTab(stageId);
-    
+
     if (stageId === 'render-zone') {
       speak("Accessing Project Archive, Master Umesh.", () => {
         router.push('/projects');
@@ -1100,13 +1099,13 @@ NOTE: Each time Master Umesh asks for the brief, these stories are shuffled rand
       speak("Initializing 3D visualization, Master Umesh.", () => {
         router.push('/3d-render');
       });
+    } else if (stageId === 'enhancement') {
+      speak("Initiating Enhancement Studio, Master Umesh.", () => {
+        router.push('/enhancement');
+      });
     } else if (stageId === 'png-to-dxf') {
       speak("Initiating vector conversion suite, Master Umesh.", () => {
         router.push('/png-to-dxf');
-      });
-    } else if (stageId === 'enhancement') {
-      speak("Loading Enhancement Studio, Master Umesh.", () => {
-        router.push('/enhancement');
       });
     } else if (stageId === 'beta') {
       speak("Initializing Vector Sandbox Beta, Master Umesh.", () => {
@@ -1120,17 +1119,17 @@ NOTE: Each time Master Umesh asks for the brief, these stories are shuffled rand
 
   return (
     <div className="fixed inset-0 w-full h-full bg-[#0a0a0f] flex flex-col items-center justify-center font-mono overflow-hidden z-50 text-batman-white">
-      
+
       <div className="vignette-overlay pointer-events-none absolute inset-0 z-0" />
       <div className="tech-grid pointer-events-none absolute inset-0 z-0 opacity-20" />
 
       {/* Video Background */}
-      <video 
-        autoPlay 
-        loop 
-        muted 
-        playsInline 
-        src="/start video/start.mp4" 
+      <video
+        autoPlay
+        loop
+        muted
+        playsInline
+        src="/start video/start.mp4"
         className="absolute inset-0 w-full h-full object-cover z-0 opacity-80"
       />
 
@@ -1139,10 +1138,10 @@ NOTE: Each time Master Umesh asks for the brief, these stories are shuffled rand
       {/* Eyes Overlay - Fixed absolute positioning relative to screen to align with video */}
       <div className="fixed inset-0 z-0 pointer-events-none flex justify-center">
         <div className="relative w-full max-w-[1200px] h-full">
-          <div className={`absolute rounded-full transition-all duration-400 ${statusState !== 'idle' ? 'bg-[#00f0ff] shadow-[0_0_8px_4px_#00d2ff,0_0_20px_10px_#0088ff,0_0_40px_16px_#0044ff66]' : 'bg-transparent'}`} 
-               style={{ top: '30.6%', left: '48.4%', width: '1.5%', height: '0.8%' }} />
-          <div className={`absolute rounded-full transition-all duration-400 ${statusState !== 'idle' ? 'bg-[#00f0ff] shadow-[0_0_8px_4px_#00d2ff,0_0_20px_10px_#0088ff,0_0_40px_16px_#0044ff66]' : 'bg-transparent'}`} 
-               style={{ top: '30.6%', left: '54.4%', width: '1.5%', height: '0.8%' }} />
+          <div className={`absolute rounded-full transition-all duration-400 ${statusState !== 'idle' ? 'bg-[#00f0ff] shadow-[0_0_8px_4px_#00d2ff,0_0_20px_10px_#0088ff,0_0_40px_16px_#0044ff66]' : 'bg-transparent'}`}
+            style={{ top: '30.6%', left: '48.4%', width: '1.5%', height: '0.8%' }} />
+          <div className={`absolute rounded-full transition-all duration-400 ${statusState !== 'idle' ? 'bg-[#00f0ff] shadow-[0_0_8px_4px_#00d2ff,0_0_20px_10px_#0088ff,0_0_40px_16px_#0044ff66]' : 'bg-transparent'}`}
+            style={{ top: '30.6%', left: '54.4%', width: '1.5%', height: '0.8%' }} />
         </div>
       </div>
 
@@ -1262,7 +1261,7 @@ NOTE: Each time Master Umesh asks for the brief, these stories are shuffled rand
       {/* Top Right: System Toggle */}
       <div className="fixed top-10 right-6 flex items-center justify-between w-[220px] bg-[#0f0f18]/80 backdrop-blur border border-[#1e1810] rounded-lg px-4 py-2 z-10">
         <span className="text-[10px] tracking-widest text-[#4a3a1a] uppercase font-bold">BAT-ASSISTANT</span>
-        <button 
+        <button
           onClick={toggleSystem}
           className={`flex items-center gap-2 px-2 py-1 rounded text-[10px] tracking-wider transition-all ${isSystemOnline ? 'border border-[#00f0ff] text-[#00f0ff] bg-[#00f0ff]/5 shadow-[0_0_10px_rgba(0,240,255,0.2)]' : 'border border-red-500 text-red-500 bg-red-500/5'}`}
         >
@@ -1277,7 +1276,7 @@ NOTE: Each time Master Umesh asks for the brief, these stories are shuffled rand
         <div className="relative pl-6 py-2">
           {/* Gold Glow Vertical Line */}
           <div className="absolute left-0 top-0 bottom-0 w-[2px] bg-gradient-to-b from-[#c8a84b]/10 via-[#c8a84b] to-[#c8a84b]/10 shadow-[0_0_8px_#c8a84b]" />
-          
+
           <div className="flex flex-col gap-1 mb-6">
             <span className="text-[10px] tracking-[4px] text-[#c8a84b] uppercase font-mono font-bold block">
               BAT-ASSISTANT
@@ -1286,23 +1285,22 @@ NOTE: Each time Master Umesh asks for the brief, these stories are shuffled rand
               TALK TO BATMAN
             </h2>
           </div>
-          
+
           <div className="flex flex-col gap-4 font-mono text-sm tracking-[2px] uppercase">
             <button
               onClick={handleMicClick}
-              className={`w-full py-3 px-4 rounded border uppercase tracking-wider font-bold text-[10px] transition-all duration-300 flex items-center justify-between group cursor-pointer ${
-                statusState === 'listening'
+              className={`w-full py-3 px-4 rounded border uppercase tracking-wider font-bold text-[10px] transition-all duration-300 flex items-center justify-between group cursor-pointer ${statusState === 'listening'
                   ? 'border-[#00f0ff] bg-[#00f0ff]/10 text-[#00f0ff] shadow-[0_0_12px_#00f0ff]'
                   : statusState === 'speaking'
-                  ? 'border-[#5bc8af] bg-[#5bc8af]/10 text-[#5bc8af] shadow-[0_0_12px_#5bc8af]'
-                  : 'border-[#3a2c10] bg-[#1a1408] text-[#c8a84b] hover:border-[#c8a84b] hover:bg-[#251d0c]'
-              }`}
+                    ? 'border-[#5bc8af] bg-[#5bc8af]/10 text-[#5bc8af] shadow-[0_0_12px_#5bc8af]'
+                    : 'border-[#3a2c10] bg-[#1a1408] text-[#c8a84b] hover:border-[#c8a84b] hover:bg-[#251d0c]'
+                }`}
             >
               <Mic size={14} className={statusState === 'listening' ? 'animate-bounce' : ''} />
               <span>
-                {statusState === 'listening' ? 'LINK_ACTIVE' : 
-                 statusState === 'speaking' ? 'TRANSMITTING' : 
-                 'START_COMMS'}
+                {statusState === 'listening' ? 'LINK_ACTIVE' :
+                  statusState === 'speaking' ? 'TRANSMITTING' :
+                    'START_COMMS'}
               </span>
             </button>
 
@@ -1314,20 +1312,19 @@ NOTE: Each time Master Umesh asks for the brief, these stories are shuffled rand
                 STOP TALKING
               </button>
             )}
-            
+
             {/* Waveform indicator */}
             <div className="flex items-center gap-1 h-6 pl-2 mt-2">
-              {Array.from({length: 8}).map((_, i) => (
-                <div 
-                  key={`hud-wave-${i}`} 
-                  className={`w-[3px] rounded transition-all duration-100 ${
-                    statusState === 'listening' ? 'bg-[#00f0ff] animate-pulse' : 
-                    statusState === 'speaking' ? 'bg-[#5bc8af] animate-pulse' : 
-                    'bg-[#3a2c10] h-1'
-                  }`}
-                  style={{ 
-                    animationDelay: `${i * 0.06}s`, 
-                    height: (statusState === 'listening' || statusState === 'speaking') ? `${[6, 12, 8, 14, 10, 16, 9, 5][i]}px` : '4px' 
+              {Array.from({ length: 8 }).map((_, i) => (
+                <div
+                  key={`hud-wave-${i}`}
+                  className={`w-[3px] rounded transition-all duration-100 ${statusState === 'listening' ? 'bg-[#00f0ff] animate-pulse' :
+                      statusState === 'speaking' ? 'bg-[#5bc8af] animate-pulse' :
+                        'bg-[#3a2c10] h-1'
+                    }`}
+                  style={{
+                    animationDelay: `${i * 0.06}s`,
+                    height: (statusState === 'listening' || statusState === 'speaking') ? `${[6, 12, 8, 14, 10, 16, 9, 5][i]}px` : '4px'
                   }}
                 />
               ))}
@@ -1341,7 +1338,7 @@ NOTE: Each time Master Umesh asks for the brief, these stories are shuffled rand
         <div className="relative pl-6 py-2">
           {/* Cyan Glow Vertical Line */}
           <div className="absolute left-0 top-0 bottom-0 w-[2px] bg-gradient-to-b from-cyan-500/10 via-cyan-400 to-cyan-500/10 shadow-[0_0_8px_#00f0ff]" />
-          
+
           <div className="flex flex-col gap-1 mb-6">
             <span className="text-[10px] tracking-[4px] text-cyan-500/60 uppercase font-mono font-bold block">
               SYSTEM INTERFACE
@@ -1350,7 +1347,7 @@ NOTE: Each time Master Umesh asks for the brief, these stories are shuffled rand
               MAIN MENU
             </h2>
           </div>
-          
+
           <div className="flex flex-col gap-4 font-mono text-sm tracking-[2px] uppercase">
             {startScreenStages.map((stage) => {
               const isActive = activeMenuTab === stage.id;
@@ -1358,31 +1355,28 @@ NOTE: Each time Master Umesh asks for the brief, these stories are shuffled rand
                 <button
                   key={stage.id}
                   onClick={() => handleMenuClick(stage.id)}
-                  className={`flex items-center justify-between w-full group transition-all duration-300 ${
-                    isActive 
-                      ? 'text-[#00f0ff] font-bold drop-shadow-[0_0_8px_rgba(0,240,255,0.6)] translate-x-1' 
+                  className={`flex items-center justify-between w-full group transition-all duration-300 ${isActive
+                      ? 'text-[#00f0ff] font-bold drop-shadow-[0_0_8px_rgba(0,240,255,0.6)] translate-x-1'
                       : 'text-cyan-500/50 hover:text-cyan-400/80 hover:translate-x-0.5'
-                  }`}
+                    }`}
                 >
                   <div className="flex items-center gap-3">
-                    <span 
-                      className={`text-[10px] transition-all duration-300 ${
-                        isActive 
-                          ? 'opacity-100 scale-110 text-[#00f0ff]' 
+                    <span
+                      className={`text-[10px] transition-all duration-300 ${isActive
+                          ? 'opacity-100 scale-110 text-[#00f0ff]'
                           : 'opacity-0 scale-75 text-transparent group-hover:opacity-50 group-hover:text-cyan-400 group-hover:scale-95'
-                      }`}
+                        }`}
                     >
                       ▶
                     </span>
                     <span className="font-semibold" style={{ fontFamily: 'Givonic, Syncopate, sans-serif' }}>{stage.label}</span>
                   </div>
                   {stage.badge && (
-                    <span 
-                      className={`text-[8px] px-1.5 py-0.5 rounded font-bold tracking-normal transition-colors duration-300 ${
-                        isActive 
-                          ? 'bg-[#00f0ff] text-black shadow-[0_0_6px_rgba(0,240,255,0.4)]' 
+                    <span
+                      className={`text-[8px] px-1.5 py-0.5 rounded font-bold tracking-normal transition-colors duration-300 ${isActive
+                          ? 'bg-[#00f0ff] text-black shadow-[0_0_6px_rgba(0,240,255,0.4)]'
                           : 'bg-cyan-950/40 text-cyan-500/60 border border-cyan-500/20 group-hover:border-cyan-400/40 group-hover:text-cyan-400/80'
-                      }`}
+                        }`}
                     >
                       {stage.badge}
                     </span>
@@ -1401,16 +1395,16 @@ NOTE: Each time Master Umesh asks for the brief, these stories are shuffled rand
         {/* Mic Button & Waveform Container - Mobile Only */}
         <div className="flex items-center gap-6 mb-6 md:hidden">
           <div className="flex items-center justify-center gap-1 h-6 w-16">
-            {Array.from({length: 4}).map((_, i) => (
-              <div 
-                key={`left-${i}`} 
+            {Array.from({ length: 4 }).map((_, i) => (
+              <div
+                key={`left-${i}`}
                 className={`w-[3px] bg-[#c8a84b] rounded transition-all duration-100 ${(statusState === 'listening' || statusState === 'speaking') ? 'animate-pulse' : 'h-1'}`}
                 style={{ animationDelay: `${i * 0.08}s`, height: (statusState === 'listening' || statusState === 'speaking') ? `${[8, 14, 10, 16][i]}px` : '4px' }}
               />
             ))}
           </div>
 
-          <button 
+          <button
             onClick={handleMicClick}
             className={`w-16 h-16 rounded-full flex shrink-0 items-center justify-center transition-all ${statusState === 'listening' ? 'bg-[#c8a84b] text-[#0a0a0f] border-none animate-bounce' : 'bg-[#1a1408] border-2 border-[#3a2c10] text-[#c8a84b] hover:bg-[#251d0c] hover:border-[#c8a84b]'}`}
           >
@@ -1418,11 +1412,11 @@ NOTE: Each time Master Umesh asks for the brief, these stories are shuffled rand
           </button>
 
           <div className="flex items-center justify-center gap-1 h-6 w-16">
-            {Array.from({length: 4}).map((_, i) => (
-              <div 
-                key={`right-${i}`} 
+            {Array.from({ length: 4 }).map((_, i) => (
+              <div
+                key={`right-${i}`}
                 className={`w-[3px] bg-[#c8a84b] rounded transition-all duration-100 ${(statusState === 'listening' || statusState === 'speaking') ? 'animate-pulse' : 'h-1'}`}
-                style={{ animationDelay: `${(i+4) * 0.08}s`, height: (statusState === 'listening' || statusState === 'speaking') ? `${[15, 9, 13, 7][i]}px` : '4px' }}
+                style={{ animationDelay: `${(i + 4) * 0.08}s`, height: (statusState === 'listening' || statusState === 'speaking') ? `${[15, 9, 13, 7][i]}px` : '4px' }}
               />
             ))}
           </div>
@@ -1430,10 +1424,10 @@ NOTE: Each time Master Umesh asks for the brief, these stories are shuffled rand
 
         {/* Status Label */}
         <div className={`text-[10px] tracking-[3px] uppercase mb-4 h-4 transition-colors ${statusState === 'listening' ? 'text-[#c8a84b]' : statusState === 'thinking' ? 'text-[#c8a84b]' : statusState === 'speaking' ? 'text-[#5bc8af]' : 'text-[#3a2c10]'}`}>
-          {statusState === 'listening' ? 'listening...' : 
-           statusState === 'thinking' ? 'processing...' : 
-           statusState === 'speaking' ? 'speaking...' : 
-           'voice interface offline'}
+          {statusState === 'listening' ? 'listening...' :
+            statusState === 'thinking' ? 'processing...' :
+              statusState === 'speaking' ? 'speaking...' :
+                'voice interface offline'}
         </div>
 
         <div className="w-full bg-[#0f0f18]/90 backdrop-blur border border-[#1e1810] rounded-xl p-4 mb-4 min-h-[52px]">
