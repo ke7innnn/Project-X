@@ -133,14 +133,18 @@ export const FLOORPLAN_GENERATION_PROMPT = (params: any, natureImageDescription:
 
 [1. EXTERIOR SHAPE & MARGINS - CRITICAL]
 ${params.hasManualPlot && params.hasRefImage 
-  ? `• SECONDARY IMAGE (Manual Plot) defines the strict outermost plot boundary.
-• PRIMARY IMAGE defines the specific architectural shape of the building itself (e.g. ${natureImageDescription}).
-• Draw the building completely INSIDE the plot boundary, but shape the building's exterior walls to match the exact silhouette of the PRIMARY IMAGE.
-• CRITICAL: You MUST leave a clear 15% white margin/setback gap between the building walls and the plot boundary.`
+  ? `• You have TWO reference images.
+• [CRITICAL WARNING: DO NOT HALLUCINATE THE PLOT SHAPE!] The SECONDARY IMAGE (Manual Plot) defines the EXACT property line. Your output MUST contain this exact polygon shape. You are FORBIDDEN from altering, stretching, or deforming this polygon. If you change its shape even slightly, the generation fails.
+• The PRIMARY IMAGE (e.g. ${natureImageDescription}) dictates the EXACT SHAPE of the building itself.
+• The building's exterior walls MUST strictly trace the silhouette of the PRIMARY IMAGE (the shell).
+• Fit the shell-shaped building completely inside the pixel-perfect plot boundary.
+• It is completely okay if the white margin between the building and the plot boundary is uneven or large in some places. Do NOT deform the outer plot polygon just to make the margin look even!`
   : params.hasManualPlot 
-  ? `• SECONDARY IMAGE (Manual Plot) defines the strict outermost plot boundary.
-• Draw the building completely INSIDE this boundary.
-• CRITICAL: You MUST leave a clear 15% white margin/setback gap between the building walls and the plot boundary.`
+  ? `• SECONDARY IMAGE (Manual Plot) defines the strict outermost plot boundary polygon.
+• CRITICAL: Do NOT draw a generic rectangular building inside it!
+• The building's exterior walls MUST conform to the exact irregular shape of this plot polygon.
+• Pack all rooms tightly so they fill this custom irregular shape completely.
+• Leave a clear 15% white margin/setback gap between the building walls and the plot boundary, but ensure the building's silhouette strictly echoes the plot shape.`
   : params.hasRefImage
   ? `• Trace the exact silhouette of the attached PRIMARY IMAGE as your building's outer wall. Follow every curve exactly. Do not use a generic rectangle.
 • CRITICAL: Leave a strict 15% white margin/gap around the building so it does not touch the edges of the canvas.`

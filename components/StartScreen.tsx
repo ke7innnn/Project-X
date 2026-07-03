@@ -68,6 +68,7 @@ export default function StartScreen() {
     { id: 'edit', label: 'EDIT' },
     { id: '3d-render', label: '3D RENDER' },
     { id: 'png-to-dxf', label: 'PNG TO DXF', badge: 'NEW' },
+    { id: 'enhancement', label: 'ENHANCEMENT', badge: 'NEW' },
     { id: 'flythrough', label: 'FLYTHROUGH' }
   ];
 
@@ -984,6 +985,17 @@ NOTE: Each time Master Umesh asks for the brief, these stories are shuffled rand
       return { tab: 'beta', route: '/vector-editor', label: 'Initializing Vector Sandbox Beta' };
     }
 
+    // ── Enhancement ──────────────────────────────────────────────────────────
+    const enhanceKws = [
+      'enhancement', 'enhance', 'enhance plan', 'improve plan', 'improve floor',
+      'clean up plan', 'clean the plan', 'refine plan', 'refine floor plan',
+      'go to enhancement', 'open enhancement', 'take me to enhancement',
+      'beautify', 'polish the plan', 'sharpen plan',
+    ];
+    if (enhanceKws.some(kw => t.includes(kw))) {
+      return { tab: 'enhancement', route: '/enhancement', label: 'Loading Enhancement Studio' };
+    }
+
     return null;
   };
 
@@ -1091,6 +1103,10 @@ NOTE: Each time Master Umesh asks for the brief, these stories are shuffled rand
     } else if (stageId === 'png-to-dxf') {
       speak("Initiating vector conversion suite, Master Umesh.", () => {
         router.push('/png-to-dxf');
+      });
+    } else if (stageId === 'enhancement') {
+      speak("Loading Enhancement Studio, Master Umesh.", () => {
+        router.push('/enhancement');
       });
     } else if (stageId === 'beta') {
       speak("Initializing Vector Sandbox Beta, Master Umesh.", () => {
