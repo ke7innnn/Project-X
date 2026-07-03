@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
-import potrace from 'potrace';
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const potrace = require('potrace') as typeof import('potrace');
 
 export async function POST(request: Request) {
   try {
@@ -13,21 +14,18 @@ export async function POST(request: Request) {
 
     if (
       currentFloorPlanBase64.startsWith('http://') || 
-      currentFloorPlanBase64.startsWith('https://') || 
-      currentFloorPlanBase64.startsWith('/')
+      currentFloorPlanBase64.startsWith('https://')
     ) {
-      let fetchUrl = currentFloorPlanBase64;
-      if (currentFloorPlanBase64.startsWith('/')) {
-        const requestUrl = new URL(request.url);
-        fetchUrl = `${requestUrl.protocol}//${requestUrl.host}${currentFloorPlanBase64}`;
-      }
-      const fetchRes = await fetch(fetchUrl);
+      // It's a real remote URL — fetch it
+      const fetchRes = await fetch(currentFloorPlanBase64);
       if (!fetchRes.ok) {
-        throw new Error(`Failed to fetch image from URL: ${fetchUrl}`);
+        throw new Error(`Failed to fetch image from URL: ${currentFloorPlanBase64}`);
       }
       const arrayBuffer = await fetchRes.arrayBuffer();
       imgBuffer = Buffer.from(arrayBuffer);
     } else {
+      // It's base64 data (with or without data URI prefix)
+      // JPEG base64 starts with /9j/ — strip data URI prefix if present
       const base64Data = currentFloorPlanBase64.replace(/^data:image\/\w+;base64,/, '');
       imgBuffer = Buffer.from(base64Data, 'base64');
     }

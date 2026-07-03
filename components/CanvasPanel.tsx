@@ -3,20 +3,23 @@
 import { useArchitectStore } from '@/store/useArchitectStore';
 import { useRef, useEffect, useState } from 'react';
 import FloorPlanGrid from './FloorPlanGrid';
-import InteractivePlotBox from './InteractivePlotBox';
-import { Download, Upload, Palette, ZoomIn, ZoomOut, Maximize, Loader2, FileDown, Pencil } from 'lucide-react';
+import { Download, Upload, Palette, ZoomIn, ZoomOut, Maximize, Loader2, FileDown } from 'lucide-react';
 import dynamic from 'next/dynamic';
 import { RenderHistoryItem } from '@/types';
 import { playSound } from '@/lib/sounds';
+import PlotDrawCanvas from './PlotDrawCanvas';
+import { useRouter } from 'next/navigation';
 
 const VectorEditor = dynamic(() => import('./VectorEditor'), { ssr: false });
 
 import { useShallow } from 'zustand/react/shallow';
 
 export default function CanvasPanel() {
+  const router = useRouter();
   const [isEditingVectors, setIsEditingVectors] = useState(false);
   const { 
     phase, 
+    onboardingMode,
     selectedNatureImage, 
     hoveredNatureImage, 
     isLoading, 
@@ -51,6 +54,7 @@ export default function CanvasPanel() {
     setPaintedRender
   } = useArchitectStore(useShallow((state) => ({
     phase: state.phase,
+    onboardingMode: state.onboardingMode,
     selectedNatureImage: state.selectedNatureImage,
     hoveredNatureImage: state.hoveredNatureImage,
     isLoading: state.isLoading,
@@ -571,7 +575,14 @@ export default function CanvasPanel() {
   if (phase === 'search' || phase === 'concept' || phase === 'parameters' || phase === 'vastu') {
     return (
       <div className="flex-1 flex flex-col items-center justify-center p-8 bg-transparent relative overflow-y-auto">
-        {(hoveredNatureImage || selectedNatureImage) ? (
+        {onboardingMode === 'trace-manual' ? (
+          <div className="w-full h-full flex flex-col items-center justify-center mb-8">
+            <PlotDrawCanvas onComplete={() => {
+              useArchitectStore.getState().addMessage({ role: 'user', parts: [{ text: "I've finished tracing the plot." }]});
+              useArchitectStore.getState().addMessage({ role: 'model', parts: [{ text: "Great! Now, how would you like to provide the internal shape reference for the building footprint?" }], customType: 'onboarding-options' });
+            }} />
+          </div>
+        ) : (hoveredNatureImage || selectedNatureImage) ? (
           <div className="relative w-full h-full max-h-[80vh] flex flex-col items-center justify-center bg-[#0A0E1A] rounded-xl p-4 border border-gray-800 shadow-xl mb-8">
             <h3 className="text-[#FFB000] font-semibold mb-3 flex items-center self-start z-10 relative">
               <span className="mr-2">🌿</span> Nature Reference {hoveredNatureImage ? '(Preview)' : ''}
@@ -627,6 +638,17 @@ export default function CanvasPanel() {
              <p className="text-[#FFB000]">{loadingMessage || 'Applying your changes... ✦'}</p>
           </div>
         )}
+
+        {currentFloorPlan && (
+          <div className="absolute top-6 right-6 z-50">
+            <button
+              onClick={() => router.push('/edit')}
+              className="bg-[#c8a84b] hover:bg-[#d8b85b] text-black font-semibold py-2 px-6 rounded-lg transition-colors shadow-xl text-sm"
+            >
+              Go to Edit Section
+            </button>
+          </div>
+        )}
         
         {floorPlanHistory && floorPlanHistory.length > 1 && (
           <div className="absolute left-6 top-6 bottom-6 w-24 bg-[#0A0E1A]/80 backdrop-blur-md border border-[#222] rounded-xl z-40 flex flex-col items-center py-4 overflow-y-auto shadow-2xl space-y-6 custom-scrollbar hidden md:flex">
@@ -679,100 +701,14 @@ export default function CanvasPanel() {
                   draggable={false}
                 />
                 
-                {inpaintActive && (
-                  <canvas
-                    ref={paintCanvasRef}
-                    width={1024}
-                    height={1024}
-                    onPointerDown={handlePointerDown}
-                    onPointerMove={handlePointerMove}
-                    onPointerUp={handlePointerUp}
-                    onPointerLeave={handlePointerUp}
-                    className="absolute inset-0 w-full h-full cursor-crosshair z-10 touch-none"
-                    style={{
-                      objectFit: 'contain'
-                    }}
-                  />
-                )}
-
-                {!collectedParameters.isPlotBurned && !inpaintActive && <InteractivePlotBox />}
               </div>
             </div>
           </div>
         )}
 
-        {/* Inpaint Tool Settings Overlay */}
-        {inpaintActive && (
-          <div className="absolute top-6 left-1/2 -translate-x-1/2 z-40 flex items-center gap-4 bg-[#0A0E1A]/95 backdrop-blur-md px-5 py-3 rounded-2xl border border-[#FFB000]/30 shadow-[0_0_20px_rgba(255,176,0,0.15)] text-xs font-mono text-gray-200">
-            <span className="text-[#FFB000] font-bold tracking-wider uppercase mr-2">✏️ Inpaint Mask</span>
-            
-            <div className="h-4 w-px bg-gray-700" />
-            
-            {/* Tool Selection */}
-            <div className="flex items-center gap-1.5">
-              <button
-                onClick={() => setPaintTool('brush')}
-                className={`px-3 py-1 rounded-md transition-all ${paintTool === 'brush' ? 'bg-[#FFB000] text-black font-bold' : 'hover:bg-white/5 text-gray-400'}`}
-              >
-                Brush
-              </button>
-              <button
-                onClick={() => setPaintTool('eraser')}
-                className={`px-3 py-1 rounded-md transition-all ${paintTool === 'eraser' ? 'bg-[#FFB000] text-black font-bold' : 'hover:bg-white/5 text-gray-400'}`}
-              >
-                Eraser
-              </button>
-            </div>
-
-            <div className="h-4 w-px bg-gray-700" />
-
-            {/* Brush Size */}
-            <div className="flex items-center gap-2">
-              <span className="text-[10px] text-gray-400">Size:</span>
-              <input
-                type="range"
-                min="10"
-                max="80"
-                value={brushSize}
-                onChange={(e) => setBrushSize(Number(e.target.value))}
-                className="w-20 accent-[#FFB000] cursor-pointer"
-              />
-              <span className="w-6 text-[10px] text-right">{brushSize}px</span>
-            </div>
-
-            <div className="h-4 w-px bg-gray-700" />
-
-            {/* Clear Mask */}
-            <button
-              onClick={clearPaintCanvas}
-              className="text-[#f87171] hover:text-red-400 transition-colors uppercase tracking-wider font-semibold text-[10px]"
-            >
-              Clear Mask
-            </button>
-          </div>
-        )}
-
-        {/* Zoom & Inpaint Controls */}
+        {/* Zoom Controls */}
         {currentFloorPlan && (
           <div className="absolute bottom-6 right-6 z-30 flex flex-col gap-1 bg-[#0A0E1A]/90 backdrop-blur-md rounded-xl border border-gray-700/50 shadow-2xl p-1.5">
-            <button
-              onClick={() => {
-                setInpaintActive(!inpaintActive);
-                if (inpaintActive) {
-                  setPaintedFloorPlan(null);
-                  setInpaintMask(null);
-                  if (paintCanvasRef.current) {
-                    const ctx = paintCanvasRef.current.getContext('2d');
-                    ctx?.clearRect(0, 0, 1024, 1024);
-                  }
-                }
-              }}
-              className={`w-9 h-9 flex items-center justify-center rounded-lg transition-all duration-200 ${inpaintActive ? 'bg-[#FFB000] text-black font-bold' : 'text-gray-300 hover:text-[#FFB000] hover:bg-[#FFB000]/10'}`}
-              title="Toggle Inpaint Mask"
-            >
-              <Pencil size={18} />
-            </button>
-            <div className="w-full h-px bg-gray-700/50 my-0.5" />
             <button
               onClick={zoomIn}
               className="w-9 h-9 flex items-center justify-center rounded-lg text-gray-300 hover:text-[#FFB000] hover:bg-[#FFB000]/10 transition-all duration-200"
@@ -1172,35 +1108,6 @@ export default function CanvasPanel() {
                       className="max-w-full max-h-[70vh] object-contain rounded-lg shadow-2xl border border-zinc-800 select-none pointer-events-none" 
                       draggable={false}
                     />
-                    
-                    {inpaintRenderActive && (
-                      <canvas
-                        ref={paintRenderCanvasRef}
-                        width={1024}
-                        height={1024}
-                        onPointerDown={handleRenderPointerDown}
-                        onPointerMove={handleRenderPointerMove}
-                        onPointerUp={handleRenderPointerUp}
-                        onPointerLeave={handleRenderPointerUp}
-                        className="absolute inset-0 w-full h-full cursor-crosshair z-10 touch-none"
-                        style={{ objectFit: 'contain' }}
-                      />
-                    )}
-                  </div>
-                  
-                  <div className="absolute bottom-6 right-6 z-30 flex flex-col gap-1 bg-[#0A0E1A]/90 backdrop-blur-md rounded-xl border border-gray-700/50 shadow-2xl p-1.5">
-                    <button
-                      onClick={() => {
-                        setInpaintRenderActive(!inpaintRenderActive);
-                        if (inpaintRenderActive) {
-                          setPaintedRender(null);
-                        }
-                      }}
-                      className={`w-9 h-9 flex items-center justify-center rounded-lg transition-all duration-200 ${inpaintRenderActive ? 'bg-[#FFB000] text-black font-bold' : 'text-gray-300 hover:text-[#FFB000] hover:bg-[#FFB000]/10'}`}
-                      title="Toggle Inpaint Mask"
-                    >
-                      <Pencil size={18} />
-                    </button>
                   </div>
                 </div>
               </div>

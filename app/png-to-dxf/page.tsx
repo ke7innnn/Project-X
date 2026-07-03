@@ -1,8 +1,10 @@
 'use client';
 
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Upload, Download, RotateCcw, ChevronLeft, Loader2, CheckCircle2, AlertCircle, ZoomIn, ZoomOut } from 'lucide-react';
+import { Upload, Download, RotateCcw, ChevronLeft, Loader2, CheckCircle2, AlertCircle, ZoomIn, ZoomOut, Wand2 } from 'lucide-react';
+import { useArchitectStore } from '@/store/useArchitectStore';
+import { convertSvgToDxf } from '@/lib/svgToDxf';
 
 type Step = 'upload' | 'processing' | 'done' | 'error';
 
@@ -25,6 +27,32 @@ export default function PngToDxfPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const progressRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
+  // Check if we came from the edit section with a floor plan
+  useEffect(() => {
+    const store = useArchitectStore.getState();
+    const planBase64 = store.currentFloorPlan;
+    
+    // Only auto-load if we don't already have a file, and we have a valid base64 image
+    if (planBase64 && !originalFile && step === 'upload') {
+      try {
+        const raw = planBase64.includes(',') ? planBase64.split(',')[1] : planBase64;
+        const binaryString = window.atob(raw);
+        const len = binaryString.length;
+        const bytes = new Uint8Array(len);
+        for (let i = 0; i < len; i++) {
+          bytes[i] = binaryString.charCodeAt(i);
+        }
+        const blob = new Blob([bytes], { type: 'image/jpeg' });
+        const file = new File([blob], 'edited_floorplan.jpg', { type: 'image/jpeg' });
+        
+        // Pass autoUpscale=false so it waits for the user
+        loadFile(file, false);
+      } catch (e) {
+        console.error('Failed to parse base64 floorplan from store', e);
+      }
+    }
+  }, [originalFile, step]);
+
   const startFakeProgress = () => {
     setProgress(0);
     let p = 0;
@@ -43,7 +71,7 @@ export default function PngToDxfPage() {
     setProgress(100);
   };
 
-  const loadFile = (file: File) => {
+  const loadFile = (file: File, autoUpscale: boolean = false) => {
     if (!file.type.match(/image\/(png|jpeg|jpg|webp)/)) {
       setErrorMsg('Please upload a PNG, JPG or WEBP image file.');
       setStep('error');
@@ -55,19 +83,27 @@ export default function PngToDxfPage() {
     setSvgResult(null);
     setDxfBlob(null);
     setPreprocessedUrl(null);
-    setPreprocessing(true);
-    setPreviewTab('enhanced');
+    setPreviewTab('original');
     setStep('upload');
 
-    // Immediately run preprocessing so user can see the enhanced image
+    if (autoUpscale) {
+      handleUpscale(file);
+    }
+  };
+
+  const handleUpscale = (file: File) => {
+    setPreprocessing(true);
     const form = new FormData();
     form.append('image', file);
     fetch('/api/preprocess-image', { method: 'POST', body: form })
       .then(r => r.json())
       .then(data => {
-        if (data.dataUrl) setPreprocessedUrl(data.dataUrl);
+        if (data.dataUrl) {
+          setPreprocessedUrl(data.dataUrl);
+          setPreviewTab('enhanced');
+        }
       })
-      .catch(() => {/* silent — original still shows */})
+      .catch(() => {/* silent */})
       .finally(() => setPreprocessing(false));
   };
 
@@ -90,31 +126,38 @@ export default function PngToDxfPage() {
     startFakeProgress();
 
     try {
-      // Step 1: Get SVG preview
-      const svgForm = new FormData();
-      svgForm.append('image', originalFile);
-      svgForm.append('format', 'svg');
+      let base64ToSend = '';
 
-      const svgRes = await fetch('/api/png-to-dxf', { method: 'POST', body: svgForm });
+      // If the user has an upscaled image available (and we are on the enhanced tab, or generally if it exists)
+      if (preprocessedUrl && previewTab === 'enhanced') {
+        base64ToSend = preprocessedUrl;
+      } else {
+        // Convert original file to base64
+        base64ToSend = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result as string);
+          reader.onerror = reject;
+          reader.readAsDataURL(originalFile);
+        });
+      }
+
+      // Step 1: Get SVG preview via local potrace pipeline
+      const svgRes = await fetch('/api/vectorize', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ currentFloorPlanBase64: base64ToSend })
+      });
       if (!svgRes.ok) {
         const j = await svgRes.json().catch(() => ({ error: 'Unknown error' }));
         throw new Error(j.error || `SVG request failed (${svgRes.status})`);
       }
-      const svgText = await svgRes.text();
-      setSvgResult(svgText);
+      const data = await svgRes.json();
+      setSvgResult(data.svg);
 
-      // Step 2: Get DXF for download
-      const dxfForm = new FormData();
-      dxfForm.append('image', originalFile);
-      dxfForm.append('format', 'dxf');
-
-      const dxfRes = await fetch('/api/png-to-dxf', { method: 'POST', body: dxfForm });
-      if (!dxfRes.ok) {
-        const j = await dxfRes.json().catch(() => ({ error: 'Unknown error' }));
-        throw new Error(j.error || `DXF request failed (${dxfRes.status})`);
-      }
-      const dxfBuffer = await dxfRes.blob();
-      setDxfBlob(dxfBuffer);
+      // Step 2: Prepare DXF file locally from the SVG
+      const dxfString = convertSvgToDxf(data.svg, [], 20); // 20 ppm default
+      const dxfBufferObj = new Blob([dxfString], { type: 'application/dxf' });
+      setDxfBlob(dxfBufferObj);
 
       finishProgress();
       setTimeout(() => setStep('done'), 400);
@@ -148,7 +191,12 @@ export default function PngToDxfPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#0a0a0f] text-white font-mono flex flex-col">
+    <div 
+      className="min-h-screen bg-[#0a0a0f] text-white font-mono flex flex-col"
+      onDragOver={(e) => e.preventDefault()}
+      onDragEnter={(e) => e.preventDefault()}
+      onDrop={(e) => e.preventDefault()}
+    >
       {/* Top bar */}
       <div className="flex items-center justify-between px-6 py-4 border-b border-[#00f0ff]/10 bg-[#0a0a0f]/90 backdrop-blur sticky top-0 z-20">
         <button
@@ -244,12 +292,32 @@ export default function PngToDxfPage() {
           {/* Action buttons */}
           <div className="p-6 flex flex-col gap-3 mt-auto">
             {step === 'upload' && originalFile && (
-              <button
-                onClick={vectorize}
-                className="w-full py-3.5 bg-[#00f0ff] text-black font-bold text-xs uppercase tracking-[4px] rounded-lg hover:bg-[#00d4e8] transition-all shadow-[0_0_20px_rgba(0,240,255,0.3)] hover:shadow-[0_0_30px_rgba(0,240,255,0.5)] active:scale-95"
-              >
-                Vectorize → DXF
-              </button>
+              <div className="flex flex-col gap-3">
+                {!preprocessedUrl && !preprocessing && (
+                  <button
+                    onClick={() => handleUpscale(originalFile)}
+                    className="w-full py-3 bg-[#111] border border-[#00f0ff]/30 text-[#00f0ff] font-bold text-xs uppercase tracking-[3px] rounded-lg hover:bg-[#00f0ff]/10 transition-all flex items-center justify-center gap-2"
+                  >
+                    <Wand2 size={14} />
+                    Clean & Upscale Image
+                  </button>
+                )}
+                {preprocessing && (
+                  <button
+                    disabled
+                    className="w-full py-3 bg-[#111] border border-[#00f0ff]/10 text-[#00f0ff]/50 font-bold text-xs uppercase tracking-[3px] rounded-lg flex items-center justify-center gap-2"
+                  >
+                    <Loader2 size={14} className="animate-spin" />
+                    Upscaling...
+                  </button>
+                )}
+                <button
+                  onClick={vectorize}
+                  className="w-full py-3.5 bg-[#00f0ff] text-black font-bold text-xs uppercase tracking-[4px] rounded-lg hover:bg-[#00d4e8] transition-all shadow-[0_0_20px_rgba(0,240,255,0.3)] hover:shadow-[0_0_30px_rgba(0,240,255,0.5)] active:scale-95"
+                >
+                  Vectorize → DXF
+                </button>
+              </div>
             )}
 
             {step === 'done' && (
@@ -400,8 +468,14 @@ export default function PngToDxfPage() {
                           </p>
                         </>
                       ) : (
-                        <div className="flex flex-col items-center justify-center gap-4 py-20 opacity-40">
-                          <p className="text-[11px] text-white/40 uppercase tracking-wider">Enhancement failed — showing original</p>
+                        <div className="flex flex-col items-center justify-center gap-4 py-20">
+                          <p className="text-[11px] text-white/40 uppercase tracking-wider">Image is currently unenhanced</p>
+                          <button
+                            onClick={() => { if (originalFile) handleUpscale(originalFile); }}
+                            className="flex items-center gap-2 px-6 py-3 bg-[#00f0ff]/10 text-[#00f0ff] border border-[#00f0ff]/40 hover:bg-[#00f0ff]/20 font-bold uppercase tracking-[2px] text-[10px] rounded transition-all shadow-[0_0_15px_rgba(0,240,255,0.2)]"
+                          >
+                            <Wand2 size={16} /> Run AI Upscale & Sharpening
+                          </button>
                         </div>
                       )}
                     </div>
@@ -498,6 +572,7 @@ export default function PngToDxfPage() {
                     style={{ minHeight: 200 }}
                   >
                     <div
+                      className="[&>svg]:max-w-full [&>svg]:h-auto"
                       style={{ transform: `scale(${svgZoom})`, transformOrigin: 'top center', transition: 'transform 0.2s' }}
                       dangerouslySetInnerHTML={{ __html: svgResult }}
                     />

@@ -27,12 +27,7 @@ export default function WorkspacePage() {
     }
   }, [id, currentSessionId, setSessionId]);
 
-  useEffect(() => {
-    // Auto-redirect to /edit when we enter the editing phase
-    if (isRestored && (phase === 'edit' || phase === 'measure')) {
-      router.push('/edit');
-    }
-  }, [phase, isRestored, router]);
+  // Removed auto-redirect to /edit so user can manually choose when to proceed.
 
   // While restoring from the database, show a cool loader
   if (id !== currentSessionId || !isRestored) {

@@ -975,6 +975,15 @@ NOTE: Each time Master Umesh asks for the brief, these stories are shuffled rand
       return { tab: 'png-to-dxf', route: '/png-to-dxf', label: 'Initiating Vector Conversion Suite' };
     }
 
+    // ── Beta / Vector Sandbox ─────────────────────────────────────────────────
+    const betaKws = [
+      'beta', 'vector sandbox', 'vector editor', 'svg editor', 'smart editor',
+      'floor plan editor', 'open beta', 'go to beta', 'vector mode',
+    ];
+    if (betaKws.some(kw => t.includes(kw))) {
+      return { tab: 'beta', route: '/vector-editor', label: 'Initializing Vector Sandbox Beta' };
+    }
+
     return null;
   };
 
@@ -1082,6 +1091,10 @@ NOTE: Each time Master Umesh asks for the brief, these stories are shuffled rand
     } else if (stageId === 'png-to-dxf') {
       speak("Initiating vector conversion suite, Master Umesh.", () => {
         router.push('/png-to-dxf');
+      });
+    } else if (stageId === 'beta') {
+      speak("Initializing Vector Sandbox Beta, Master Umesh.", () => {
+        router.push('/vector-editor');
       });
     } else if (stageId === 'flythrough') {
       setStorePhase('edit');

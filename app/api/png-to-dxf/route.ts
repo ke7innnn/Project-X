@@ -84,7 +84,6 @@ export async function POST(request: Request) {
     // Processing options for maximum accuracy on architectural floor plans
     if (outputFormat === 'dxf') {
       vectorizerForm.append('processing.max_colors', '2');           // Pure B&W after threshold
-      vectorizerForm.append('output.dxf.compatibility_level', '21'); // AutoCAD 2007+ DXF
     } else {
       vectorizerForm.append('processing.max_colors', '2');
     }

@@ -20,7 +20,7 @@ async function callFalGeminiEdit(params: {
 
   const body = {
     prompt: params.translatedPrompt,
-    image_urls: [floorPlanDataUri]
+    image_url: floorPlanDataUri
   };
 
   let lastError: any;
@@ -29,7 +29,7 @@ async function callFalGeminiEdit(params: {
     try {
       console.log(`[edit-floorplan] Attempt ${attempt + 1}/${maxRetries + 1}...`);
 
-      const response = await fetch('https://fal.run/xai/grok-imagine-image/edit', {
+      const response = await fetch('https://fal.run/openai/gpt-image-2/edit', {
         method: 'POST',
         headers: {
           'Authorization': `Key ${FAL_KEY}`,
@@ -45,7 +45,7 @@ async function callFalGeminiEdit(params: {
       }
 
       const data = await response.json();
-      const imageUrl = data?.images?.[0]?.url;
+      const imageUrl = data?.images?.[0]?.url || data?.image?.url;
       if (!imageUrl) throw new Error('fal.ai returned no image URL');
 
       // Download the resulting image
@@ -161,7 +161,7 @@ export async function POST(request: Request) {
             body: JSON.stringify({
               model: "google/gemini-2.5-flash-lite-preview",
               messages: [
-                { role: "system", content: EDIT_TRANSLATOR_SYSTEM_PROMPT(isInpaint, collectedParameters) },
+                { role: "system", content: EDIT_TRANSLATOR_SYSTEM_PROMPT(collectedParameters, isInpaint) },
                 { role: "user", content: `Original user prompt: "${editInstruction}"` }
               ],
               temperature: 0.1,

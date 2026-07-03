@@ -423,7 +423,8 @@ export default function ChatPanel() {
               natureImageUrl: useArchitectStore.getState().selectedNatureImage?.url || useArchitectStore.getState().selectedNatureImage?.thumbUrl,
               natureImageDescription: useArchitectStore.getState().selectedNatureImage?.description,
               customImageBase64: useArchitectStore.getState().lastUploadedImage,
-              customImageDescription: useArchitectStore.getState().lastUploadedImageDescription
+              customImageDescription: useArchitectStore.getState().lastUploadedImageDescription,
+              manualPlotImage: useArchitectStore.getState().manualPlotImage
             })
           });
           const genData = await genRes.json();
@@ -606,7 +607,8 @@ export default function ChatPanel() {
                 natureImageUrl: useArchitectStore.getState().selectedNatureImage?.url || useArchitectStore.getState().selectedNatureImage?.thumbUrl,
                 natureImageDescription: useArchitectStore.getState().selectedNatureImage?.description,
                 customImageBase64: useArchitectStore.getState().lastUploadedImage,
-                customImageDescription: useArchitectStore.getState().lastUploadedImageDescription
+                customImageDescription: useArchitectStore.getState().lastUploadedImageDescription,
+                manualPlotImage: useArchitectStore.getState().manualPlotImage
               })
             });
             const genData = await genRes.json();

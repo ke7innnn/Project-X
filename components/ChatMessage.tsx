@@ -1,13 +1,13 @@
 import { ConversationMessage } from '@/types';
 import LoadingIndicator from './LoadingIndicator';
 import ParametersSummary from './ParametersSummary';
-import { Download, Upload, Library, Type } from 'lucide-react';
 import React, { useState } from 'react';
 import { useArchitectStore } from '@/store/useArchitectStore';
+import { Download, Upload, Library, Type, PenTool, Map } from 'lucide-react';
 
 interface ChatMessageProps {
   message: ConversationMessage;
-  isCustomType?: 'image-grid' | 'parameters-summary' | 'download-button' | 'upload-prompt' | 'loading' | 'selected-image' | 'floorplan-drafts' | 'floorplan-edit' | 'uploaded-image' | 'onboarding-options';
+  isCustomType?: 'image-grid' | 'parameters-summary' | 'download-button' | 'upload-prompt' | 'loading' | 'selected-image' | 'floorplan-drafts' | 'floorplan-edit' | 'uploaded-image' | 'onboarding-options' | 'plot-trace-options' | 'plot-draw-canvas';
   customData?: any;
 }
 
@@ -44,7 +44,8 @@ const ChatMessage = React.memo(function ChatMessage({ message, isCustomType, cus
           natureImageUrl: store.selectedNatureImage?.url || store.selectedNatureImage?.thumbUrl,
           natureImageDescription: store.selectedNatureImage?.description,
           customImageBase64: store.lastUploadedImage,
-          customImageDescription: store.lastUploadedImageDescription
+          customImageDescription: store.lastUploadedImageDescription,
+          manualPlotImage: store.manualPlotImage
         })
       });
       const genData = await genRes.json();
@@ -143,6 +144,52 @@ const ChatMessage = React.memo(function ChatMessage({ message, isCustomType, cus
       <div className="flex justify-start my-4">
         <div className="bg-blue-900/40 border border-blue-500/50 text-blue-100 p-3 rounded-xl max-w-[90%] text-sm">
           {text}
+        </div>
+      </div>
+    );
+  }
+
+  if (isCustomType === 'plot-trace-options') {
+    return (
+      <div className="flex flex-col gap-2 w-full my-4">
+        <p className="text-gray-300 text-sm mb-2">How would you like to define your plot boundary?</p>
+        <button 
+          onClick={() => {
+            useArchitectStore.getState().setOnboardingMode('trace-manual');
+            useArchitectStore.getState().addMessage({ role: 'user', parts: [{ text: "I want to trace my plot manually." }]});
+            useArchitectStore.getState().addMessage({ role: 'model', parts: [{ text: "Let's draw! Use the CAD tools below to trace your plot boundary. When you're done, we'll continue with the setup." }], customType: 'plot-draw-canvas' });
+          }}
+          className="flex items-center gap-3 bg-[#111] hover:bg-[#222] border border-[#333] text-white p-3 rounded-lg transition-colors text-left"
+        >
+          <div className="bg-[#333] p-2 rounded"><PenTool size={16} className="text-[#FFB000]" /></div>
+          <div>
+            <div className="font-semibold text-sm">Trace Plot Manually</div>
+            <div className="text-xs text-gray-500">Use drawing tools to sketch your exact boundary</div>
+          </div>
+        </button>
+        
+        <button 
+          onClick={() => {
+            useArchitectStore.getState().addMessage({ role: 'user', parts: [{ text: "I want to use a reference image or text prompt." }]});
+            useArchitectStore.getState().addMessage({ role: 'model', parts: [{ text: "Understood. How would you like to provide the reference shape for your floor plan?" }], customType: 'onboarding-options' });
+          }}
+          className="flex items-center gap-3 bg-[#111] hover:bg-[#222] border border-[#333] text-white p-3 rounded-lg transition-colors text-left"
+        >
+          <div className="bg-[#333] p-2 rounded"><Map size={16} className="text-[#FFB000]" /></div>
+          <div>
+            <div className="font-semibold text-sm">Use Reference Image / Text</div>
+            <div className="text-xs text-gray-500">Upload a photo, search library, or use a text prompt</div>
+          </div>
+        </button>
+      </div>
+    );
+  }
+
+  if (isCustomType === 'plot-draw-canvas') {
+    return (
+      <div className="flex justify-start my-4 w-full">
+        <div className="bg-blue-900/40 border border-blue-500/50 text-blue-100 p-3 rounded-xl max-w-[90%] text-sm">
+          Please use the drawing tools on the right side of the screen to trace your plot boundary. Click &quot;Done Tracing&quot; when you are finished.
         </div>
       </div>
     );

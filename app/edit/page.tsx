@@ -3,11 +3,12 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useArchitectStore } from '@/store/useArchitectStore';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, Send, PenTool, Loader2, UploadCloud, Folder, Search, Plus, MapPin, Clock, Trash2, Map, Brush, Eraser, Undo2, Box } from 'lucide-react';
+import { ArrowLeft, Send, PenTool, Loader2, UploadCloud, Folder, Search, Plus, MapPin, Clock, Trash2, Map, Brush, Eraser, Undo2, Box, Type, Move, Check, X, Minus, Ruler, MousePointerClick } from 'lucide-react';
 import CinematicIntro from '@/components/CinematicIntro';
 import SaveToProjectModal from '@/components/SaveToProjectModal';
 import { supabase } from '@/lib/supabase';
 import { v4 as uuidv4 } from 'uuid';
+import { convertSvgToDxf } from '@/lib/svgToDxf';
 
 export default function EditPage() {
   const router = useRouter();
@@ -21,6 +22,13 @@ export default function EditPage() {
   
   const [isSaveModalOpen, setIsSaveModalOpen] = useState(false);
   const [saveSuccessMsg, setSaveSuccessMsg] = useState<string | null>(null);
+
+  // DXF Conversion Modal State
+  type DxfPhase = 'idle' | 'tracing' | 'preview' | 'error';
+  const [dxfPhase, setDxfPhase] = useState<DxfPhase>('idle');
+  const [dxfSvg, setDxfSvg] = useState<string | null>(null);
+  const [dxfBlob, setDxfBlob] = useState<Blob | null>(null);
+  const [dxfError, setDxfError] = useState<string | null>(null);
 
   // Pre-page Project Selection Dashboard state
   const [showSelector, setShowSelector] = useState(true);
@@ -40,34 +48,127 @@ export default function EditPage() {
   const [drawingHistory, setDrawingHistory] = useState<string[]>([]);
   const [strokeRedoHistory, setStrokeRedoHistory] = useState<string[]>([]);
   const [floorPlanRedoStack, setFloorPlanRedoStack] = useState<string[]>([]);
+  
+  const [isTextMode, setIsTextMode] = useState(false);
+  const [brushMode, setBrushMode] = useState<'brush' | 'eraser' | 'text'>('brush');
+  const [brushSize, setBrushSize] = useState(30);
+  const [textInput, setTextInput] = useState({ active: false, x: 0, y: 0, text: '' });
+  const [textDrag, setTextDrag] = useState({ isDragging: false, startX: 0, startY: 0, initialInputX: 0, initialInputY: 0 });
+
+  // Scale Calibration State
+  type CalibStep = 'idle' | 'point1' | 'point2' | 'input';
+  const [calibStep, setCalibStep] = useState<CalibStep>('idle');
+  const [calibPoints, setCalibPoints] = useState<{ x: number; y: number }[]>([]);
+  const [calibScale, setCalibScale] = useState<{ pxPerFt: number; pxPerM: number } | null>(null);
+  const [calibDistInput, setCalibDistInput] = useState('');
+  const [calibUnit, setCalibUnit] = useState<'ft' | 'm'>('ft');
+  const calibImgRef = useRef<HTMLDivElement>(null);
+
+  // Room Picker (Click-a-Room) State
+  const [isRoomPickerMode, setIsRoomPickerMode] = useState(false);
+  const [pickedRoomName, setPickedRoomName] = useState('');
+  const [showRoomNamePopup, setShowRoomNamePopup] = useState(false);
+  const [pickedRoomPreview, setPickedRoomPreview] = useState<{ x: number; y: number } | null>(null);
+
+  // AI OCR Room Reader State
+  interface RoomData { name: string; dimensions?: string; areaSqft?: number; label?: string; }
+  interface OCRResult { rooms: RoomData[]; bhkType?: string; totalAreaSqft?: number; confidence: string; }
+  const [ocrResult, setOcrResult] = useState<OCRResult | null>(null);
+  const [isOcrLoading, setIsOcrLoading] = useState(false);
+  const [ocrError, setOcrError] = useState<string | null>(null);
+
+  const runOCR = async (imageBase64: string) => {
+    setIsOcrLoading(true);
+    setOcrError(null);
+    try {
+      const res = await fetch('/api/ocr-floorplan', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ imageBase64 }),
+      });
+      const data = await res.json();
+      if (data.error) throw new Error(data.error);
+      setOcrResult(data);
+    } catch (err: any) {
+      setOcrError('Could not read plan labels. Try a clearer image.');
+      console.warn('[OCR]', err.message);
+    } finally {
+      setIsOcrLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!textDrag.isDragging) return;
+    const handleMouseMove = (e: MouseEvent) => {
+      const dx = e.clientX - textDrag.startX;
+      const dy = e.clientY - textDrag.startY;
+      setTextInput(prev => ({ ...prev, x: textDrag.initialInputX + dx, y: textDrag.initialInputY + dy }));
+    };
+    const handleMouseUp = () => {
+      setTextDrag(prev => ({ ...prev, isDragging: false }));
+    };
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mouseup', handleMouseUp);
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [textDrag]);
 
   useEffect(() => {
     const resizeCanvas = () => {
-      if (imgRef.current && canvasRef.current && isInpaintMode) {
-        canvasRef.current.width = imgRef.current.clientWidth;
-        canvasRef.current.height = imgRef.current.clientHeight;
+      if (imgRef.current && canvasRef.current) {
+        const newW = imgRef.current.clientWidth;
+        const newH = imgRef.current.clientHeight;
+        if (newW === 0 || newH === 0) return;
+        
+        if (canvasRef.current.width !== newW || canvasRef.current.height !== newH) {
+          // Save before resize
+          const existingData = canvasRef.current.width > 0 && canvasRef.current.height > 0 ? canvasRef.current.toDataURL() : null;
+          
+          canvasRef.current.width = newW;
+          canvasRef.current.height = newH;
+          
+          if (existingData) {
+            const img = new Image();
+            img.onload = () => {
+              if (canvasRef.current) {
+                canvasRef.current.getContext('2d')?.drawImage(img, 0, 0, newW, newH);
+              }
+            };
+            img.src = existingData;
+          }
+        }
       }
     };
     window.addEventListener('resize', resizeCanvas);
     setTimeout(resizeCanvas, 100);
     return () => window.removeEventListener('resize', resizeCanvas);
-  }, [isInpaintMode, currentFloorPlan]);
+  }, [isInpaintMode, isTextMode, currentFloorPlan]);
 
   const startDrawing = (e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) => {
-    if (!isInpaintMode || !canvasRef.current) return;
+    if ((!isInpaintMode && !isTextMode) || !canvasRef.current) return;
     
-    // Save current canvas state to history before drawing new stroke
     const canvas = canvasRef.current;
+    const rect = canvas.getBoundingClientRect();
+    const x = ('touches' in e) ? e.touches[0].clientX - rect.left : (e as React.MouseEvent).clientX - rect.left;
+    const y = ('touches' in e) ? e.touches[0].clientY - rect.top : (e as React.MouseEvent).clientY - rect.top;
+    
+    if (isTextMode) {
+      if (textInput.active && textInput.text) {
+        burnTextToImage(true);
+      }
+      setTextInput({ active: true, x, y, text: '' });
+      return;
+    }
+
+    // Save current canvas state to history before drawing new stroke
     setDrawingHistory(prev => [...prev, canvas.toDataURL()]);
     setStrokeRedoHistory([]);
 
     setIsDrawing(true);
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
-    
-    const rect = canvas.getBoundingClientRect();
-    const x = ('touches' in e) ? e.touches[0].clientX - rect.left : (e as React.MouseEvent).clientX - rect.left;
-    const y = ('touches' in e) ? e.touches[0].clientY - rect.top : (e as React.MouseEvent).clientY - rect.top;
     
     ctx.beginPath();
     ctx.moveTo(x, y);
@@ -86,11 +187,16 @@ export default function EditPage() {
     const y = ('touches' in e) ? e.touches[0].clientY - rect.top : (e as React.MouseEvent).clientY - rect.top;
     
     ctx.lineTo(x, y);
-    ctx.strokeStyle = 'rgba(0, 255, 0, 0.4)';
-    ctx.lineWidth = 30;
+    ctx.globalCompositeOperation = brushMode === 'eraser' ? 'destination-out' : 'source-over';
+    ctx.strokeStyle = brushMode === 'eraser' ? 'rgba(0,0,0,1)' : 'rgba(0, 255, 0, 0.4)';
+    ctx.lineWidth = brushSize;
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
     ctx.stroke();
+    
+    // Reset composite operation to default
+    ctx.globalCompositeOperation = 'source-over';
+    
     setHasInpaint(true);
   };
 
@@ -156,11 +262,154 @@ export default function EditPage() {
     };
   };
 
+  const burnTextToImage = (preserveState = false) => {
+    try {
+      if (!textInput.active || !textInput.text || !imgRef.current) {
+        if (!preserveState) setTextInput({ active: false, x: 0, y: 0, text: '' });
+        return;
+      }
+      
+      const canvas = document.createElement('canvas');
+      const img = imgRef.current;
+      canvas.width = img.naturalWidth;
+      canvas.height = img.naturalHeight;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return;
+      
+      ctx.drawImage(img, 0, 0);
+      
+      // Scale coordinates from display size to natural size
+      const scaleX = canvas.width / img.clientWidth;
+      const scaleY = canvas.height / img.clientHeight;
+      
+      ctx.font = `bold ${brushSize * scaleX}px sans-serif`;
+      ctx.fillStyle = '#000000'; // Draw in Black for blueprints
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(textInput.text, textInput.x * scaleX, textInput.y * scaleY);
+      
+      const newBase64 = canvas.toDataURL('image/jpeg', 0.95).split(',')[1];
+      
+      // Add to redo stack
+      replaceState({
+        currentFloorPlan: newBase64,
+        floorPlanHistory: [...(floorPlanHistory || []), currentFloorPlan as string]
+      });
+      setFloorPlanRedoStack([]);
+      
+      if (!preserveState) {
+        setTextInput({ active: false, x: 0, y: 0, text: '' });
+      }
+    } catch (e: any) {
+      alert("Error burning text: " + e.message);
+      if (!preserveState) setTextInput({ active: false, x: 0, y: 0, text: '' });
+    }
+  };
+
+  const downloadAsPng = () => {
+    if (!currentFloorPlan) return;
+    const link = document.createElement('a');
+    link.href = currentFloorPlan.startsWith('data:image/') ? currentFloorPlan : `data:image/jpeg;base64,${currentFloorPlan}`;
+    link.download = `${projectName || 'floorplan'}_edited.png`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  // Flood fill: detect room from a clicked pixel on the displayed image,
+  // paint it green on the inpaint canvas, and return the room region.
+  const floodFillRoom = (clickX: number, clickY: number) => {
+    if (!imgRef.current || !canvasRef.current) return;
+    const img = imgRef.current;
+    const canvas = canvasRef.current;
+
+    // Draw image to offscreen canvas at display resolution
+    const offscreen = document.createElement('canvas');
+    offscreen.width = canvas.width;
+    offscreen.height = canvas.height;
+    const octx = offscreen.getContext('2d')!;
+    octx.drawImage(img, 0, 0, canvas.width, canvas.height);
+    const imageData = octx.getImageData(0, 0, canvas.width, canvas.height);
+    const data = imageData.data;
+
+    const W = canvas.width;
+    const H = canvas.height;
+    const filled = new Uint8Array(W * H);
+
+    // Threshold: white-ish pixels = room interior, dark = walls
+    const isLight = (idx: number) => data[idx] > 200 && data[idx + 1] > 200 && data[idx + 2] > 200;
+
+    const startIdx = (Math.floor(clickY) * W + Math.floor(clickX));
+    if (!isLight(startIdx * 4)) {
+      // Clicked on a wall — search nearby for a light pixel
+      let found = false;
+      for (let r = 1; r <= 15 && !found; r++) {
+        for (let dy = -r; dy <= r && !found; dy++) {
+          for (let dx = -r; dx <= r && !found; dx++) {
+            const nx = Math.floor(clickX) + dx;
+            const ny = Math.floor(clickY) + dy;
+            if (nx < 0 || ny < 0 || nx >= W || ny >= H) continue;
+            const nidx = ny * W + nx;
+            if (isLight(nidx * 4)) {
+              clickX = nx; clickY = ny; found = true;
+            }
+          }
+        }
+      }
+      if (!found) return;
+    }
+
+    // BFS flood fill
+    const queue: number[] = [Math.floor(clickY) * W + Math.floor(clickX)];
+    filled[queue[0]] = 1;
+    const MAX_FILL = W * H * 0.5; // Don't fill more than 50% of the image
+    let count = 0;
+    while (queue.length > 0 && count < MAX_FILL) {
+      const cur = queue.pop()!;
+      count++;
+      const cx = cur % W;
+      const cy = Math.floor(cur / W);
+      for (const [dx, dy] of [[1,0],[-1,0],[0,1],[0,-1]]) {
+        const nx = cx + dx, ny = cy + dy;
+        if (nx < 0 || ny < 0 || nx >= W || ny >= H) continue;
+        const ni = ny * W + nx;
+        if (!filled[ni] && isLight(ni * 4)) {
+          filled[ni] = 1;
+          queue.push(ni);
+        }
+      }
+    }
+
+    // Paint filled region green on inpaint canvas
+    const ctx = canvas.getContext('2d')!;
+    ctx.clearRect(0, 0, W, H);
+    const out = ctx.getImageData(0, 0, W, H);
+    for (let i = 0; i < W * H; i++) {
+      if (filled[i]) {
+        out.data[i * 4] = 0;
+        out.data[i * 4 + 1] = 255;
+        out.data[i * 4 + 2] = 0;
+        out.data[i * 4 + 3] = 100; // semi-transparent green
+      }
+    }
+    ctx.putImageData(out, 0, 0);
+    setHasInpaint(true);
+    setDrawingHistory([canvas.toDataURL()]);
+  };
+
   useEffect(() => {
     if (sessionId) {
       setShowSelector(false);
     }
   }, [sessionId]);
+
+  // Auto-run OCR when a floor plan loads into the editor (from workspace or project)
+  useEffect(() => {
+    if (currentFloorPlan && !ocrResult && !isOcrLoading) {
+      runOCR(currentFloorPlan);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentFloorPlan]);
 
   useEffect(() => {
     let interval: NodeJS.Timeout;
@@ -320,22 +569,9 @@ const blendImagesWithMask = (
         finalPayloadBase64 = compositeCanvas.toDataURL('image/png');
         
         const cleanPrompt = prompt.trim();
-        const cleanLower = cleanPrompt.toLowerCase().replace(/^replace\s+green\s+with:\s*/, '').trim();
         const displayPrompt = cleanPrompt.replace(/^replace\s+green\s+with:\s*/i, '').trim();
 
-        const coreInstruction = getRoomSpecificCADInstructions(cleanLower);
-
-        finalPrompt = `
-[CRITICAL ARCHITECTURAL BLUEPRINT EDIT DIRECTIVE]
-You are a precise CAD software compiler and master architect. The user has uploaded a floor plan image. A specific room/area has been marked with a semi-transparent green paint brush stroke.
-
-YOUR TASK:
-1. TARGET ZONE: Modify ONLY the room or outdoor area covered by the green paint. Even if the green paint only covers a part of the room, apply the change to the entire enclosing room.
-2. ACTION: ${coreInstruction}
-3. CAD STYLE MATCHING: You MUST draw in the exact same 2D blueprint drafting style as the original image: clean black lines on a solid white background. Match the line weights, hatching, labels, and drawing style of the existing plan.
-4. STRICT PRESERVATION PROTOCOL: Do not modify, change, shift, or delete ANY walls, doors, windows, labels, layouts, furniture, cars, or details in any other part of the floor plan outside of the green-painted area. The rest of the plan MUST remain 100% identical to the input image down to the pixel.
-5. NO COLOR: The output must remain in black and white CAD blueprint style. Remove the green paint overlay completely. No green color or other colors should appear in the final output.
-`;
+        finalPrompt = `Modify the green painted area: ${displayPrompt}`;
       }
     }
 
@@ -346,31 +582,21 @@ YOUR TASK:
         body: JSON.stringify({ 
           currentFloorPlanBase64: finalPayloadBase64,
           editInstruction: finalPrompt,
-          collectedParameters,
+          collectedParameters: {
+            ...collectedParameters,
+            ...(calibScale ? {
+              scaleInfo: `This floor plan has been calibrated: 1 foot = ${calibScale.pxPerFt.toFixed(2)} pixels (display). Use this to understand proportions.`
+            } : {})
+          },
           roomDimensions,
           isInpaint: isInpaintMode && hasInpaint,
-          skipTranslation: true
+          skipTranslation: false
         })
       });
       const editData = await editRes.json();
       
       if (editData.editedFloorPlan) {
-        let blendedPlan = editData.editedFloorPlan;
-
-        if (isInpaintMode && hasInpaint && canvasRef.current && imgRef.current) {
-          try {
-            const originalImg = imgRef.current;
-            const editedImg = await loadImage(editData.editedFloorPlan);
-            const blendedDataUrl = blendImagesWithMask(originalImg, editedImg, canvasRef.current);
-            if (blendedDataUrl) {
-              blendedPlan = blendedDataUrl;
-            }
-          } catch (blendError) {
-            console.error('Error blending inpaint images:', blendError);
-          }
-        }
-
-        setCurrentFloorPlan(blendedPlan);
+        setCurrentFloorPlan(editData.editedFloorPlan);
         setPrompt('');
         clearInpaint();
         setFloorPlanRedoStack([]); // Clear redo stack on new edit
@@ -394,7 +620,9 @@ YOUR TASK:
       if (base64) {
         setCurrentFloorPlan(base64);
         setPrompt('');
-        setFloorPlanRedoStack([]); // Clear redo stack on new upload
+        setFloorPlanRedoStack([]);
+        setOcrResult(null);
+        runOCR(base64);
       }
     };
     reader.readAsDataURL(file);
@@ -433,6 +661,23 @@ YOUR TASK:
         });
       }
     }
+  };
+
+  const handleConvertToDxf = async () => {
+    if (!currentFloorPlan) return;
+    // Route to the dedicated pipeline page instead of showing a modal
+    router.push('/png-to-dxf');
+  };
+
+  const downloadDxf = () => {
+    if (!dxfBlob) return;
+    const url = URL.createObjectURL(dxfBlob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = (projectName || 'floorplan') + '.dxf';
+    a.click();
+    URL.revokeObjectURL(url);
+    setDxfPhase('idle');
   };
 
   return (
@@ -519,6 +764,39 @@ YOUR TASK:
             </button>
           )}
 
+          {currentFloorPlan && (
+            <div className="flex items-center gap-2">
+              <button
+                onClick={handleConvertToDxf}
+                disabled={dxfPhase === 'tracing'}
+                className="flex items-center gap-2 px-6 py-2 bg-[#00f0ff] text-black font-bold uppercase tracking-widest text-[10px] rounded hover:bg-[#00d4e8] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {dxfPhase === 'tracing' ? <Loader2 size={12} className="animate-spin" /> : null}
+                Convert to CAD (DXF)
+              </button>
+              <button
+                onClick={downloadAsPng}
+                className="flex items-center gap-2 px-6 py-2 bg-[#00f0ff]/20 text-[#00f0ff] border border-[#00f0ff]/50 font-bold uppercase tracking-widest text-[10px] rounded hover:bg-[#00f0ff]/30 transition-colors"
+              >
+                Save as PNG
+              </button>
+            </div>
+          )}
+
+          {currentFloorPlan && (
+            <button
+              onClick={() => {
+                setCalibStep('point1');
+                setCalibPoints([]);
+                setCalibDistInput('');
+                setIsInpaintMode(false);
+                setIsTextMode(false);
+              }}
+              className={`flex items-center gap-2 px-4 py-2 text-[10px] uppercase tracking-widest border rounded transition-colors ${calibStep !== 'idle' ? 'bg-yellow-500/20 border-yellow-400 text-yellow-400 animate-pulse' : calibScale ? 'bg-green-500/20 border-green-400 text-green-400' : 'border-yellow-500/50 text-yellow-400 hover:bg-yellow-500/10'}`}
+            >
+              <Ruler size={14} /> {calibStep !== 'idle' ? 'Calibrating...' : calibScale ? `Scale: 1ft = ${calibScale.pxPerFt.toFixed(0)}px` : 'Calibrate Scale'}
+            </button>
+          )}
           {floorPlanRedoStack.length > 0 && (
             <button 
               onClick={handleRedo}
@@ -533,12 +811,48 @@ YOUR TASK:
               <button 
                 onClick={() => {
                   setIsInpaintMode(!isInpaintMode);
-                  if (isInpaintMode) clearInpaint();
+                  if (!isInpaintMode) {
+                    setIsTextMode(false);
+                    setBrushMode('brush');
+                  } else {
+                    clearInpaint();
+                  }
                 }}
                 className={`flex items-center gap-2 px-4 py-2 text-[10px] uppercase tracking-widest border rounded transition-colors ${isInpaintMode ? 'bg-cyan-500/20 border-cyan-400 text-cyan-400' : 'border-cyan-500/50 text-cyan-400 hover:bg-cyan-500/10'}`}
               >
-                <Brush size={14} /> {isInpaintMode ? 'Exit Inpaint' : 'Inpaint'}
+                <Brush size={14} /> {isInpaintMode ? 'Exit Target Mode' : 'Target Room (Green Dot)'}
               </button>
+
+              {isInpaintMode && (
+                <>
+                  <div className="flex items-center gap-1 border border-cyan-500/30 rounded p-1 bg-[#0a0a0f]">
+                    <button 
+                      onClick={() => setBrushMode('brush')}
+                      className={`p-1.5 rounded ${brushMode === 'brush' ? 'bg-cyan-500/20 text-cyan-400' : 'text-gray-500 hover:text-cyan-400'}`}
+                      title="Brush Tool"
+                    >
+                      <Brush size={14} />
+                    </button>
+                    <button 
+                      onClick={() => setBrushMode('eraser')}
+                      className={`p-1.5 rounded ${brushMode === 'eraser' ? 'bg-cyan-500/20 text-cyan-400' : 'text-gray-500 hover:text-cyan-400'}`}
+                      title="Eraser Tool"
+                    >
+                      <Eraser size={14} />
+                    </button>
+                  </div>
+                  <div className="flex items-center gap-2 border border-cyan-500/30 rounded px-3 py-1 bg-[#0a0a0f]">
+                    <span className="text-[10px] text-cyan-500/50 uppercase tracking-widest font-bold">Size:</span>
+                    <input 
+                      type="range" 
+                      min="10" max="80" 
+                      value={brushSize} 
+                      onChange={(e) => setBrushSize(parseInt(e.target.value))}
+                      className="w-20 accent-cyan-400"
+                    />
+                  </div>
+                </>
+              )}
               {isInpaintMode && (hasInpaint || strokeRedoHistory.length > 0) && (
                 <>
                   {hasInpaint && (
@@ -546,7 +860,7 @@ YOUR TASK:
                       onClick={undoStroke}
                       className="flex items-center gap-2 px-4 py-2 text-[10px] uppercase tracking-widest border border-yellow-500/50 text-yellow-400 hover:bg-yellow-500/10 rounded transition-colors"
                     >
-                      <Undo2 size={14} /> Undo Stroke
+                      <Undo2 size={14} /> Undo
                     </button>
                   )}
                   {strokeRedoHistory.length > 0 && (
@@ -554,7 +868,7 @@ YOUR TASK:
                       onClick={redoStroke}
                       className="flex items-center gap-2 px-4 py-2 text-[10px] uppercase tracking-widest border border-yellow-500/50 text-yellow-400 hover:bg-yellow-500/10 rounded transition-colors"
                     >
-                      <Undo2 size={14} /> Redo Stroke
+                      <Undo2 size={14} /> Redo
                     </button>
                   )}
                   {hasInpaint && (
@@ -562,7 +876,7 @@ YOUR TASK:
                       onClick={clearInpaint}
                       className="flex items-center gap-2 px-4 py-2 text-[10px] uppercase tracking-widest border border-red-500/50 text-red-400 hover:bg-red-500/10 rounded transition-colors"
                     >
-                      <Eraser size={14} /> Clear Brush
+                      <Eraser size={14} /> Clear
                     </button>
                   )}
                 </>
@@ -581,6 +895,7 @@ YOUR TASK:
             <div className="relative max-w-full max-h-[70vh] bg-white rounded-xl shadow-2xl overflow-hidden border-2 border-cyan-500/20 group">
               <img 
                 ref={imgRef}
+                crossOrigin="anonymous"
                 src={currentFloorPlan.startsWith('data:image/') ? currentFloorPlan : `data:image/jpeg;base64,${currentFloorPlan}`} 
                 alt="Current Floor Plan" 
                 className={`max-w-full max-h-[70vh] w-auto h-auto block transition-opacity duration-300 ${isEditing ? 'opacity-50 blur-sm' : 'opacity-100'} ${isInpaintMode ? 'pointer-events-none' : ''}`}
@@ -600,7 +915,7 @@ YOUR TASK:
                 onTouchStart={startDrawing}
                 onTouchMove={draw}
                 onTouchEnd={stopDrawing}
-                className={`absolute top-0 left-0 w-full h-full z-10 touch-none ${!isInpaintMode ? 'hidden' : 'cursor-crosshair'}`}
+                className={`absolute top-0 left-0 w-full h-full z-10 touch-none ${(!isInpaintMode && !isTextMode && !isRoomPickerMode) ? 'hidden' : (isTextMode ? 'cursor-text' : 'cursor-crosshair')}`}
               />
               {isEditing && (
                 <div className="absolute inset-0 flex flex-col items-center justify-center bg-[#0a0a0f]/60 backdrop-blur-sm z-20">
@@ -608,6 +923,293 @@ YOUR TASK:
                   <p className="text-cyan-400 font-mono tracking-[2px] uppercase text-sm animate-pulse">
                     Grok is analyzing & editing...
                   </p>
+                </div>
+              )}
+              {textInput.active && (
+                <div
+                  className="absolute z-30"
+                  style={{ top: textInput.y, left: textInput.x }}
+                >
+                  <div className="absolute flex items-center justify-center" style={{ transform: 'translate(-50%, -50%)' }}>
+                    <div className="relative group">
+                      {/* Canva-style Drag Handle */}
+                      <div 
+                        onMouseDown={(e) => {
+                          e.preventDefault();
+                          setTextDrag({ isDragging: true, startX: e.clientX, startY: e.clientY, initialInputX: textInput.x, initialInputY: textInput.y });
+                        }}
+                        className="absolute -top-10 left-1/2 -translate-x-1/2 bg-cyan-500 text-black px-3 py-1 rounded-full shadow-lg cursor-move opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1 font-bold text-xs whitespace-nowrap"
+                        title="Drag to move"
+                      >
+                        <Move size={14} /> DRAG
+                      </div>
+
+                      <input
+                        autoFocus
+                        type="text"
+                        value={textInput.text}
+                        onChange={(e) => setTextInput({ ...textInput, text: e.target.value })}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') burnTextToImage(false);
+                          if (e.key === 'Escape') setTextInput({ active: false, x: 0, y: 0, text: '' });
+                        }}
+                        placeholder="Type here..."
+                        className="bg-transparent text-black placeholder:text-gray-500/50 font-bold outline-none border-2 border-dashed border-cyan-500/50 focus:border-cyan-500 hover:border-cyan-500 text-center transition-colors px-2 py-1"
+                        style={{ 
+                          fontSize: `${brushSize}px`, 
+                          width: `${Math.max(150, textInput.text.length * (brushSize * 0.6) + 40)}px` 
+                        }}
+                      />
+
+                      {/* Canva-style Floating Controls */}
+                      <div className="absolute -bottom-16 left-1/2 -translate-x-1/2 flex items-center gap-2 bg-[#0a0a0f]/90 p-2 rounded-xl shadow-2xl border border-cyan-500/30 backdrop-blur-md whitespace-nowrap">
+                        <button 
+                          onClick={() => setBrushSize(prev => Math.max(prev - 5, 10))}
+                          className="p-1.5 text-gray-400 hover:text-white hover:bg-white/10 rounded-lg transition-colors"
+                          title="Decrease Size"
+                        >
+                          <Minus size={16} />
+                        </button>
+                        <span className="text-cyan-400 font-mono font-bold text-xs w-8 text-center">{brushSize}</span>
+                        <button 
+                          onClick={() => setBrushSize(prev => Math.min(prev + 5, 200))}
+                          className="p-1.5 text-gray-400 hover:text-white hover:bg-white/10 rounded-lg transition-colors"
+                          title="Increase Size"
+                        >
+                          <Plus size={16} />
+                        </button>
+                        
+                        <div className="w-px h-6 bg-gray-700 mx-1" />
+                        
+                        <button 
+                          onClick={() => burnTextToImage(false)}
+                          className="flex items-center gap-1 bg-cyan-500 text-black font-bold px-3 py-1.5 rounded-lg hover:bg-cyan-400 transition-colors text-xs uppercase tracking-wider"
+                        >
+                          <Check size={14} /> Apply
+                        </button>
+                        <button 
+                          onClick={() => setTextInput({ active: false, x: 0, y: 0, text: '' })}
+                          className="flex items-center gap-1 bg-red-500 text-white font-bold px-3 py-1.5 rounded-lg hover:bg-red-400 transition-colors text-xs uppercase tracking-wider"
+                        >
+                          <X size={14} /> Cancel
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Room Picker Overlay */}
+              {isRoomPickerMode && !showRoomNamePopup && (
+                <div
+                  className="absolute inset-0 z-40 cursor-crosshair"
+                  onClick={(e) => {
+                    const rect = e.currentTarget.getBoundingClientRect();
+                    const x = e.clientX - rect.left;
+                    const y = e.clientY - rect.top;
+                    // Need canvas to be sized — ensure it matches the image
+                    if (canvasRef.current && imgRef.current) {
+                      canvasRef.current.width = imgRef.current.clientWidth;
+                      canvasRef.current.height = imgRef.current.clientHeight;
+                    }
+                    floodFillRoom(x, y);
+                    setPickedRoomPreview({ x, y });
+                    setShowRoomNamePopup(true);
+                    setPickedRoomName('');
+                  }}
+                >
+                  <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-purple-500 text-white font-bold text-sm px-6 py-3 rounded-full shadow-2xl flex items-center gap-2 whitespace-nowrap z-50">
+                    <MousePointerClick size={16} />
+                    Click anywhere inside a room to select it
+                  </div>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); setIsRoomPickerMode(false); clearInpaint(); }}
+                    className="absolute top-4 right-4 bg-red-500 text-white rounded-full w-8 h-8 flex items-center justify-center font-bold z-50 hover:bg-red-400"
+                  >✕</button>
+                </div>
+              )}
+
+              {/* Room Name Popup */}
+              {showRoomNamePopup && (
+                <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+                  <div className="bg-[#0f0f18] border border-purple-500/50 rounded-2xl p-8 shadow-2xl flex flex-col gap-5 min-w-[340px]">
+                    <div className="flex items-center gap-3">
+                      <MousePointerClick size={22} className="text-purple-400" />
+                      <h3 className="text-white font-bold text-lg tracking-widest uppercase">Room Selected</h3>
+                    </div>
+                    <p className="text-gray-400 text-sm">Room highlighted in green. What is this room?</p>
+                    <input
+                      autoFocus
+                      type="text"
+                      placeholder="e.g. Kitchen, Master Bedroom..."
+                      value={pickedRoomName}
+                      onChange={(e) => setPickedRoomName(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' && pickedRoomName.trim()) {
+                          setPrompt(`Edit the ${pickedRoomName.trim()}: `);
+                          setIsInpaintMode(true);
+                          setIsRoomPickerMode(false);
+                          setShowRoomNamePopup(false);
+                          setPickedRoomPreview(null);
+                        }
+                        if (e.key === 'Escape') {
+                          setShowRoomNamePopup(false);
+                          setIsRoomPickerMode(false);
+                          clearInpaint();
+                        }
+                      }}
+                      className="bg-[#0a0a0f] border border-purple-500/40 text-white px-4 py-3 rounded-lg font-mono outline-none focus:border-purple-400 text-base"
+                    />
+                    <div className="flex gap-3">
+                      <button
+                        onClick={() => {
+                          if (!pickedRoomName.trim()) return;
+                          setPrompt(`Edit the ${pickedRoomName.trim()}: `);
+                          setIsInpaintMode(true);
+                          setIsRoomPickerMode(false);
+                          setShowRoomNamePopup(false);
+                          setPickedRoomPreview(null);
+                        }}
+                        className="flex-1 bg-purple-500 text-white font-bold py-2 rounded-lg hover:bg-purple-400 flex items-center justify-center gap-2"
+                      >
+                        <Check size={16} /> Confirm & Edit This Room
+                      </button>
+                      <button
+                        onClick={() => {
+                          setShowRoomNamePopup(false);
+                          setIsRoomPickerMode(true);
+                          clearInpaint();
+                        }}
+                        className="px-4 py-2 bg-gray-700 text-gray-300 rounded-lg hover:bg-gray-600 text-sm"
+                      >Re-pick</button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Scale Calibration Overlay */}
+              {calibStep !== 'idle' && calibStep !== 'input' && (
+                <div
+                  className="absolute inset-0 z-40 cursor-crosshair"
+                  onClick={(e) => {
+                    const rect = e.currentTarget.getBoundingClientRect();
+                    const x = e.clientX - rect.left;
+                    const y = e.clientY - rect.top;
+                    if (calibStep === 'point1') {
+                      setCalibPoints([{ x, y }]);
+                      setCalibStep('point2');
+                    } else if (calibStep === 'point2') {
+                      setCalibPoints(prev => [...prev, { x, y }]);
+                      setCalibStep('input');
+                    }
+                  }}
+                >
+                  {/* Instruction Banner */}
+                  <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-yellow-500 text-black font-bold text-sm px-6 py-3 rounded-full shadow-2xl flex items-center gap-2 whitespace-nowrap z-50">
+                    <Ruler size={16} />
+                    {calibStep === 'point1' ? 'Click Point A on a known wall or distance' : 'Click Point B on the other end of that wall'}
+                  </div>
+                  {/* Cancel */}
+                  <button
+                    onClick={(e) => { e.stopPropagation(); setCalibStep('idle'); setCalibPoints([]); }}
+                    className="absolute top-4 right-4 bg-red-500 text-white rounded-full w-8 h-8 flex items-center justify-center font-bold z-50 hover:bg-red-400"
+                  >✕</button>
+                  {/* Point A dot */}
+                  {calibPoints[0] && (
+                    <div
+                      className="absolute w-4 h-4 bg-yellow-400 border-2 border-white rounded-full -translate-x-1/2 -translate-y-1/2 shadow-lg z-50"
+                      style={{ left: calibPoints[0].x, top: calibPoints[0].y }}
+                    />
+                  )}
+                  {/* Line between points */}
+                  {calibPoints.length === 2 && (
+                    <svg className="absolute inset-0 w-full h-full pointer-events-none z-40">
+                      <line
+                        x1={calibPoints[0].x} y1={calibPoints[0].y}
+                        x2={calibPoints[1].x} y2={calibPoints[1].y}
+                        stroke="#EAB308" strokeWidth="2" strokeDasharray="6,3"
+                      />
+                    </svg>
+                  )}
+                </div>
+              )}
+
+              {/* Calibration Distance Input Modal */}
+              {calibStep === 'input' && calibPoints.length === 2 && (
+                <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+                  <div className="bg-[#0f0f18] border border-yellow-500/50 rounded-2xl p-8 shadow-2xl flex flex-col gap-5 min-w-[320px]">
+                    <div className="flex items-center gap-3">
+                      <Ruler size={22} className="text-yellow-400" />
+                      <h3 className="text-white font-bold text-lg tracking-widest uppercase">Calibrate Scale</h3>
+                    </div>
+                    <p className="text-gray-400 text-sm">
+                      You selected a line of <span className="text-yellow-400 font-bold">{Math.round(Math.hypot(calibPoints[1].x - calibPoints[0].x, calibPoints[1].y - calibPoints[0].y))}px</span>.
+                      What is the real-world distance?
+                    </p>
+                    <div className="flex items-center gap-3">
+                      <input
+                        autoFocus
+                        type="number"
+                        min="0.1"
+                        placeholder="e.g. 20"
+                        value={calibDistInput}
+                        onChange={(e) => setCalibDistInput(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' && calibDistInput) {
+                            const dist = parseFloat(calibDistInput);
+                            const pxDist = Math.hypot(calibPoints[1].x - calibPoints[0].x, calibPoints[1].y - calibPoints[0].y);
+                            const pxPerUnit = pxDist / dist;
+                            setCalibScale(calibUnit === 'ft'
+                              ? { pxPerFt: pxPerUnit, pxPerM: pxPerUnit * 3.28084 }
+                              : { pxPerFt: pxPerUnit / 3.28084, pxPerM: pxPerUnit }
+                            );
+                            setCalibStep('idle');
+                            setCalibPoints([]);
+                          }
+                        }}
+                        className="flex-1 bg-[#0a0a0f] border border-yellow-500/40 text-white px-4 py-2 rounded-lg font-mono text-lg outline-none focus:border-yellow-400"
+                      />
+                      <button
+                        onClick={() => setCalibUnit(calibUnit === 'ft' ? 'm' : 'ft')}
+                        className="px-4 py-2 bg-yellow-500/20 border border-yellow-400 text-yellow-400 rounded-lg font-bold hover:bg-yellow-500/30"
+                      >{calibUnit}</button>
+                    </div>
+                    <div className="flex gap-3">
+                      <button
+                        onClick={() => {
+                          if (!calibDistInput) return;
+                          const dist = parseFloat(calibDistInput);
+                          const pxDist = Math.hypot(calibPoints[1].x - calibPoints[0].x, calibPoints[1].y - calibPoints[0].y);
+                          const pxPerUnit = pxDist / dist;
+                          setCalibScale(calibUnit === 'ft'
+                            ? { pxPerFt: pxPerUnit, pxPerM: pxPerUnit * 3.28084 }
+                            : { pxPerFt: pxPerUnit / 3.28084, pxPerM: pxPerUnit }
+                          );
+                          setCalibStep('idle');
+                          setCalibPoints([]);
+                        }}
+                        className="flex-1 bg-yellow-500 text-black font-bold py-2 rounded-lg hover:bg-yellow-400 flex items-center justify-center gap-2"
+                      >
+                        <Check size={16} /> Apply Scale
+                      </button>
+                      <button
+                        onClick={() => { setCalibStep('idle'); setCalibPoints([]); }}
+                        className="px-4 py-2 bg-red-500/20 border border-red-500/50 text-red-400 rounded-lg hover:bg-red-500/30"
+                      >Cancel</button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Scale Badge */}
+              {calibScale && calibStep === 'idle' && (
+                <div className="absolute bottom-3 left-3 z-30 bg-[#0a0a0f]/90 border border-yellow-400/50 rounded-xl px-4 py-2 flex items-center gap-3 shadow-lg backdrop-blur-md">
+                  <Ruler size={14} className="text-yellow-400" />
+                  <div>
+                    <div className="text-yellow-400 font-bold text-xs tracking-widest uppercase">Scale Calibrated</div>
+                    <div className="text-white font-mono text-xs">1 ft = {calibScale.pxPerFt.toFixed(1)}px &nbsp;|&nbsp; 1 m = {calibScale.pxPerM.toFixed(1)}px</div>
+                  </div>
+                  <button onClick={() => setCalibScale(null)} className="text-gray-500 hover:text-red-400 ml-2 text-xs">✕</button>
                 </div>
               )}
             </div>
@@ -639,6 +1241,84 @@ YOUR TASK:
             </p>
           </div>
 
+          {/* Plan Intelligence Panel */}
+          {(isOcrLoading || ocrResult || ocrError) && (
+            <div className="border-b border-[#1e1810] p-4">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-[10px] tracking-[2px] text-purple-400 font-bold uppercase flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-purple-400 inline-block" />
+                  Plan Intelligence
+                </h3>
+                {isOcrLoading && <span className="text-[9px] text-purple-400 animate-pulse tracking-wider">Scanning plan...</span>}
+                {ocrResult && !isOcrLoading && (
+                  <button onClick={() => runOCR(currentFloorPlan!)} className="text-[9px] text-purple-400/60 hover:text-purple-400 uppercase tracking-wider">Re-scan</button>
+                )}
+              </div>
+
+              {isOcrLoading && (
+                <div className="flex items-center gap-3 py-4">
+                  <Loader2 size={16} className="text-purple-400 animate-spin flex-shrink-0" />
+                  <p className="text-[10px] text-gray-400 tracking-wide">Gemini Vision is reading your plan's room labels and dimensions...</p>
+                </div>
+              )}
+
+              {ocrError && !isOcrLoading && (
+                <p className="text-[10px] text-red-400 tracking-wide">{ocrError}</p>
+              )}
+
+              {ocrResult && !isOcrLoading && (
+                <div className="flex flex-col gap-2">
+                  {/* Summary row */}
+                  <div className="flex flex-wrap gap-2 mb-1">
+                    {ocrResult.bhkType && (
+                      <span className="px-2 py-1 bg-purple-500/20 border border-purple-400/30 rounded text-[9px] text-purple-300 font-bold tracking-widest uppercase">{ocrResult.bhkType}</span>
+                    )}
+                    {ocrResult.totalAreaSqft && (
+                      <span className="px-2 py-1 bg-purple-500/10 border border-purple-400/20 rounded text-[9px] text-purple-300 tracking-widest uppercase">Total: {ocrResult.totalAreaSqft} sqft</span>
+                    )}
+                    <span className={`px-2 py-1 rounded text-[9px] tracking-widest uppercase border ${ocrResult.confidence === 'high' ? 'bg-green-500/10 border-green-400/30 text-green-400' : ocrResult.confidence === 'medium' ? 'bg-yellow-500/10 border-yellow-400/30 text-yellow-400' : 'bg-red-500/10 border-red-400/30 text-red-400'}`}>
+                      {ocrResult.confidence} confidence
+                    </span>
+                  </div>
+
+                  {/* Room list — click to select */}
+                  <p className="text-[9px] text-gray-500 tracking-wide mb-1 uppercase">Click a room to target it:</p>
+                  <div className="flex flex-col gap-1 max-h-44 overflow-y-auto custom-scrollbar pr-1">
+                    {ocrResult.rooms?.map((room, idx) => (
+                      <button
+                        key={idx}
+                        onClick={() => {
+                          setIsRoomPickerMode(true);
+                          setIsInpaintMode(false);
+                          setIsTextMode(false);
+                          setCalibStep('idle');
+                          clearInpaint();
+                          // Pre-fill room name and jump straight to name popup
+                          setPickedRoomName(room.name);
+                          setShowRoomNamePopup(false);
+                          // Set prompt directly
+                          setPrompt(`Edit the ${room.name}: `);
+                          setIsRoomPickerMode(false);
+                          // Activate inpaint so user can paint the room
+                          setIsInpaintMode(true);
+                        }}
+                        className="flex items-center justify-between px-3 py-2 rounded bg-[#0a0a0f] hover:bg-purple-500/10 border border-transparent hover:border-purple-500/30 text-left transition-all group"
+                      >
+                        <div>
+                          <span className="text-[10px] text-white font-medium group-hover:text-purple-300 transition-colors">{room.label || room.name}</span>
+                          {room.dimensions && <span className="text-[9px] text-gray-500 ml-2">{room.dimensions}</span>}
+                        </div>
+                        {room.areaSqft ? (
+                          <span className="text-[9px] text-purple-400 font-mono">{room.areaSqft} sqft</span>
+                        ) : null}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
           <div className="flex-1 p-6 flex flex-col justify-end">
             {error && (
               <div className="mb-4 p-3 border border-red-500/40 bg-red-500/10 text-red-400 text-[10px] uppercase tracking-wide rounded">
@@ -648,42 +1328,47 @@ YOUR TASK:
             
             <form onSubmit={handleEdit} className="relative flex flex-col gap-3">
               {isInpaintMode ? (
-                <div className="flex flex-col gap-2 p-4 bg-[#0a0a0f] border border-cyan-500/30 rounded pr-16 relative">
-                  <div className="flex items-center gap-2">
-                    <span className="text-cyan-500/60 uppercase tracking-widest text-[10px] font-bold whitespace-nowrap">Replace green with:</span>
-                    <input 
-                      type="text"
-                      value={prompt}
-                      onChange={(e) => setPrompt(e.target.value)}
-                      placeholder="e.g. KITCHEN LAYOUT, EMPTY ROOM"
-                      disabled={isEditing || !currentFloorPlan}
-                      className="flex-1 bg-transparent border-b border-cyan-500/30 focus:border-cyan-400 text-xs text-white placeholder-cyan-500/20 focus:outline-none py-1 uppercase tracking-wide disabled:opacity-50"
-                    />
+                <div className="flex flex-col gap-2 p-4 bg-[#0a0a0f] border-2 border-green-500/40 rounded shadow-[0_0_15px_rgba(34,197,94,0.1)] pr-16 relative">
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-green-400 uppercase tracking-widest text-xs font-bold whitespace-nowrap">Targeted Inpaint Edit</span>
+                    <span className="text-[9px] text-green-500/60 tracking-wider uppercase bg-green-500/10 px-2 py-0.5 rounded">Green Dot Active</span>
                   </div>
-                  <span className="text-[9px] text-cyan-500/40 tracking-wider uppercase">
-                    Paint the target room green and enter the new design above. Try "EMPTY ROOM" to remove furniture.
+                  <input 
+                    type="text"
+                    value={prompt}
+                    onChange={(e) => setPrompt(e.target.value)}
+                    placeholder="E.G. 'INCREASE VERTICAL HEIGHT BY 2X'"
+                    disabled={isEditing || !currentFloorPlan}
+                    className="w-full bg-transparent border-b border-green-500/30 focus:border-green-400 text-sm text-white placeholder-green-500/20 focus:outline-none py-2 uppercase tracking-wide disabled:opacity-50"
+                  />
+                  <span className="text-[9px] text-green-500/40 tracking-wider uppercase">
+                    The highlighted green region will be replaced. Enter your structural instruction above.
                   </span>
                   <button 
                     type="submit"
                     disabled={isEditing || !currentFloorPlan || !prompt.trim()}
-                    className="absolute top-1/2 -translate-y-1/2 right-4 bg-cyan-500/20 hover:bg-cyan-500/40 text-cyan-400 p-2 rounded transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                    className="absolute top-1/2 -translate-y-1/2 right-4 bg-green-500/20 hover:bg-green-500/40 text-green-400 p-2 rounded transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
                   >
                     {isEditing ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
                   </button>
                 </div>
               ) : (
-                <div className="relative">
+                <div className="flex flex-col gap-2 p-4 bg-[#0a0a0f] border border-cyan-500/30 rounded pr-16 relative">
+                  <span className="text-cyan-400 uppercase tracking-widest text-xs font-bold whitespace-nowrap mb-1">Global Architectural Edit</span>
                   <textarea
                     value={prompt}
                     onChange={(e) => setPrompt(e.target.value)}
-                    placeholder="ENTER EDIT INSTRUCTION..."
+                    placeholder="E.G. 'MOVE THE KITCHEN WALL 1.5 METERS TOWARD THE LIVING ROOM'"
                     disabled={isEditing || !currentFloorPlan}
-                    className="w-full h-32 bg-[#0a0a0f] border border-cyan-500/30 focus:border-cyan-400 rounded p-4 text-xs text-white placeholder-cyan-500/30 focus:outline-none focus:ring-1 focus:ring-cyan-400/50 resize-none custom-scrollbar transition-all uppercase tracking-wide disabled:opacity-50"
+                    className="w-full h-24 bg-transparent border border-cyan-500/20 focus:border-cyan-400 rounded p-3 text-xs text-white placeholder-cyan-500/30 focus:outline-none resize-none custom-scrollbar transition-all uppercase tracking-wide disabled:opacity-50"
                   />
+                  <span className="text-[9px] text-cyan-500/40 tracking-wider uppercase">
+                    No target selected. The entire floor plan structure will be analyzed.
+                  </span>
                   <button 
                     type="submit"
                     disabled={isEditing || !currentFloorPlan || !prompt.trim()}
-                    className="absolute bottom-4 right-4 bg-cyan-500/20 hover:bg-cyan-500/40 text-cyan-400 p-2 rounded transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                    className="absolute bottom-6 right-6 bg-cyan-500/20 hover:bg-cyan-500/40 text-cyan-400 p-2 rounded transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
                   >
                     {isEditing ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
                   </button>
@@ -930,6 +1615,88 @@ YOUR TASK:
           setTimeout(() => setSaveSuccessMsg(null), 3000);
         }}
       />
+
+      {/* ─── DXF Conversion Modal ─── */}
+      {dxfPhase !== 'idle' && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm">
+          <div className="relative bg-[#0f0f18] border border-[#00f0ff]/30 rounded-2xl shadow-[0_0_60px_rgba(0,240,255,0.15)] w-full max-w-3xl mx-4 flex flex-col overflow-hidden">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-[#00f0ff]/10">
+              <div>
+                <h2 className="text-[#00f0ff] font-bold uppercase tracking-[4px] text-sm">CAD Conversion Pipeline</h2>
+                <p className="text-[10px] text-[#00f0ff]/40 tracking-[2px] uppercase mt-0.5">
+                  {dxfPhase === 'tracing' ? 'Running Local Potrace Engine...' :
+                   dxfPhase === 'preview' ? 'Vector trace complete. Review before downloading.' :
+                   'Conversion failed.'}
+                </p>
+              </div>
+              <button onClick={() => setDxfPhase('idle')} className="text-[#00f0ff]/40 hover:text-[#00f0ff] transition-colors">
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="flex-1 p-6">
+              {dxfPhase === 'tracing' && (
+                <div className="flex flex-col items-center justify-center gap-6 py-16">
+                  <div className="relative">
+                    <div className="w-16 h-16 border-4 border-[#00f0ff]/20 rounded-full" />
+                    <div className="absolute inset-0 w-16 h-16 border-4 border-transparent border-t-[#00f0ff] rounded-full animate-spin" />
+                  </div>
+                  <div className="text-center">
+                    <p className="text-[#00f0ff] text-sm font-bold tracking-[3px] uppercase mb-1">Vectorizing</p>
+                    <p className="text-[#00f0ff]/40 text-[10px] tracking-widest uppercase">Upscaling → Tracing edges → Generating DXF</p>
+                  </div>
+                </div>
+              )}
+
+              {dxfPhase === 'preview' && dxfSvg && (
+                <div className="flex flex-col gap-4">
+                  <p className="text-[10px] text-[#00f0ff]/50 uppercase tracking-[3px]">Vector Preview — White Canvas</p>
+                  <div
+                    className="w-full bg-white rounded-lg border border-[#00f0ff]/10 flex items-center justify-center overflow-auto"
+                    style={{ maxHeight: '55vh' }}
+                    dangerouslySetInnerHTML={{ __html: dxfSvg }}
+                  />
+                </div>
+              )}
+
+              {dxfPhase === 'error' && (
+                <div className="flex flex-col items-center justify-center gap-4 py-12">
+                  <div className="w-14 h-14 rounded-full bg-red-500/10 border border-red-500/30 flex items-center justify-center">
+                    <X size={24} className="text-red-400" />
+                  </div>
+                  <p className="text-red-400 text-sm font-bold tracking-widest uppercase">Conversion Failed</p>
+                  <p className="text-red-400/60 text-xs text-center max-w-xs">{dxfError}</p>
+                </div>
+              )}
+            </div>
+
+            <div className="flex gap-3 px-6 py-4 border-t border-[#00f0ff]/10">
+              <button
+                onClick={() => setDxfPhase('idle')}
+                className="px-5 py-2.5 border border-[#00f0ff]/30 text-[#00f0ff]/60 hover:text-[#00f0ff] hover:border-[#00f0ff]/60 uppercase tracking-widest text-[10px] font-bold rounded transition-colors"
+              >
+                Cancel
+              </button>
+              {dxfPhase === 'preview' && (
+                <button
+                  onClick={downloadDxf}
+                  className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-[#00f0ff] text-black font-bold uppercase tracking-widest text-[10px] rounded hover:bg-[#00d4e8] transition-colors shadow-[0_0_20px_rgba(0,240,255,0.3)]"
+                >
+                  <Check size={14} /> Looks Good — Download DXF
+                </button>
+              )}
+              {dxfPhase === 'error' && (
+                <button
+                  onClick={handleConvertToDxf}
+                  className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-[#00f0ff]/20 text-[#00f0ff] border border-[#00f0ff]/40 font-bold uppercase tracking-widest text-[10px] rounded hover:bg-[#00f0ff]/30 transition-colors"
+                >
+                  Retry
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   );
 }

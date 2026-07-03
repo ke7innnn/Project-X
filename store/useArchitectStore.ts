@@ -27,13 +27,14 @@ export const useArchitectStore = create<ArchitectStore>((set) => ({
   onboardingMode: 'select',
   conversationHistory: [{
     role: 'model',
-    parts: [{ text: "Welcome! I'm your AI Architect Assistant 🏛️ How would you like to provide the reference shape for your floor plan?" }],
-    customType: 'onboarding-options'
+    parts: [{ text: "Welcome! I'm your AI Architect Assistant 🏛️ How would you like to define your plot boundary?" }],
+    customType: 'plot-trace-options'
   }],
   selectedNatureImage: null,
   hoveredNatureImage: null,
   lastUploadedImage: null,
   lastUploadedImageDescription: null,
+  manualPlotImage: null,
   collectedParameters: { ...defaultParameters },
   generatedOptions: [],
   selectedOptionIndex: null,
@@ -64,6 +65,7 @@ export const useArchitectStore = create<ArchitectStore>((set) => ({
   setOnboardingMode: (mode) => set({ onboardingMode: mode }),
 
   setLastUploadedImage: (base64, description) => set({ lastUploadedImage: base64, lastUploadedImageDescription: description }),
+  setManualPlotImage: (base64) => set({ manualPlotImage: base64 }),
 
   setPhase: (phase) => set({ phase }),
   
@@ -80,13 +82,14 @@ export const useArchitectStore = create<ArchitectStore>((set) => ({
     onboardingMode: 'select',
     conversationHistory: [{
       role: 'model',
-      parts: [{ text: "Welcome! I'm your AI Architect Assistant 🏛️ How would you like to provide the reference shape for your floor plan?" }],
-      customType: 'onboarding-options'
+      parts: [{ text: "Welcome! I'm your AI Architect Assistant 🏛️ How would you like to define your plot boundary?" }],
+      customType: 'plot-trace-options'
     }],
     selectedNatureImage: null,
     hoveredNatureImage: null,
     lastUploadedImage: null,
     lastUploadedImageDescription: null,
+    manualPlotImage: null,
     collectedParameters: {
       plotWidth: null, plotHeight: null, plotArea: null, orientation: null,
       rooms: [], vastuRules: [], sunPath: null, garden: false, parking: false,
@@ -214,8 +217,8 @@ Let's begin the **Concept** phase. Could you please tell me about:
       phase: 'search',
       conversationHistory: [{
         role: 'model',
-        parts: [{ text: "Welcome! I'm your AI Architect Assistant 🏛️ How would you like to provide the reference shape for your floor plan?" }],
-        customType: 'onboarding-options'
+        parts: [{ text: "Welcome! I'm your AI Architect Assistant 🏛️ How would you like to define your plot boundary?" }],
+        customType: 'plot-trace-options'
       }],
       selectedNatureImage: null,
       hoveredNatureImage: null,
@@ -249,11 +252,12 @@ Let's begin the **Concept** phase. Could you please tell me about:
     phase: 'search',
     conversationHistory: [{
       role: 'model',
-      parts: [{ text: "Welcome! I'm your AI Architect Assistant 🏛️ How would you like to provide the reference shape for your floor plan?" }],
-      customType: 'onboarding-options'
+      parts: [{ text: "Welcome! I'm your AI Architect Assistant 🏛️ How would you like to define your plot boundary?" }],
+      customType: 'plot-trace-options'
     }],
     selectedNatureImage: null,
     hoveredNatureImage: null,
+    manualPlotImage: null,
     collectedParameters: { ...defaultParameters },
     generatedOptions: [],
     selectedOptionIndex: null,

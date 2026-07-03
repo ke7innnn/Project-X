@@ -54,8 +54,8 @@ async function resizeImage(buffer: Buffer): Promise<{ data: string; mimeType: st
  * Each model is attempted with retries before moving to next.
  */
 const IMAGE_GEN_MODELS = [
-  'gemini-3.1-flash-image-preview', // Primary: fastest, highest quality shape tracing
-  'gemini-3-pro-image',             // Fallback: Pro model, slower but excellent shape precision
+  'gemini-3-pro-image',             // Primary: highest quality shape precision
+  'gemini-3.1-flash-image-preview', // Fallback: faster, still strong shape tracing
 ] as const;
 
 /**
@@ -110,16 +110,22 @@ export async function POST(request: Request) {
       natureImageDescription,
       customImageBase64,
       customImageDescription,
+      manualPlotImage
     } = await request.json();
 
     collectedParameters.plotWidth = collectedParameters.plotWidth || 10;
     collectedParameters.plotHeight = collectedParameters.plotHeight || 10;
+    collectedParameters.hasManualPlot = !!manualPlotImage;
+    // Flag so the prompt knows if any visual reference image will be attached
+    collectedParameters.hasImage = !!(customImageBase64 || natureImageUrl || manualPlotImage);
+    collectedParameters.hasRefImage = !!(customImageBase64 || natureImageUrl);
 
     const descriptionToUse = customImageDescription || natureImageDescription || 'organic geometric shape';
     const prompt = FLOORPLAN_GENERATION_PROMPT(collectedParameters, descriptionToUse);
 
     console.log('[generate-floorplan] Nature URL:', natureImageUrl);
     console.log('[generate-floorplan] Custom image provided:', !!customImageBase64);
+    console.log('[generate-floorplan] hasImage:', collectedParameters.hasImage, '| buildingShape:', collectedParameters.buildingShape || 'none');
 
     // ── Step 1: Get raw image bytes ─────────────────────────────────────────
     let rawBuffer: Buffer | null = null;
@@ -141,6 +147,7 @@ export async function POST(request: Request) {
 
     // ── Step 2: Resize image ────────────────────────────────────────────────
     let imagePart: any | undefined;
+    let manualPlotPart: any | undefined;
 
     if (rawBuffer) {
       const resized = await resizeImage(rawBuffer);
@@ -150,16 +157,43 @@ export async function POST(request: Request) {
       console.warn('[generate-floorplan] No reference image available — generating without shape reference');
     }
 
+    if (manualPlotImage) {
+      const raw = manualPlotImage.includes(',') ? manualPlotImage.split(',')[1] : manualPlotImage;
+      const plotBuffer = Buffer.from(raw, 'base64');
+      const resizedPlot = await resizeImage(plotBuffer);
+      manualPlotPart = { inlineData: { mimeType: resizedPlot.mimeType, data: resizedPlot.data } };
+      console.log('[generate-floorplan] Manual plot image resized and ready');
+    }
+
     // ── Step 3: Build prompt parts ──────────────────────────────────────────
-    // Image MUST come first so Gemini uses it as the primary context
     const buildParts = () => {
       const parts: any[] = [];
-      if (imagePart) parts.push(imagePart);
+
+      if (manualPlotPart) {
+        // Manual plot is labeled as SECONDARY IMAGE (MANUAL PLOT BOUNDARY) — matches Rule 1.5 wording exactly
+        parts.push({ text: "SECONDARY IMAGE (MANUAL PLOT BOUNDARY):" });
+        parts.push(manualPlotPart);
+      }
+
+      if (imagePart) {
+        // Nature/uploaded image is the PRIMARY layout reference
+        parts.push({ text: "PRIMARY IMAGE (INTERNAL LAYOUT SHAPE REFERENCE):" });
+        parts.push(imagePart);
+      }
+
       parts.push({ text: prompt });
       return parts;
     };
 
     // ── Step 4: Generate 2 variations in parallel ───────────────────────────
+    // Diagnostic: log exactly what images are being sent to the model
+    const sampleParts = buildParts();
+    const partSummary = sampleParts
+      .filter((p: any) => p.text)
+      .map((p: any) => `"${p.text.substring(0, 60)}..."`)
+      .join(' | ');
+    console.log(`[generate-floorplan] Part structure → ${partSummary}`);
+    console.log(`[generate-floorplan] hasManualPlot=${!!manualPlotPart}, hasRefImage=${!!imagePart}`);
     // Each variation has its own model fallback chain, so we won't fail entirely
     // unless both APIs are completely down.
     const promises = [0, 1].map((i) =>

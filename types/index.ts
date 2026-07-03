@@ -27,7 +27,7 @@ export interface NatureImage {
 export interface ConversationMessage {
   role: 'user' | 'model';
   parts: { text: string }[];
-  customType?: 'image-grid' | 'parameters-summary' | 'download-button' | 'upload-prompt' | 'selected-image' | 'floorplan-drafts' | 'floorplan-edit' | 'uploaded-image' | 'onboarding-options';
+  customType?: 'image-grid' | 'parameters-summary' | 'download-button' | 'upload-prompt' | 'selected-image' | 'floorplan-drafts' | 'floorplan-edit' | 'uploaded-image' | 'onboarding-options' | 'plot-trace-options' | 'plot-draw-canvas';
   customData?: any;
 }
 
@@ -49,7 +49,7 @@ export interface CollectedParameters {
   buildingShape: string | null;
 }
 
-export type OnboardingMode = 'select' | 'upload' | 'library' | 'text' | null;
+export type OnboardingMode = 'select' | 'upload' | 'library' | 'text' | 'trace-manual' | null;
 
 export interface ArchitectStore {
   projectName: string | null;
@@ -61,6 +61,7 @@ export interface ArchitectStore {
   hoveredNatureImage: NatureImage | null;
   lastUploadedImage: string | null;
   lastUploadedImageDescription: string | null;
+  manualPlotImage: string | null;
   collectedParameters: CollectedParameters;
   generatedOptions: string[];
   selectedOptionIndex: number | null;
@@ -104,6 +105,7 @@ export interface ArchitectStore {
   setIsLoading: (isLoading: boolean) => void;
   setLoadingMessage: (message: string) => void;
   setLastUploadedImage: (base64: string | null, description: string | null) => void;
+  setManualPlotImage: (base64: string | null) => void;
   setIsAppStarted: (started: boolean) => void;
   setSessionId: (id: string | null) => void;
   setIsRestored: (restored: boolean) => void;
