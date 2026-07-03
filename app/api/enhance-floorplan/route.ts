@@ -32,11 +32,11 @@ async function callFalEnhance(currentFloorPlanBase64: string): Promise<string> {
   const uploadedUrl = await fal.storage.upload(resizedBuffer);
   console.log(`[enhance-floorplan] Uploaded to: ${uploadedUrl}`);
 
-  console.log(`[enhance-floorplan] Calling fal-ai/openai/gpt-image-2/edit...`);
-  const result = await fal.subscribe("openai/gpt-image-2/edit", {
+  console.log(`[enhance-floorplan] Calling fal-ai/xai/grok-imagine-image/edit...`);
+  const result = await fal.subscribe("xai/grok-imagine-image/edit", {
     input: {
       prompt: ENHANCE_PROMPT,
-      image_urls: [uploadedUrl]
+      image_url: uploadedUrl
     },
     logs: true
   });
@@ -120,7 +120,7 @@ export async function POST(request: Request) {
     }
 
     let enhancedFloorPlan: string;
-    let modelUsed = 'fal-ai/gpt-image-2/edit';
+    let modelUsed = 'xai/grok-imagine-image/edit';
 
     // Primary: Call fal.ai
     // Removed Gemini fallback per user request to save costs
