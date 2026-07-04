@@ -147,10 +147,11 @@ ${params.hasManualPlot && params.hasRefImage
 • Leave a clear 15% white margin/setback gap between the building walls and the plot boundary, but ensure the building's silhouette strictly echoes the plot shape.`
   : params.hasRefImage
   ? `• Trace the exact silhouette of the attached PRIMARY IMAGE as your building's outer wall. Follow every curve exactly. Do not use a generic rectangle.
-• CRITICAL: Leave a strict 115% white margin/gap around the building so it does not touch the edges of the canvas.`
+• CRITICAL: Leave a strict 15% white margin/gap around the building so it does not touch the edges of the canvas.`
   : `• No image provided. REQUIRED SHAPE: "${params.buildingShape || 'interesting non-rectangular geometric shape'}".
-• Draw the building exterior strictly in this shape.
-• CRITICAL: Leave a strict 115% white margin/gap around the building so it does not touch the edges of the canvas.`}
+• CRITICAL: You MUST draw the building exterior strictly matching this exact geometric shape: "${params.buildingShape}".
+• Absolutely DO NOT draw a standard rectangle or square unless explicitly requested. The perimeter walls must follow the custom irregular shape.
+• CRITICAL: Leave a strict 15% white margin/gap around the building so it does not touch the edges of the canvas.`}
 • Never extend rooms or walls outside the boundary.
 
 [2. INTERIOR LAYOUT]
@@ -251,7 +252,7 @@ Preservation mandates:
 
 Output requirement:
 • The final result must look like an AutoCAD 2D floor plan with clean black double-line walls on a solid white background. No shading, no watercolors, no 3D.
-• CRITICAL: Keep a strict 115% white margin/gap from the plot and floor plan to the edges of the canvas.
+• CRITICAL: Keep a strict 15% white margin/gap from the plot and floor plan to the edges of the canvas.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 [SECTION 2: ROOM SWAP / POSITION EXCHANGE - CRITICAL]
