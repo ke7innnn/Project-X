@@ -32,7 +32,8 @@ async function callFalGeminiEdit(params: {
     .toBuffer();
 
   console.log(`[edit-floorplan] Uploading PNG to fal.ai storage...`);
-  const uploadedUrl = await fal.storage.upload(resizedBuffer as any);
+  const blob = new Blob([new Uint8Array(resizedBuffer)], { type: 'image/png' });
+  const uploadedUrl = await fal.storage.upload(blob);
   console.log(`[edit-floorplan] Uploaded to: ${uploadedUrl}`);
 
   console.log(`[edit-floorplan] Calling fal-ai/openai/gpt-image-2/edit...`);
