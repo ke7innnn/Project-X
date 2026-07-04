@@ -84,7 +84,7 @@ export default function ProjectsDashboard() {
     try {
       const fetchPromise = supabase
         .from('projects')
-        .select('session_id, updated_at, project_name, place_name, is_deleted')
+        .select('session_id, updated_at, state')
         .order('updated_at', { ascending: false })
         .limit(50); 
         
@@ -97,7 +97,7 @@ export default function ProjectsDashboard() {
       if (error) throw error;
       
       // Filter out soft-deleted projects
-      const activeProjects = (data || []).filter((p: any) => !p.is_deleted);
+      const activeProjects = (data || []).filter((p: any) => !p.state?.isDeleted);
       setProjects(activeProjects as any);
     } catch (err) {
       console.error('Error fetching projects:', err);
@@ -116,10 +116,11 @@ export default function ProjectsDashboard() {
     // Explicitly insert an initial shell into Supabase so it appears instantly
     const insertPromise = supabase.from('projects').insert({
       session_id: newSessionId,
-      project_name: newProjectName,
-      place_name: newPlaceName,
       state: {
-        phase: 'search'
+        phase: 'search',
+        projectName: newProjectName,
+        placeName: newPlaceName,
+        isDeleted: false
       }
     });
     
