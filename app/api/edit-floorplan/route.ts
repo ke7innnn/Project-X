@@ -57,65 +57,6 @@ async function callFalGeminiEdit(params: {
   return Buffer.from(imgBuffer).toString('base64');
 }
 
-/**
- * Fallback: Call Google Gemini's multimodal image-to-image pipeline.
- * Tries gemini-3.1-flash-image-preview, falling back to gemini-3-pro-image.
- */
-async function callGeminiEdit(params: {
-  currentFloorPlanBase64: string;
-  translatedPrompt: string;
-}): Promise<string> {
-  // Clean base64 header if present
-  const rawBase64 = params.currentFloorPlanBase64.includes(',')
-    ? params.currentFloorPlanBase64.split(',')[1]
-    : params.currentFloorPlanBase64;
-    
-  const parts = [
-    {
-      inlineData: {
-        mimeType: 'image/png',
-        data: rawBase64
-      }
-    },
-    { text: params.translatedPrompt }
-  ];
-
-  const models = ['gemini-3.1-flash-image-preview', 'gemini-3-pro-image'] as const;
-  
-  let lastError: any;
-
-  for (const model of models) {
-    try {
-      console.log(`[edit-floorplan-fallback] Trying ${model}...`);
-      const response = await callGemini({
-        model,
-        message: 'Execute edit',
-        history: [{ role: 'user', parts, isFloorPlan: false }],
-        responseModalities: ['image', 'text'],
-        timeoutMs: 45000
-      } as any);
-
-      const dataStr = typeof response === 'string' ? response : JSON.stringify(response);
-      const data = JSON.parse(dataStr);
-      const candidates = data.candidates || [];
-      const part = candidates[0]?.content?.parts?.find((p: any) => p.inlineData);
-      
-      if (!part?.inlineData?.data) {
-        throw new Error(`Model ${model} returned no image data`);
-      }
-      
-      console.log(`[edit-floorplan-fallback] Success using ${model}`);
-      return part.inlineData.data;
-    } catch (e: any) {
-      lastError = e;
-      console.warn(`[edit-floorplan-fallback] ${model} failed: ${e.message}`);
-    }
-  }
-
-  throw lastError || new Error('All Gemini fallback models failed to edit floorplan');
-}
-
-
 export async function POST(request: Request) {
   try {
     const { currentFloorPlanBase64, editInstruction, collectedParameters, isInpaint, skipTranslation, maskBase64 } = await request.json();
