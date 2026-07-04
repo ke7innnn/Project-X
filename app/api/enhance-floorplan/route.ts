@@ -5,7 +5,7 @@ import { fal } from '@fal-ai/client';
 
 const FAL_KEY = process.env.FAL_KEY!;
 
-export const maxDuration = 60;
+export const maxDuration = 300;
 
 const ENHANCE_PROMPT = `A professionally enhanced 2D architectural CAD floor plan. Clean, crisp, high-contrast black lines on a pure white background. Refine and straighten all walls, door arc symbols, and window lines. Square off and clean up the exterior boundary walls to improve and straighten the overall exterior shape of the plan. Maintain the room positions, layout structure, furniture placements, and text labels. Make it look like a clean, master-level engineering blueprint.`;
 

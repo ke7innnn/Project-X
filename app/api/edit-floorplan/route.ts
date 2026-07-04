@@ -6,7 +6,7 @@ import { fal } from '@fal-ai/client';
 
 const FAL_KEY = process.env.FAL_KEY!;
 
-export const maxDuration = 60;
+export const maxDuration = 300;
 
 /**
  * Calls fal.ai for professional floor plan edits.
