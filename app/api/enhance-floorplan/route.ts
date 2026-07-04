@@ -29,7 +29,7 @@ async function callFalEnhance(currentFloorPlanBase64: string): Promise<string> {
     .toBuffer();
 
   console.log(`[enhance-floorplan] Uploading PNG to fal.ai storage...`);
-  const uploadedUrl = await fal.storage.upload(resizedBuffer);
+  const uploadedUrl = await fal.storage.upload(resizedBuffer as any);
   console.log(`[enhance-floorplan] Uploaded to: ${uploadedUrl}`);
 
   console.log(`[enhance-floorplan] Calling fal-ai/xai/grok-imagine-image/edit...`);
@@ -37,7 +37,7 @@ async function callFalEnhance(currentFloorPlanBase64: string): Promise<string> {
     input: {
       prompt: ENHANCE_PROMPT,
       image_url: uploadedUrl
-    },
+    } as any,
     logs: true
   });
 
