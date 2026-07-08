@@ -53,40 +53,65 @@ function polygonBoundingBox(pts: Point[]) {
   };
 }
 
-// Simple rect packing inside a bounding box
-function packRooms(flats: Flat[], siteW: number, siteH: number, offsetX: number, offsetY: number) {
-  // Returns { code, name, flat, x, y, w, h } in pixel coords
+// Ray-casting algorithm for point in polygon
+function isPointInPolygon(pt: Point, poly: Point[]) {
+  let inside = false;
+  for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+    const xi = poly[i].x, yi = poly[i].y;
+    const xj = poly[j].x, yj = poly[j].y;
+    const intersect = ((yi > pt.y) !== (yj > pt.y)) &&
+      (pt.x < (xj - xi) * (pt.y - yi) / (yj - yi) + xi);
+    if (intersect) inside = !inside;
+  }
+  return inside;
+}
+
+// Check if a rectangle is fully inside the polygon
+function isRectInPolygon(rx: number, ry: number, rw: number, rh: number, poly: Point[]) {
+  const corners = [
+    { x: rx, y: ry },
+    { x: rx + rw, y: ry },
+    { x: rx, y: ry + rh },
+    { x: rx + rw, y: ry + rh }
+  ];
+  return corners.every(c => isPointInPolygon(c, poly));
+}
+
+// Check if a rectangle intersects any already placed rectangles
+function intersectsPlaced(rx: number, ry: number, rw: number, rh: number, placed: any[]) {
+  return placed.some(p => {
+    return !(rx + rw <= p.x || rx >= p.x + p.w || ry + rh <= p.y || ry >= p.y + p.h);
+  });
+}
+
+// 2D grid-based irregular packing inside a polygon
+function packRooms(flats: Flat[], sitePts: Point[]) {
   const placed: { code: string; name: string; flat: string; flatIdx: number; x: number; y: number; w: number; h: number }[] = [];
-  let cursorX = offsetX + mToPx(0.5); // 0.5m corridor gap
-  let cursorY = offsetY + mToPx(0.5);
-  let rowMaxH = 0;
-  const maxX = offsetX + mToPx(siteW) - mToPx(0.5);
-  const maxY = offsetY + mToPx(siteH) - mToPx(0.5);
+  
+  if (sitePts.length < 3) return placed;
+  const bb = polygonBoundingBox(sitePts);
+  const step = mToPx(0.5); // Grid step for searching placements
+  const gap = mToPx(0.1);  // Gap between rooms
 
   flats.forEach((flat, flatIdx) => {
-    // Start each flat on a new row with a visual gap
-    if (flatIdx > 0) {
-      cursorY += rowMaxH + mToPx(0.5);
-      cursorX = offsetX + mToPx(0.5);
-      rowMaxH = 0;
-    }
-
     flat.rooms.forEach(room => {
       const rw = mToPx(room.w);
       const rh = mToPx(room.h);
+      let placedThisRoom = false;
 
-      // Wrap to next row if overflows width
-      if (cursorX + rw > maxX) {
-        cursorY += rowMaxH + mToPx(0.1);
-        cursorX = offsetX + mToPx(0.5);
-        rowMaxH = 0;
-      }
+      // Scan the bounding box from top-left to bottom-right
+      for (let y = bb.minY + step; y <= bb.maxY - rh && !placedThisRoom; y += step) {
+        for (let x = bb.minX + step; x <= bb.maxX - rw && !placedThisRoom; x += step) {
+          
+          // 1. Check if the room's 4 corners are inside the cyan site polygon
+          if (!isRectInPolygon(x, y, rw, rh, sitePts)) continue;
 
-      // Only place if fits height
-      if (cursorY + rh <= maxY) {
-        placed.push({ code: room.code, name: room.name, flat: flat.id, flatIdx, x: cursorX, y: cursorY, w: rw, h: rh });
-        cursorX += rw + mToPx(0.1); // 0.1m wall thickness gap
-        if (rh > rowMaxH) rowMaxH = rh;
+          // 2. Check if it overlaps with any already placed rooms
+          if (!intersectsPlaced(x, y, rw, rh, placed)) {
+            placed.push({ code: room.code, name: room.name, flat: flat.id, flatIdx, x, y, w: rw, h: rh });
+            placedThisRoom = true;
+          }
+        }
       }
     });
   });
@@ -286,10 +311,7 @@ I'll calculate whether it's mathematically possible, correct you if needed, and 
 
     // Draw packed rooms if we have a schedule
     if (roomSchedule && siteClosed && sitePoints.length >= 3) {
-      const bb = polygonBoundingBox(sitePoints);
-      const siteW = pxToM(bb.maxX - bb.minX);
-      const siteH = pxToM(bb.maxY - bb.minY);
-      const packed = packRooms(roomSchedule.flats, siteW, siteH, bb.minX, bb.minY);
+      const packed = packRooms(roomSchedule.flats, sitePoints);
       packed.forEach(r => {
         const color = FLAT_COLORS[r.flatIdx % FLAT_COLORS.length];
         ctx.fillStyle = color + '30';
@@ -411,8 +433,7 @@ I'll calculate whether it's mathematically possible, correct you if needed, and 
         // Generate SVG
         const plotPts = plotClosed ? plotPoints : [];
         const sitePts = siteClosed ? sitePoints : plotPts;
-        const bb = polygonBoundingBox(sitePts.length > 0 ? sitePts : plotPts.length > 0 ? plotPts : [{ x: 0, y: 0 }, { x: CANVAS_W, y: 0 }, { x: CANVAS_W, y: CANVAS_H }, { x: 0, y: CANVAS_H }]);
-        const packed = packRooms(data.roomSchedule.flats, data.roomSchedule.siteExteriorW, data.roomSchedule.siteExteriorH, bb.minX, bb.minY);
+        const packed = packRooms(data.roomSchedule.flats, sitePts.length > 0 ? sitePts : plotPts);
         const svg = buildSVG(plotPts, sitePts, packed, data.roomSchedule, CANVAS_W, CANVAS_H);
         setSvgOutput(svg);
         setShowSVG(true);
