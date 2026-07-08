@@ -103,7 +103,7 @@ export async function POST(request: Request) {
         'X-Title': 'Smart Planner',
       },
       body: JSON.stringify({
-        model: 'groq/llama-3.3-70b-versatile',
+        model: 'meta-llama/llama-3.3-70b-instruct',
         messages: [
           { role: 'system', content: systemWithContext },
           ...messages
