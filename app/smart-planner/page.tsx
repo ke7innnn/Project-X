@@ -3,11 +3,12 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, Send, Loader2, Download, RotateCcw, Layers } from 'lucide-react';
+import {
+  layoutRoomsByGuillotine, polygonAreaPx, polygonAreaM2, polygonCentroid,
+  PlacedRoom, Flat, Room, Point, CELL_PX,
+} from '../../lib/guillotineLayout';
 
-// Types
-interface Point { x: number; y: number; }
-interface Room { code: string; name: string; w: number; h: number; area: number; }
-interface Flat { id: string; name: string; rooms: Room[]; }
+// ─── Types ────────────────────────────────────────────────────────────────────
 interface RoomSchedule {
   confirmed: boolean;
   plotW: number; plotH: number;
@@ -17,125 +18,58 @@ interface RoomSchedule {
   buildingFootprint: number;
 }
 interface ChatMessage { role: 'user' | 'assistant'; content: string; }
-interface PlacedRoom {
-  code: string; name: string; flat: string; flatIdx: number;
-  x: number; y: number; w: number; h: number; area: number;
-}
 
-// Constants
-const CELL_PX = 12;
+// ─── Constants ────────────────────────────────────────────────────────────────
 const CANVAS_W = 900;
 const CANVAS_H = 700;
 const GRID_COLS = Math.floor(CANVAS_W / CELL_PX);
 const GRID_ROWS = Math.floor(CANVAS_H / CELL_PX);
-
 const FLAT_COLORS = [
   '#fbbf24', '#34d399', '#60a5fa', '#f87171', '#a78bfa',
   '#fb923c', '#2dd4bf', '#e879f9', '#86efac', '#fca5a5',
 ];
 
-// Helpers
+// ─── Helpers ─────────────────────────────────────────────────────────────────
 function pxToM(px: number) { return +(px / CELL_PX).toFixed(1); }
-function mToPx(m: number) { return Math.round(m * CELL_PX); }
-
-function polygonArea(pts: Point[]): number {
-  if (pts.length < 3) return 0;
-  let a = 0;
-  for (let i = 0; i < pts.length; i++) {
-    const j = (i + 1) % pts.length;
-    a += pts[i].x * pts[j].y - pts[j].x * pts[i].y;
-  }
-  return Math.abs(a) / 2;
-}
-
 function polygonBoundingBox(pts: Point[]) {
   const xs = pts.map(p => p.x); const ys = pts.map(p => p.y);
   return { minX: Math.min(...xs), minY: Math.min(...ys), maxX: Math.max(...xs), maxY: Math.max(...ys) };
 }
 
-// Column-Strip Room Layout
-// Divides the bounding box into one vertical column per flat.
-// Within each column, rooms are stacked vertically, proportional to their areas.
-// SVG uses clipPath, canvas uses ctx.clip() -- so nothing escapes the polygon.
-function layoutRooms(
-  flats: Flat[],
-  bb: { minX: number; minY: number; maxX: number; maxY: number }
-): PlacedRoom[] {
-  const placed: PlacedRoom[] = [];
-  const PAD = mToPx(0.2);
-  const availW = bb.maxX - bb.minX - PAD * (flats.length + 1);
-  const availH = bb.maxY - bb.minY - PAD * 2;
-  const flatAreas = flats.map(f => f.rooms.reduce((s, r) => s + r.area, 0));
-  const totalArea = flatAreas.reduce((s, a) => s + a, 0);
-  let flatX = bb.minX + PAD;
-
-  flats.forEach((flat, flatIdx) => {
-    const flatW = (flatAreas[flatIdx] / totalArea) * availW;
-    const roomAreaSum = flatAreas[flatIdx];
-    const totalRoomH = availH - PAD * (flat.rooms.length - 1);
-    let roomY = bb.minY + PAD;
-
-    flat.rooms.forEach(room => {
-      const roomH = (room.area / roomAreaSum) * totalRoomH;
-      placed.push({
-        code: room.code, name: room.name,
-        flat: flat.id, flatIdx,
-        x: flatX, y: roomY,
-        w: flatW, h: roomH,
-        area: room.area,
-      });
-      roomY += roomH + PAD;
-    });
-    flatX += flatW + PAD;
-  });
-
-  return placed;
-}
-
-// Draw rooms on canvas, clipped to polygon
-function drawPackedRoomsOnCanvas(
-  ctx: CanvasRenderingContext2D,
-  packed: PlacedRoom[],
-  clipPts: Point[]
-) {
-  ctx.save();
-  if (clipPts.length >= 3) {
-    ctx.beginPath();
-    clipPts.forEach((p, i) => { if (i === 0) ctx.moveTo(p.x, p.y); else ctx.lineTo(p.x, p.y); });
-    ctx.closePath();
-    ctx.clip();
-  }
-
+// ─── Canvas renderer (no clipPath needed — rooms already conform to polygon) ──
+function drawPackedRoomsOnCanvas(ctx: CanvasRenderingContext2D, packed: PlacedRoom[]) {
   packed.forEach(r => {
     const color = FLAT_COLORS[r.flatIdx % FLAT_COLORS.length];
+    ctx.beginPath();
+    r.poly.forEach((p, i) => { if (i === 0) ctx.moveTo(p.x, p.y); else ctx.lineTo(p.x, p.y); });
+    ctx.closePath();
     ctx.fillStyle = color + '38';
-    ctx.fillRect(r.x, r.y, r.w, r.h);
+    ctx.fill();
     ctx.strokeStyle = color;
     ctx.lineWidth = 1.5;
-    ctx.strokeRect(r.x, r.y, r.w, r.h);
+    ctx.lineJoin = 'round';
+    ctx.stroke();
 
-    const cx = r.x + r.w / 2;
-    const cy = r.y + r.h / 2;
-    const fs = Math.max(7, Math.min(11, Math.min(r.w, r.h) / 3));
+    const c = polygonCentroid(r.poly);
+    const pxArea = polygonAreaPx(r.poly);
+    const fs = Math.max(7, Math.min(11, Math.sqrt(pxArea) / 4));
 
     ctx.fillStyle = color;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.font = 'bold ' + fs + 'px monospace';
-    ctx.fillText(r.code, cx, cy - 8);
-    ctx.font = Math.max(6, fs - 1) + 'px monospace';
-    ctx.fillText(r.name, cx, cy + 2);
+    ctx.fillText(r.code, c.x, c.y - 7);
+    ctx.font = Math.max(5, fs - 1) + 'px monospace';
+    ctx.fillText(r.name, c.x, c.y + 3);
     ctx.fillStyle = color + 'aa';
-    ctx.font = Math.max(5, fs - 2) + 'px monospace';
-    ctx.fillText(r.area + 'm²', cx, cy + 12);
+    ctx.font = Math.max(4, fs - 2) + 'px monospace';
+    ctx.fillText(r.area + 'm²', c.x, c.y + 12);
     ctx.textAlign = 'left';
     ctx.textBaseline = 'alphabetic';
   });
-
-  ctx.restore();
 }
 
-// SVG Builder with clipPath
+// ─── SVG Builder: emits <path> per room, not <rect> ──────────────────────────
 function buildSVG(
   plotPts: Point[], sitePts: Point[],
   packed: PlacedRoom[],
@@ -150,14 +84,14 @@ function buildSVG(
 
   const roomsSVG = packed.map(r => {
     const color = FLAT_COLORS[r.flatIdx % FLAT_COLORS.length];
-    const cx = (r.x + r.w / 2).toFixed(1);
-    const cy = (r.y + r.h / 2);
-    const fs = Math.max(7, Math.min(11, Math.min(r.w, r.h) / 3));
+    const pathStr = toPath(r.poly);
+    const c = polygonCentroid(r.poly);
+    const fs = Math.max(6, Math.min(10, Math.sqrt(polygonAreaPx(r.poly)) / 4));
     return [
-      '<rect x="' + r.x.toFixed(1) + '" y="' + r.y.toFixed(1) + '" width="' + r.w.toFixed(1) + '" height="' + r.h.toFixed(1) + '" fill="' + color + '" fill-opacity="0.3" stroke="' + color + '" stroke-width="1.5"/>',
-      '<text x="' + cx + '" y="' + (cy - 8).toFixed(1) + '" text-anchor="middle" font-size="' + fs + '" font-family="monospace" font-weight="bold" fill="' + color + '">' + r.code + '</text>',
-      '<text x="' + cx + '" y="' + (cy + 2).toFixed(1) + '" text-anchor="middle" font-size="' + Math.max(6, fs - 1) + '" font-family="monospace" fill="' + color + '">' + r.name + '</text>',
-      '<text x="' + cx + '" y="' + (cy + 13).toFixed(1) + '" text-anchor="middle" font-size="' + Math.max(5, fs - 2) + '" font-family="monospace" fill="' + color + 'aa">' + r.area + 'm&#178;</text>',
+      '<path d="' + pathStr + '" fill="' + color + '" fill-opacity="0.3" stroke="' + color + '" stroke-width="1.5" stroke-linejoin="round"/>',
+      '<text x="' + c.x.toFixed(1) + '" y="' + (c.y - 7).toFixed(1) + '" text-anchor="middle" font-size="' + fs + '" font-family="monospace" font-weight="bold" fill="' + color + '">' + r.code + '</text>',
+      '<text x="' + c.x.toFixed(1) + '" y="' + (c.y + 3).toFixed(1) + '" text-anchor="middle" font-size="' + Math.max(5, fs - 1) + '" font-family="monospace" fill="' + color + '">' + r.name + '</text>',
+      '<text x="' + c.x.toFixed(1) + '" y="' + (c.y + 13).toFixed(1) + '" text-anchor="middle" font-size="' + Math.max(4, fs - 2) + '" font-family="monospace" fill="' + color + 'aa">' + r.area + 'm&#178;</text>',
     ].join('');
   }).join('');
 
@@ -167,20 +101,18 @@ function buildSVG(
 
   return '<?xml version="1.0" encoding="UTF-8"?>' +
     '<svg xmlns="http://www.w3.org/2000/svg" width="' + W + '" height="' + H + '" viewBox="0 0 ' + W + ' ' + H + '" style="background:#0a120a">' +
-    '<defs><style>text{font-family:monospace;}</style>' +
-    (sitePath ? '<clipPath id="site-clip"><path d="' + sitePath + '"/></clipPath>' : '') +
-    '</defs>' +
+    '<defs><style>text{font-family:monospace;}</style></defs>' +
     '<g opacity="0.4">' + gridLines.join('') + '</g>' +
     (plotPath ? '<path d="' + plotPath + '" fill="none" stroke="#f97316" stroke-width="2" stroke-dasharray="6,3"/>' : '') +
     (sitePath ? '<path d="' + sitePath + '" fill="rgba(0,240,255,0.04)" stroke="#00f0ff" stroke-width="2"/>' : '') +
-    '<g' + (sitePath ? ' clip-path="url(#site-clip)"' : '') + '>' + roomsSVG + '</g>' +
+    '<g>' + roomsSVG + '</g>' +
     '<text x="10" y="18" font-size="9" fill="#f97316" font-family="monospace">&#9679; PLOT BOUNDARY</text>' +
     '<text x="10" y="32" font-size="9" fill="#00f0ff" font-family="monospace">&#9679; SITE EXTERIOR (buildable)</text>' +
-    '<text x="' + (W - 10) + '" y="' + (H - 10) + '" text-anchor="end" font-size="8" fill="#ffffff33" font-family="monospace">1 grid cell = 1 metre | Smart Planner</text>' +
+    '<text x="' + (W - 10) + '" y="' + (H - 10) + '" text-anchor="end" font-size="8" fill="#ffffff33" font-family="monospace">1 grid cell = 1 metre | Smart Planner v2</text>' +
     '</svg>';
 }
 
-// Component
+// ─── Component ────────────────────────────────────────────────────────────────
 export default function SmartPlannerPage() {
   const router = useRouter();
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -194,7 +126,7 @@ export default function SmartPlannerPage() {
 
   const [messages, setMessages] = useState<ChatMessage[]>([{
     role: 'assistant',
-    content: '**Welcome to Smart Planner — Mathematical Accuracy Mode**\n\nI am your senior architect assistant. Here is how we work together:\n\n1. **Trace your Plot Boundary** using the **orange** mode on the canvas. Click to add points, click first point to close.\n2. **Trace your Site Exterior** (building footprint after setbacks) using **cyan** mode.\n3. **Tell me your requirements** — how many flats, what BHK type, any special rooms.\n\nI will calculate whether it is mathematically possible, correct you if needed, and give you a precise room schedule.\n\n**Start by tracing your plot boundary on the canvas, or just tell me your plot dimensions!**'
+    content: '**Welcome to Smart Planner \u2014 Mathematical Accuracy Mode**\n\nI am your senior architect assistant. Here is how we work together:\n\n1. **Trace your Plot Boundary** using the **orange** mode on the canvas. Click to add points, click first point to close.\n2. **Trace your Site Exterior** (building footprint after setbacks) using **cyan** mode.\n3. **Tell me your requirements** \u2014 how many flats, what BHK type, any special rooms.\n\nI will calculate whether it is mathematically possible, correct you if needed, and give you a precise room schedule.\n\n**Start by tracing your plot boundary on the canvas, or just tell me your plot dimensions!**'
   }]);
   const [inputText, setInputText] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -203,6 +135,7 @@ export default function SmartPlannerPage() {
   const [roomSchedule, setRoomSchedule] = useState<RoomSchedule | null>(null);
   const [svgOutput, setSvgOutput] = useState<string | null>(null);
   const [showSVG, setShowSVG] = useState(false);
+  const [areaWarning, setAreaWarning] = useState<string | null>(null);
 
   const snapToGrid = (v: number) => Math.round(v / CELL_PX) * CELL_PX;
 
@@ -259,9 +192,8 @@ export default function SmartPlannerPage() {
     }
 
     if (roomSchedule && siteClosed && sitePoints.length >= 3) {
-      const bb = polygonBoundingBox(sitePoints);
-      const packed = layoutRooms(roomSchedule.flats, bb);
-      drawPackedRoomsOnCanvas(ctx, packed, sitePoints);
+      const packed = layoutRoomsByGuillotine(roomSchedule.flats, sitePoints);
+      drawPackedRoomsOnCanvas(ctx, packed);
     }
 
     if (drawMode) {
@@ -312,7 +244,7 @@ export default function SmartPlannerPage() {
   const getPlotContext = () => {
     if (!plotClosed || plotPoints.length < 3) return null;
     const plotBB = polygonBoundingBox(plotPoints);
-    const plotAreaSqm = +(polygonArea(plotPoints) / (CELL_PX * CELL_PX)).toFixed(1);
+    const plotAreaSqm = +polygonAreaM2(plotPoints).toFixed(1);
     let siteW = pxToM(plotBB.maxX - plotBB.minX);
     let siteH = pxToM(plotBB.maxY - plotBB.minY);
     let siteArea = plotAreaSqm;
@@ -320,7 +252,7 @@ export default function SmartPlannerPage() {
       const siteBB = polygonBoundingBox(sitePoints);
       siteW = pxToM(siteBB.maxX - siteBB.minX);
       siteH = pxToM(siteBB.maxY - siteBB.minY);
-      siteArea = +(polygonArea(sitePoints) / (CELL_PX * CELL_PX)).toFixed(1);
+      siteArea = +polygonAreaM2(sitePoints).toFixed(1);
     }
     return {
       widthM: pxToM(plotBB.maxX - plotBB.minX), heightM: pxToM(plotBB.maxY - plotBB.minY),
@@ -333,21 +265,42 @@ export default function SmartPlannerPage() {
     const userMsg: ChatMessage = { role: 'user', content: inputText.trim() };
     const newMessages = [...messages, userMsg];
     setMessages(newMessages); setInputText(''); setIsLoading(true);
+    setAreaWarning(null);
+
     try {
       const res = await fetch('/api/smart-planner-chat', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ messages: newMessages.map(m => ({ role: m.role, content: m.content })), plotBoundary: getPlotContext() }),
       });
       const data = await res.json();
+
       if (data.roomSchedule?.confirmed) {
-        setRoomSchedule(data.roomSchedule);
+        const sched = data.roomSchedule;
+        setRoomSchedule(sched);
+
         const plotPts = plotClosed ? plotPoints : [];
         const sitePts = siteClosed ? sitePoints : plotPts;
-        const bb = polygonBoundingBox(sitePts.length > 0 ? sitePts : plotPts);
-        const packed = layoutRooms(data.roomSchedule.flats, bb);
-        const svg = buildSVG(plotPts, sitePts, packed, data.roomSchedule, CANVAS_W, CANVAS_H);
+        const activePts = sitePts.length > 0 ? sitePts : plotPts;
+
+        const packed = layoutRoomsByGuillotine(sched.flats, activePts);
+
+        // ── Area assertion (1% tolerance) ────────────────────────────────────
+        const placedM2 = packed.reduce((sum, r) => sum + polygonAreaM2(r.poly), 0);
+        const expectedM2 = sched.totalBuildupArea;
+        const diff = Math.abs(placedM2 - expectedM2);
+        const pct = ((diff / expectedM2) * 100).toFixed(1);
+        if (diff > expectedM2 * 0.01) {
+          const msg = 'Area mismatch: placed ' + placedM2.toFixed(1) + ' sqm vs expected ' + expectedM2 + ' sqm (' + pct + '% off)';
+          console.error('[Smart Planner] AREA ASSERTION FAILED: ' + msg);
+          setAreaWarning(msg);
+        } else {
+          console.info('[Smart Planner] Area check OK: ' + placedM2.toFixed(1) + ' sqm placed, ' + expectedM2 + ' expected (' + pct + '% delta)');
+        }
+
+        const svg = buildSVG(plotPts, sitePts, packed, sched, CANVAS_W, CANVAS_H);
         setSvgOutput(svg); setShowSVG(true);
       }
+
       setMessages(prev => [...prev, { role: 'assistant', content: data.text || 'Sorry, I could not process that.' }]);
     } catch { setMessages(prev => [...prev, { role: 'assistant', content: 'Network error. Please try again.' }]); }
     finally { setIsLoading(false); }
@@ -359,7 +312,7 @@ export default function SmartPlannerPage() {
     if (!svgOutput) return;
     const blob = new Blob([svgOutput], { type: 'image/svg+xml' });
     const url = URL.createObjectURL(blob);
-    const a = document.createElement('a'); a.href = url; a.download = 'smart-plan.svg'; a.click();
+    const a = document.createElement('a'); a.href = url; a.download = 'smart-plan-v2.svg'; a.click();
     URL.revokeObjectURL(url);
   };
 
@@ -374,9 +327,9 @@ export default function SmartPlannerPage() {
           </button>
           <div>
             <h1 className="text-lg font-bold tracking-[4px] uppercase text-white drop-shadow-[0_0_8px_rgba(0,255,100,0.3)]">
-              Smart Planner <span className="text-[10px] bg-green-500/20 border border-green-500/40 text-green-400 px-2 py-0.5 rounded ml-2">BETA</span>
+              Smart Planner <span className="text-[10px] bg-green-500/20 border border-green-500/40 text-green-400 px-2 py-0.5 rounded ml-2">v2</span>
             </h1>
-            <span className="text-[9px] tracking-[3px] text-green-600 uppercase">Mathematically Accurate Floor Plan Generator</span>
+            <span className="text-[9px] tracking-[3px] text-green-600 uppercase">Guillotine Polygon Layout &middot; No Clip Mask</span>
           </div>
         </div>
         <div className="flex items-center gap-3">
@@ -384,6 +337,11 @@ export default function SmartPlannerPage() {
             <div className="flex items-center gap-4 text-[10px] border border-green-900/50 rounded px-3 py-1.5 bg-[#0a1a0a]">
               <span className="text-orange-400">Plot: <strong>{plotInfo.widthM}m &times; {plotInfo.heightM}m = {plotInfo.areaM} sqm</strong></span>
               {siteClosed && <span className="text-cyan-400">Site: <strong>{plotInfo.siteWidthM}m &times; {plotInfo.siteHeightM}m = {plotInfo.siteAreaM} sqm</strong></span>}
+            </div>
+          )}
+          {areaWarning && (
+            <div className="text-[9px] text-red-400 border border-red-900/50 rounded px-2 py-1 bg-red-950/30">
+              &#9888; {areaWarning}
             </div>
           )}
           {svgOutput && (
@@ -421,7 +379,7 @@ export default function SmartPlannerPage() {
             </button>
             <div className="ml-auto flex items-center gap-2">
               <button
-                onClick={() => { setPlotPoints([]); setSitePoints([]); setPlotClosed(false); setSiteClosed(false); setDrawMode(null); setRoomSchedule(null); setSvgOutput(null); setShowSVG(false); }}
+                onClick={() => { setPlotPoints([]); setSitePoints([]); setPlotClosed(false); setSiteClosed(false); setDrawMode(null); setRoomSchedule(null); setSvgOutput(null); setShowSVG(false); setAreaWarning(null); }}
                 className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] uppercase tracking-wider rounded border border-red-900/40 text-red-700 hover:bg-red-500/10 hover:text-red-500 transition-all"
               >
                 <RotateCcw size={11} /> Reset
@@ -449,7 +407,7 @@ export default function SmartPlannerPage() {
         <div className="w-[420px] border-l border-green-900/30 bg-[#070f07] flex flex-col shrink-0">
           <div className="px-5 py-3 border-b border-green-900/30 shrink-0">
             <h2 className="text-[11px] font-bold tracking-[3px] uppercase text-green-400">Smart Architect Chat</h2>
-            <p className="text-[9px] text-green-800 uppercase tracking-wide mt-0.5">NBC 2016 Standards &middot; Mathematically Verified</p>
+            <p className="text-[9px] text-green-800 uppercase tracking-wide mt-0.5">NBC 2016 Standards &middot; Guillotine Polygon Layout</p>
           </div>
 
           <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4 custom-scrollbar">
@@ -469,7 +427,7 @@ export default function SmartPlannerPage() {
               <div className="flex justify-start">
                 <div className="bg-[#0a180a] border border-green-900/40 rounded-lg px-4 py-3 flex items-center gap-2">
                   <Loader2 size={14} className="animate-spin text-green-500" />
-                  <span className="text-[10px] text-green-600">Calculating...</span>
+                  <span className="text-[10px] text-green-600">Calculating layout...</span>
                 </div>
               </div>
             )}
@@ -479,7 +437,7 @@ export default function SmartPlannerPage() {
                 {roomSchedule.flats.map(flat => (
                   <div key={flat.id} className="mb-3">
                     <div className="text-[10px] font-bold text-green-200 mb-1.5">{flat.name}</div>
-                    {flat.rooms.map(room => (
+                    {flat.rooms.map((room: Room) => (
                       <div key={room.code} className="flex justify-between text-[9px] text-green-600 py-0.5 border-b border-green-950">
                         <span><strong className="text-green-400">{room.code}</strong> &mdash; {room.name}</span>
                         <span>{room.w}m &times; {room.h}m = <strong className="text-green-300">{room.area} sqm</strong></span>
