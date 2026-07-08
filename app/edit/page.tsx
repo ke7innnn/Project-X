@@ -115,6 +115,26 @@ export default function EditPage() {
     };
   }, [textDrag]);
 
+  // Keyboard shortcuts: Ctrl+Z = Undo, Ctrl+Shift+Z / Ctrl+Y = Redo
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const tag = (e.target as HTMLElement)?.tagName?.toLowerCase();
+      if (tag === 'input' || tag === 'textarea') return; // don't intercept typing
+      if (e.ctrlKey || e.metaKey) {
+        if (e.key === 'z' && !e.shiftKey) {
+          e.preventDefault();
+          handleUndo();
+        } else if ((e.key === 'z' && e.shiftKey) || e.key === 'y') {
+          e.preventDefault();
+          handleRedo();
+        }
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [floorPlanHistory, floorPlanRedoStack]);
+
   useEffect(() => {
     const resizeCanvas = () => {
       if (imgRef.current && canvasRef.current) {
@@ -755,56 +775,32 @@ const blendImagesWithMask = (
             Switch Project
           </button>
           
-          {floorPlanHistory && floorPlanHistory.length > 1 && (
-            <button 
-              onClick={handleUndo}
-              className="px-4 py-2 text-[10px] uppercase tracking-widest border border-[#c8a84b]/40 text-[#c8a84b] hover:bg-[#c8a84b]/10 rounded transition-colors"
-            >
-              Undo Edit
-            </button>
-          )}
-
-          {currentFloorPlan && (
-            <div className="flex items-center gap-2">
-              <button
-                onClick={handleConvertToDxf}
-                disabled={dxfPhase === 'tracing'}
-                className="flex items-center gap-2 px-6 py-2 bg-[#00f0ff] text-black font-bold uppercase tracking-widest text-[10px] rounded hover:bg-[#00d4e8] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {dxfPhase === 'tracing' ? <Loader2 size={12} className="animate-spin" /> : null}
-                Convert to CAD (DXF)
-              </button>
-              <button
-                onClick={downloadAsPng}
-                className="flex items-center gap-2 px-6 py-2 bg-[#00f0ff]/20 text-[#00f0ff] border border-[#00f0ff]/50 font-bold uppercase tracking-widest text-[10px] rounded hover:bg-[#00f0ff]/30 transition-colors"
-              >
-                Save as PNG
-              </button>
-            </div>
-          )}
-
-          {currentFloorPlan && (
+          {/* Undo / Redo Control Group */}
+          <div className="flex items-center gap-0.5 border border-[#c8a84b]/30 rounded overflow-hidden bg-[#12100a]">
             <button
-              onClick={() => {
-                setCalibStep('point1');
-                setCalibPoints([]);
-                setCalibDistInput('');
-                setIsInpaintMode(false);
-                setIsTextMode(false);
-              }}
-              className={`flex items-center gap-2 px-4 py-2 text-[10px] uppercase tracking-widest border rounded transition-colors ${calibStep !== 'idle' ? 'bg-yellow-500/20 border-yellow-400 text-yellow-400 animate-pulse' : calibScale ? 'bg-green-500/20 border-green-400 text-green-400' : 'border-yellow-500/50 text-yellow-400 hover:bg-yellow-500/10'}`}
+              onClick={handleUndo}
+              disabled={!floorPlanHistory || floorPlanHistory.length <= 1}
+              title="Undo last edit (Ctrl+Z)"
+              className="flex items-center gap-1.5 px-3 py-2 text-[10px] uppercase tracking-widest font-bold transition-all
+                disabled:text-gray-600 disabled:cursor-not-allowed disabled:bg-transparent
+                enabled:text-[#c8a84b] enabled:hover:bg-[#c8a84b]/10"
             >
-              <Ruler size={14} /> {calibStep !== 'idle' ? 'Calibrating...' : calibScale ? `Scale: 1ft = ${calibScale.pxPerFt.toFixed(0)}px` : 'Calibrate Scale'}
+              <Undo2 size={13} />
+              <span>Undo</span>
             </button>
-          )}
-          {floorPlanRedoStack.length > 0 && (
-            <button 
+            <div className="w-px h-5 bg-[#c8a84b]/20" />
+            <button
               onClick={handleRedo}
-              className="px-4 py-2 text-[10px] uppercase tracking-widest border border-[#c8a84b]/40 text-[#c8a84b] hover:bg-[#c8a84b]/10 rounded transition-colors"
+              disabled={floorPlanRedoStack.length === 0}
+              title="Redo last undone edit (Ctrl+Shift+Z)"
+              className="flex items-center gap-1.5 px-3 py-2 text-[10px] uppercase tracking-widest font-bold transition-all
+                disabled:text-gray-600 disabled:cursor-not-allowed disabled:bg-transparent
+                enabled:text-[#c8a84b] enabled:hover:bg-[#c8a84b]/10"
             >
-              Redo Edit
+              <Undo2 size={13} className="scale-x-[-1]" />
+              <span>Redo</span>
             </button>
-          )}
+          </div>
 
           {currentFloorPlan && (
             <>
