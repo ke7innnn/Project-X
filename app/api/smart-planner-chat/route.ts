@@ -91,7 +91,7 @@ export async function POST(request: Request) {
 
     // Add plot context to the first user message if we have boundary data
     const systemWithContext = plotBoundary 
-      ? `${SYSTEM_PROMPT}\n\nCURRENT TRACED PLOT: The user has traced a plot boundary of approximately ${plotBoundary.widthM}m × ${plotBoundary.heightM}m = ${plotBoundary.areaM} sqm. Site exterior (buildable area after setbacks) is approximately ${plotBoundary.siteWidthM}m × ${plotBoundary.siteHeightM}m = ${plotBoundary.siteAreaM} sqm.`
+      ? `${SYSTEM_PROMPT}\n\nCURRENT TRACED PLOT DATA (DO NOT RECALCULATE AREA AS W×H, IT IS A POLYGON):\n- Plot Bounding Box: ${plotBoundary.widthM}m × ${plotBoundary.heightM}m\n- True Plot Polygon Area: ${plotBoundary.areaM} sqm\n- Site Exterior Bounding Box: ${plotBoundary.siteWidthM}m × ${plotBoundary.siteHeightM}m\n- True Site Exterior Polygon Area: ${plotBoundary.siteAreaM} sqm\n\nALWAYS use the 'True Polygon Area' for your calculations, do NOT multiply width × height because the user's trace is an irregular polygon, not a perfect rectangle.`
       : SYSTEM_PROMPT;
 
     const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
