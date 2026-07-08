@@ -2,7 +2,9 @@
 
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, Send, Loader2, Download, RotateCcw, Trash2, ZoomIn, ZoomOut, Layers } from 'lucide-react';
+import { ArrowLeft, Send, Loader2, Download, RotateCcw, Layers } from 'lucide-react';
+import { polygonArea, polygonCentroid, subdividePolygon } from '../../lib/polygonSplitter';
+import type { SubdivideItem } from '../../lib/polygonSplitter';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface Point { x: number; y: number; }
@@ -17,15 +19,18 @@ interface RoomSchedule {
   buildingFootprint: number;
 }
 interface ChatMessage { role: 'user' | 'assistant'; content: string; }
+interface PlacedRoom {
+  code: string; name: string; flat: string; flatIdx: number;
+  poly: Point[]; area: number;
+}
 
 // ─── Constants ────────────────────────────────────────────────────────────────
-const CELL_PX = 12;       // 12px = 1 metre on screen
-const CANVAS_W = 900;     // display px
+const CELL_PX = 12;
+const CANVAS_W = 900;
 const CANVAS_H = 700;
-const GRID_COLS = Math.floor(CANVAS_W / CELL_PX);  // ≈75 cols = 75m
-const GRID_ROWS = Math.floor(CANVAS_H / CELL_PX);  // ≈58 rows = 58m
+const GRID_COLS = Math.floor(CANVAS_W / CELL_PX);
+const GRID_ROWS = Math.floor(CANVAS_H / CELL_PX);
 
-// Flat colour palette for SVG rooms
 const FLAT_COLORS = [
   '#fbbf24', '#34d399', '#60a5fa', '#f87171', '#a78bfa',
   '#fb923c', '#2dd4bf', '#e879f9', '#86efac', '#fca5a5'
@@ -35,16 +40,6 @@ const FLAT_COLORS = [
 function pxToM(px: number) { return +(px / CELL_PX).toFixed(1); }
 function mToPx(m: number) { return Math.round(m * CELL_PX); }
 
-function polygonArea(pts: Point[]): number {
-  let a = 0;
-  for (let i = 0; i < pts.length; i++) {
-    const j = (i + 1) % pts.length;
-    a += pts[i].x * pts[j].y;
-    a -= pts[j].x * pts[i].y;
-  }
-  return Math.abs(a) / 2;
-}
-
 function polygonBoundingBox(pts: Point[]) {
   const xs = pts.map(p => p.x); const ys = pts.map(p => p.y);
   return {
@@ -53,65 +48,47 @@ function polygonBoundingBox(pts: Point[]) {
   };
 }
 
-// Ray-casting algorithm for point in polygon
-function isPointInPolygon(pt: Point, poly: Point[]) {
-  let inside = false;
-  for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
-    const xi = poly[i].x, yi = poly[i].y;
-    const xj = poly[j].x, yj = poly[j].y;
-    const intersect = ((yi > pt.y) !== (yj > pt.y)) &&
-      (pt.x < (xj - xi) * (pt.y - yi) / (yj - yi) + xi);
-    if (intersect) inside = !inside;
-  }
-  return inside;
-}
-
-// Check if a rectangle is fully inside the polygon
-function isRectInPolygon(rx: number, ry: number, rw: number, rh: number, poly: Point[]) {
-  const corners = [
-    { x: rx, y: ry },
-    { x: rx + rw, y: ry },
-    { x: rx, y: ry + rh },
-    { x: rx + rw, y: ry + rh }
-  ];
-  return corners.every(c => isPointInPolygon(c, poly));
-}
-
-// Check if a rectangle intersects any already placed rectangles
-function intersectsPlaced(rx: number, ry: number, rw: number, rh: number, placed: any[]) {
-  return placed.some(p => {
-    return !(rx + rw <= p.x || rx >= p.x + p.w || ry + rh <= p.y || ry >= p.y + p.h);
-  });
-}
-
-// 2D grid-based irregular packing inside a polygon
-function packRooms(flats: Flat[], sitePts: Point[]) {
-  const placed: { code: string; name: string; flat: string; flatIdx: number; x: number; y: number; w: number; h: number }[] = [];
-  
+// ─── BSP Treemap Room Packing ─────────────────────────────────────────────────
+// The site exterior polygon is recursively sliced into flat sub-polygons,
+// then each flat polygon is sliced into room sub-polygons.
+// Every sliver of space is used — no gaps, no Tetris.
+function packRooms(flats: Flat[], sitePts: Point[]): PlacedRoom[] {
+  const placed: PlacedRoom[] = [];
   if (sitePts.length < 3) return placed;
-  const bb = polygonBoundingBox(sitePts);
-  const step = mToPx(0.5); // Grid step for searching placements
-  const gap = mToPx(0.1);  // Gap between rooms
 
-  flats.forEach((flat, flatIdx) => {
-    flat.rooms.forEach(room => {
-      const rw = mToPx(room.w);
-      const rh = mToPx(room.h);
-      let placedThisRoom = false;
+  // Build weight list for flats (weight = total room area in m2)
+  const flatItems: SubdivideItem[] = flats.map((flat, flatIdx) => ({
+    id: flat.id,
+    weight: flat.rooms.reduce((acc, r) => acc + r.area, 0),
+    data: { flat, flatIdx },
+  }));
 
-      // Scan the bounding box from top-left to bottom-right
-      for (let y = bb.minY + step; y <= bb.maxY - rh && !placedThisRoom; y += step) {
-        for (let x = bb.minX + step; x <= bb.maxX - rw && !placedThisRoom; x += step) {
-          
-          // 1. Check if the room's 4 corners are inside the cyan site polygon
-          if (!isRectInPolygon(x, y, rw, rh, sitePts)) continue;
+  // Scale site polygon from px to m2-equivalent so weights match
+  const flatPolygons = subdividePolygon(sitePts, flatItems, 0);
 
-          // 2. Check if it overlaps with any already placed rooms
-          if (!intersectsPlaced(x, y, rw, rh, placed)) {
-            placed.push({ code: room.code, name: room.name, flat: flat.id, flatIdx, x, y, w: rw, h: rh });
-            placedThisRoom = true;
-          }
-        }
+  flatPolygons.forEach(({ item: flatItem, poly: flatPoly }) => {
+    if (flatPoly.length < 3) return;
+    const flat = flatItem.data.flat as Flat;
+    const flatIdx = flatItem.data.flatIdx as number;
+
+    const roomItems: SubdivideItem[] = flat.rooms.map(r => ({
+      id: r.code,
+      weight: r.area,
+      data: { room: r },
+    }));
+
+    const roomPolygons = subdividePolygon(flatPoly, roomItems, Math.PI / 2);
+
+    roomPolygons.forEach(({ item: roomItem, poly: roomPoly }) => {
+      if (roomPoly.length >= 3) {
+        placed.push({
+          code: roomItem.data.room.code,
+          name: roomItem.data.room.name,
+          flat: flat.id,
+          flatIdx,
+          poly: roomPoly,
+          area: roomItem.data.room.area,
+        });
       }
     });
   });
@@ -119,28 +96,34 @@ function packRooms(flats: Flat[], sitePts: Point[]) {
   return placed;
 }
 
-// Generate SVG from packed rooms
+// ─── SVG Builder ──────────────────────────────────────────────────────────────
 function buildSVG(
   plotPts: Point[], sitePts: Point[],
-  packed: ReturnType<typeof packRooms>,
+  packed: PlacedRoom[],
   schedule: RoomSchedule,
   canvasW: number, canvasH: number
 ): string {
-  const plotPath = plotPts.map((p, i) => `${i === 0 ? 'M' : 'L'}${p.x},${p.y}`).join(' ') + ' Z';
-  const sitePath = sitePts.map((p, i) => `${i === 0 ? 'M' : 'L'}${p.x},${p.y}`).join(' ') + ' Z';
+  const toPath = (pts: Point[]) =>
+    pts.map((p, i) => `${i === 0 ? 'M' : 'L'}${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' ') + ' Z';
+
+  const plotPath = plotPts.length > 0 ? toPath(plotPts) : '';
+  const sitePath = sitePts.length > 0 ? toPath(sitePts) : '';
 
   const roomsSVG = packed.map(r => {
     const color = FLAT_COLORS[r.flatIdx % FLAT_COLORS.length];
-    const fontSize = Math.max(7, Math.min(11, r.w / 6));
-    return `
-    <rect x="${r.x}" y="${r.y}" width="${r.w}" height="${r.h}" fill="${color}" fill-opacity="0.25" stroke="${color}" stroke-width="1.5"/>
-    <text x="${r.x + r.w / 2}" y="${r.y + r.h / 2 - 6}" text-anchor="middle" font-size="${fontSize}" font-family="monospace" font-weight="bold" fill="${color}">${r.code}</text>
-    <text x="${r.x + r.w / 2}" y="${r.y + r.h / 2 + 6}" text-anchor="middle" font-size="${Math.max(6, fontSize - 1)}" font-family="monospace" fill="${color}">${r.name}</text>
-    <text x="${r.x + r.w / 2}" y="${r.y + r.h / 2 + 15}" text-anchor="middle" font-size="${Math.max(5, fontSize - 2)}" font-family="monospace" fill="${color}55">${pxToM(r.w)}×${pxToM(r.h)}m</text>
-    `;
-  }).join('');
+    const pathStr = toPath(r.poly);
+    const centroid = polygonCentroid(r.poly);
+    const pxArea = polygonArea(r.poly);
+    const approxSide = Math.sqrt(pxArea);
+    const fs = Math.max(6, Math.min(10, approxSide / 4));
+    return [
+      `<path d="${pathStr}" fill="${color}" fill-opacity="0.3" stroke="${color}" stroke-width="1.5" stroke-linejoin="round"/>`,
+      `<text x="${centroid.x.toFixed(1)}" y="${(centroid.y - 7).toFixed(1)}" text-anchor="middle" font-size="${fs}" font-family="monospace" font-weight="bold" fill="${color}">${r.code}</text>`,
+      `<text x="${centroid.x.toFixed(1)}" y="${(centroid.y + 4).toFixed(1)}" text-anchor="middle" font-size="${Math.max(5, fs - 1)}" font-family="monospace" fill="${color}">${r.name}</text>`,
+      `<text x="${centroid.x.toFixed(1)}" y="${(centroid.y + 14).toFixed(1)}" text-anchor="middle" font-size="${Math.max(4, fs - 2)}" font-family="monospace" fill="${color}88">${r.area}m\u00b2</text>`,
+    ].join('\n');
+  }).join('\n');
 
-  // Grid lines
   const gridLines: string[] = [];
   for (let x = 0; x <= canvasW; x += CELL_PX) {
     gridLines.push(`<line x1="${x}" y1="0" x2="${x}" y2="${canvasH}" stroke="#1a2a1a" stroke-width="0.5"/>`);
@@ -151,32 +134,56 @@ function buildSVG(
 
   return `<?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" width="${canvasW}" height="${canvasH}" viewBox="0 0 ${canvasW} ${canvasH}" style="background:#0a120a">
-  <defs>
-    <style>text { font-family: monospace; }</style>
-  </defs>
-  <!-- Grid -->
+  <defs><style>text { font-family: monospace; }</style></defs>
   <g opacity="0.4">${gridLines.join('')}</g>
-  <!-- Plot Boundary -->
-  <path d="${plotPath}" fill="none" stroke="#f97316" stroke-width="2" stroke-dasharray="6,3"/>
-  <!-- Site Exterior -->
-  <path d="${sitePath}" fill="rgba(0,240,255,0.05)" stroke="#00f0ff" stroke-width="2"/>
-  <!-- Rooms -->
+  ${plotPath ? `<path d="${plotPath}" fill="none" stroke="#f97316" stroke-width="2" stroke-dasharray="6,3"/>` : ''}
+  ${sitePath ? `<path d="${sitePath}" fill="rgba(0,240,255,0.04)" stroke="#00f0ff" stroke-width="2"/>` : ''}
   ${roomsSVG}
-  <!-- Labels -->
-  <text x="10" y="18" font-size="9" fill="#f97316" font-family="monospace">● PLOT BOUNDARY</text>
-  <text x="10" y="32" font-size="9" fill="#00f0ff" font-family="monospace">● SITE EXTERIOR (buildable)</text>
-  <text x="${canvasW - 10}" y="${canvasH - 10}" text-anchor="end" font-size="8" fill="#ffffff33" font-family="monospace">1 grid cell = 1 metre | Smart Planner</text>
+  <text x="10" y="18" font-size="9" fill="#f97316" font-family="monospace">&#9679; PLOT BOUNDARY</text>
+  <text x="10" y="32" font-size="9" fill="#00f0ff" font-family="monospace">&#9679; SITE EXTERIOR (buildable)</text>
+  <text x="${canvasW - 10}" y="${canvasH - 10}" text-anchor="end" font-size="8" fill="#ffffff33" font-family="monospace">1 grid cell = 1 metre | Smart Planner BSP</text>
 </svg>`;
+}
+
+// ─── Canvas drawing helper ────────────────────────────────────────────────────
+function drawPackedRoomsOnCanvas(ctx: CanvasRenderingContext2D, packed: PlacedRoom[]) {
+  packed.forEach(r => {
+    const color = FLAT_COLORS[r.flatIdx % FLAT_COLORS.length];
+    ctx.fillStyle = color + '30';
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 1.5;
+    ctx.lineJoin = 'round';
+    ctx.beginPath();
+    r.poly.forEach((p, i) => { if (i === 0) ctx.moveTo(p.x, p.y); else ctx.lineTo(p.x, p.y); });
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+
+    const centroid = polygonCentroid(r.poly);
+    const pxArea = polygonArea(r.poly);
+    const approxSide = Math.sqrt(pxArea);
+    const fs = Math.max(6, Math.min(11, approxSide / 4));
+
+    ctx.fillStyle = color;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.font = `bold ${fs}px monospace`;
+    ctx.fillText(r.code, centroid.x, centroid.y - 7);
+    ctx.font = `${Math.max(5, fs - 1)}px monospace`;
+    ctx.fillText(r.name, centroid.x, centroid.y + 4);
+    ctx.fillStyle = color + '88';
+    ctx.font = `${Math.max(4, fs - 2)}px monospace`;
+    ctx.fillText(`${r.area}m\u00b2`, centroid.x, centroid.y + 14);
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'alphabetic';
+  });
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
 export default function SmartPlannerPage() {
   const router = useRouter();
-
-  // Canvas refs
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
-  // Drawing state
   const [drawMode, setDrawMode] = useState<'plot' | 'site' | null>(null);
   const [plotPoints, setPlotPoints] = useState<Point[]>([]);
   const [sitePoints, setSitePoints] = useState<Point[]>([]);
@@ -184,33 +191,20 @@ export default function SmartPlannerPage() {
   const [siteClosed, setSiteClosed] = useState(false);
   const [hoverPoint, setHoverPoint] = useState<Point | null>(null);
 
-  // Chat state
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
       role: 'assistant',
-      content: `**Welcome to Smart Planner — Mathematical Accuracy Mode** 🏗️
-
-I'm your senior architect assistant. Here's how we work together:
-
-1. **Trace your Plot Boundary** using the **orange** mode on the canvas (left). Click to add points, close the shape when done.
-2. **Trace your Site Exterior** (the building footprint inside the plot, accounting for setbacks) using **cyan** mode.
-3. **Tell me your requirements** — how many flats, what BHK type, any special rooms.
-
-I'll calculate whether it's mathematically possible, correct you if needed, and give you a precise room schedule with exact dimensions.
-
-**Start by tracing your plot boundary on the canvas, or just tell me your plot dimensions!**`
+      content: `**Welcome to Smart Planner \u2014 Mathematical Accuracy Mode** \ud83c\udfd7\ufe0f\n\nI'm your senior architect assistant. Here's how we work together:\n\n1. **Trace your Plot Boundary** using the **orange** mode on the canvas (left). Click to add points, close the shape when done.\n2. **Trace your Site Exterior** (the building footprint inside the plot, accounting for setbacks) using **cyan** mode.\n3. **Tell me your requirements** \u2014 how many flats, what BHK type, any special rooms.\n\nI'll calculate whether it's mathematically possible, correct you if needed, and give you a precise room schedule with exact dimensions.\n\n**Start by tracing your plot boundary on the canvas, or just tell me your plot dimensions!**`
     }
   ]);
   const [inputText, setInputText] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const chatEndRef = useRef<HTMLDivElement>(null);
 
-  // Generated room schedule + SVG
   const [roomSchedule, setRoomSchedule] = useState<RoomSchedule | null>(null);
   const [svgOutput, setSvgOutput] = useState<string | null>(null);
   const [showSVG, setShowSVG] = useState(false);
 
-  // ── Canvas drawing ──────────────────────────────────────────────────────────
   const snapToGrid = (val: number) => Math.round(val / CELL_PX) * CELL_PX;
 
   const drawCanvas = useCallback(() => {
@@ -220,8 +214,6 @@ I'll calculate whether it's mathematically possible, correct you if needed, and 
     if (!ctx) return;
 
     ctx.clearRect(0, 0, CANVAS_W, CANVAS_H);
-
-    // Background
     ctx.fillStyle = '#050f05';
     ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
 
@@ -235,98 +227,58 @@ I'll calculate whether it's mathematically possible, correct you if needed, and 
       ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(CANVAS_W, y); ctx.stroke();
     }
 
-    // Scale labels every 10 cells = 10m
+    // Scale labels
     ctx.fillStyle = '#1a3a1a';
     ctx.font = '8px monospace';
-    for (let x = 0; x <= CANVAS_W; x += CELL_PX * 10) {
-      ctx.fillText(`${x / CELL_PX}m`, x + 2, 10);
-    }
-    for (let y = CELL_PX * 10; y <= CANVAS_H; y += CELL_PX * 10) {
-      ctx.fillText(`${y / CELL_PX}m`, 2, y);
-    }
+    for (let x = 0; x <= CANVAS_W; x += CELL_PX * 10) ctx.fillText(`${x / CELL_PX}m`, x + 2, 10);
+    for (let y = CELL_PX * 10; y <= CANVAS_H; y += CELL_PX * 10) ctx.fillText(`${y / CELL_PX}m`, 2, y);
 
-    // Draw plot boundary (orange)
+    // Plot boundary (orange)
     if (plotPoints.length > 0) {
       ctx.strokeStyle = '#f97316';
       ctx.lineWidth = 2;
       ctx.setLineDash([8, 4]);
       ctx.beginPath();
-      ctx.moveTo(plotPoints[0].x, plotPoints[0].y);
-      plotPoints.forEach(p => ctx.lineTo(p.x, p.y));
+      plotPoints.forEach((p, i) => { if (i === 0) ctx.moveTo(p.x, p.y); else ctx.lineTo(p.x, p.y); });
       if (plotClosed) ctx.closePath();
       else if (drawMode === 'plot' && hoverPoint) ctx.lineTo(hoverPoint.x, hoverPoint.y);
       ctx.stroke();
       ctx.setLineDash([]);
-
-      // Points
       plotPoints.forEach((p, i) => {
-        ctx.beginPath();
-        ctx.arc(p.x, p.y, 4, 0, Math.PI * 2);
-        ctx.fillStyle = i === 0 ? '#f97316' : '#fb923c';
-        ctx.fill();
+        ctx.beginPath(); ctx.arc(p.x, p.y, 4, 0, Math.PI * 2);
+        ctx.fillStyle = i === 0 ? '#f97316' : '#fb923c'; ctx.fill();
       });
-
-      // First point highlight (close target)
       if (!plotClosed && plotPoints.length >= 3 && drawMode === 'plot') {
-        ctx.beginPath();
-        ctx.arc(plotPoints[0].x, plotPoints[0].y, 8, 0, Math.PI * 2);
-        ctx.strokeStyle = '#f97316aa';
-        ctx.lineWidth = 1.5;
-        ctx.stroke();
+        ctx.beginPath(); ctx.arc(plotPoints[0].x, plotPoints[0].y, 8, 0, Math.PI * 2);
+        ctx.strokeStyle = '#f97316aa'; ctx.lineWidth = 1.5; ctx.stroke();
       }
     }
 
-    // Draw site exterior (cyan)
+    // Site exterior (cyan)
     if (sitePoints.length > 0) {
       ctx.strokeStyle = '#00f0ff';
       ctx.lineWidth = 2;
       ctx.setLineDash([]);
       ctx.beginPath();
-      ctx.moveTo(sitePoints[0].x, sitePoints[0].y);
-      sitePoints.forEach(p => ctx.lineTo(p.x, p.y));
+      sitePoints.forEach((p, i) => { if (i === 0) ctx.moveTo(p.x, p.y); else ctx.lineTo(p.x, p.y); });
       if (siteClosed) {
-        ctx.closePath();
-        ctx.fillStyle = 'rgba(0,240,255,0.05)';
-        ctx.fill();
-      } else if (drawMode === 'site' && hoverPoint) {
-        ctx.lineTo(hoverPoint.x, hoverPoint.y);
-      }
+        ctx.closePath(); ctx.fillStyle = 'rgba(0,240,255,0.05)'; ctx.fill();
+      } else if (drawMode === 'site' && hoverPoint) ctx.lineTo(hoverPoint.x, hoverPoint.y);
       ctx.stroke();
-
       sitePoints.forEach((p, i) => {
-        ctx.beginPath();
-        ctx.arc(p.x, p.y, 4, 0, Math.PI * 2);
-        ctx.fillStyle = i === 0 ? '#00f0ff' : '#67e8f9';
-        ctx.fill();
+        ctx.beginPath(); ctx.arc(p.x, p.y, 4, 0, Math.PI * 2);
+        ctx.fillStyle = i === 0 ? '#00f0ff' : '#67e8f9'; ctx.fill();
       });
-
       if (!siteClosed && sitePoints.length >= 3 && drawMode === 'site') {
-        ctx.beginPath();
-        ctx.arc(sitePoints[0].x, sitePoints[0].y, 8, 0, Math.PI * 2);
-        ctx.strokeStyle = '#00f0ffaa';
-        ctx.lineWidth = 1.5;
-        ctx.stroke();
+        ctx.beginPath(); ctx.arc(sitePoints[0].x, sitePoints[0].y, 8, 0, Math.PI * 2);
+        ctx.strokeStyle = '#00f0ffaa'; ctx.lineWidth = 1.5; ctx.stroke();
       }
     }
 
-    // Draw packed rooms if we have a schedule
+    // Packed rooms via BSP
     if (roomSchedule && siteClosed && sitePoints.length >= 3) {
       const packed = packRooms(roomSchedule.flats, sitePoints);
-      packed.forEach(r => {
-        const color = FLAT_COLORS[r.flatIdx % FLAT_COLORS.length];
-        ctx.fillStyle = color + '30';
-        ctx.fillRect(r.x, r.y, r.w, r.h);
-        ctx.strokeStyle = color;
-        ctx.lineWidth = 1.5;
-        ctx.strokeRect(r.x, r.y, r.w, r.h);
-        ctx.fillStyle = color;
-        ctx.font = `bold ${Math.max(7, Math.min(10, r.w / 8))}px monospace`;
-        ctx.textAlign = 'center';
-        ctx.fillText(r.code, r.x + r.w / 2, r.y + r.h / 2 - 4);
-        ctx.font = `${Math.max(6, Math.min(8, r.w / 10))}px monospace`;
-        ctx.fillText(r.name, r.x + r.w / 2, r.y + r.h / 2 + 6);
-        ctx.textAlign = 'left';
-      });
+      drawPackedRoomsOnCanvas(ctx, packed);
     }
 
     // Mode label
@@ -334,8 +286,9 @@ I'll calculate whether it's mathematically possible, correct you if needed, and 
       ctx.font = 'bold 11px monospace';
       ctx.fillStyle = drawMode === 'plot' ? '#f97316' : '#00f0ff';
       ctx.fillText(
-        drawMode === 'plot' ? '● Drawing: PLOT BOUNDARY — click to add points, click first point to close' 
-          : '● Drawing: SITE EXTERIOR — click to add points, click first point to close',
+        drawMode === 'plot'
+          ? '\u25cf Drawing: PLOT BOUNDARY \u2014 click to add points, click first point to close'
+          : '\u25cf Drawing: SITE EXTERIOR \u2014 click to add points, click first point to close',
         10, CANVAS_H - 12
       );
     }
@@ -354,21 +307,14 @@ I'll calculate whether it's mathematically possible, correct you if needed, and 
     if (drawMode === 'plot' && !plotClosed) {
       if (plotPoints.length >= 3) {
         const dx = x - plotPoints[0].x, dy = y - plotPoints[0].y;
-        if (Math.sqrt(dx * dx + dy * dy) < 15) {
-          setPlotClosed(true); setDrawMode(null);
-          return;
-        }
+        if (Math.sqrt(dx * dx + dy * dy) < 15) { setPlotClosed(true); setDrawMode(null); return; }
       }
       setPlotPoints(prev => [...prev, { x, y }]);
     }
-
     if (drawMode === 'site' && !siteClosed) {
       if (sitePoints.length >= 3) {
         const dx = x - sitePoints[0].x, dy = y - sitePoints[0].y;
-        if (Math.sqrt(dx * dx + dy * dy) < 15) {
-          setSiteClosed(true); setDrawMode(null);
-          return;
-        }
+        if (Math.sqrt(dx * dx + dy * dy) < 15) { setSiteClosed(true); setDrawMode(null); return; }
       }
       setSitePoints(prev => [...prev, { x, y }]);
     }
@@ -385,14 +331,12 @@ I'll calculate whether it's mathematically possible, correct you if needed, and 
     });
   };
 
-  // ── Compute plot info for LLM context ──────────────────────────────────────
   const getPlotContext = () => {
     if (!plotClosed || plotPoints.length < 3) return null;
     const plotBB = polygonBoundingBox(plotPoints);
     const plotW = pxToM(plotBB.maxX - plotBB.minX);
     const plotH = pxToM(plotBB.maxY - plotBB.minY);
     const plotAreaSqm = +(polygonArea(plotPoints) / (CELL_PX * CELL_PX)).toFixed(1);
-
     let siteW = plotW, siteH = plotH, siteArea = plotAreaSqm;
     if (siteClosed && sitePoints.length >= 3) {
       const siteBB = polygonBoundingBox(sitePoints);
@@ -400,14 +344,9 @@ I'll calculate whether it's mathematically possible, correct you if needed, and 
       siteH = pxToM(siteBB.maxY - siteBB.minY);
       siteArea = +(polygonArea(sitePoints) / (CELL_PX * CELL_PX)).toFixed(1);
     }
-
-    return {
-      widthM: plotW, heightM: plotH, areaM: plotAreaSqm,
-      siteWidthM: siteW, siteHeightM: siteH, siteAreaM: siteArea,
-    };
+    return { widthM: plotW, heightM: plotH, areaM: plotAreaSqm, siteWidthM: siteW, siteHeightM: siteH, siteAreaM: siteArea };
   };
 
-  // ── Chat ───────────────────────────────────────────────────────────────────
   const sendMessage = async () => {
     if (!inputText.trim() || isLoading) return;
     const userMsg: ChatMessage = { role: 'user', content: inputText.trim() };
@@ -415,7 +354,6 @@ I'll calculate whether it's mathematically possible, correct you if needed, and 
     setMessages(newMessages);
     setInputText('');
     setIsLoading(true);
-
     try {
       const res = await fetch('/api/smart-planner-chat', {
         method: 'POST',
@@ -426,11 +364,8 @@ I'll calculate whether it's mathematically possible, correct you if needed, and 
         }),
       });
       const data = await res.json();
-
       if (data.roomSchedule?.confirmed) {
         setRoomSchedule(data.roomSchedule);
-
-        // Generate SVG
         const plotPts = plotClosed ? plotPoints : [];
         const sitePts = siteClosed ? sitePoints : plotPts;
         const packed = packRooms(data.roomSchedule.flats, sitePts.length > 0 ? sitePts : plotPts);
@@ -438,9 +373,8 @@ I'll calculate whether it's mathematically possible, correct you if needed, and 
         setSvgOutput(svg);
         setShowSVG(true);
       }
-
       setMessages(prev => [...prev, { role: 'assistant', content: data.text || 'Sorry, I could not process that.' }]);
-    } catch (e) {
+    } catch {
       setMessages(prev => [...prev, { role: 'assistant', content: 'Network error. Please try again.' }]);
     } finally {
       setIsLoading(false);
@@ -449,29 +383,21 @@ I'll calculate whether it's mathematically possible, correct you if needed, and 
 
   useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages]);
 
-  // ── SVG Download ───────────────────────────────────────────────────────────
   const downloadSVG = () => {
     if (!svgOutput) return;
     const blob = new Blob([svgOutput], { type: 'image/svg+xml' });
     const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url; a.download = 'smart-plan.svg'; a.click();
+    const a = document.createElement('a'); a.href = url; a.download = 'smart-plan.svg'; a.click();
     URL.revokeObjectURL(url);
   };
 
-  // ── Render ─────────────────────────────────────────────────────────────────
   const plotInfo = getPlotContext();
 
   return (
     <main className="flex flex-col w-full h-screen bg-[#050f05] text-green-400 font-mono overflow-hidden">
-
-      {/* TOP BAR */}
       <header className="flex items-center justify-between px-6 py-4 border-b border-green-900/40 bg-[#050f05]/90 backdrop-blur-md shrink-0">
         <div className="flex items-center gap-4">
-          <button
-            onClick={() => router.push('/')}
-            className="w-9 h-9 rounded-full border border-green-700/40 hover:border-green-400 hover:bg-green-500/10 flex items-center justify-center transition-all"
-          >
+          <button onClick={() => router.push('/')} className="w-9 h-9 rounded-full border border-green-700/40 hover:border-green-400 hover:bg-green-500/10 flex items-center justify-center transition-all">
             <ArrowLeft size={16} className="text-green-500" />
           </button>
           <div>
@@ -481,66 +407,46 @@ I'll calculate whether it's mathematically possible, correct you if needed, and 
             <span className="text-[9px] tracking-[3px] text-green-600 uppercase">Mathematically Accurate Floor Plan Generator</span>
           </div>
         </div>
-
         <div className="flex items-center gap-3">
-          {/* Plot info readout */}
           {plotInfo && (
             <div className="flex items-center gap-4 text-[10px] border border-green-900/50 rounded px-3 py-1.5 bg-[#0a1a0a]">
-              <span className="text-orange-400">Plot: <strong>{plotInfo.widthM}m × {plotInfo.heightM}m = {plotInfo.areaM} sqm</strong></span>
-              {siteClosed && <span className="text-cyan-400">Site: <strong>{plotInfo.siteWidthM}m × {plotInfo.siteHeightM}m = {plotInfo.siteAreaM} sqm</strong></span>}
+              <span className="text-orange-400">Plot: <strong>{plotInfo.widthM}m \u00d7 {plotInfo.heightM}m = {plotInfo.areaM} sqm</strong></span>
+              {siteClosed && <span className="text-cyan-400">Site: <strong>{plotInfo.siteWidthM}m \u00d7 {plotInfo.siteHeightM}m = {plotInfo.siteAreaM} sqm</strong></span>}
             </div>
           )}
-
           {svgOutput && (
-            <button
-              onClick={downloadSVG}
-              className="flex items-center gap-2 px-4 py-2 text-[10px] uppercase tracking-widest bg-green-500/10 border border-green-500/40 text-green-400 hover:bg-green-500/20 rounded transition-all"
-            >
+            <button onClick={downloadSVG} className="flex items-center gap-2 px-4 py-2 text-[10px] uppercase tracking-widest bg-green-500/10 border border-green-500/40 text-green-400 hover:bg-green-500/20 rounded transition-all">
               <Download size={13} /> Download SVG
             </button>
           )}
-
           {svgOutput && (
-            <button
-              onClick={() => setShowSVG(!showSVG)}
-              className={`flex items-center gap-2 px-4 py-2 text-[10px] uppercase tracking-widest border rounded transition-all ${showSVG ? 'bg-green-500/20 border-green-400 text-green-300' : 'border-green-700/40 text-green-600 hover:border-green-500'}`}
-            >
+            <button onClick={() => setShowSVG(!showSVG)} className={`flex items-center gap-2 px-4 py-2 text-[10px] uppercase tracking-widest border rounded transition-all ${showSVG ? 'bg-green-500/20 border-green-400 text-green-300' : 'border-green-700/40 text-green-600 hover:border-green-500'}`}>
               <Layers size={13} /> {showSVG ? 'Show Canvas' : 'Show Plan SVG'}
             </button>
           )}
         </div>
       </header>
 
-      {/* BODY */}
       <div className="flex flex-1 overflow-hidden">
-
-        {/* LEFT: Canvas */}
         <div className="flex flex-col flex-1 overflow-hidden">
-
-          {/* Canvas Toolbar */}
           <div className="flex items-center gap-2 px-4 py-2 border-b border-green-900/30 bg-[#070f07] shrink-0">
             <span className="text-[9px] tracking-[3px] uppercase text-green-800 mr-2">Canvas Mode:</span>
-
             <button
               onClick={() => { if (plotClosed) return; setDrawMode(d => d === 'plot' ? null : 'plot'); setSitePoints([]); setSiteClosed(false); }}
               disabled={plotClosed}
-              className={`flex items-center gap-1.5 px-3 py-1.5 text-[10px] uppercase tracking-wider rounded border transition-all font-bold
-                ${drawMode === 'plot' ? 'bg-orange-500/20 border-orange-400 text-orange-300' : plotClosed ? 'border-orange-900/40 text-orange-900 cursor-not-allowed' : 'border-orange-700/40 text-orange-500 hover:bg-orange-500/10'}`}
+              className={`flex items-center gap-1.5 px-3 py-1.5 text-[10px] uppercase tracking-wider rounded border transition-all font-bold ${drawMode === 'plot' ? 'bg-orange-500/20 border-orange-400 text-orange-300' : plotClosed ? 'border-orange-900/40 text-orange-900 cursor-not-allowed' : 'border-orange-700/40 text-orange-500 hover:bg-orange-500/10'}`}
             >
               <span className="w-2 h-2 rounded-full bg-orange-400 inline-block" />
-              {plotClosed ? 'Plot ✓' : drawMode === 'plot' ? 'Drawing Plot...' : 'Plot Boundary'}
+              {plotClosed ? 'Plot \u2713' : drawMode === 'plot' ? 'Drawing Plot...' : 'Plot Boundary'}
             </button>
-
             <button
               onClick={() => setDrawMode(d => d === 'site' ? null : 'site')}
               disabled={!plotClosed || siteClosed}
-              className={`flex items-center gap-1.5 px-3 py-1.5 text-[10px] uppercase tracking-wider rounded border transition-all font-bold
-                ${drawMode === 'site' ? 'bg-cyan-500/20 border-cyan-400 text-cyan-300' : siteClosed ? 'border-cyan-900/40 text-cyan-900 cursor-not-allowed' : !plotClosed ? 'border-gray-800 text-gray-700 cursor-not-allowed' : 'border-cyan-700/40 text-cyan-500 hover:bg-cyan-500/10'}`}
+              className={`flex items-center gap-1.5 px-3 py-1.5 text-[10px] uppercase tracking-wider rounded border transition-all font-bold ${drawMode === 'site' ? 'bg-cyan-500/20 border-cyan-400 text-cyan-300' : siteClosed ? 'border-cyan-900/40 text-cyan-900 cursor-not-allowed' : !plotClosed ? 'border-gray-800 text-gray-700 cursor-not-allowed' : 'border-cyan-700/40 text-cyan-500 hover:bg-cyan-500/10'}`}
             >
               <span className="w-2 h-2 rounded-full bg-cyan-400 inline-block" />
-              {siteClosed ? 'Site Ext ✓' : drawMode === 'site' ? 'Drawing Site...' : 'Site Exterior'}
+              {siteClosed ? 'Site Ext \u2713' : drawMode === 'site' ? 'Drawing Site...' : 'Site Exterior'}
             </button>
-
             <div className="ml-auto flex items-center gap-2">
               <button
                 onClick={() => { setPlotPoints([]); setSitePoints([]); setPlotClosed(false); setSiteClosed(false); setDrawMode(null); setRoomSchedule(null); setSvgOutput(null); setShowSVG(false); }}
@@ -549,19 +455,14 @@ I'll calculate whether it's mathematically possible, correct you if needed, and 
                 <RotateCcw size={11} /> Reset
               </button>
             </div>
-
             <div className="text-[9px] text-green-900 border border-green-950 rounded px-2 py-1">
-              1 cell = 1m &nbsp;|&nbsp; Grid: {GRID_COLS}m × {GRID_ROWS}m
+              1 cell = 1m &nbsp;|&nbsp; Grid: {GRID_COLS}m \u00d7 {GRID_ROWS}m
             </div>
           </div>
 
-          {/* Canvas / SVG Display */}
           <div className="flex-1 overflow-auto relative bg-[#030a03]">
             {showSVG && svgOutput ? (
-              <div
-                className="w-full h-full"
-                dangerouslySetInnerHTML={{ __html: svgOutput }}
-              />
+              <div className="w-full h-full" dangerouslySetInnerHTML={{ __html: svgOutput }} />
             ) : (
               <canvas
                 ref={canvasRef}
@@ -576,36 +477,25 @@ I'll calculate whether it's mathematically possible, correct you if needed, and 
           </div>
         </div>
 
-        {/* RIGHT: Smart Chat */}
         <div className="w-[420px] border-l border-green-900/30 bg-[#070f07] flex flex-col shrink-0">
-
-          {/* Chat Header */}
           <div className="px-5 py-3 border-b border-green-900/30 shrink-0">
             <h2 className="text-[11px] font-bold tracking-[3px] uppercase text-green-400">Smart Architect Chat</h2>
-            <p className="text-[9px] text-green-800 uppercase tracking-wide mt-0.5">NBC 2016 Standards · Mathematically Verified</p>
+            <p className="text-[9px] text-green-800 uppercase tracking-wide mt-0.5">NBC 2016 Standards \u00b7 Mathematically Verified</p>
           </div>
 
-          {/* Messages */}
           <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4 custom-scrollbar">
             {messages.map((msg, i) => (
               <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                <div className={`max-w-[85%] rounded-lg px-4 py-3 text-[11px] leading-relaxed
-                  ${msg.role === 'user'
-                    ? 'bg-green-500/15 border border-green-500/30 text-green-200'
-                    : 'bg-[#0a180a] border border-green-900/40 text-green-300'
-                  }`}
-                >
-                  {/* Render markdown-like bold */}
+                <div className={`max-w-[85%] rounded-lg px-4 py-3 text-[11px] leading-relaxed ${msg.role === 'user' ? 'bg-green-500/15 border border-green-500/30 text-green-200' : 'bg-[#0a180a] border border-green-900/40 text-green-300'}`}>
                   <div style={{ whiteSpace: 'pre-wrap' }} dangerouslySetInnerHTML={{
                     __html: msg.content
                       .replace(/\*\*(.*?)\*\*/g, '<strong class="text-green-100">$1</strong>')
-                      .replace(/```json[\s\S]*?```/g, '<span class="text-green-600 text-[9px]">[Room schedule generated ✓]</span>')
+                      .replace(/```json[\s\S]*?```/g, '<span class="text-green-600 text-[9px]">[Room schedule generated \u2713]</span>')
                       .replace(/```[\s\S]*?```/g, '<span class="text-green-600 text-[9px]">[Code block]</span>')
                   }} />
                 </div>
               </div>
             ))}
-
             {isLoading && (
               <div className="flex justify-start">
                 <div className="bg-[#0a180a] border border-green-900/40 rounded-lg px-4 py-3 flex items-center gap-2">
@@ -614,17 +504,16 @@ I'll calculate whether it's mathematically possible, correct you if needed, and 
                 </div>
               </div>
             )}
-
             {roomSchedule && (
               <div className="border border-green-500/30 rounded-lg bg-[#0a180a] p-4">
-                <div className="text-[10px] font-bold text-green-300 uppercase tracking-widest mb-3">✓ Room Schedule Confirmed</div>
+                <div className="text-[10px] font-bold text-green-300 uppercase tracking-widest mb-3">\u2713 Room Schedule Confirmed</div>
                 {roomSchedule.flats.map(flat => (
                   <div key={flat.id} className="mb-3">
                     <div className="text-[10px] font-bold text-green-200 mb-1.5">{flat.name}</div>
                     {flat.rooms.map(room => (
                       <div key={room.code} className="flex justify-between text-[9px] text-green-600 py-0.5 border-b border-green-950">
-                        <span><strong className="text-green-400">{room.code}</strong> — {room.name}</span>
-                        <span>{room.w}m × {room.h}m = <strong className="text-green-300">{room.area} sqm</strong></span>
+                        <span><strong className="text-green-400">{room.code}</strong> \u2014 {room.name}</span>
+                        <span>{room.w}m \u00d7 {room.h}m = <strong className="text-green-300">{room.area} sqm</strong></span>
                       </div>
                     ))}
                   </div>
@@ -638,7 +527,6 @@ I'll calculate whether it's mathematically possible, correct you if needed, and 
             <div ref={chatEndRef} />
           </div>
 
-          {/* Input */}
           <div className="px-4 py-3 border-t border-green-900/30 shrink-0">
             <div className="flex gap-2">
               <textarea
@@ -658,7 +546,7 @@ I'll calculate whether it's mathematically possible, correct you if needed, and 
               </button>
             </div>
             <p className="text-[8px] text-green-900 mt-1.5 uppercase tracking-wide">
-              Enter to send · Shift+Enter for new line
+              Enter to send \u00b7 Shift+Enter for new line
             </p>
           </div>
         </div>
