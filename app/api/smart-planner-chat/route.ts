@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 
 export const maxDuration = 60;
 
-const GROQ_API_KEY = process.env.NEXT_PUBLIC_GROQ_API_KEY || process.env.GROQ_API_KEY || '';
+const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY || '';
 
 // Standard minimum room sizes in metres (real architecture standards)
 const ROOM_STANDARDS = `
@@ -94,19 +94,21 @@ export async function POST(request: Request) {
       ? `${SYSTEM_PROMPT}\n\nCURRENT TRACED PLOT: The user has traced a plot boundary of approximately ${plotBoundary.widthM}m × ${plotBoundary.heightM}m = ${plotBoundary.areaM} sqm. Site exterior (buildable area after setbacks) is approximately ${plotBoundary.siteWidthM}m × ${plotBoundary.siteHeightM}m = ${plotBoundary.siteAreaM} sqm.`
       : SYSTEM_PROMPT;
 
-    const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+    const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${GROQ_API_KEY}`,
+        'Authorization': `Bearer ${OPENROUTER_API_KEY}`,
+        'HTTP-Referer': 'https://project-x-mu-eight.vercel.app',
+        'X-Title': 'Smart Planner',
       },
       body: JSON.stringify({
-        model: 'llama-3.3-70b-versatile',
+        model: 'groq/llama-3.3-70b-versatile',
         messages: [
           { role: 'system', content: systemWithContext },
           ...messages
         ],
-        temperature: 0.3, // Low temp for math accuracy
+        temperature: 0.3,
         max_tokens: 2000,
       }),
     });
