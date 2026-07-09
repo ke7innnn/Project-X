@@ -665,6 +665,8 @@ export default function SmartPlannerPage() {
           maskBase64,
           roomSchedule: schedule,
           imageSize: currentRatio.falSize, // match output to canvas ratio
+          // Pass the exact site polygon coordinates so the AI can trace the exact shape
+          sitePolygonPoints: activePts.map(p => ({ x: pxToMScaled(p.x), y: pxToMScaled(p.y) })),
         }),
       });
 

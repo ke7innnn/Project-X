@@ -17,6 +17,11 @@ interface Flat {
   rooms: Room[];
 }
 
+interface PolygonPoint {
+  x: number;
+  y: number;
+}
+
 interface RoomSchedule {
   flats: Flat[];
   totalBuildupArea: number;
@@ -25,6 +30,7 @@ interface RoomSchedule {
   siteExteriorW: number;
   siteExteriorH: number;
   layoutType?: string; // selected layout concept
+  sitePolygonPoints?: PolygonPoint[]; // exact vertex coordinates of the traced shape
 }
 
 /** Detect BHK type from the rooms in one flat group */
@@ -64,7 +70,7 @@ ZONE 3 — BACK (exterior wall): MASTER BEDROOM (with attached MASTER BATH) + re
   }
 }
 
-function buildFloorPlanPrompt(schedule: RoomSchedule): string {
+function buildFloorPlanPrompt(schedule: RoomSchedule, sitePolygonPoints?: PolygonPoint[]): string {
   // Group flats by layout similarity (same room names & dimensions) to optimize prompt length
   const groups: { [key: string]: { ids: string[]; rooms: Room[] } } = {};
   for (const flat of schedule.flats) {
@@ -100,22 +106,35 @@ function buildFloorPlanPrompt(schedule: RoomSchedule): string {
 - Central CORRIDOR spine 1.5m wide runs horizontally between the 2 rows
 - Staircase 3×2m at the west end of corridor`;
 
-  return `You are a professional AutoCAD architect. 
+  // Build shape polygon description from coordinates
+  const polygonStr = sitePolygonPoints && sitePolygonPoints.length > 0
+    ? sitePolygonPoints.map((p, i) => `V${i + 1}(${p.x}m,${p.y}m)`).join(' → ') + ` → back to V1`
+    : `a ${schedule.siteExteriorW}m × ${schedule.siteExteriorH}m rectangle`;
 
-═══════════════════════════════════════════════════════
-MASK & BOUNDARY COMPLIANCE — ABSOLUTE:
-═══════════════════════════════════════════════════════
-⚠ You are provided a mask. Draw the entire building layout (walls, rooms, corridors) ONLY inside the white masked region.
-⚠ The thick black outer boundary walls of the building footprint must align perfectly along the edge/boundary of this white shape.
-⚠ Do not draw any walls, text, or doors in the black (unmasked) region.
-═══════════════════════════════════════════════════════
+  const shapeVertexCount = sitePolygonPoints?.length ?? 4;
+  const isIrregular = shapeVertexCount > 4;
+
+  return `You are a professional AutoCAD architect.
+
+████████████████████████████████████████████████████
+⚠ BUILDING FOOTPRINT SHAPE — ABSOLUTE RULE #1:
+████████████████████████████████████████████████████
+The building outer walls MUST form this EXACT polygon shape:
+${polygonStr}
+
+This is a ${shapeVertexCount}-vertex ${isIrregular ? 'IRREGULAR POLYGON' : 'rectangle'}. The outer walls trace EVERY vertex listed above EXACTLY.
+⚠ DO NOT draw a rectangle, diamond, or any other shape. Follow the vertex coordinates above precisely.
+⚠ The mask (white area) in the provided image ALREADY shows this exact shape. Your outer walls must line up with the white mask boundary edge-to-edge.
+████████████████████████████████████████████████████
 
 BUILDING LAYOUT STRATEGY:
 ${layoutInstructions}
-- Corner flats must adapt their shapes (trapezoidal/angled) to perfectly fill the corners of the mask footprint.
+- Corner flats must adapt their shapes (trapezoidal/angled) to perfectly fill the corners of the traced polygon footprint.
+- Corridors and utility cores must bend/angle to follow the exact polygon outline.
 
 FLOOR PLAN DATA:
-- Site size: ${schedule.siteExteriorW}m × ${schedule.siteExteriorH}m
+- Site polygon: ${polygonStr}
+- Site bounding box: ${schedule.siteExteriorW}m × ${schedule.siteExteriorH}m
 - Total buildup: ${schedule.totalBuildupArea} sqm
 - Total flats: ${flatCount}
 - Total rooms: ${totalRooms}
@@ -127,7 +146,7 @@ ${flatDescriptions}
 UNIVERSAL ROOM FLOW & VENTILATION RULES:
 ═══════════════════════════════════════════════════════
 ⚠ LIVING ROOM is ALWAYS the room directly behind the entrance door. Entrance door from corridor swings directly into the Living Room.
-⚠ Bedrooms, Living Rooms, and Kitchens must touch the outer shell of the mask to ensure large ventilation windows face the outside.
+⚠ Bedrooms, Living Rooms, and Kitchens must touch the outer shell of the polygon to ensure large ventilation windows face the outside.
 ⚠ Bathrooms are always internal (placed between bedrooms) and must connect to ventilation shafts/ducts.
 ═══════════════════════════════════════════════════════
 
@@ -145,17 +164,22 @@ DRAWING STYLE:
 - Clean AutoCAD 2D top-down blueprint — NO furniture, NO shadows, NO 3D
 
 FINAL CHECKLIST:
-1. ✓ ALL ${totalRooms} rooms present — zero omissions
-2. ✓ LIVING ROOM corridor-side in EVERY flat — never at back
-3. ✓ MASTER BEDROOM at exterior back wall in EVERY flat
-4. ✓ BHK zone layout followed per flat group
-5. ✓ No white gaps inside the white masked footprint`;
+1. ✓ Outer building walls MATCH THE POLYGON VERTICES exactly — not a diamond, not a rectangle
+2. ✓ ALL ${totalRooms} rooms present — zero omissions
+3. ✓ LIVING ROOM corridor-side in EVERY flat — never at back
+4. ✓ MASTER BEDROOM at exterior back wall in EVERY flat
+5. ✓ BHK zone layout followed per flat group
+6. ✓ No white gaps inside the white masked footprint`;
 }
 
 
 export async function POST(req: Request) {
   try {
-    const { imageBase64, maskBase64, roomSchedule, imageSize = 'square' } = await req.json();
+    const { imageBase64, maskBase64, roomSchedule, imageSize = 'square', sitePolygonPoints } = await req.json();
+    // Inject polygon points into schedule for the prompt builder
+    if (sitePolygonPoints && sitePolygonPoints.length > 0) {
+      roomSchedule.sitePolygonPoints = sitePolygonPoints;
+    }
 
     if (!imageBase64 || !roomSchedule) {
       return NextResponse.json({ error: 'Missing imageBase64 or roomSchedule' }, { status: 400 });
@@ -188,7 +212,7 @@ export async function POST(req: Request) {
     }
 
     // 3. Build the strict architectural prompt
-    const prompt = buildFloorPlanPrompt(roomSchedule);
+    const prompt = buildFloorPlanPrompt(roomSchedule, sitePolygonPoints);
     console.log('[FloorPlan] Prompt length:', prompt.length, 'chars');
 
     // Only keep ref7_bhk_types.png for symbols and styling consistency
