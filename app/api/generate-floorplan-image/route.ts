@@ -119,18 +119,22 @@ function buildFloorPlanPrompt(schedule: RoomSchedule, sitePolygonPoints?: Polygo
 ████████████████████████████████████████████████████
 ⚠ BUILDING FOOTPRINT SHAPE — ABSOLUTE RULE #1:
 ████████████████████████████████████████████████████
-The building outer walls MUST form this EXACT polygon shape:
-${polygonStr}
+- The source image has the building's outer walls PRE-DRAWN as a thick, solid black concrete wall loop. 
+- You MUST paint the floor plan (rooms, internal walls, doors, corridors) EXACTLY inside this pre-drawn black concrete boundary loop.
+- The outer walls of the generated floor plan must align perfectly along this pre-drawn black footprint. Do NOT change, shrink, distort, or flip the shape of this outer footprint.
+- DO NOT draw a rectangle, diamond, or any other shape. Trace the exact outline provided in the source image.
 
-This is a ${shapeVertexCount}-vertex ${isIrregular ? 'IRREGULAR POLYGON' : 'rectangle'}. The outer walls trace EVERY vertex listed above EXACTLY.
-⚠ DO NOT draw a rectangle, diamond, or any other shape. Follow the vertex coordinates above precisely.
-⚠ The mask (white area) in the provided image ALREADY shows this exact shape. Your outer walls must line up with the white mask boundary edge-to-edge.
+- COORDINATE VERTEX REFERENCE:
+  The shape vertices in meters are: ${polygonStr}
+  This is a ${shapeVertexCount}-vertex ${isIrregular ? 'IRREGULAR POLYGON' : 'rectangle'}.
+  ⚠ COORDINATE SYSTEM: This uses HTML Canvas coordinates where (0,0) is at the TOP-LEFT of the image. Y increases DOWNWARDS (top-to-bottom). So a vertex with y=14m is near the top of the image, and a vertex with y=43m is near the bottom of the image. Do NOT flip it vertically.
+- The mask (white area) in the provided mask image ALREADY matches this exact shape.
 ████████████████████████████████████████████████████
 
 BUILDING LAYOUT STRATEGY:
 ${layoutInstructions}
-- Corner flats must adapt their shapes (trapezoidal/angled) to perfectly fill the corners of the traced polygon footprint.
-- Corridors and utility cores must bend/angle to follow the exact polygon outline.
+- Corner flats must adapt their shapes (trapezoidal/angled) to perfectly fill the corners of the pre-drawn black concrete outer footprint.
+- Corridors and utility cores must bend/angle to follow the exact pre-drawn outline.
 
 FLOOR PLAN DATA:
 - Site polygon: ${polygonStr}

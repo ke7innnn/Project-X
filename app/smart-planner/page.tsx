@@ -82,17 +82,24 @@ function exportCanvasForAI(plotPts: Point[], sitePts: Point[], canvasW: number, 
     ctx.fillText('PLOT BOUNDARY', plotPts[0].x + 4, plotPts[0].y - 6);
   }
 
-  // Cyan solid site exterior
+  // Cyan solid site exterior with thick black concrete outer walls pre-drawn
   if (sitePts.length >= 3) {
-    ctx.strokeStyle = '#00bcd4';
-    ctx.lineWidth = 2.5;
+    // First draw a thick black line representing the concrete outer walls of the building footprint
+    ctx.strokeStyle = '#000000';
+    ctx.lineWidth = 10;
+    ctx.lineJoin = 'miter';
+    ctx.lineCap = 'square';
     ctx.setLineDash([]);
     ctx.beginPath();
     sitePts.forEach((p, i) => { if (i === 0) ctx.moveTo(p.x, p.y); else ctx.lineTo(p.x, p.y); });
     ctx.closePath();
-    ctx.fillStyle = 'rgba(0,188,212,0.06)';
-    ctx.fill();
     ctx.stroke();
+
+    // Then overlay the thin cyan line on top as a guide trace
+    ctx.strokeStyle = '#00bcd4';
+    ctx.lineWidth = 2.5;
+    ctx.stroke();
+
     ctx.fillStyle = '#00bcd4';
     ctx.font = 'bold 11px monospace';
     ctx.fillText('SITE EXTERIOR (FILL ROOMS INSIDE HERE)', sitePts[0].x + 4, sitePts[0].y + 14);
