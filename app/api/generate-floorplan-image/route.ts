@@ -27,14 +27,34 @@ interface RoomSchedule {
 }
 
 function buildFloorPlanPrompt(schedule: RoomSchedule): string {
-  // Build per-flat room listing
-  const flatDescriptions = schedule.flats.map(flat => {
-    const roomLines = flat.rooms.map(r =>
-      `    - ${r.code}: ${r.name} (${r.w}m × ${r.h}m = ${r.area} sqm, door required)`
-    ).join('\n');
-    const flatArea = flat.rooms.reduce((s, r) => s + r.area, 0);
-    return `  FLAT ${flat.id} [total ${flatArea} sqm]:\n${roomLines}`;
-  }).join('\n');
+  // Group flats by layout similarity (same room names & dimensions) to optimize prompt length
+  const groups: { [key: string]: { ids: string[]; rooms: Room[] } } = {};
+  for (const flat of schedule.flats) {
+    const key = flat.rooms.map(r => `${r.name}-${r.w}-${r.h}`).join('|');
+    if (!groups[key]) {
+      groups[key] = { ids: [], rooms: flat.rooms };
+    }
+    groups[key].ids.push(flat.id);
+  }
+
+  const flatDescriptions = Object.entries(groups).map(([_, group]) => {
+    const flatIdsStr = group.ids.map(id => `FLAT ${id}`).join(', ');
+    const roomLines = group.rooms.map((r, idx) => {
+      // Find room code suffix relative to flat ID (e.g. "A1" -> "1")
+      let suffix = r.code;
+      for (const id of group.ids) {
+        if (r.code.startsWith(id)) {
+          suffix = r.code.slice(id.length);
+          break;
+        }
+      }
+      if (!suffix) suffix = String(idx + 1);
+      
+      const exampleCodes = group.ids.slice(0, 3).map(id => `${id}${suffix}`).join(', ');
+      return `    - Suffix "${suffix}" (e.g. ${exampleCodes}): ${r.name} (${r.w}m × ${r.h}m = ${r.area} sqm, door required)`;
+    }).join('\n');
+    return `  FOR ${flatIdsStr}:\n${roomLines}`;
+  }).join('\n\n');
 
   const totalRooms = schedule.flats.reduce((s, f) => s + f.rooms.length, 0);
   const flatCount = schedule.flats.length;
