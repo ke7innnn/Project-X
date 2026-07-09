@@ -114,7 +114,7 @@ export default function SmartPlannerPage() {
 
   const [messages, setMessages] = useState<ChatMessage[]>([{
     role: 'assistant',
-    content: '**Welcome to Smart Planner \u2014 AI Floor Plan Generator**\n\n1. **Trace your Plot Boundary** (orange mode) on the canvas\n2. **Trace your Site Exterior** (cyan mode) after setbacks\n3. **Tell me your requirements** \u2014 how many flats, BHK type\n\nGroq will calculate everything mathematically, then GPT-Image-2 will generate a professional floor plan image.\n\n**Start tracing or just tell me your plot dimensions!**'
+    content: '**Welcome to Smart Planner \u2014 AI Floor Plan Generator**\n\n1. **Trace your Plot Boundary** (orange mode) on the canvas\n2. **Trace your Site Exterior** (cyan mode) after setbacks\n3. **Tell me your requirements** \u2014 how many flats, BHK type\n\nI will calculate everything mathematically, then generate a professional floor plan image.\n\n**Start tracing or just tell me your plot dimensions!**'
   }]);
   const [inputText, setInputText] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -204,10 +204,10 @@ export default function SmartPlannerPage() {
       ctx.fillStyle = '#00f0ff';
       ctx.font = 'bold 22px monospace';
       ctx.textAlign = 'center';
-      ctx.fillText('\u2728 GPT-Image-2 is generating your floor plan...', CANVAS_W / 2, CANVAS_H / 2 - 16);
+      ctx.fillText('\u2728 I\'m generating your floor plan...', CANVAS_W / 2, CANVAS_H / 2 - 16);
       ctx.font = '14px monospace';
       ctx.fillStyle = '#00f0ffaa';
-      ctx.fillText('Low quality mode \u2014 ~10 seconds', CANVAS_W / 2, CANVAS_H / 2 + 16);
+      ctx.fillText('Creating layout \u2014 ~10 seconds', CANVAS_W / 2, CANVAS_H / 2 + 16);
       ctx.textAlign = 'left';
     }
   }, [plotPoints, sitePoints, plotClosed, siteClosed, hoverPoint, drawMode, isGeneratingImage]);
@@ -374,7 +374,7 @@ export default function SmartPlannerPage() {
             <h1 className="text-lg font-bold tracking-[4px] uppercase text-white drop-shadow-[0_0_8px_rgba(0,255,100,0.3)]">
               Smart Planner <span className="text-[10px] bg-green-500/20 border border-green-500/40 text-green-400 px-2 py-0.5 rounded ml-2">v3</span>
             </h1>
-            <span className="text-[9px] tracking-[3px] text-green-600 uppercase">Groq Math &middot; GPT-Image-2 Visual &middot; Vastu Compliant</span>
+            <span className="text-[9px] tracking-[3px] text-green-600 uppercase">Mathematical Planning &middot; Visual Layout &middot; Vastu Compliant</span>
           </div>
         </div>
         <div className="flex items-center gap-3">
@@ -428,7 +428,7 @@ export default function SmartPlannerPage() {
               {isGeneratingImage && (
                 <div className="flex items-center gap-2 px-3 py-1.5 text-[10px] text-purple-400 border border-purple-900/40 rounded bg-purple-950/20">
                   <Loader2 size={11} className="animate-spin" />
-                  GPT-Image-2 generating...
+                  Generating floor plan...
                 </div>
               )}
               <button
@@ -468,7 +468,7 @@ export default function SmartPlannerPage() {
         <div className="w-[420px] border-l border-green-900/30 bg-[#070f07] flex flex-col shrink-0">
           <div className="px-5 py-3 border-b border-green-900/30 shrink-0">
             <h2 className="text-[11px] font-bold tracking-[3px] uppercase text-green-400">Smart Architect Chat</h2>
-            <p className="text-[9px] text-green-800 uppercase tracking-wide mt-0.5">Groq Math &middot; GPT-Image-2 Floor Plan &middot; Vastu</p>
+            <p className="text-[9px] text-green-800 uppercase tracking-wide mt-0.5">Mathematical Planning &middot; Visual Layout &middot; Vastu</p>
           </div>
 
           <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
@@ -488,7 +488,7 @@ export default function SmartPlannerPage() {
               <div className="flex justify-start">
                 <div className="bg-[#0a180a] border border-green-900/40 rounded-lg px-4 py-3 flex items-center gap-2">
                   <Loader2 size={14} className="animate-spin text-green-500" />
-                  <span className="text-[10px] text-green-600">Groq calculating rooms...</span>
+                  <span className="text-[10px] text-green-600">I'm thinking & calculating rooms...</span>
                 </div>
               </div>
             )}
@@ -496,7 +496,7 @@ export default function SmartPlannerPage() {
               <div className="flex justify-start">
                 <div className="bg-purple-950/30 border border-purple-900/40 rounded-lg px-4 py-3 flex items-center gap-2">
                   <Sparkles size={14} className="animate-pulse text-purple-400" />
-                  <span className="text-[10px] text-purple-400">GPT-Image-2 drawing your floor plan...</span>
+                  <span className="text-[10px] text-purple-400">I'm generating your floor plan image...</span>
                 </div>
               </div>
             )}
