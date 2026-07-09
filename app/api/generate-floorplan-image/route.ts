@@ -59,71 +59,73 @@ function buildFloorPlanPrompt(schedule: RoomSchedule): string {
   const totalRooms = schedule.flats.reduce((s, f) => s + f.rooms.length, 0);
   const flatCount = schedule.flats.length;
 
-  return `You are a professional AutoCAD architect rendering a 2D floor plan. This image has two polygon outlines:
-- ORANGE dashed polygon = plot boundary (do NOT touch this line)
-- CYAN solid polygon = buildable site boundary — ALL rooms MUST be placed INSIDE this polygon
+  return `You are a professional AutoCAD architect. This image has two polygon outlines:
+- ORANGE dashed = plot boundary (NEVER touch or remove)
+- CYAN solid = buildable zone — ALL content goes INSIDE this polygon
 
 ═══════════════════════════════════════════════════════
-CRITICAL GEOMETRY RULE — READ THIS FIRST:
+TRACES & BOUNDARY RULES — ABSOLUTE:
 ═══════════════════════════════════════════════════════
-The CYAN polygon is NOT a rectangle. It has angled or tapered edges and corners.
-The building footprint must EXACTLY follow the shape of the CYAN polygon.
-
-⚠ DO NOT place rooms inside a rectangular bounding box.
-⚠ DO NOT leave any white/empty space inside the CYAN polygon.
-⚠ ALL areas inside the CYAN boundary must be filled with rooms, walls, corridor, or staircase.
-⚠ Edge flats touching a diagonal or tapered wall MUST be trapezoidal/wedge-shaped to hug that wall exactly.
-⚠ Corner rooms can be irregular polygons — they must fill the corner triangular zones completely.
-⚠ The outer wall of the building = the cyan polygon line. Not an inner rectangle.
+⚠ NEVER erase, move, repaint, or redraw the ORANGE or CYAN lines.
+⚠ Keep them exactly at their original pixel positions and colors.
+⚠ The building footprint = the CYAN polygon exactly. Not a rectangle.
+⚠ Fill ALL corners and angled edges — no white gaps inside the CYAN zone.
 ═══════════════════════════════════════════════════════
 
-═══════════════════════════════════════════════════════
-TRACES & BOUNDARY PRESERVATION RULES:
-═══════════════════════════════════════════════════════
-⚠ The input image contains hand-drawn ORANGE dashed lines and CYAN solid lines.
-⚠ You MUST NOT modify, shift, relocate, erase, repaint, or redraw these lines.
-⚠ Keep them EXACTLY in their original colors, positions, and coordinates.
-⚠ Place all walls and rooms strictly inside the CYAN zone, without covering or moving the lines.
-═══════════════════════════════════════════════════════
+BUILDING LAYOUT:
+- ${flatCount} flats in 2 rows (top row: Flats A–${String.fromCharCode(64+Math.ceil(flatCount/2))}, bottom row: remaining flats)
+- Central CORRIDOR spine 1.5m wide runs horizontally between the 2 rows
+- Staircase 3×2m at the west end of corridor
+- Corner flats must be trapezoidal/wedge-shaped to fill angled corners
 
-FLOOR PLAN REQUIREMENTS:
-- Total flats: ${flatCount}
-- Total rooms: ${totalRooms}
-- Total buildup area: ${schedule.totalBuildupArea} sqm
-- Site dimensions: ${schedule.siteExteriorW}m wide × ${schedule.siteExteriorH}m tall
+FLOOR PLAN DATA:
+- Site: ${schedule.siteExteriorW}m × ${schedule.siteExteriorH}m
+- Total buildup: ${schedule.totalBuildupArea} sqm
+- Rooms: ${totalRooms}
 
-ROOM SCHEDULE (ALL ${totalRooms} rooms MUST be drawn — zero omissions, zero duplicates):
+ROOM SCHEDULE:
 ${flatDescriptions}
 
-LAYOUT STRATEGY:
-- Arrange flats in 2 rows of 7 flats each (7 top row, 7 bottom row), with a central corridor spine of 1.5m width between them
-- The 2 end flats on each side (e.g. Flat A and Flat G in the top row) must taper/stretch to fill the angled cyan corners
-- Every flat's outer walls must press against the cyan boundary — no gap between flat outer wall and cyan line
-- Staircase (3m × 2m) at the West end between the two rows
-- Main entrance at North or East wall of cyan polygon
+═══════════════════════════════════════════════════════
+CRITICAL PER-FLAT ROOM LAYOUT (follow exactly):
+═══════════════════════════════════════════════════════
+Inside EACH flat, arrange rooms in this exact order FROM CORRIDOR INWARD:
 
-VASTU (follow strictly per flat):
-- Master Bedroom → South-West of each flat
-- Kitchen → South-East
-- Living Room → North or North-East
-- Bathrooms → North-West
+ZONE 1 — CORRIDOR SIDE (entrance zone):
+  • LIVING ROOM — largest room, directly behind entrance door, faces corridor wall
+  • Entrance door swings INTO living room from corridor
+
+ZONE 2 — MIDDLE of flat:
+  • KITCHEN — to one side
+  • BEDROOM 2 — to other side
+  • Common bathroom between kitchen and bedroom 2
+
+ZONE 3 — BACK (exterior wall, farthest from corridor):
+  • MASTER BEDROOM — largest bedroom, at exterior back wall
+  • MASTER BATHROOM — attached directly to master bedroom
+
+FOR TOP ROW FLATS: corridor is at BOTTOM of flat, exterior wall is TOP → Living Room at bottom, Master Bedroom at top
+FOR BOTTOM ROW FLATS: corridor is at TOP of flat, exterior wall is BOTTOM → Living Room at top, Master Bedroom at bottom
+
+⚠ Living Room MUST always be the room closest to corridor — NEVER put a bedroom between corridor and living room.
+⚠ Entrance door from corridor leads directly into Living Room or Foyer — NEVER directly into a bedroom or kitchen.
+═══════════════════════════════════════════════════════
 
 DRAWING STYLE:
 - White background, black walls
 - Thick walls (20cm) between flats, thin walls (10cm) inside flat
-- Every room: print code (e.g. "A1") + name + dimensions in small black text centered inside
-- Every room: draw door as arc swing symbol (0.9m gap in wall)
-- Flat labels "FLAT A", "FLAT B" etc. in bold at top of each flat zone
-- Dimension lines on outer walls showing site width/height
-- Style: clean AutoCAD 2D top-down blueprint, NO furniture, NO shadows, NO 3D, NO perspective
+- Every room: code (e.g. "A1") + room name + dimensions centered in black text
+- Every room: door with arc swing symbol (0.9m gap)
+- Every flat: bold "FLAT A", "FLAT B" label
+- Dimension lines on outer site walls
+- Clean AutoCAD 2D top-down blueprint — NO furniture, NO shadows, NO 3D
 
-FINAL CHECKLIST BEFORE SUBMITTING:
-1. ✓ ALL ${totalRooms} rooms drawn — every single one
-2. ✓ ZERO white space gaps inside the cyan polygon — every corner is filled
-3. ✓ Outer building walls follow the exact shape of the cyan polygon
-4. ✓ Zero duplicate room codes
-5. ✓ Every room has a door symbol
-6. ✓ Orange and cyan polygon lines are preserved unchanged`;
+FINAL CHECKLIST:
+1. ✓ ALL ${totalRooms} rooms present — zero omissions
+2. ✓ LIVING ROOM is corridor-side in EVERY flat — never at back
+3. ✓ MASTER BEDROOM is at exterior back wall in EVERY flat
+4. ✓ No white gaps inside CYAN polygon
+5. ✓ Orange and cyan lines untouched`;
 }
 
 export async function POST(req: Request) {
@@ -147,21 +149,21 @@ export async function POST(req: Request) {
     const prompt = buildFloorPlanPrompt(roomSchedule);
     console.log('[FloorPlan] Prompt length:', prompt.length, 'chars');
 
-    // 3. Reference images — teach GPT-Image-2 correct floor plan conventions
-    // These are permanent fal.ai CDN URLs (never expire)
+    // 3. Reference images — teach GPT-Image-2 correct per-flat room layout and flow
+    // Permanent fal.ai CDN URLs (never expire)
     const REFERENCE_IMAGES = [
-      'https://v3b.fal.media/files/b/0aa18f87/v313ti8xjlqVZlsfwDqAr_ref1_multiflat.png',   // Multi-flat building layout with corridor
-      'https://v3b.fal.media/files/b/0aa18f93/z6-aekplqL93H8OR1dG2S_ref2_symbols.png',       // Architectural symbols (doors, windows, walls)
-      'https://v3b.fal.media/files/b/0aa18f87/3aWyPjTtYCx_qCAw0XFFA_ref3_indian3bhk.png',   // Indian 3BHK Vastu-compliant flat
+      'https://v3b.fal.media/files/b/0aa193f0/s7ugUngVzDI_gqbsnqWLw_ref4_single_flat.png',    // Single flat: Living Room at corridor side, bedrooms at back
+      'https://v3b.fal.media/files/b/0aa193f1/66q9g0uzE0Wd7XB_nExau_ref5_corridor_flats.png', // 3 flats with corridor: Living Room always faces corridor
+      'https://v3b.fal.media/files/b/0aa193f1/gayXUIsogXCEjJsrCkHi3_ref6_full_building.png',  // Full 14-flat building with correct top/bottom row orientation
     ];
 
-    // 4. Call GPT-Image-2 edit — canvas outline + 3 reference images
-    console.log('[FloorPlan] Calling GPT-Image-2 with 3 reference images...');
+    // 4. Call GPT-Image-2 edit — canvas + 3 targeted layout references
+    console.log('[FloorPlan] Calling GPT-Image-2 (medium quality) with 3 flat-layout references...');
     const result = await fal.subscribe('openai/gpt-image-2/edit', {
       input: {
         image_urls: [uploadedUrl, ...REFERENCE_IMAGES],
         prompt,
-        quality: 'low',
+        quality: 'medium',
         image_size: 'square',
         num_images: 1,
       },
