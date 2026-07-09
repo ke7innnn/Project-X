@@ -119,14 +119,28 @@ export default function PngToDxfPage() {
     if (file) loadFile(file);
   };
 
-  const base64ToBlob = (base64Str: string, typeStr: string) => {
-    const byteString = atob(base64Str.split(',')[1]);
-    const ab = new ArrayBuffer(byteString.length);
-    const ia = new Uint8Array(ab);
-    for (let i = 0; i < byteString.length; i++) {
-      ia[i] = byteString.charCodeAt(i);
-    }
-    return new Blob([ab], { type: typeStr });
+  // Downscale image on the client before sending — prevents Vercel 4.5MB payload limit on large screenshots
+  const downscaleImage = (file: File, maxPx = 1600): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      const url = URL.createObjectURL(file);
+      img.onload = () => {
+        URL.revokeObjectURL(url);
+        let w = img.width, h = img.height;
+        if (w > maxPx || h > maxPx) {
+          if (w > h) { h = Math.round(h * maxPx / w); w = maxPx; }
+          else        { w = Math.round(w * maxPx / h); h = maxPx; }
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width = w; canvas.height = h;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) { reject(new Error('Canvas context failed')); return; }
+        ctx.drawImage(img, 0, 0, w, h);
+        resolve(canvas.toDataURL('image/jpeg', 0.85)); // ~100–200KB max
+      };
+      img.onerror = reject;
+      img.src = url;
+    });
   };
 
   const vectorize = async () => {
@@ -136,35 +150,34 @@ export default function PngToDxfPage() {
     startFakeProgress();
 
     try {
-      const formData = new FormData();
-      
-      // If we are on the enhanced tab and have preprocessed image
+      let base64ToSend: string;
+
       if (preprocessedUrl && previewTab === 'enhanced') {
-        const blob = base64ToBlob(preprocessedUrl, 'image/png');
-        formData.append('image', blob, 'enhanced.png');
+        // Already a data URL — downscale it too
+        const blob = await fetch(preprocessedUrl).then(r => r.blob());
+        const asFile = new File([blob], 'enhanced.png', { type: 'image/png' });
+        base64ToSend = await downscaleImage(asFile);
       } else {
-        formData.append('image', originalFile);
+        // Downscale original upload before converting to base64
+        base64ToSend = await downscaleImage(originalFile);
       }
-      formData.append('format', 'svg');
 
-      // Call high-quality Vectorizer.ai API
-      const svgRes = await fetch('/api/png-to-dxf', {
+      // Step 1: Get SVG via potrace pipeline
+      const svgRes = await fetch('/api/vectorize', {
         method: 'POST',
-        body: formData,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ currentFloorPlanBase64: base64ToSend }),
       });
-
       if (!svgRes.ok) {
-        const j = await svgRes.json().catch(() => ({ error: 'Vectorizer API failed' }));
-        throw new Error(j.error || `Vectorizer request failed (${svgRes.status})`);
+        const j = await svgRes.json().catch(() => ({ error: 'Unknown error' }));
+        throw new Error(j.error || `Vectorize failed (${svgRes.status})`);
       }
+      const data = await svgRes.json();
+      setSvgResult(data.svg);
 
-      const svgText = await svgRes.text();
-      setSvgResult(svgText);
-
-      // Step 2: Prepare DXF file locally from the Vectorizer.ai SVG
-      const dxfString = convertSvgToDxf(svgText, [], 20); // 20 ppm default
-      const dxfBufferObj = new Blob([dxfString], { type: 'application/dxf' });
-      setDxfBlob(dxfBufferObj);
+      // Step 2: Convert SVG to DXF locally
+      const dxfString = convertSvgToDxf(data.svg, [], 20);
+      setDxfBlob(new Blob([dxfString], { type: 'application/dxf' }));
 
       finishProgress();
       setTimeout(() => setStep('done'), 400);
