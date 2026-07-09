@@ -494,7 +494,12 @@ export default function SmartPlannerPage() {
     }
   }, [plotPoints, sitePoints, plotClosed, siteClosed, hoverPoint, drawMode, isGeneratingImage, CANVAS_W, CANVAS_H, currentRatio, metersPerCell, bgImageLoaded, bgOpacity, bgOffset, bgScale, compareMode]);
 
-  useEffect(() => { drawCanvas(); }, [drawCanvas]);
+  useEffect(() => { 
+    // Re-draw when canvas remounts after hiding the generated image or when deps change
+    if (!showGeneratedImage) {
+      requestAnimationFrame(drawCanvas);
+    }
+  }, [drawCanvas, showGeneratedImage]);
 
   // Native wheel event listener for smooth map zoom without page scroll
   useEffect(() => {
