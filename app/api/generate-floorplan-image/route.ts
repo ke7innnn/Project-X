@@ -26,6 +26,43 @@ interface RoomSchedule {
   siteExteriorH: number;
 }
 
+/** Detect BHK type from the rooms in one flat group */
+function detectBHKType(rooms: Room[]): number {
+  const bedroomCount = rooms.filter(r =>
+    /bedroom|bed room|master bed/i.test(r.name) && !/bath/i.test(r.name)
+  ).length;
+  return Math.max(1, bedroomCount); // 1BHK = 1 bedroom, 2BHK = 2, etc.
+}
+
+/** Return per-flat zone layout instruction for a specific BHK type */
+function getBHKZoneLayout(bhk: number): string {
+  switch (bhk) {
+    case 1:
+      return `THIS IS A 1BHK FLAT (Hall + Kitchen + 1 Bedroom + Bathroom):
+ZONE 1 — CORRIDOR SIDE: LIVING ROOM/HALL directly behind entrance door from corridor
+ZONE 2 — MIDDLE: KITCHEN on one side + BATHROOM on the other side
+ZONE 3 — BACK (exterior wall): BEDROOM — single bedroom at the back exterior wall`;
+
+    case 2:
+      return `THIS IS A 2BHK FLAT (Living Room + Kitchen + 2 Bedrooms + 1-2 Bathrooms):
+ZONE 1 — CORRIDOR SIDE: LIVING ROOM directly behind entrance door from corridor
+ZONE 2 — MIDDLE: KITCHEN on one side + COMMON BATHROOM center
+ZONE 3 — BACK (exterior wall): MASTER BEDROOM (with attached MASTER BATH) on one side + BEDROOM 2 on other side`;
+
+    case 3:
+      return `THIS IS A 3BHK FLAT (Living Room + Kitchen + 3 Bedrooms + 2 Bathrooms):
+ZONE 1 — CORRIDOR SIDE: LIVING ROOM directly behind entrance door from corridor
+ZONE 2 — MIDDLE: KITCHEN on one side + BEDROOM 2 on other side + COMMON BATHROOM between them
+ZONE 3 — BACK (exterior wall): MASTER BEDROOM (with attached MASTER BATH) + BEDROOM 3`;
+
+    default: // 4BHK or more
+      return `THIS IS A ${bhk}BHK FLAT (Living Room + Kitchen + ${bhk} Bedrooms + Multiple Bathrooms):
+ZONE 1 — CORRIDOR SIDE: LIVING ROOM (largest room) directly behind entrance door from corridor
+ZONE 2 — MIDDLE: KITCHEN on one side + BEDROOM 2 and BEDROOM 3 distributed across the width + COMMON BATHROOM
+ZONE 3 — BACK (exterior wall): MASTER BEDROOM (with attached MASTER BATH) + remaining bedrooms`;
+  }
+}
+
 function buildFloorPlanPrompt(schedule: RoomSchedule): string {
   // Group flats by layout similarity (same room names & dimensions) to optimize prompt length
   const groups: { [key: string]: { ids: string[]; rooms: Room[] } } = {};
@@ -37,23 +74,20 @@ function buildFloorPlanPrompt(schedule: RoomSchedule): string {
     groups[key].ids.push(flat.id);
   }
 
+  // Build per-group flat descriptions with BHK type detection
   const flatDescriptions = Object.entries(groups).map(([_, group]) => {
     const flatIdsStr = group.ids.map(id => `FLAT ${id}`).join(', ');
+    const bhk = detectBHKType(group.rooms);
     const roomLines = group.rooms.map((r, idx) => {
-      // Find room code suffix relative to flat ID (e.g. "A1" -> "1")
       let suffix = r.code;
       for (const id of group.ids) {
-        if (r.code.startsWith(id)) {
-          suffix = r.code.slice(id.length);
-          break;
-        }
+        if (r.code.startsWith(id)) { suffix = r.code.slice(id.length); break; }
       }
       if (!suffix) suffix = String(idx + 1);
-      
       const exampleCodes = group.ids.slice(0, 3).map(id => `${id}${suffix}`).join(', ');
       return `    - Suffix "${suffix}" (e.g. ${exampleCodes}): ${r.name} (${r.w}m × ${r.h}m = ${r.area} sqm, door required)`;
     }).join('\n');
-    return `  FOR ${flatIdsStr}:\n${roomLines}`;
+    return `  FOR ${flatIdsStr} [${bhk}BHK]:\n${roomLines}\n  LAYOUT → ${getBHKZoneLayout(bhk)}`;
   }).join('\n\n');
 
   const totalRooms = schedule.flats.reduce((s, f) => s + f.rooms.length, 0);
@@ -81,40 +115,26 @@ BUILDING LAYOUT:
 FLOOR PLAN DATA:
 - Site: ${schedule.siteExteriorW}m × ${schedule.siteExteriorH}m
 - Total buildup: ${schedule.totalBuildupArea} sqm
-- Rooms: ${totalRooms}
+- Total rooms: ${totalRooms}
 
-ROOM SCHEDULE:
+ROOM SCHEDULE (BHK type and zone layout per group):
 ${flatDescriptions}
 
 ═══════════════════════════════════════════════════════
-CRITICAL PER-FLAT ROOM LAYOUT (follow exactly):
+UNIVERSAL ROOM FLOW RULES (apply to ALL BHK types):
 ═══════════════════════════════════════════════════════
-Inside EACH flat, arrange rooms in this exact order FROM CORRIDOR INWARD:
-
-ZONE 1 — CORRIDOR SIDE (entrance zone):
-  • LIVING ROOM — largest room, directly behind entrance door, faces corridor wall
-  • Entrance door swings INTO living room from corridor
-
-ZONE 2 — MIDDLE of flat:
-  • KITCHEN — to one side
-  • BEDROOM 2 — to other side
-  • Common bathroom between kitchen and bedroom 2
-
-ZONE 3 — BACK (exterior wall, farthest from corridor):
-  • MASTER BEDROOM — largest bedroom, at exterior back wall
-  • MASTER BATHROOM — attached directly to master bedroom
-
-FOR TOP ROW FLATS: corridor is at BOTTOM of flat, exterior wall is TOP → Living Room at bottom, Master Bedroom at top
-FOR BOTTOM ROW FLATS: corridor is at TOP of flat, exterior wall is BOTTOM → Living Room at top, Master Bedroom at bottom
-
-⚠ Living Room MUST always be the room closest to corridor — NEVER put a bedroom between corridor and living room.
-⚠ Entrance door from corridor leads directly into Living Room or Foyer — NEVER directly into a bedroom or kitchen.
+⚠ LIVING ROOM is ALWAYS the room directly behind the entrance door — never a bedroom or kitchen.
+⚠ Entrance door from corridor swings directly INTO the Living Room.
+⚠ FOR TOP ROW FLATS: Living Room at BOTTOM (corridor side), Master Bedroom at TOP (exterior wall).
+⚠ FOR BOTTOM ROW FLATS: Living Room at TOP (corridor side), Master Bedroom at BOTTOM (exterior wall).
+⚠ Bathrooms are always internal (no exterior windows) and placed between bedrooms.
+⚠ Kitchen goes on the outer wall side with a ventilation window.
 ═══════════════════════════════════════════════════════
 
 DRAWING STYLE:
 - White background, black walls
 - Thick walls (20cm) between flats, thin walls (10cm) inside flat
-- Every room: code (e.g. "A1") + room name + dimensions centered in black text
+- Every room: code + room name + dimensions centered in black text
 - Every room: door with arc swing symbol (0.9m gap)
 - Every flat: bold "FLAT A", "FLAT B" label
 - Dimension lines on outer site walls
@@ -122,11 +142,13 @@ DRAWING STYLE:
 
 FINAL CHECKLIST:
 1. ✓ ALL ${totalRooms} rooms present — zero omissions
-2. ✓ LIVING ROOM is corridor-side in EVERY flat — never at back
-3. ✓ MASTER BEDROOM is at exterior back wall in EVERY flat
-4. ✓ No white gaps inside CYAN polygon
-5. ✓ Orange and cyan lines untouched`;
+2. ✓ LIVING ROOM corridor-side in EVERY flat — never at back
+3. ✓ MASTER BEDROOM at exterior back wall in EVERY flat
+4. ✓ BHK zone layout followed per flat group (see ROOM SCHEDULE above)
+5. ✓ No white gaps inside CYAN polygon
+6. ✓ Orange and cyan lines untouched`;
 }
+
 
 export async function POST(req: Request) {
   try {
@@ -149,10 +171,10 @@ export async function POST(req: Request) {
     const prompt = buildFloorPlanPrompt(roomSchedule);
     console.log('[FloorPlan] Prompt length:', prompt.length, 'chars');
 
-    // 3. Reference images — teach GPT-Image-2 correct per-flat room layout and flow
+    // 3. Reference images — teach GPT-Image-2 all BHK types and room flow rules
     // Permanent fal.ai CDN URLs (never expire)
     const REFERENCE_IMAGES = [
-      'https://v3b.fal.media/files/b/0aa193f0/s7ugUngVzDI_gqbsnqWLw_ref4_single_flat.png',    // Single flat: Living Room at corridor side, bedrooms at back
+      'https://v3b.fal.media/files/b/0aa1940a/OqSJjCwQJ8MCnITL0aqnp_ref7_bhk_types.png',    // 1BHK/2BHK/3BHK/4BHK flat type comparison — correct internal layout per BHK
       'https://v3b.fal.media/files/b/0aa193f1/66q9g0uzE0Wd7XB_nExau_ref5_corridor_flats.png', // 3 flats with corridor: Living Room always faces corridor
       'https://v3b.fal.media/files/b/0aa193f1/gayXUIsogXCEjJsrCkHi3_ref6_full_building.png',  // Full 14-flat building with correct top/bottom row orientation
     ];
