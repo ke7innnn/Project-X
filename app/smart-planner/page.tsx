@@ -476,6 +476,21 @@ export default function SmartPlannerPage() {
 
   useEffect(() => { drawCanvas(); }, [drawCanvas]);
 
+  // Native wheel event listener for smooth map zoom without page scroll
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const handleNativeWheel = (e: WheelEvent) => {
+      if (drawMode === 'map' && bgImageLoaded) {
+        e.preventDefault(); // Stop the whole page from scrolling
+        const zoomFactor = 1 - e.deltaY * 0.005;
+        setBgScale(prev => Math.max(0.1, Math.min(10, prev * zoomFactor)));
+      }
+    };
+    canvas.addEventListener('wheel', handleNativeWheel, { passive: false });
+    return () => canvas.removeEventListener('wheel', handleNativeWheel);
+  }, [drawMode, bgImageLoaded]);
+
   // Converts a mouse event to canvas coordinates, accounting for
   // object-contain letterboxing (empty bars on sides or top/bottom).
   const getCanvasCoords = (e: React.MouseEvent<HTMLCanvasElement>): Point => {
@@ -542,13 +557,6 @@ export default function SmartPlannerPage() {
       lastMousePos.current = { x: e.clientX, y: e.clientY };
     } else if (drawMode === 'plot' || drawMode === 'site') {
       setHoverPoint(getCanvasCoords(e));
-    }
-  };
-
-  const handleWheel = (e: React.WheelEvent<HTMLCanvasElement>) => {
-    if (drawMode === 'map' && bgImageLoaded) {
-      const zoomSensitivity = 0.001;
-      setBgScale(prev => Math.max(0.1, Math.min(10, prev - e.deltaY * zoomSensitivity)));
     }
   };
 
@@ -868,7 +876,6 @@ export default function SmartPlannerPage() {
                 onMouseMove={handleCanvasMove}
                 onMouseUp={handleMouseUp}
                 onMouseLeave={(e) => { setHoverPoint(null); handleMouseUp(); }}
-                onWheel={handleWheel}
               />
             )}
           </div>
