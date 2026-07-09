@@ -56,11 +56,16 @@ YOUR JOB:
      }
      \`\`\`
    - **Step 2 (After user selects an option):** If the user selects an option (e.g., messages contain "using Option: ..."), generate the detailed, mathematically accurate room schedule tailored *exactly* to that selected layout style.
+     
+     ⚠ **CRITICAL EFFICIENCY RULE:** Listing 10 flats explicitly in JSON will exceed token limits and cause parsing failures. You only need to define ONE typical flat (or 2 if mirrored variations exist) in the "flats" array. 
+     You MUST add a "targetFlatCount" field at the root level specifying the total number of flats requested. The backend will automatically clone and rename them (Flat A, B, C... to N) for the drawing generator!
+     
      Output the final room schedule JSON block:
      \`\`\`json
      {
        "confirmed": true,
        "layoutType": "Selected layout strategy name and short guide for the image generator",
+       "targetFlatCount": 10,
        "plotW": <number>,
        "plotH": <number>,
        "siteExteriorW": <number>,
@@ -74,7 +79,7 @@ YOUR JOB:
            ]
          }
        ],
-       "totalBuildupArea": <total sqm>,
+       "totalBuildupArea": <total sqm of the flats listed in array>,
        "buildingFootprint": <sqm>
      }
      \`\`\`
@@ -200,6 +205,37 @@ ${siteCoordinatesText}
           layoutOptions = parsed.options;
         } else if (parsed.confirmed) {
           roomSchedule = parsed;
+
+          // Auto-expand flats to handle large numbers (e.g. 10 flats) without LLM truncation
+          if (roomSchedule.targetFlatCount && roomSchedule.flats && roomSchedule.flats.length > 0) {
+            const requestedCount = roomSchedule.targetFlatCount;
+            const currentFlats = roomSchedule.flats;
+            const expandedFlats = [];
+
+            for (let i = 0; i < requestedCount; i++) {
+              const flatTemplate = currentFlats[i % currentFlats.length];
+              const flatLetter = String.fromCharCode(65 + i); // A, B, C, D...
+
+              // Deep clone the rooms and rename their codes to match the new flat letter
+              const clonedRooms = flatTemplate.rooms.map((room: any) => {
+                const roomSuffix = room.code.replace(/^[A-Z]/, '');
+                return {
+                  ...room,
+                  code: `${flatLetter}${roomSuffix}`
+                };
+              });
+
+              expandedFlats.push({
+                ...flatTemplate,
+                id: flatLetter,
+                name: `Flat ${flatLetter}`,
+                rooms: clonedRooms
+              });
+            }
+            roomSchedule.flats = expandedFlats;
+            // Re-calculate total buildup area
+            roomSchedule.totalBuildupArea = expandedFlats.reduce((sum, f) => sum + f.rooms.reduce((s: number, r: any) => s + r.area, 0), 0);
+          }
         }
       } catch (e) {
         // Ignore parsing errors
