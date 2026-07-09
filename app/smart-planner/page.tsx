@@ -101,6 +101,38 @@ function exportCanvasForAI(plotPts: Point[], sitePts: Point[], canvasW: number, 
   return offscreen.toDataURL('image/png');
 }
 
+// ─── Export mask as black-and-white PNG for GPT-Image-2 ──────────────────────
+function exportMaskForAI(activePts: Point[], canvasW: number, canvasH: number): string {
+  const offscreen = document.createElement('canvas');
+  offscreen.width = canvasW;
+  offscreen.height = canvasH;
+  const ctx = offscreen.getContext('2d')!;
+
+  // Fill with black (freeze area)
+  ctx.fillStyle = '#000000';
+  ctx.fillRect(0, 0, canvasW, canvasH);
+
+  // Fill the active polygon with white (edit area)
+  if (activePts.length >= 3) {
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath();
+    activePts.forEach((p, i) => {
+      if (i === 0) ctx.moveTo(p.x, p.y);
+      else ctx.lineTo(p.x, p.y);
+    });
+    ctx.closePath();
+    ctx.fill();
+
+    // Dilate (expand) the mask boundary slightly by drawing a thick white outline
+    // This allows the AI's black outer wall to overlap perfectly with the cyan trace.
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = 6;
+    ctx.stroke();
+  }
+
+  return offscreen.toDataURL('image/png');
+}
+
 
 // ─── Component ────────────────────────────────────────────────────────────────
 export default function SmartPlannerPage() {
@@ -205,6 +237,7 @@ export default function SmartPlannerPage() {
   const [compareMode, setCompareMode] = useState(false);
   const generatedImageObjRef = useRef<HTMLImageElement | null>(null);
   const [generationError, setGenerationError] = useState<string | null>(null);
+  const [layoutOptions, setLayoutOptions] = useState<{ id: string; name: string; desc: string; }[] | null>(null);
 
   useEffect(() => {
     if (generatedImageUrl) {
@@ -622,12 +655,14 @@ export default function SmartPlannerPage() {
     try {
       // Export using the actual canvas dimensions matching the selected ratio
       const imageBase64 = exportCanvasForAI(plotPts, sitePts, CANVAS_W, CANVAS_H);
+      const maskBase64 = exportMaskForAI(activePts, CANVAS_W, CANVAS_H);
 
       const res = await fetch('/api/generate-floorplan-image', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           imageBase64,
+          maskBase64,
           roomSchedule: schedule,
           imageSize: currentRatio.falSize, // match output to canvas ratio
         }),
@@ -646,13 +681,12 @@ export default function SmartPlannerPage() {
     }
   };
 
-  // ── Send chat message ────────────────────────────────────────────────────
-  const sendMessage = async () => {
-    if (!inputText.trim() || isLoading) return;
-    const userMsg: ChatMessage = { role: 'user', content: inputText.trim() };
+  const selectLayoutOption = async (optionName: string) => {
+    setLayoutOptions(null); // Clear options
+    setIsLoading(true);
+    const userMsg: ChatMessage = { role: 'user', content: `Please generate the room schedule using Option: "${optionName}".` };
     const newMessages = [...messages, userMsg];
-    setMessages(newMessages); setInputText(''); setIsLoading(true);
-    setGenerationError(null);
+    setMessages(newMessages);
 
     try {
       const res = await fetch('/api/smart-planner-chat', {
@@ -660,6 +694,8 @@ export default function SmartPlannerPage() {
         body: JSON.stringify({
           messages: newMessages.map(m => ({ role: m.role, content: m.content })),
           plotBoundary: getPlotContext(),
+          plotPoints: plotPoints.map(p => ({ x: pxToMScaled(p.x), y: pxToMScaled(p.y) })),
+          sitePoints: sitePoints.map(p => ({ x: pxToMScaled(p.x), y: pxToMScaled(p.y) })),
         }),
       });
       const data = await res.json();
@@ -667,6 +703,51 @@ export default function SmartPlannerPage() {
       if (data.roomSchedule?.confirmed) {
         const sched = data.roomSchedule as RoomSchedule;
         setRoomSchedule(sched);
+      }
+
+      if (data.layoutOptions) {
+        setLayoutOptions(data.layoutOptions);
+      }
+
+      setMessages(prev => [...prev, {
+        role: 'assistant',
+        content: data.text || 'Sorry, I could not process that.'
+      }]);
+    } catch {
+      setMessages(prev => [...prev, { role: 'assistant', content: 'Network error. Please try again.' }]);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // ── Send chat message ────────────────────────────────────────────────────
+  const sendMessage = async () => {
+    if (!inputText.trim() || isLoading) return;
+    const userMsg: ChatMessage = { role: 'user', content: inputText.trim() };
+    const newMessages = [...messages, userMsg];
+    setMessages(newMessages); setInputText(''); setIsLoading(true);
+    setGenerationError(null);
+    setLayoutOptions(null); // Clear options on fresh text
+
+    try {
+      const res = await fetch('/api/smart-planner-chat', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          messages: newMessages.map(m => ({ role: m.role, content: m.content })),
+          plotBoundary: getPlotContext(),
+          plotPoints: plotPoints.map(p => ({ x: pxToMScaled(p.x), y: pxToMScaled(p.y) })),
+          sitePoints: sitePoints.map(p => ({ x: pxToMScaled(p.x), y: pxToMScaled(p.y) })),
+        }),
+      });
+      const data = await res.json();
+
+      if (data.roomSchedule?.confirmed) {
+        const sched = data.roomSchedule as RoomSchedule;
+        setRoomSchedule(sched);
+      }
+
+      if (data.layoutOptions) {
+        setLayoutOptions(data.layoutOptions);
       }
 
       setMessages(prev => [...prev, {
@@ -939,6 +1020,28 @@ export default function SmartPlannerPage() {
                 </div>
               </div>
             ))}
+
+            {layoutOptions && (
+              <div className="border border-yellow-500/20 bg-yellow-950/10 rounded-lg p-4 space-y-3">
+                <div className="text-[10px] font-bold text-yellow-400 uppercase tracking-widest flex items-center gap-1.5">
+                  <Move size={11} /> Select a Layout Option
+                </div>
+                <p className="text-[9px] text-yellow-600/70 uppercase">Choose a layout concept for your traced shape:</p>
+                <div className="grid grid-cols-1 gap-2">
+                  {layoutOptions.map((opt) => (
+                    <button
+                      key={opt.id}
+                      onClick={() => selectLayoutOption(opt.name)}
+                      className="text-left p-3 rounded-lg border border-yellow-950/40 bg-[#070f07] hover:bg-yellow-500/5 hover:border-yellow-500/40 transition-all group"
+                    >
+                      <div className="text-[10px] font-bold text-yellow-400 group-hover:text-yellow-300">{opt.name}</div>
+                      <div className="text-[9px] text-green-700/80 mt-1 leading-normal">{opt.desc}</div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {isLoading && (
               <div className="flex justify-start">
                 <div className="bg-[#0a180a] border border-green-900/40 rounded-lg px-4 py-3 flex items-center gap-2">

@@ -39,51 +39,54 @@ You follow National Building Code (NBC) 2016 standards strictly.
 ${ROOM_STANDARDS}
 
 YOUR JOB:
-1. The user will tell you their plot dimensions and what they want to build (how many flats, BHK type, etc.)
-2. You MUST do the math first. Calculate total required area vs available buildable area.
-3. If the user's request is IMPOSSIBLE in their plot, correct them with EXACT numbers and suggest what IS possible.
-4. If the user's request is POSSIBLE, confirm it and provide a detailed, mathematically accurate room schedule.
-5. Label each flat systematically: FLAT A, FLAT B, etc. Label each room with alphanumeric codes: A1, A2, B1, etc.
-6. Always give dimensions in metres and area in square metres.
+1. The user will provide raw plot dimensions, custom shape coordinate polygons, and flat requirements (BHK, quantity).
+2. **GEOMETRY FEASIBILITY CHECK (CRITICAL):**
+   - Check the True Site Exterior Polygon Area. Each flat needs minimum carpet area: 1BHK = 35sqm, 2BHK = 55sqm, 3BHK = 75sqm.
+   - Analyze the shape coordinates. A standard apartment building needs a minimum structural width of 3.5m to accommodate a room + a corridor.
+   - If the site polygon is too small or has extremely narrow necks (< 3.5m wide), you MUST deny the request. Explain clearly in the text: "Sorry, this shape is too narrow/small..." and do NOT output any JSON block.
+3. **TWO-STEP OPTION FLOW (IF FEASIBLE):**
+   - **Step 1 (First request):** Do not output the room schedule yet. Instead, look at the traced shape coordinates and suggest 2-3 creative layout concepts suited for this shape (e.g. Radial lobby core for squares/circles, Curved wing spine for S-shapes, L-shaped corridor, or Central atrium/courtyard layout).
+     Output the options as a JSON block:
+     \`\`\`json
+     {
+       "options": [
+         { "id": "radial", "name": "Radial central lobby core", "desc": "Staircase and lift in the exact center, flats radiating outwards. Perfect for circular/square boundaries." },
+         { "id": "curved_spine", "name": "Curved wing spine corridor", "desc": "Corridor sweeps through the S-bend, rooms align on the boundary. Ideal for this S-curve." }
+       ]
+     }
+     \`\`\`
+   - **Step 2 (After user selects an option):** If the user selects an option (e.g., messages contain "using Option: ..."), generate the detailed, mathematically accurate room schedule tailored *exactly* to that selected layout style.
+     Output the final room schedule JSON block:
+     \`\`\`json
+     {
+       "confirmed": true,
+       "layoutType": "Selected layout strategy name and short guide for the image generator",
+       "plotW": <number>,
+       "plotH": <number>,
+       "siteExteriorW": <number>,
+       "siteExteriorH": <number>,
+       "flats": [
+         {
+           "id": "A",
+           "name": "Flat A",
+           "rooms": [
+             { "code": "A1", "name": "Master Bedroom", "w": 4, "h": 5, "area": 20 }
+           ]
+         }
+       ],
+       "totalBuildupArea": <total sqm>,
+       "buildingFootprint": <sqm>
+     }
+     \`\`\`
 
-ROOM SCHEDULE FORMAT (use this exact format when confirming a layout):
-When you are ready to output the final confirmed room schedule, OUTPUT A JSON BLOCK like this at the end of your message:
-
-\`\`\`json
-{
-  "confirmed": true,
-  "plotW": <number in metres>,
-  "plotH": <number in metres>,
-  "siteExteriorW": <buildable width after setbacks>,
-  "siteExteriorH": <buildable height after setbacks>,
-  "flats": [
-    {
-      "id": "A",
-      "name": "Flat A",
-      "rooms": [
-        { "code": "A1", "name": "Master Bedroom", "w": 4, "h": 5, "area": 20 },
-        { "code": "A2", "name": "Bedroom 2", "w": 3, "h": 4, "area": 12 },
-        { "code": "A3", "name": "Living Room", "w": 4, "h": 5, "area": 20 },
-        { "code": "A4", "name": "Kitchen", "w": 3, "h": 3.5, "area": 10.5 },
-        { "code": "A5", "name": "Bathroom", "w": 1.8, "h": 2.5, "area": 4.5 },
-        { "code": "A6", "name": "Toilet", "w": 1.5, "h": 2, "area": 3 }
-      ]
-    }
-  ],
-  "totalBuildupArea": <total sqm of all rooms>,
-  "buildingFootprint": <sqm of ground floor footprint>
-}
-\`\`\`
+4. Label each flat systematically: FLAT A, FLAT B, etc. Label each room with alphanumeric codes: A1, A2, B1, etc. All dimensions must be in multiples of 0.5m.
 
 RULES FOR CONCISE DELIVERY:
 - Keep all explanations and text replies extremely short, direct, and fast to read.
 - NEVER write long paragraphs of text. Use bullet points or 1-2 sentence explanations.
-- Speak like a busy, practical architect. No fluff or generic welcomes. Get straight to the point.
+- Speak like a busy, practical architect. Get straight to the point.
 - Show your math in clean, short bullet lines.
-- Ask clarifying questions concisely.
-- If the user asks to modify a room, recalculate and output the revised JSON immediately.
-- All dimensions must be in multiples of 0.5m.
-- The "flats" array in the JSON block MUST list every single flat explicitly (e.g., Flat A, Flat B, Flat C ... up to Flat N for 14 flats). Do NOT summarize, group, or show only one typical flat. Every flat needs its own object in the JSON with all its rooms.
+- The "flats" array in the final JSON block MUST list every single flat explicitly.
 `;
 
 // Fast and cheap models on OpenRouter with strong math capabilities
@@ -152,27 +155,51 @@ async function callOpenRouterWithFallback(
 
 export async function POST(request: Request) {
   try {
-    const { messages, plotBoundary } = await request.json();
+    const { messages, plotBoundary, plotPoints, sitePoints } = await request.json();
 
-    // Add plot context to the first user message if we have boundary data
+    // Prepare polygon coordinates context
+    const plotCoordinatesText = plotPoints && plotPoints.length > 0
+      ? `Plot Polygon Boundary Points (in meters): [${plotPoints.map((p: any) => `(${p.x}m, ${p.y}m)`).join(', ')}]`
+      : '';
+    const siteCoordinatesText = sitePoints && sitePoints.length > 0
+      ? `Site Exterior Polygon Points (in meters): [${sitePoints.map((p: any) => `(${p.x}m, ${p.y}m)`).join(', ')}]`
+      : '';
+
+    // Add plot context to the system prompt
     const systemWithContext = plotBoundary 
-      ? `${SYSTEM_PROMPT}\n\nCURRENT TRACED PLOT DATA (DO NOT RECALCULATE AREA AS W×H, IT IS A POLYGON):\n- Plot Bounding Box: ${plotBoundary.widthM}m × ${plotBoundary.heightM}m\n- True Plot Polygon Area: ${plotBoundary.areaM} sqm\n- Site Exterior Bounding Box: ${plotBoundary.siteWidthM}m × ${plotBoundary.siteHeightM}m\n- True Site Exterior Polygon Area: ${plotBoundary.siteAreaM} sqm\n\nALWAYS use the 'True Polygon Area' for your calculations, do NOT multiply width × height because the user's trace is an irregular polygon, not a perfect rectangle.`
+      ? `${SYSTEM_PROMPT}
+      
+CURRENT TRACED PLOT DATA (IRREGULAR POLYGON):
+- Plot Bounding Box: ${plotBoundary.widthM}m × ${plotBoundary.heightM}m
+- True Plot Polygon Area: ${plotBoundary.areaM} sqm
+- Site Exterior Bounding Box: ${plotBoundary.siteWidthM}m × ${plotBoundary.siteHeightM}m
+- True Site Exterior Polygon Area: ${plotBoundary.siteAreaM} sqm
+${plotCoordinatesText}
+${siteCoordinatesText}
+
+⚠ ALWAYS use the 'True Site Exterior Polygon Area' for your carpet area calculations. Check if the shape points allow a layout without choking the rooms.`
       : SYSTEM_PROMPT;
 
     const { text, modelUsed } = await callOpenRouterWithFallback(systemWithContext, messages);
 
-    // Try to extract JSON room schedule from the response
+    // Try to extract JSON room schedule or layout options from the response
     let roomSchedule = null;
+    let layoutOptions = null;
     const jsonMatch = text.match(/```json\s*([\s\S]*?)```/);
     if (jsonMatch) {
       try {
-        roomSchedule = JSON.parse(jsonMatch[1]);
+        const parsed = JSON.parse(jsonMatch[1]);
+        if (parsed.options) {
+          layoutOptions = parsed.options;
+        } else if (parsed.confirmed) {
+          roomSchedule = parsed;
+        }
       } catch (e) {
-        // Couldn't parse, that's fine — will retry on next user message
+        // Ignore parsing errors
       }
     }
 
-    return NextResponse.json({ text, roomSchedule, modelUsed });
+    return NextResponse.json({ text, roomSchedule, layoutOptions, modelUsed });
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
