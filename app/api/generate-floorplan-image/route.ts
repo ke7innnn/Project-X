@@ -184,6 +184,9 @@ export async function POST(req: Request) {
     if (!imageBase64 || !roomSchedule) {
       return NextResponse.json({ error: 'Missing imageBase64 or roomSchedule' }, { status: 400 });
     }
+    if (!maskBase64) {
+      console.warn('[FloorPlan] ⚠ WARNING: No mask provided — boundary lock is DISABLED');
+    }
 
     // Validate imageSize — only allow fal.ai supported values
     const VALID_SIZES = ['square_hd', 'square', 'portrait_4_3', 'portrait_16_9', 'landscape_4_3', 'landscape_16_9'];
@@ -209,7 +212,12 @@ export async function POST(req: Request) {
       console.log('[FloorPlan] Uploading mask image to fal.ai storage...');
       uploadedMaskUrl = await fal.storage.upload(maskFile);
       console.log('[FloorPlan] Uploaded mask:', uploadedMaskUrl);
+    } else {
+      console.warn('[FloorPlan] ⚠ No maskBase64 received — floor plan will generate WITHOUT boundary lock!');
     }
+
+    // Confirm mask is set before calling
+    console.log('[FloorPlan] Mask URL set:', uploadedMaskUrl ? '✓ YES — boundary lock ACTIVE' : '✗ NO — boundary lock INACTIVE');
 
     // 3. Build the strict architectural prompt
     const prompt = buildFloorPlanPrompt(roomSchedule, sitePolygonPoints);
@@ -222,10 +230,11 @@ export async function POST(req: Request) {
 
     // 4. Call GPT-Image-2 edit — canvas + mask + CAD style reference
     console.log('[FloorPlan] Calling GPT-Image-2 with image_size:', validatedSize);
+    console.log('[FloorPlan] mask_url being sent:', uploadedMaskUrl ?? 'NONE');
     const result = await fal.subscribe('openai/gpt-image-2/edit', {
       input: {
         image_urls: [uploadedUrl, ...REFERENCE_IMAGES],
-        mask_image_url: uploadedMaskUrl, // Lock boundaries via mask inpainting
+        mask_url: uploadedMaskUrl, // ✓ CORRECT fal.ai parameter (NOT mask_image_url)
         prompt,
         quality: 'medium',
         image_size: validatedSize,
