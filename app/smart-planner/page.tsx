@@ -2,7 +2,7 @@
 
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, Send, Loader2, Download, RotateCcw, ImageIcon, Sparkles } from 'lucide-react';
+import { ArrowLeft, Send, Loader2, Download, RotateCcw, ImageIcon, Sparkles, RefreshCw } from 'lucide-react';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface Point { x: number; y: number; }
@@ -335,8 +335,6 @@ export default function SmartPlannerPage() {
       if (data.roomSchedule?.confirmed) {
         const sched = data.roomSchedule as RoomSchedule;
         setRoomSchedule(sched);
-        // Automatically kick off GPT-Image-2 generation
-        generateFloorPlanImage(sched);
       }
 
       setMessages(prev => [...prev, {
@@ -480,7 +478,7 @@ export default function SmartPlannerPage() {
                   <div style={{ whiteSpace: 'pre-wrap' }} dangerouslySetInnerHTML={{
                     __html: msg.content
                       .replace(/\*\*(.*?)\*\*/g, '<strong class="text-green-100">$1</strong>')
-                      .replace(/```json[\s\S]*?```/g, '<span class="text-green-600 text-[9px]">[Room schedule generated \u2713 \u2014 Generating floor plan image...]</span>')
+                      .replace(/```json[\s\S]*?```/g, '<span class="text-green-600 text-[9px]">[Room schedule generated ✓ — Click Approve below to generate floor plan]</span>')
                       .replace(/```[\s\S]*?```/g, '<span class="text-green-600 text-[9px]">[Code block]</span>')
                   }} />
                 </div>
@@ -508,29 +506,61 @@ export default function SmartPlannerPage() {
                   <Sparkles size={11} /> Floor Plan Generated!
                 </div>
                 <img src={generatedImageUrl} alt="Generated floor plan" className="w-full rounded border border-purple-900/30 mb-2" />
-                <button onClick={() => setShowGeneratedImage(true)} className="w-full text-[9px] uppercase tracking-widest text-purple-400 border border-purple-900/30 rounded py-1.5 hover:bg-purple-500/10 transition-all">
-                  View Full Size
-                </button>
+                <div className="flex gap-2">
+                  <button onClick={() => setShowGeneratedImage(true)} className="flex-1 text-[9px] uppercase tracking-widest text-purple-400 border border-purple-900/30 rounded py-1.5 hover:bg-purple-500/10 transition-all">
+                    View Full Size
+                  </button>
+                  <button
+                    onClick={() => { setGeneratedImageUrl(null); roomSchedule && generateFloorPlanImage(roomSchedule); }}
+                    disabled={isGeneratingImage}
+                    className="flex-1 flex items-center justify-center gap-1 text-[9px] uppercase tracking-widest text-amber-400 border border-amber-900/40 rounded py-1.5 hover:bg-amber-500/10 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+                  >
+                    <RefreshCw size={10} className={isGeneratingImage ? 'animate-spin' : ''} />
+                    Regenerate
+                  </button>
+                </div>
               </div>
             )}
             {roomSchedule && (
               <div className="border border-green-500/30 rounded-lg bg-[#0a180a] p-4">
                 <div className="text-[10px] font-bold text-green-300 uppercase tracking-widest mb-3">&#10003; Room Schedule ({roomSchedule.flats.length} flats, {totalRooms} rooms)</div>
-                {roomSchedule.flats.map(flat => (
-                  <div key={flat.id} className="mb-3">
-                    <div className="text-[10px] font-bold text-green-200 mb-1.5">Flat {flat.id}</div>
-                    {flat.rooms.map((room: Room) => (
-                      <div key={room.code} className="flex justify-between text-[9px] text-green-600 py-0.5 border-b border-green-950">
-                        <span><strong className="text-green-400">{room.code}</strong> &mdash; {room.name}</span>
-                        <span>{room.w}m &times; {room.h}m = <strong className="text-green-300">{room.area} sqm</strong></span>
-                      </div>
-                    ))}
-                  </div>
-                ))}
+                <div className="max-h-[300px] overflow-y-auto pr-1 space-y-3">
+                  {roomSchedule.flats.map(flat => (
+                    <div key={flat.id} className="border-b border-green-950/50 pb-2">
+                      <div className="text-[10px] font-bold text-green-200 mb-1">Flat {flat.id}</div>
+                      {flat.rooms.map((room: Room) => (
+                        <div key={room.code} className="flex justify-between text-[9px] text-green-600 py-0.5 border-b border-green-950/30">
+                          <span><strong className="text-green-400">{room.code}</strong> &mdash; {room.name}</span>
+                          <span>{room.w}m &times; {room.h}m = <strong className="text-green-300">{room.area} sqm</strong></span>
+                        </div>
+                      ))}
+                    </div>
+                  ))}
+                </div>
                 <div className="mt-3 pt-2 border-t border-green-900/40 flex justify-between text-[9px]">
                   <span className="text-green-700">Total buildup area</span>
                   <strong className="text-green-300">{roomSchedule.totalBuildupArea} sqm</strong>
                 </div>
+
+                {!generatedImageUrl && (
+                  <button
+                    onClick={() => generateFloorPlanImage(roomSchedule)}
+                    disabled={isGeneratingImage}
+                    className="w-full mt-4 flex items-center justify-center gap-2 px-4 py-3 text-[10px] font-bold uppercase tracking-widest bg-purple-600 border border-purple-400 text-white hover:bg-purple-500 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg shadow-lg shadow-purple-900/30 transition-all animate-pulse"
+                  >
+                    {isGeneratingImage ? (
+                      <>
+                        <Loader2 size={13} className="animate-spin" />
+                        Generating Floor Plan Image...
+                      </>
+                    ) : (
+                      <>
+                        <Sparkles size={13} />
+                        Approve & Generate Floor Plan
+                      </>
+                    )}
+                  </button>
+                )}
               </div>
             )}
             <div ref={chatEndRef} />
