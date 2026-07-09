@@ -109,11 +109,11 @@ export async function POST(req: Request) {
     console.log('[FloorPlan] Calling GPT-Image-2 (low quality)...');
     const result = await fal.subscribe('openai/gpt-image-2/edit', {
       input: {
-        image_url: uploadedUrl,
+        image_urls: [uploadedUrl],
         prompt,
         quality: 'low',
-        size: '1024x1024',
-        n: 1,
+        image_size: 'square',
+        num_images: 1,
       },
     });
 
