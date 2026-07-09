@@ -2,7 +2,7 @@
 
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, Send, Loader2, Download, RotateCcw, ImageIcon, Sparkles, RefreshCw, Undo2, Redo2, Maximize2, ImagePlus, X } from 'lucide-react';
+import { ArrowLeft, Send, Loader2, Download, RotateCcw, ImageIcon, Sparkles, RefreshCw, Undo2, Redo2, Maximize2, ImagePlus, X, Move } from 'lucide-react';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface Point { x: number; y: number; }
@@ -119,16 +119,25 @@ export default function SmartPlannerPage() {
   const bgImageRef = useRef<HTMLImageElement | null>(null);
   const [bgImageLoaded, setBgImageLoaded] = useState(false);
   const [bgOpacity, setBgOpacity] = useState(0.3);
+  const [bgOffset, setBgOffset] = useState({ x: 0, y: 0 });
+  const [bgScale, setBgScale] = useState(1);
+  const [isDraggingMap, setIsDraggingMap] = useState(false);
+  const lastMousePos = useRef<Point | null>(null);
 
   const handleBgUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]; if (!file) return;
     const url = URL.createObjectURL(file);
     const img = new Image();
-    img.onload = () => { bgImageRef.current = img; setBgImageLoaded(true); };
+    img.onload = () => { 
+      bgImageRef.current = img; 
+      setBgImageLoaded(true); 
+      setBgOffset({ x: 0, y: 0 });
+      setBgScale(1);
+    };
     img.src = url;
     e.target.value = ''; // allow re-upload of same file
   };
-  const removeBgImage = () => { bgImageRef.current = null; setBgImageLoaded(false); };
+  const removeBgImage = () => { bgImageRef.current = null; setBgImageLoaded(false); setBgOffset({ x: 0, y: 0 }); setBgScale(1); setDrawMode(null); };
 
   // Scale — how many real-world metres each grid cell represents
   const [metersPerCell, setMetersPerCell] = useState(1);
@@ -136,7 +145,7 @@ export default function SmartPlannerPage() {
   // Convert px distance to metres using the current scale
   const pxToMScaled = (px: number) => +((px / CELL_PX) * metersPerCell).toFixed(1);
 
-  const [drawMode, setDrawMode] = useState<'plot' | 'site' | null>(null);
+  const [drawMode, setDrawMode] = useState<'plot' | 'site' | 'map' | null>(null);
   const [plotPoints, setPlotPoints] = useState<Point[]>([]);
   const [sitePoints, setSitePoints] = useState<Point[]>([]);
   const [plotClosed, setPlotClosed] = useState(false);
@@ -212,7 +221,18 @@ export default function SmartPlannerPage() {
     if (bgImageRef.current && bgImageLoaded) {
       ctx.save();
       ctx.globalAlpha = bgOpacity;
-      ctx.drawImage(bgImageRef.current, 0, 0, CANVAS_W, CANVAS_H);
+      
+      const imgW = bgImageRef.current.width;
+      const imgH = bgImageRef.current.height;
+      const defaultScale = Math.min(CANVAS_W / imgW, CANVAS_H / imgH);
+      const finalScale = defaultScale * bgScale;
+      
+      const scaledW = imgW * finalScale;
+      const scaledH = imgH * finalScale;
+      const cx = (CANVAS_W - scaledW) / 2 + bgOffset.x;
+      const cy = (CANVAS_H - scaledH) / 2 + bgOffset.y;
+      
+      ctx.drawImage(bgImageRef.current, cx, cy, scaledW, scaledH);
       ctx.restore();
     }
 
@@ -432,11 +452,13 @@ export default function SmartPlannerPage() {
     // ── Status hint bar ───────────────────────────────────────────────────
     if (drawMode) {
       ctx.font = 'bold 11px monospace';
-      ctx.fillStyle = drawMode === 'plot' ? '#f97316' : '#00f0ff';
+      ctx.fillStyle = drawMode === 'plot' ? '#f97316' : drawMode === 'site' ? '#00f0ff' : '#eab308';
       ctx.fillText(
         drawMode === 'plot'
           ? '● Drawing: PLOT BOUNDARY — click to add points, click first point to close'
-          : '● Drawing: SITE EXTERIOR — click to add points, click first point to close',
+          : drawMode === 'site' 
+          ? '● Drawing: SITE EXTERIOR — click to add points, click first point to close'
+          : '● Move Map: Drag on the canvas to pan, scroll to zoom',
         10, CANVAS_H - 12
       );
     }
@@ -450,7 +472,7 @@ export default function SmartPlannerPage() {
       ctx.fillText('Creating layout — ~10 seconds', CANVAS_W / 2, CANVAS_H / 2 + 16);
       ctx.textAlign = 'left';
     }
-  }, [plotPoints, sitePoints, plotClosed, siteClosed, hoverPoint, drawMode, isGeneratingImage, CANVAS_W, CANVAS_H, currentRatio, metersPerCell, bgImageLoaded, bgOpacity]);
+  }, [plotPoints, sitePoints, plotClosed, siteClosed, hoverPoint, drawMode, isGeneratingImage, CANVAS_W, CANVAS_H, currentRatio, metersPerCell, bgImageLoaded, bgOpacity, bgOffset, bgScale]);
 
   useEffect(() => { drawCanvas(); }, [drawCanvas]);
 
@@ -473,7 +495,7 @@ export default function SmartPlannerPage() {
   };
 
   const handleCanvasClick = (e: React.MouseEvent<HTMLCanvasElement>) => {
-    if (!drawMode) return;
+    if (drawMode !== 'plot' && drawMode !== 'site') return;
     const { x, y } = getCanvasCoords(e);
 
     if (drawMode === 'plot' && !plotClosed) {
@@ -500,9 +522,34 @@ export default function SmartPlannerPage() {
     }
   };
 
+  const handleMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    if (drawMode === 'map') {
+      setIsDraggingMap(true);
+      lastMousePos.current = { x: e.clientX, y: e.clientY };
+    }
+  };
+
+  const handleMouseUp = () => {
+    setIsDraggingMap(false);
+    lastMousePos.current = null;
+  };
+
   const handleCanvasMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
-    if (!drawMode) return;
-    setHoverPoint(getCanvasCoords(e));
+    if (drawMode === 'map' && isDraggingMap && lastMousePos.current) {
+      const dx = e.clientX - lastMousePos.current.x;
+      const dy = e.clientY - lastMousePos.current.y;
+      setBgOffset(prev => ({ x: prev.x + dx, y: prev.y + dy }));
+      lastMousePos.current = { x: e.clientX, y: e.clientY };
+    } else if (drawMode === 'plot' || drawMode === 'site') {
+      setHoverPoint(getCanvasCoords(e));
+    }
+  };
+
+  const handleWheel = (e: React.WheelEvent<HTMLCanvasElement>) => {
+    if (drawMode === 'map' && bgImageLoaded) {
+      const zoomSensitivity = 0.001;
+      setBgScale(prev => Math.max(0.1, Math.min(10, prev - e.deltaY * zoomSensitivity)));
+    }
   };
 
   const getPlotContext = () => {
@@ -733,13 +780,20 @@ export default function SmartPlannerPage() {
               <input type="file" accept="image/*" ref={bgInputRef} onChange={handleBgUpload} className="hidden" />
               {bgImageLoaded ? (
                 <div className="flex items-center gap-2">
-                  <span className="text-[9px] text-green-800">Map Opacity:</span>
+                  <button
+                    onClick={() => setDrawMode(d => d === 'map' ? null : 'map')}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 text-[10px] uppercase tracking-wider rounded border transition-all ${drawMode === 'map' ? 'bg-yellow-500/20 border-yellow-400 text-yellow-300' : 'border-yellow-700/40 text-yellow-500 hover:bg-yellow-500/10'}`}
+                    title="Pan and Zoom the background map"
+                  >
+                    <Move size={11} /> Move Map
+                  </button>
+                  <span className="text-[9px] text-green-800 ml-1">Opacity:</span>
                   <input
                     type="range" min="0.1" max="1" step="0.1"
                     value={bgOpacity} onChange={e => setBgOpacity(Number(e.target.value))}
                     className="w-16 accent-green-500"
                   />
-                  <button onClick={removeBgImage} className="text-red-500 hover:text-red-400 p-1 rounded hover:bg-red-500/10 transition-all" title="Remove Map">
+                  <button onClick={removeBgImage} className="text-red-500 hover:text-red-400 p-1 rounded hover:bg-red-500/10 transition-all ml-1" title="Remove Map">
                     <X size={12} />
                   </button>
                 </div>
@@ -808,9 +862,13 @@ export default function SmartPlannerPage() {
             ) : (
               <canvas
                 ref={canvasRef} width={CANVAS_W} height={CANVAS_H}
-                className="block w-full h-full object-contain cursor-crosshair"
-                onClick={handleCanvasClick} onMouseMove={handleCanvasMove}
-                onMouseLeave={() => setHoverPoint(null)}
+                className={`block w-full h-full object-contain ${drawMode === 'map' ? (isDraggingMap ? 'cursor-grabbing' : 'cursor-grab') : 'cursor-crosshair'}`}
+                onClick={handleCanvasClick}
+                onMouseDown={handleMouseDown}
+                onMouseMove={handleCanvasMove}
+                onMouseUp={handleMouseUp}
+                onMouseLeave={(e) => { setHoverPoint(null); handleMouseUp(); }}
+                onWheel={handleWheel}
               />
             )}
           </div>
