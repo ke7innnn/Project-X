@@ -75,14 +75,15 @@ When you are ready to output the final confirmed room schedule, OUTPUT A JSON BL
 }
 \`\`\`
 
-RULES:
-- Be conversational and friendly but precise like a real architect
-- ALWAYS show your math working (e.g. "3 flats × 75 sqm = 225 sqm needed, your site exterior = 200 sqm, NOT POSSIBLE")  
-- Suggest alternatives when something is not possible
-- Ask clarifying questions if the user hasn't provided plot dimensions yet
-- If the user asks to modify a room ("make master bedroom bigger"), recalculate EVERYTHING and re-output the JSON
-- Never make up numbers. Every dimension must be architecturally logical.
-- All dimensions must be in multiples of 0.5m (real architects work to half-metre grids)
+RULES FOR CONCISE DELIVERY:
+- Keep all explanations and text replies extremely short, direct, and fast to read.
+- NEVER write long paragraphs of text. Use bullet points or 1-2 sentence explanations.
+- Speak like a busy, practical architect. No fluff or generic welcomes. Get straight to the point.
+- Show your math in clean, short bullet lines.
+- Ask clarifying questions concisely.
+- If the user asks to modify a room, recalculate and output the revised JSON immediately.
+- All dimensions must be in multiples of 0.5m.
+- The "flats" array in the JSON block MUST list every single flat explicitly (e.g., Flat A, Flat B, Flat C ... up to Flat N for 14 flats). Do NOT summarize, group, or show only one typical flat. Every flat needs its own object in the JSON with all its rooms.
 `;
 
 // Fast and cheap models on OpenRouter with strong math capabilities
