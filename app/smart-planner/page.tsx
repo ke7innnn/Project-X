@@ -214,11 +214,27 @@ export default function SmartPlannerPage() {
 
   useEffect(() => { drawCanvas(); }, [drawCanvas]);
 
+  // Converts a mouse event to canvas coordinates, accounting for
+  // object-contain letterboxing (empty bars on sides or top/bottom).
+  const getCanvasCoords = (e: React.MouseEvent<HTMLCanvasElement>): Point => {
+    const rect = canvasRef.current!.getBoundingClientRect();
+    // Scale factor object-contain uses (fits canvas inside element, preserves AR)
+    const displayScale = Math.min(rect.width / CANVAS_W, rect.height / CANVAS_H);
+    // Actual rendered content size
+    const renderedW = CANVAS_W * displayScale;
+    const renderedH = CANVAS_H * displayScale;
+    // Letterbox offset (centered)
+    const offsetX = (rect.width - renderedW) / 2;
+    const offsetY = (rect.height - renderedH) / 2;
+    return {
+      x: snapToGrid((e.clientX - rect.left - offsetX) / displayScale),
+      y: snapToGrid((e.clientY - rect.top  - offsetY) / displayScale),
+    };
+  };
+
   const handleCanvasClick = (e: React.MouseEvent<HTMLCanvasElement>) => {
     if (!drawMode) return;
-    const rect = canvasRef.current!.getBoundingClientRect();
-    const x = snapToGrid((e.clientX - rect.left) * CANVAS_W / rect.width);
-    const y = snapToGrid((e.clientY - rect.top) * CANVAS_H / rect.height);
+    const { x, y } = getCanvasCoords(e);
 
     if (drawMode === 'plot' && !plotClosed) {
       if (plotPoints.length >= 3) {
@@ -238,11 +254,7 @@ export default function SmartPlannerPage() {
 
   const handleCanvasMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
     if (!drawMode) return;
-    const rect = canvasRef.current!.getBoundingClientRect();
-    setHoverPoint({
-      x: snapToGrid((e.clientX - rect.left) * CANVAS_W / rect.width),
-      y: snapToGrid((e.clientY - rect.top) * CANVAS_H / rect.height),
-    });
+    setHoverPoint(getCanvasCoords(e));
   };
 
   const getPlotContext = () => {
