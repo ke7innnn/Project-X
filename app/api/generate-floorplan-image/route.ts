@@ -39,49 +39,62 @@ function buildFloorPlanPrompt(schedule: RoomSchedule): string {
   const totalRooms = schedule.flats.reduce((s, f) => s + f.rooms.length, 0);
   const flatCount = schedule.flats.length;
 
-  return `You are a professional AutoCAD architect. This image shows a white canvas with two polygon outlines:
-- ORANGE dashed polygon = plot boundary (do NOT modify this line)
-- CYAN solid polygon = site exterior / buildable zone (fill INSIDE this ONLY)
+  return `You are a professional AutoCAD architect rendering a 2D floor plan. This image has two polygon outlines:
+- ORANGE dashed polygon = plot boundary (do NOT touch this line)
+- CYAN solid polygon = buildable site boundary — ALL rooms MUST be placed INSIDE this polygon
 
-TASK: Draw a complete 2D architectural floor plan INSIDE the cyan polygon.
-DO NOT draw anything outside the cyan boundary. DO NOT remove or redraw the orange or cyan lines.
+═══════════════════════════════════════════════════════
+CRITICAL GEOMETRY RULE — READ THIS FIRST:
+═══════════════════════════════════════════════════════
+The CYAN polygon is NOT a rectangle. It has angled or tapered edges and corners.
+The building footprint must EXACTLY follow the shape of the CYAN polygon.
+
+⚠ DO NOT place rooms inside a rectangular bounding box.
+⚠ DO NOT leave any white/empty space inside the CYAN polygon.
+⚠ ALL areas inside the CYAN boundary must be filled with rooms, walls, corridor, or staircase.
+⚠ Edge flats touching a diagonal or tapered wall MUST be trapezoidal/wedge-shaped to hug that wall exactly.
+⚠ Corner rooms can be irregular polygons — they must fill the corner triangular zones completely.
+⚠ The outer wall of the building = the cyan polygon line. Not an inner rectangle.
+═══════════════════════════════════════════════════════
 
 FLOOR PLAN REQUIREMENTS:
 - Total flats: ${flatCount}
 - Total rooms: ${totalRooms}
 - Total buildup area: ${schedule.totalBuildupArea} sqm
-- Site: ${schedule.siteExteriorW}m × ${schedule.siteExteriorH}m
+- Site dimensions: ${schedule.siteExteriorW}m wide × ${schedule.siteExteriorH}m tall
 
-ROOM SCHEDULE (ALL ${totalRooms} rooms MUST appear — zero omissions):
+ROOM SCHEDULE (ALL ${totalRooms} rooms MUST be drawn — zero omissions, zero duplicates):
 ${flatDescriptions}
 
-SHARED SPACES (draw these too):
-- Central corridor spine: 1.5m wide, running through building center
-- Staircase: 3m × 2m, placed South or West
-- Main entrance: North or East wall of site
+LAYOUT STRATEGY:
+- Arrange flats in 2 rows of 7 flats each (7 top row, 7 bottom row), with a central corridor spine of 1.5m width between them
+- The 2 end flats on each side (e.g. Flat A and Flat G in the top row) must taper/stretch to fill the angled cyan corners
+- Every flat's outer walls must press against the cyan boundary — no gap between flat outer wall and cyan line
+- Staircase (3m × 2m) at the West end between the two rows
+- Main entrance at North or East wall of cyan polygon
 
-VASTU RULES (strictly follow):
-- Master Bedroom: South-West zone of each flat
-- Kitchen: South-East zone of each flat  
-- Living Room: North or North-East of each flat
-- Bathroom: North-West of each flat
-- All main entrances face North or East
+VASTU (follow strictly per flat):
+- Master Bedroom → South-West of each flat
+- Kitchen → South-East
+- Living Room → North or North-East
+- Bathrooms → North-West
 
 DRAWING STYLE:
 - White background, black walls
 - Thick walls (20cm) between flats, thin walls (10cm) inside flat
-- Every room: print code (e.g. "A1") + name (e.g. "Master Bedroom") + dimensions (e.g. "3.5m×4m") in small black text centered inside room
+- Every room: print code (e.g. "A1") + name + dimensions in small black text centered inside
 - Every room: draw door as arc swing symbol (0.9m gap in wall)
-- Flat labels: "FLAT A", "FLAT B" etc. in bold at top of each flat zone
-- Dimension lines on outer walls
-- Style: clean AutoCAD technical blueprint, 2D top-down, NO furniture, NO shadows, NO 3D
+- Flat labels "FLAT A", "FLAT B" etc. in bold at top of each flat zone
+- Dimension lines on outer walls showing site width/height
+- Style: clean AutoCAD 2D top-down blueprint, NO furniture, NO shadows, NO 3D, NO perspective
 
-CRITICAL RULES:
-1. ALL ${totalRooms} rooms from the schedule above MUST be drawn — count them before finishing
-2. ZERO duplicate room codes
-3. Every single room gets a door symbol
-4. Stay strictly inside the CYAN boundary — nothing outside
-5. Keep the original ORANGE and CYAN polygon lines exactly as drawn in the input image`;
+FINAL CHECKLIST BEFORE SUBMITTING:
+1. ✓ ALL ${totalRooms} rooms drawn — every single one
+2. ✓ ZERO white space gaps inside the cyan polygon — every corner is filled
+3. ✓ Outer building walls follow the exact shape of the cyan polygon
+4. ✓ Zero duplicate room codes
+5. ✓ Every room has a door symbol
+6. ✓ Orange and cyan polygon lines are preserved unchanged`;
 }
 
 export async function POST(req: Request) {
