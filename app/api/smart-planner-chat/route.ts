@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 
 export const maxDuration = 60;
 
-const GROQ_API_KEY = process.env.GROQ_API_KEY || '';
+const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY || '';
 
 // Standard minimum room sizes in metres (real architecture standards)
 const ROOM_STANDARDS = `
@@ -85,29 +85,30 @@ RULES:
 - All dimensions must be in multiples of 0.5m (real architects work to half-metre grids)
 `;
 
-// Fast + cheap Groq models in order of preference
-// All free on Groq — ordered best-math → fastest
-const GROQ_MODELS = [
-  'llama-3.3-70b-versatile',           // #1 — best math, ~200 tok/s
-  'meta-llama/llama-4-scout-17b-16e-instruct', // #2 — Llama 4 Scout, multimodal, fast
-  'llama-3.1-8b-instant',              // #3 — ultra fast ~800 tok/s, good enough math
-  'groq/compound-mini',                // #4 — last resort compound model
+// Fast and cheap models on OpenRouter with strong math capabilities
+const OPENROUTER_MODELS = [
+  'google/gemini-2.5-flash',           // Top recommendation: super fast, ultra cheap, solid math & JSON
+  'meta-llama/llama-3.3-70b-instruct',  // High quality reasoning, cheap, excellent math
+  'deepseek/deepseek-chat',             // Extremely cheap, very strong math & general reasoning
+  'qwen/qwen-2.5-coder-32b-instruct',   // Great fallback for structured JSON tasks
 ];
 
-async function callGroqWithFallback(
+async function callOpenRouterWithFallback(
   systemWithContext: string,
   messages: { role: string; content: string }[]
 ): Promise<{ text: string; modelUsed: string }> {
   let lastError = '';
 
-  for (const model of GROQ_MODELS) {
+  for (const model of OPENROUTER_MODELS) {
     try {
-      console.log(`[SmartPlanner] Trying model: ${model}`);
-      const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+      console.log(`[SmartPlanner] Trying OpenRouter model: ${model}`);
+      const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${GROQ_API_KEY}`,
+          'Authorization': `Bearer ${OPENROUTER_API_KEY}`,
+          'HTTP-Referer': 'https://project-x-mu-eight.vercel.app',
+          'X-Title': 'Smart Planner',
         },
         body: JSON.stringify({
           model,
@@ -122,31 +123,30 @@ async function callGroqWithFallback(
 
       if (!res.ok) {
         const errText = await res.text();
-        console.warn(`[SmartPlanner] ${model} failed (${res.status}):`, errText.slice(0, 120));
+        console.warn(`[SmartPlanner] OpenRouter ${model} failed (${res.status}):`, errText.slice(0, 120));
         lastError = errText;
-        continue; // try next model
+        continue;
       }
 
       const data = await res.json();
       const text = data.choices?.[0]?.message?.content || '';
 
       if (!text) {
-        console.warn(`[SmartPlanner] ${model} returned empty text`);
+        console.warn(`[SmartPlanner] OpenRouter ${model} returned empty text`);
         lastError = 'Empty response';
-        continue; // try next model
+        continue;
       }
 
-      console.log(`[SmartPlanner] ✓ Success with ${model} — ${text.length} chars`);
+      console.log(`[SmartPlanner] ✓ OpenRouter success with ${model} — ${text.length} chars`);
       return { text, modelUsed: model };
 
     } catch (err: any) {
-      console.warn(`[SmartPlanner] ${model} threw:`, err.message);
+      console.warn(`[SmartPlanner] OpenRouter ${model} threw:`, err.message);
       lastError = err.message;
-      // try next model
     }
   }
 
-  throw new Error(`All Groq models failed. Last error: ${lastError}`);
+  throw new Error(`All OpenRouter models failed. Last error: ${lastError}`);
 }
 
 export async function POST(request: Request) {
@@ -158,7 +158,7 @@ export async function POST(request: Request) {
       ? `${SYSTEM_PROMPT}\n\nCURRENT TRACED PLOT DATA (DO NOT RECALCULATE AREA AS W×H, IT IS A POLYGON):\n- Plot Bounding Box: ${plotBoundary.widthM}m × ${plotBoundary.heightM}m\n- True Plot Polygon Area: ${plotBoundary.areaM} sqm\n- Site Exterior Bounding Box: ${plotBoundary.siteWidthM}m × ${plotBoundary.siteHeightM}m\n- True Site Exterior Polygon Area: ${plotBoundary.siteAreaM} sqm\n\nALWAYS use the 'True Polygon Area' for your calculations, do NOT multiply width × height because the user's trace is an irregular polygon, not a perfect rectangle.`
       : SYSTEM_PROMPT;
 
-    const { text, modelUsed } = await callGroqWithFallback(systemWithContext, messages);
+    const { text, modelUsed } = await callOpenRouterWithFallback(systemWithContext, messages);
 
     // Try to extract JSON room schedule from the response
     let roomSchedule = null;
