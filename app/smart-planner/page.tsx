@@ -202,7 +202,19 @@ export default function SmartPlannerPage() {
   const [roomSchedule, setRoomSchedule] = useState<RoomSchedule | null>(null);
   const [generatedImageUrl, setGeneratedImageUrl] = useState<string | null>(null);
   const [showGeneratedImage, setShowGeneratedImage] = useState(false);
+  const [compareMode, setCompareMode] = useState(false);
+  const generatedImageObjRef = useRef<HTMLImageElement | null>(null);
   const [generationError, setGenerationError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (generatedImageUrl) {
+      const img = new Image();
+      img.onload = () => { generatedImageObjRef.current = img; drawCanvas(); };
+      img.src = generatedImageUrl;
+    } else {
+      generatedImageObjRef.current = null;
+    }
+  }, [generatedImageUrl]);
 
   const snapToGrid = (v: number) => Math.round(v / CELL_PX) * CELL_PX;
 
@@ -214,11 +226,19 @@ export default function SmartPlannerPage() {
     if (!ctx) return;
 
     ctx.clearRect(0, 0, CANVAS_W, CANVAS_H);
-    ctx.fillStyle = '#050f05';
-    ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
+    
+    if (compareMode && generatedImageObjRef.current) {
+      ctx.drawImage(generatedImageObjRef.current, 0, 0, CANVAS_W, CANVAS_H);
+      // Dark semi-transparent overlay so the neon traces still pop
+      ctx.fillStyle = 'rgba(5, 15, 5, 0.4)';
+      ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
+    } else {
+      ctx.fillStyle = '#050f05';
+      ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
+    }
 
-    // ── Background map image (tracing paper) ──────────────────────────────
-    if (bgImageRef.current && bgImageLoaded) {
+    // ── Background map image (tracing paper - only when not in compare mode) ──
+    if (!compareMode && bgImageRef.current && bgImageLoaded) {
       ctx.save();
       ctx.globalAlpha = bgOpacity;
       
@@ -472,7 +492,7 @@ export default function SmartPlannerPage() {
       ctx.fillText('Creating layout — ~10 seconds', CANVAS_W / 2, CANVAS_H / 2 + 16);
       ctx.textAlign = 'left';
     }
-  }, [plotPoints, sitePoints, plotClosed, siteClosed, hoverPoint, drawMode, isGeneratingImage, CANVAS_W, CANVAS_H, currentRatio, metersPerCell, bgImageLoaded, bgOpacity, bgOffset, bgScale]);
+  }, [plotPoints, sitePoints, plotClosed, siteClosed, hoverPoint, drawMode, isGeneratingImage, CANVAS_W, CANVAS_H, currentRatio, metersPerCell, bgImageLoaded, bgOpacity, bgOffset, bgScale, compareMode]);
 
   useEffect(() => { drawCanvas(); }, [drawCanvas]);
 
@@ -702,9 +722,22 @@ export default function SmartPlannerPage() {
             </button>
           )}
           {generatedImageUrl && (
-            <button onClick={() => setShowGeneratedImage(!showGeneratedImage)} className={`flex items-center gap-2 px-4 py-2 text-[10px] uppercase tracking-widest border rounded transition-all ${showGeneratedImage ? 'bg-purple-500/20 border-purple-400 text-purple-300' : 'border-green-700/40 text-green-600 hover:border-green-500'}`}>
-              <ImageIcon size={13} /> {showGeneratedImage ? 'Show Canvas' : 'Show Floor Plan'}
-            </button>
+            <div className="flex items-center gap-1 border border-green-700/40 rounded p-1 bg-[#050f05]">
+              <button
+                onClick={() => { setShowGeneratedImage(!showGeneratedImage); setCompareMode(false); }}
+                className={`px-3 py-1.5 text-[10px] uppercase tracking-widest rounded transition-all ${showGeneratedImage && !compareMode ? 'bg-purple-500/20 text-purple-300' : 'text-green-600 hover:bg-green-900/30'}`}
+              >
+                <ImageIcon size={11} className="inline mr-1 mb-0.5" /> {showGeneratedImage && !compareMode ? 'Show Traces' : 'Floor Plan'}
+              </button>
+              <div className="w-px h-4 bg-green-900/50"></div>
+              <button
+                onClick={() => { setCompareMode(!compareMode); setShowGeneratedImage(false); }}
+                className={`px-3 py-1.5 text-[10px] uppercase tracking-widest rounded transition-all ${compareMode ? 'bg-orange-500/20 text-orange-300 border border-orange-500/30' : 'text-green-600 hover:bg-green-900/30 border border-transparent'}`}
+                title="Overlay the generated floor plan behind your traces to verify dimensions"
+              >
+                <RefreshCw size={11} className="inline mr-1 mb-0.5" /> Compare Traces
+              </button>
+            </div>
           )}
         </div>
       </header>
@@ -846,7 +879,7 @@ export default function SmartPlannerPage() {
                 </div>
               )}
               <button
-                onClick={() => { setPlotPoints([]); setSitePoints([]); setPlotClosed(false); setSiteClosed(false); setDrawMode(null); setRoomSchedule(null); setGeneratedImageUrl(null); setShowGeneratedImage(false); setGenerationError(null); undoStack.current = []; redoStack.current = []; }}
+                onClick={() => { setPlotPoints([]); setSitePoints([]); setPlotClosed(false); setSiteClosed(false); setDrawMode(null); setRoomSchedule(null); setGeneratedImageUrl(null); setShowGeneratedImage(false); setCompareMode(false); setGenerationError(null); undoStack.current = []; redoStack.current = []; }}
                 className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] uppercase tracking-wider rounded border border-red-900/40 text-red-700 hover:bg-red-500/10 hover:text-red-500 transition-all"
               >
                 <RotateCcw size={11} /> Reset
