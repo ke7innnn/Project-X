@@ -2,7 +2,7 @@
 
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, Send, Loader2, Download, RotateCcw, ImageIcon, Sparkles, RefreshCw, Undo2, Redo2, Maximize2 } from 'lucide-react';
+import { ArrowLeft, Send, Loader2, Download, RotateCcw, ImageIcon, Sparkles, RefreshCw, Undo2, Redo2, Maximize2, ImagePlus, X } from 'lucide-react';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface Point { x: number; y: number; }
@@ -18,14 +18,11 @@ interface RoomSchedule {
 }
 interface ChatMessage { role: 'user' | 'assistant'; content: string; }
 
-// ─── Canvas Ratio Presets ─────────────────────────────────────────────────────
+// ─── Canvas Ratio Presets (3 best sizes) ─────────────────────────────────────
 const CANVAS_RATIOS = [
-  { label: 'Square HD',      id: 'square_hd',       w: 900, h: 900,  falSize: 'square_hd'      },
-  { label: 'Square',         id: 'square',           w: 700, h: 700,  falSize: 'square'         },
-  { label: 'Portrait 3:4',   id: 'portrait_4_3',     w: 600, h: 800,  falSize: 'portrait_4_3'   },
-  { label: 'Portrait 9:16',  id: 'portrait_16_9',    w: 506, h: 900,  falSize: 'portrait_16_9'  },
-  { label: 'Landscape 4:3',  id: 'landscape_4_3',    w: 900, h: 675,  falSize: 'landscape_4_3'  },
-  { label: 'Landscape 16:9', id: 'landscape_16_9',   w: 900, h: 506,  falSize: 'landscape_16_9' },
+  { label: 'Square',    id: 'square',    w: 850, h: 850,  falSize: 'square_hd'    },
+  { label: 'Landscape', id: 'landscape', w: 900, h: 600,  falSize: 'landscape_4_3' },
+  { label: 'Portrait',  id: 'portrait',  w: 600, h: 850,  falSize: 'portrait_4_3'  },
 ] as const;
 type RatioId = typeof CANVAS_RATIOS[number]['id'];
 
@@ -111,11 +108,27 @@ export default function SmartPlannerPage() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   // Canvas ratio
-  const [ratioId, setRatioId] = useState<RatioId>('square_hd');
+  const [ratioId, setRatioId] = useState<RatioId>('square');
   const [showRatioPicker, setShowRatioPicker] = useState(false);
-  const currentRatio = CANVAS_RATIOS.find(r => r.id === ratioId)!;
+  const currentRatio = CANVAS_RATIOS.find(r => r.id === ratioId) ?? CANVAS_RATIOS[0];
   const CANVAS_W = currentRatio.w;
   const CANVAS_H = currentRatio.h;
+
+  // Background map image (tracing paper)
+  const bgInputRef = useRef<HTMLInputElement>(null);
+  const bgImageRef = useRef<HTMLImageElement | null>(null);
+  const [bgImageLoaded, setBgImageLoaded] = useState(false);
+  const [bgOpacity, setBgOpacity] = useState(0.3);
+
+  const handleBgUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]; if (!file) return;
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => { bgImageRef.current = img; setBgImageLoaded(true); };
+    img.src = url;
+    e.target.value = ''; // allow re-upload of same file
+  };
+  const removeBgImage = () => { bgImageRef.current = null; setBgImageLoaded(false); };
 
   // Scale — how many real-world metres each grid cell represents
   const [metersPerCell, setMetersPerCell] = useState(1);
@@ -195,73 +208,76 @@ export default function SmartPlannerPage() {
     ctx.fillStyle = '#050f05';
     ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
 
-    // Highlighted canvas border — shows selected ratio
+    // ── Background map image (tracing paper) ──────────────────────────────
+    if (bgImageRef.current && bgImageLoaded) {
+      ctx.save();
+      ctx.globalAlpha = bgOpacity;
+      ctx.drawImage(bgImageRef.current, 0, 0, CANVAS_W, CANVAS_H);
+      ctx.restore();
+    }
+
+    // ── Canvas border (glows based on active mode) ──────────────────────
     const borderColor = drawMode === 'plot' ? '#f97316' : drawMode === 'site' ? '#00f0ff' : '#22c55e44';
-    const borderGlow = drawMode === 'plot' ? '#f9731640' : drawMode === 'site' ? '#00f0ff40' : '#22c55e20';
+    const borderGlow  = drawMode === 'plot' ? '#f9731640' : drawMode === 'site' ? '#00f0ff40' : '#22c55e20';
     ctx.save();
-    ctx.shadowColor = borderGlow;
-    ctx.shadowBlur = 16;
-    ctx.strokeStyle = borderColor;
-    ctx.lineWidth = drawMode ? 3 : 1.5;
+    ctx.shadowColor = borderGlow; ctx.shadowBlur = 16;
+    ctx.strokeStyle = borderColor; ctx.lineWidth = drawMode ? 3 : 1.5;
     ctx.setLineDash(drawMode ? [] : [6, 4]);
     ctx.strokeRect(2, 2, CANVAS_W - 4, CANVAS_H - 4);
-    ctx.setLineDash([]);
-    ctx.restore();
+    ctx.setLineDash([]); ctx.restore();
 
-    // Ratio label in corner
-    ctx.fillStyle = '#22c55e30';
-    ctx.font = 'bold 10px monospace';
+    // Ratio label bottom-right
+    ctx.fillStyle = '#22c55e30'; ctx.font = 'bold 10px monospace';
     ctx.fillText(currentRatio.label, CANVAS_W - currentRatio.label.length * 7 - 8, CANVAS_H - 8);
 
-    // Grid
+    // ── Grid ──────────────────────────────────────────────────────────────
     ctx.strokeStyle = '#0d1f0d'; ctx.lineWidth = 0.5;
     for (let x = 0; x <= CANVAS_W; x += CELL_PX) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, CANVAS_H); ctx.stroke(); }
     for (let y = 0; y <= CANVAS_H; y += CELL_PX) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(CANVAS_W, y); ctx.stroke(); }
 
-    // Grid axis labels — brighter, every 5 cells
-    ctx.fillStyle = '#2d6b2d';
-    ctx.font = '9px monospace';
+    // Grid axis labels
+    ctx.fillStyle = '#2d6b2d'; ctx.font = '9px monospace';
     const step = metersPerCell >= 2 ? CELL_PX * 5 : CELL_PX * 10;
-    const mStep = (step / CELL_PX) * metersPerCell;
-    for (let x = step; x <= CANVAS_W; x += step) {
+    for (let x = step; x <= CANVAS_W; x += step)
       ctx.fillText(`${+(x / CELL_PX * metersPerCell).toFixed(0)}m`, x + 2, 11);
-    }
-    for (let y = step; y <= CANVAS_H; y += step) {
+    for (let y = step; y <= CANVAS_H; y += step)
       ctx.fillText(`${+(y / CELL_PX * metersPerCell).toFixed(0)}m`, 3, y - 2);
-    }
 
-    // ── Scale legend (bottom-left) ──────────────────────────────────────────
+    // ── Scale legend (bottom-left) ────────────────────────────────────────
     const lx = 10, ly = CANVAS_H - 46;
-    // Background pill
     ctx.fillStyle = 'rgba(5,15,5,0.82)';
-    ctx.beginPath();
-    ctx.roundRect(lx - 4, ly - 4, 128, 44, 4);
-    ctx.fill();
-    ctx.strokeStyle = '#22c55e30';
-    ctx.lineWidth = 1;
-    ctx.stroke();
-    // Draw one grid cell as a filled square
-    ctx.fillStyle = '#22c55e20';
-    ctx.fillRect(lx, ly + 4, CELL_PX, CELL_PX);
-    ctx.strokeStyle = '#22c55e80';
-    ctx.lineWidth = 0.8;
-    ctx.strokeRect(lx, ly + 4, CELL_PX, CELL_PX);
-    // Label next to it
-    ctx.fillStyle = '#4ade80';
-    ctx.font = 'bold 11px monospace';
+    ctx.beginPath(); ctx.roundRect(lx - 4, ly - 4, 128, 44, 4); ctx.fill();
+    ctx.strokeStyle = '#22c55e30'; ctx.lineWidth = 1; ctx.stroke();
+    ctx.fillStyle = '#22c55e20'; ctx.fillRect(lx, ly + 4, CELL_PX, CELL_PX);
+    ctx.strokeStyle = '#22c55e80'; ctx.lineWidth = 0.8; ctx.strokeRect(lx, ly + 4, CELL_PX, CELL_PX);
+    ctx.fillStyle = '#4ade80'; ctx.font = 'bold 11px monospace';
     ctx.fillText(`= ${metersPerCell}m`, lx + CELL_PX + 6, ly + 15);
-    // Sub-label
-    ctx.fillStyle = '#22c55e60';
-    ctx.font = '9px monospace';
+    ctx.fillStyle = '#22c55e60'; ctx.font = '9px monospace';
     ctx.fillText(`1 cell = ${metersPerCell}m`, lx, ly + 36);
-    // Canvas size in metres
     const totalW = +((CANVAS_W / CELL_PX) * metersPerCell).toFixed(0);
     const totalH = +((CANVAS_H / CELL_PX) * metersPerCell).toFixed(0);
-    ctx.fillStyle = '#22c55e40';
-    ctx.font = '8px monospace';
+    ctx.fillStyle = '#22c55e40'; ctx.font = '8px monospace';
     ctx.fillText(`Canvas: ${totalW}m × ${totalH}m`, lx + 72, ly + 36);
 
-    // Plot boundary
+    // ── Alignment guides (from existing points, when drawing) ────────────
+    if (drawMode && hoverPoint) {
+      const guidePts = [...plotPoints, ...sitePoints];
+      const guideColor = drawMode === 'plot' ? '#f9731640' : '#00f0ff40';
+      ctx.save(); ctx.setLineDash([3, 5]); ctx.lineWidth = 0.7;
+      for (const pt of guidePts) {
+        if (Math.abs(pt.x - hoverPoint.x) < 0.5) {
+          ctx.strokeStyle = guideColor;
+          ctx.beginPath(); ctx.moveTo(hoverPoint.x, 0); ctx.lineTo(hoverPoint.x, CANVAS_H); ctx.stroke();
+        }
+        if (Math.abs(pt.y - hoverPoint.y) < 0.5) {
+          ctx.strokeStyle = guideColor;
+          ctx.beginPath(); ctx.moveTo(0, hoverPoint.y); ctx.lineTo(CANVAS_W, hoverPoint.y); ctx.stroke();
+        }
+      }
+      ctx.setLineDash([]); ctx.restore();
+    }
+
+    // ── Plot boundary ─────────────────────────────────────────────────────
     if (plotPoints.length > 0) {
       ctx.strokeStyle = '#f97316'; ctx.lineWidth = 2; ctx.setLineDash([8, 4]);
       ctx.beginPath();
@@ -277,9 +293,25 @@ export default function SmartPlannerPage() {
         ctx.beginPath(); ctx.arc(plotPoints[0].x, plotPoints[0].y, 8, 0, Math.PI * 2);
         ctx.strokeStyle = '#f97316aa'; ctx.lineWidth = 1.5; ctx.stroke();
       }
+      // Edge length labels on closed plot polygon
+      if (plotClosed) {
+        for (let i = 0; i < plotPoints.length; i++) {
+          const a = plotPoints[i], b = plotPoints[(i + 1) % plotPoints.length];
+          const dx = b.x - a.x, dy = b.y - a.y;
+          const dM = (Math.sqrt(dx*dx + dy*dy) / CELL_PX * metersPerCell).toFixed(1);
+          const mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2;
+          ctx.save();
+          ctx.font = 'bold 9px monospace'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+          const tw = ctx.measureText(`${dM}m`).width;
+          ctx.fillStyle = 'rgba(20,10,0,0.85)';
+          ctx.fillRect(mx - tw/2 - 3, my - 7, tw + 6, 14);
+          ctx.fillStyle = '#fb923c'; ctx.fillText(`${dM}m`, mx, my);
+          ctx.restore();
+        }
+      }
     }
 
-    // Site exterior
+    // ── Site exterior ─────────────────────────────────────────────────────
     if (sitePoints.length > 0) {
       ctx.strokeStyle = '#00f0ff'; ctx.lineWidth = 2; ctx.setLineDash([]);
       ctx.beginPath();
@@ -295,34 +327,130 @@ export default function SmartPlannerPage() {
         ctx.beginPath(); ctx.arc(sitePoints[0].x, sitePoints[0].y, 8, 0, Math.PI * 2);
         ctx.strokeStyle = '#00f0ffaa'; ctx.lineWidth = 1.5; ctx.stroke();
       }
+      // Edge length labels on closed site polygon
+      if (siteClosed) {
+        for (let i = 0; i < sitePoints.length; i++) {
+          const a = sitePoints[i], b = sitePoints[(i + 1) % sitePoints.length];
+          const dx = b.x - a.x, dy = b.y - a.y;
+          const dM = (Math.sqrt(dx*dx + dy*dy) / CELL_PX * metersPerCell).toFixed(1);
+          const mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2;
+          ctx.save();
+          ctx.font = 'bold 9px monospace'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+          const tw = ctx.measureText(`${dM}m`).width;
+          ctx.fillStyle = 'rgba(0,20,20,0.85)';
+          ctx.fillRect(mx - tw/2 - 3, my - 7, tw + 6, 14);
+          ctx.fillStyle = '#67e8f9'; ctx.fillText(`${dM}m`, mx, my);
+          ctx.restore();
+        }
+      }
     }
 
-    // Status hint
+    // ── Snap indicator + real-time annotation (while drawing) ─────────────
+    if (drawMode && hoverPoint) {
+      const pts = drawMode === 'plot' ? plotPoints : sitePoints;
+      const color = drawMode === 'plot' ? '#f97316' : '#00f0ff';
+      const colorLight = drawMode === 'plot' ? '#fb923c' : '#67e8f9';
+
+      // Concentric snap rings at cursor
+      ctx.save();
+      ctx.strokeStyle = color + 'cc'; ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.arc(hoverPoint.x, hoverPoint.y, 5, 0, Math.PI*2); ctx.stroke();
+      ctx.strokeStyle = color + '55'; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.arc(hoverPoint.x, hoverPoint.y, 9, 0, Math.PI*2); ctx.stroke();
+      ctx.beginPath(); ctx.arc(hoverPoint.x, hoverPoint.y, 13, 0, Math.PI*2); ctx.stroke();
+      ctx.restore();
+
+      // Line length annotation for current segment
+      if (pts.length > 0) {
+        const lastPt = pts[pts.length - 1];
+        const dx = hoverPoint.x - lastPt.x, dy = hoverPoint.y - lastPt.y;
+        const distPx = Math.sqrt(dx*dx + dy*dy);
+
+        if (distPx > 3) {
+          const distM = (distPx / CELL_PX * metersPerCell).toFixed(1);
+          const midX = (lastPt.x + hoverPoint.x) / 2;
+          const midY = (lastPt.y + hoverPoint.y) / 2;
+
+          // Detect H/V/diagonal for snap suggestion
+          const angleDeg = Math.abs(Math.atan2(dy, dx) * 180 / Math.PI);
+          const isH = angleDeg < 6 || angleDeg > 174;
+          const isV = Math.abs(angleDeg - 90) < 6;
+          const snapHint = isH ? ' ↔ H' : isV ? ' ↕ V' : '';
+          const label = `${distM}m${snapHint}`;
+
+          // Offset annotation perpendicularly from line
+          const norm = distPx > 0
+            ? { x: -dy / distPx * 18, y: dx / distPx * 18 }
+            : { x: 0, y: -18 };
+          const ox = midX + norm.x, oy = midY + norm.y;
+
+          ctx.save();
+          ctx.font = 'bold 11px monospace';
+          const tw = ctx.measureText(label).width;
+          const bw = tw + 14, bh = 20;
+          // Box
+          ctx.fillStyle = 'rgba(5,15,5,0.93)';
+          ctx.strokeStyle = color; ctx.lineWidth = 1;
+          ctx.beginPath(); ctx.roundRect(ox - bw/2, oy - bh/2, bw, bh, 4);
+          ctx.fill(); ctx.stroke();
+          // Text
+          ctx.fillStyle = colorLight; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+          ctx.fillText(label, ox, oy);
+
+          // H snap ghost line suggestion
+          if (isH) {
+            ctx.strokeStyle = color + '50'; ctx.lineWidth = 1; ctx.setLineDash([4, 4]);
+            ctx.beginPath(); ctx.moveTo(lastPt.x, lastPt.y); ctx.lineTo(hoverPoint.x, lastPt.y); ctx.stroke();
+            ctx.setLineDash([]);
+          }
+          // V snap ghost line suggestion
+          if (isV) {
+            ctx.strokeStyle = color + '50'; ctx.lineWidth = 1; ctx.setLineDash([4, 4]);
+            ctx.beginPath(); ctx.moveTo(lastPt.x, lastPt.y); ctx.lineTo(lastPt.x, hoverPoint.y); ctx.stroke();
+            ctx.setLineDash([]);
+          }
+          ctx.restore();
+        }
+      }
+
+      // Coordinate tooltip at cursor (top-right of cursor)
+      const cx = (hoverPoint.x / CELL_PX * metersPerCell).toFixed(1);
+      const cy = (hoverPoint.y / CELL_PX * metersPerCell).toFixed(1);
+      const coordLabel = `${cx}, ${cy}`;
+      ctx.save();
+      ctx.font = '8px monospace'; ctx.textAlign = 'left'; ctx.textBaseline = 'top';
+      const cw = ctx.measureText(coordLabel).width + 8;
+      const cpx = Math.min(hoverPoint.x + 14, CANVAS_W - cw - 4);
+      const cpy = Math.max(hoverPoint.y - 20, 4);
+      ctx.fillStyle = 'rgba(5,15,5,0.8)';
+      ctx.fillRect(cpx, cpy, cw, 14);
+      ctx.fillStyle = '#22c55e80';
+      ctx.fillText(coordLabel, cpx + 4, cpy + 3);
+      ctx.restore();
+    }
+
+    // ── Status hint bar ───────────────────────────────────────────────────
     if (drawMode) {
       ctx.font = 'bold 11px monospace';
       ctx.fillStyle = drawMode === 'plot' ? '#f97316' : '#00f0ff';
       ctx.fillText(
         drawMode === 'plot'
-          ? '\u25cf Drawing: PLOT BOUNDARY \u2014 click to add points, click first point to close'
-          : '\u25cf Drawing: SITE EXTERIOR \u2014 click to add points, click first point to close',
+          ? '● Drawing: PLOT BOUNDARY — click to add points, click first point to close'
+          : '● Drawing: SITE EXTERIOR — click to add points, click first point to close',
         10, CANVAS_H - 12
       );
     }
 
-    // AI generating overlay
+    // ── AI generating overlay ──────────────────────────────────────────────
     if (isGeneratingImage) {
-      ctx.fillStyle = 'rgba(0,0,0,0.65)';
-      ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
-      ctx.fillStyle = '#00f0ff';
-      ctx.font = 'bold 22px monospace';
-      ctx.textAlign = 'center';
-      ctx.fillText('\u2728 I\'m generating your floor plan...', CANVAS_W / 2, CANVAS_H / 2 - 16);
-      ctx.font = '14px monospace';
-      ctx.fillStyle = '#00f0ffaa';
-      ctx.fillText('Creating layout \u2014 ~10 seconds', CANVAS_W / 2, CANVAS_H / 2 + 16);
+      ctx.fillStyle = 'rgba(0,0,0,0.65)'; ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
+      ctx.fillStyle = '#00f0ff'; ctx.font = 'bold 22px monospace'; ctx.textAlign = 'center';
+      ctx.fillText('✨ I\'m generating your floor plan...', CANVAS_W / 2, CANVAS_H / 2 - 16);
+      ctx.font = '14px monospace'; ctx.fillStyle = '#00f0ffaa';
+      ctx.fillText('Creating layout — ~10 seconds', CANVAS_W / 2, CANVAS_H / 2 + 16);
       ctx.textAlign = 'left';
     }
-  }, [plotPoints, sitePoints, plotClosed, siteClosed, hoverPoint, drawMode, isGeneratingImage, CANVAS_W, CANVAS_H, currentRatio, ratioId, metersPerCell]);
+  }, [plotPoints, sitePoints, plotClosed, siteClosed, hoverPoint, drawMode, isGeneratingImage, CANVAS_W, CANVAS_H, currentRatio, metersPerCell, bgImageLoaded, bgOpacity]);
 
   useEffect(() => { drawCanvas(); }, [drawCanvas]);
 
@@ -597,6 +725,32 @@ export default function SmartPlannerPage() {
                     </button>
                   ))}
                 </div>
+              )}
+            </div>
+
+            {/* Background Map / Tracing Paper */}
+            <div className="flex items-center gap-2 border-l border-green-900/30 pl-2 ml-2">
+              <input type="file" accept="image/*" ref={bgInputRef} onChange={handleBgUpload} className="hidden" />
+              {bgImageLoaded ? (
+                <div className="flex items-center gap-2">
+                  <span className="text-[9px] text-green-800">Map Opacity:</span>
+                  <input
+                    type="range" min="0.1" max="1" step="0.1"
+                    value={bgOpacity} onChange={e => setBgOpacity(Number(e.target.value))}
+                    className="w-16 accent-green-500"
+                  />
+                  <button onClick={removeBgImage} className="text-red-500 hover:text-red-400 p-1 rounded hover:bg-red-500/10 transition-all" title="Remove Map">
+                    <X size={12} />
+                  </button>
+                </div>
+              ) : (
+                <button
+                  onClick={() => bgInputRef.current?.click()}
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] uppercase tracking-wider rounded border border-green-700/40 text-green-500 hover:bg-green-500/10 transition-all"
+                  title="Upload a map or plot image to trace over"
+                >
+                  <ImagePlus size={11} /> Trace Map
+                </button>
               )}
             </div>
             {/* Scale selector — metres per grid cell */}
