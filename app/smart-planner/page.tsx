@@ -117,6 +117,12 @@ export default function SmartPlannerPage() {
   const CANVAS_W = currentRatio.w;
   const CANVAS_H = currentRatio.h;
 
+  // Scale — how many real-world metres each grid cell represents
+  const [metersPerCell, setMetersPerCell] = useState(1);
+  const SCALE_OPTIONS = [0.5, 1, 2, 5];
+  // Convert px distance to metres using the current scale
+  const pxToMScaled = (px: number) => +((px / CELL_PX) * metersPerCell).toFixed(1);
+
   const [drawMode, setDrawMode] = useState<'plot' | 'site' | null>(null);
   const [plotPoints, setPlotPoints] = useState<Point[]>([]);
   const [sitePoints, setSitePoints] = useState<Point[]>([]);
@@ -212,10 +218,48 @@ export default function SmartPlannerPage() {
     for (let x = 0; x <= CANVAS_W; x += CELL_PX) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, CANVAS_H); ctx.stroke(); }
     for (let y = 0; y <= CANVAS_H; y += CELL_PX) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(CANVAS_W, y); ctx.stroke(); }
 
-    // Scale labels
-    ctx.fillStyle = '#1a3a1a'; ctx.font = '8px monospace';
-    for (let x = 0; x <= CANVAS_W; x += CELL_PX * 10) ctx.fillText(x / CELL_PX + 'm', x + 2, 10);
-    for (let y = CELL_PX * 10; y <= CANVAS_H; y += CELL_PX * 10) ctx.fillText(y / CELL_PX + 'm', 2, y);
+    // Grid axis labels — brighter, every 5 cells
+    ctx.fillStyle = '#2d6b2d';
+    ctx.font = '9px monospace';
+    const step = metersPerCell >= 2 ? CELL_PX * 5 : CELL_PX * 10;
+    const mStep = (step / CELL_PX) * metersPerCell;
+    for (let x = step; x <= CANVAS_W; x += step) {
+      ctx.fillText(`${+(x / CELL_PX * metersPerCell).toFixed(0)}m`, x + 2, 11);
+    }
+    for (let y = step; y <= CANVAS_H; y += step) {
+      ctx.fillText(`${+(y / CELL_PX * metersPerCell).toFixed(0)}m`, 3, y - 2);
+    }
+
+    // ── Scale legend (bottom-left) ──────────────────────────────────────────
+    const lx = 10, ly = CANVAS_H - 46;
+    // Background pill
+    ctx.fillStyle = 'rgba(5,15,5,0.82)';
+    ctx.beginPath();
+    ctx.roundRect(lx - 4, ly - 4, 128, 44, 4);
+    ctx.fill();
+    ctx.strokeStyle = '#22c55e30';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+    // Draw one grid cell as a filled square
+    ctx.fillStyle = '#22c55e20';
+    ctx.fillRect(lx, ly + 4, CELL_PX, CELL_PX);
+    ctx.strokeStyle = '#22c55e80';
+    ctx.lineWidth = 0.8;
+    ctx.strokeRect(lx, ly + 4, CELL_PX, CELL_PX);
+    // Label next to it
+    ctx.fillStyle = '#4ade80';
+    ctx.font = 'bold 11px monospace';
+    ctx.fillText(`= ${metersPerCell}m`, lx + CELL_PX + 6, ly + 15);
+    // Sub-label
+    ctx.fillStyle = '#22c55e60';
+    ctx.font = '9px monospace';
+    ctx.fillText(`1 cell = ${metersPerCell}m`, lx, ly + 36);
+    // Canvas size in metres
+    const totalW = +((CANVAS_W / CELL_PX) * metersPerCell).toFixed(0);
+    const totalH = +((CANVAS_H / CELL_PX) * metersPerCell).toFixed(0);
+    ctx.fillStyle = '#22c55e40';
+    ctx.font = '8px monospace';
+    ctx.fillText(`Canvas: ${totalW}m × ${totalH}m`, lx + 72, ly + 36);
 
     // Plot boundary
     if (plotPoints.length > 0) {
@@ -278,7 +322,7 @@ export default function SmartPlannerPage() {
       ctx.fillText('Creating layout \u2014 ~10 seconds', CANVAS_W / 2, CANVAS_H / 2 + 16);
       ctx.textAlign = 'left';
     }
-  }, [plotPoints, sitePoints, plotClosed, siteClosed, hoverPoint, drawMode, isGeneratingImage, CANVAS_W, CANVAS_H, currentRatio, ratioId]);
+  }, [plotPoints, sitePoints, plotClosed, siteClosed, hoverPoint, drawMode, isGeneratingImage, CANVAS_W, CANVAS_H, currentRatio, ratioId, metersPerCell]);
 
   useEffect(() => { drawCanvas(); }, [drawCanvas]);
 
@@ -336,18 +380,18 @@ export default function SmartPlannerPage() {
   const getPlotContext = () => {
     if (!plotClosed || plotPoints.length < 3) return null;
     const plotBB = polygonBoundingBox(plotPoints);
-    const plotAreaSqm = +(polygonArea(plotPoints) / (CELL_PX * CELL_PX)).toFixed(1);
-    let siteW = pxToM(plotBB.maxX - plotBB.minX);
-    let siteH = pxToM(plotBB.maxY - plotBB.minY);
+    const plotAreaSqm = +(polygonArea(plotPoints) / (CELL_PX * CELL_PX) * metersPerCell * metersPerCell).toFixed(1);
+    let siteW = pxToMScaled(plotBB.maxX - plotBB.minX);
+    let siteH = pxToMScaled(plotBB.maxY - plotBB.minY);
     let siteArea = plotAreaSqm;
     if (siteClosed && sitePoints.length >= 3) {
       const siteBB = polygonBoundingBox(sitePoints);
-      siteW = pxToM(siteBB.maxX - siteBB.minX);
-      siteH = pxToM(siteBB.maxY - siteBB.minY);
-      siteArea = +(polygonArea(sitePoints) / (CELL_PX * CELL_PX)).toFixed(1);
+      siteW = pxToMScaled(siteBB.maxX - siteBB.minX);
+      siteH = pxToMScaled(siteBB.maxY - siteBB.minY);
+      siteArea = +(polygonArea(sitePoints) / (CELL_PX * CELL_PX) * metersPerCell * metersPerCell).toFixed(1);
     }
     return {
-      widthM: pxToM(plotBB.maxX - plotBB.minX), heightM: pxToM(plotBB.maxY - plotBB.minY),
+      widthM: pxToMScaled(plotBB.maxX - plotBB.minX), heightM: pxToMScaled(plotBB.maxY - plotBB.minY),
       areaM: plotAreaSqm, siteWidthM: siteW, siteHeightM: siteH, siteAreaM: siteArea,
     };
   };
@@ -555,7 +599,29 @@ export default function SmartPlannerPage() {
                 </div>
               )}
             </div>
-
+            {/* Scale selector — metres per grid cell */}
+            <div className="flex items-center gap-0.5">
+              <span className="text-[9px] text-green-800 mr-1">Scale:</span>
+              {SCALE_OPTIONS.map(s => (
+                <button
+                  key={s}
+                  onClick={() => {
+                    setMetersPerCell(s);
+                    // Clear traces — measurements would be wrong on old scale
+                    setPlotPoints([]); setSitePoints([]);
+                    setPlotClosed(false); setSiteClosed(false);
+                    undoStack.current = []; redoStack.current = [];
+                  }}
+                  className={`px-2 py-1 text-[9px] font-bold rounded transition-all ${
+                    s === metersPerCell
+                      ? 'bg-green-500/20 border border-green-400/60 text-green-300'
+                      : 'border border-green-900/30 text-green-800 hover:text-green-600 hover:bg-green-500/10'
+                  }`}
+                >
+                  {s}m
+                </button>
+              ))}
+            </div>
             <div className="ml-auto flex items-center gap-2">
               {isGeneratingImage && (
                 <div className="flex items-center gap-2 px-3 py-1.5 text-[10px] text-purple-400 border border-purple-900/40 rounded bg-purple-950/20">
@@ -571,7 +637,7 @@ export default function SmartPlannerPage() {
               </button>
             </div>
             <div className="text-[9px] text-green-900 border border-green-950 rounded px-2 py-1">
-              1 cell = 1m &nbsp;|&nbsp; {Math.floor(CANVAS_W/CELL_PX)}m &times; {Math.floor(CANVAS_H/CELL_PX)}m
+              1 cell = {metersPerCell}m &nbsp;|&nbsp; {Math.floor(CANVAS_W/CELL_PX * metersPerCell)}m &times; {Math.floor(CANVAS_H/CELL_PX * metersPerCell)}m
             </div>
           </div>
 
