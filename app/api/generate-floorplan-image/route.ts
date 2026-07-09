@@ -77,6 +77,15 @@ The building footprint must EXACTLY follow the shape of the CYAN polygon.
 ⚠ The outer wall of the building = the cyan polygon line. Not an inner rectangle.
 ═══════════════════════════════════════════════════════
 
+═══════════════════════════════════════════════════════
+TRACES & BOUNDARY PRESERVATION RULES:
+═══════════════════════════════════════════════════════
+⚠ The input image contains hand-drawn ORANGE dashed lines and CYAN solid lines.
+⚠ You MUST NOT modify, shift, relocate, erase, repaint, or redraw these lines.
+⚠ Keep them EXACTLY in their original colors, positions, and coordinates.
+⚠ Place all walls and rooms strictly inside the CYAN zone, without covering or moving the lines.
+═══════════════════════════════════════════════════════
+
 FLOOR PLAN REQUIREMENTS:
 - Total flats: ${flatCount}
 - Total rooms: ${totalRooms}
