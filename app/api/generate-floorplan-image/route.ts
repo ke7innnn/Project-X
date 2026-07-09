@@ -118,11 +118,19 @@ export async function POST(req: Request) {
     const prompt = buildFloorPlanPrompt(roomSchedule);
     console.log('[FloorPlan] Prompt length:', prompt.length, 'chars');
 
-    // 3. Call GPT-Image-2 edit at low quality for speed (~8-12s)
-    console.log('[FloorPlan] Calling GPT-Image-2 (low quality)...');
+    // 3. Reference images — teach GPT-Image-2 correct floor plan conventions
+    // These are permanent fal.ai CDN URLs (never expire)
+    const REFERENCE_IMAGES = [
+      'https://v3b.fal.media/files/b/0aa18f87/v313ti8xjlqVZlsfwDqAr_ref1_multiflat.png',   // Multi-flat building layout with corridor
+      'https://v3b.fal.media/files/b/0aa18f93/z6-aekplqL93H8OR1dG2S_ref2_symbols.png',       // Architectural symbols (doors, windows, walls)
+      'https://v3b.fal.media/files/b/0aa18f87/3aWyPjTtYCx_qCAw0XFFA_ref3_indian3bhk.png',   // Indian 3BHK Vastu-compliant flat
+    ];
+
+    // 4. Call GPT-Image-2 edit — canvas outline + 3 reference images
+    console.log('[FloorPlan] Calling GPT-Image-2 with 3 reference images...');
     const result = await fal.subscribe('openai/gpt-image-2/edit', {
       input: {
-        image_urls: [uploadedUrl],
+        image_urls: [uploadedUrl, ...REFERENCE_IMAGES],
         prompt,
         quality: 'low',
         image_size: 'square',
