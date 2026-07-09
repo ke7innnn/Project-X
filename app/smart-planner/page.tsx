@@ -2,7 +2,7 @@
 
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, Send, Loader2, Download, RotateCcw, ImageIcon, Sparkles, RefreshCw } from 'lucide-react';
+import { ArrowLeft, Send, Loader2, Download, RotateCcw, ImageIcon, Sparkles, RefreshCw, Undo2, Redo2, Maximize2 } from 'lucide-react';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface Point { x: number; y: number; }
@@ -18,12 +18,18 @@ interface RoomSchedule {
 }
 interface ChatMessage { role: 'user' | 'assistant'; content: string; }
 
-// ─── Constants ────────────────────────────────────────────────────────────────
-const CANVAS_W = 900;
-const CANVAS_H = 700;
+// ─── Canvas Ratio Presets ─────────────────────────────────────────────────────
+const CANVAS_RATIOS = [
+  { label: 'Square HD',      id: 'square_hd',       w: 900, h: 900,  falSize: 'square_hd'      },
+  { label: 'Square',         id: 'square',           w: 700, h: 700,  falSize: 'square'         },
+  { label: 'Portrait 3:4',   id: 'portrait_4_3',     w: 600, h: 800,  falSize: 'portrait_4_3'   },
+  { label: 'Portrait 9:16',  id: 'portrait_16_9',    w: 506, h: 900,  falSize: 'portrait_16_9'  },
+  { label: 'Landscape 4:3',  id: 'landscape_4_3',    w: 900, h: 675,  falSize: 'landscape_4_3'  },
+  { label: 'Landscape 16:9', id: 'landscape_16_9',   w: 900, h: 506,  falSize: 'landscape_16_9' },
+] as const;
+type RatioId = typeof CANVAS_RATIOS[number]['id'];
+
 const CELL_PX = 12;
-const GRID_COLS = Math.floor(CANVAS_W / CELL_PX);
-const GRID_ROWS = Math.floor(CANVAS_H / CELL_PX);
 
 // ─── Geometry helpers ─────────────────────────────────────────────────────────
 function polygonArea(pts: Point[]): number {
@@ -42,27 +48,27 @@ function polygonBoundingBox(pts: Point[]) {
 function pxToM(px: number) { return +(px / CELL_PX).toFixed(1); }
 
 // ─── Export canvas as clean white-bg PNG for GPT-Image-2 ────────────────────
-function exportCanvasForAI(plotPts: Point[], sitePts: Point[]): string {
+function exportCanvasForAI(plotPts: Point[], sitePts: Point[], canvasW: number, canvasH: number): string {
   const offscreen = document.createElement('canvas');
-  offscreen.width = CANVAS_W;
-  offscreen.height = CANVAS_H;
+  offscreen.width = canvasW;
+  offscreen.height = canvasH;
   const ctx = offscreen.getContext('2d')!;
 
   // White background
   ctx.fillStyle = '#ffffff';
-  ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
+  ctx.fillRect(0, 0, canvasW, canvasH);
 
   // Light grid
   ctx.strokeStyle = '#e8e8e8';
   ctx.lineWidth = 0.5;
-  for (let x = 0; x <= CANVAS_W; x += CELL_PX) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, CANVAS_H); ctx.stroke(); }
-  for (let y = 0; y <= CANVAS_H; y += CELL_PX) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(CANVAS_W, y); ctx.stroke(); }
+  for (let x = 0; x <= canvasW; x += CELL_PX) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, canvasH); ctx.stroke(); }
+  for (let y = 0; y <= canvasH; y += CELL_PX) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(canvasW, y); ctx.stroke(); }
 
   // Grid scale labels
   ctx.fillStyle = '#cccccc';
   ctx.font = '8px monospace';
-  for (let x = 0; x <= CANVAS_W; x += CELL_PX * 10) ctx.fillText(x / CELL_PX + 'm', x + 2, 10);
-  for (let y = CELL_PX * 10; y <= CANVAS_H; y += CELL_PX * 10) ctx.fillText(y / CELL_PX + 'm', 2, y);
+  for (let x = 0; x <= canvasW; x += CELL_PX * 10) ctx.fillText(x / CELL_PX + 'm', x + 2, 10);
+  for (let y = CELL_PX * 10; y <= canvasH; y += CELL_PX * 10) ctx.fillText(y / CELL_PX + 'm', 2, y);
 
   // Orange dashed plot boundary
   if (plotPts.length >= 3) {
@@ -74,7 +80,6 @@ function exportCanvasForAI(plotPts: Point[], sitePts: Point[]): string {
     ctx.closePath();
     ctx.stroke();
     ctx.setLineDash([]);
-    // Label
     ctx.fillStyle = '#f97316';
     ctx.font = 'bold 11px monospace';
     ctx.fillText('PLOT BOUNDARY', plotPts[0].x + 4, plotPts[0].y - 6);
@@ -91,7 +96,6 @@ function exportCanvasForAI(plotPts: Point[], sitePts: Point[]): string {
     ctx.fillStyle = 'rgba(0,188,212,0.06)';
     ctx.fill();
     ctx.stroke();
-    // Label
     ctx.fillStyle = '#00bcd4';
     ctx.font = 'bold 11px monospace';
     ctx.fillText('SITE EXTERIOR (FILL ROOMS INSIDE HERE)', sitePts[0].x + 4, sitePts[0].y + 14);
@@ -100,10 +104,18 @@ function exportCanvasForAI(plotPts: Point[], sitePts: Point[]): string {
   return offscreen.toDataURL('image/png');
 }
 
+
 // ─── Component ────────────────────────────────────────────────────────────────
 export default function SmartPlannerPage() {
   const router = useRouter();
   const canvasRef = useRef<HTMLCanvasElement>(null);
+
+  // Canvas ratio
+  const [ratioId, setRatioId] = useState<RatioId>('square_hd');
+  const [showRatioPicker, setShowRatioPicker] = useState(false);
+  const currentRatio = CANVAS_RATIOS.find(r => r.id === ratioId)!;
+  const CANVAS_W = currentRatio.w;
+  const CANVAS_H = currentRatio.h;
 
   const [drawMode, setDrawMode] = useState<'plot' | 'site' | null>(null);
   const [plotPoints, setPlotPoints] = useState<Point[]>([]);
@@ -111,6 +123,44 @@ export default function SmartPlannerPage() {
   const [plotClosed, setPlotClosed] = useState(false);
   const [siteClosed, setSiteClosed] = useState(false);
   const [hoverPoint, setHoverPoint] = useState<Point | null>(null);
+
+  // Undo/Redo stacks — each entry is a snapshot of [plotPoints, sitePoints, plotClosed, siteClosed]
+  type Snapshot = { plotPts: Point[]; sitePts: Point[]; plotClosed: boolean; siteClosed: boolean };
+  const undoStack = useRef<Snapshot[]>([]);
+  const redoStack = useRef<Snapshot[]>([]);
+
+  const pushUndo = useCallback((snap: Snapshot) => {
+    undoStack.current = [...undoStack.current, snap];
+    redoStack.current = []; // clear redo on new action
+  }, []);
+
+  const undo = useCallback(() => {
+    if (undoStack.current.length === 0) return;
+    const prev = undoStack.current[undoStack.current.length - 1];
+    undoStack.current = undoStack.current.slice(0, -1);
+    redoStack.current = [{ plotPts: plotPoints, sitePts: sitePoints, plotClosed, siteClosed }, ...redoStack.current];
+    setPlotPoints(prev.plotPts); setSitePoints(prev.sitePts);
+    setPlotClosed(prev.plotClosed); setSiteClosed(prev.siteClosed);
+  }, [plotPoints, sitePoints, plotClosed, siteClosed]);
+
+  const redo = useCallback(() => {
+    if (redoStack.current.length === 0) return;
+    const next = redoStack.current[0];
+    redoStack.current = redoStack.current.slice(1);
+    undoStack.current = [...undoStack.current, { plotPts: plotPoints, sitePts: sitePoints, plotClosed, siteClosed }];
+    setPlotPoints(next.plotPts); setSitePoints(next.sitePts);
+    setPlotClosed(next.plotClosed); setSiteClosed(next.siteClosed);
+  }, [plotPoints, sitePoints, plotClosed, siteClosed]);
+
+  // Keyboard shortcuts Ctrl+Z / Ctrl+Y
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) { e.preventDefault(); undo(); }
+      if ((e.ctrlKey || e.metaKey) && (e.key === 'y' || (e.key === 'z' && e.shiftKey))) { e.preventDefault(); redo(); }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [undo, redo]);
 
   const [messages, setMessages] = useState<ChatMessage[]>([{
     role: 'assistant',
@@ -138,6 +188,24 @@ export default function SmartPlannerPage() {
     ctx.clearRect(0, 0, CANVAS_W, CANVAS_H);
     ctx.fillStyle = '#050f05';
     ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
+
+    // Highlighted canvas border — shows selected ratio
+    const borderColor = drawMode === 'plot' ? '#f97316' : drawMode === 'site' ? '#00f0ff' : '#22c55e44';
+    const borderGlow = drawMode === 'plot' ? '#f9731640' : drawMode === 'site' ? '#00f0ff40' : '#22c55e20';
+    ctx.save();
+    ctx.shadowColor = borderGlow;
+    ctx.shadowBlur = 16;
+    ctx.strokeStyle = borderColor;
+    ctx.lineWidth = drawMode ? 3 : 1.5;
+    ctx.setLineDash(drawMode ? [] : [6, 4]);
+    ctx.strokeRect(2, 2, CANVAS_W - 4, CANVAS_H - 4);
+    ctx.setLineDash([]);
+    ctx.restore();
+
+    // Ratio label in corner
+    ctx.fillStyle = '#22c55e30';
+    ctx.font = 'bold 10px monospace';
+    ctx.fillText(currentRatio.label, CANVAS_W - currentRatio.label.length * 7 - 8, CANVAS_H - 8);
 
     // Grid
     ctx.strokeStyle = '#0d1f0d'; ctx.lineWidth = 0.5;
@@ -210,7 +278,7 @@ export default function SmartPlannerPage() {
       ctx.fillText('Creating layout \u2014 ~10 seconds', CANVAS_W / 2, CANVAS_H / 2 + 16);
       ctx.textAlign = 'left';
     }
-  }, [plotPoints, sitePoints, plotClosed, siteClosed, hoverPoint, drawMode, isGeneratingImage]);
+  }, [plotPoints, sitePoints, plotClosed, siteClosed, hoverPoint, drawMode, isGeneratingImage, CANVAS_W, CANVAS_H, currentRatio, ratioId]);
 
   useEffect(() => { drawCanvas(); }, [drawCanvas]);
 
@@ -239,15 +307,23 @@ export default function SmartPlannerPage() {
     if (drawMode === 'plot' && !plotClosed) {
       if (plotPoints.length >= 3) {
         const dx = x - plotPoints[0].x, dy = y - plotPoints[0].y;
-        if (Math.sqrt(dx * dx + dy * dy) < 15) { setPlotClosed(true); setDrawMode(null); return; }
+        if (Math.sqrt(dx * dx + dy * dy) < 15) {
+          pushUndo({ plotPts: plotPoints, sitePts: sitePoints, plotClosed, siteClosed });
+          setPlotClosed(true); setDrawMode(null); return;
+        }
       }
+      pushUndo({ plotPts: plotPoints, sitePts: sitePoints, plotClosed, siteClosed });
       setPlotPoints(prev => [...prev, { x, y }]);
     }
     if (drawMode === 'site' && !siteClosed) {
       if (sitePoints.length >= 3) {
         const dx = x - sitePoints[0].x, dy = y - sitePoints[0].y;
-        if (Math.sqrt(dx * dx + dy * dy) < 15) { setSiteClosed(true); setDrawMode(null); return; }
+        if (Math.sqrt(dx * dx + dy * dy) < 15) {
+          pushUndo({ plotPts: plotPoints, sitePts: sitePoints, plotClosed, siteClosed });
+          setSiteClosed(true); setDrawMode(null); return;
+        }
       }
+      pushUndo({ plotPts: plotPoints, sitePts: sitePoints, plotClosed, siteClosed });
       setSitePoints(prev => [...prev, { x, y }]);
     }
   };
@@ -292,13 +368,17 @@ export default function SmartPlannerPage() {
     setShowGeneratedImage(false);
 
     try {
-      // Export a clean white-background version of the canvas
-      const imageBase64 = exportCanvasForAI(plotPts, sitePts);
+      // Export using the actual canvas dimensions matching the selected ratio
+      const imageBase64 = exportCanvasForAI(plotPts, sitePts, CANVAS_W, CANVAS_H);
 
       const res = await fetch('/api/generate-floorplan-image', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ imageBase64, roomSchedule: schedule }),
+        body: JSON.stringify({
+          imageBase64,
+          roomSchedule: schedule,
+          imageSize: currentRatio.falSize, // match output to canvas ratio
+        }),
       });
 
       const data = await res.json();
@@ -406,15 +486,15 @@ export default function SmartPlannerPage() {
         {/* Canvas / Image Panel */}
         <div className="flex flex-col flex-1 overflow-hidden">
           {/* Mode toolbar */}
-          <div className="flex items-center gap-2 px-4 py-2 border-b border-green-900/30 bg-[#070f07] shrink-0">
-            <span className="text-[9px] tracking-[3px] uppercase text-green-800 mr-2">Canvas:</span>
+          <div className="flex items-center gap-2 px-4 py-2 border-b border-green-900/30 bg-[#070f07] shrink-0 flex-wrap">
+            <span className="text-[9px] tracking-[3px] uppercase text-green-800 mr-1">Canvas:</span>
             <button
               onClick={() => { if (plotClosed) return; setDrawMode(d => d === 'plot' ? null : 'plot'); setSitePoints([]); setSiteClosed(false); }}
               disabled={plotClosed}
               className={`flex items-center gap-1.5 px-3 py-1.5 text-[10px] uppercase tracking-wider rounded border transition-all font-bold ${drawMode === 'plot' ? 'bg-orange-500/20 border-orange-400 text-orange-300' : plotClosed ? 'border-orange-900/40 text-orange-900 cursor-not-allowed' : 'border-orange-700/40 text-orange-500 hover:bg-orange-500/10'}`}
             >
               <span className="w-2 h-2 rounded-full bg-orange-400 inline-block" />
-              {plotClosed ? 'Plot \u2713' : drawMode === 'plot' ? 'Drawing Plot...' : 'Plot Boundary'}
+              {plotClosed ? 'Plot ✓' : drawMode === 'plot' ? 'Drawing Plot...' : 'Plot Boundary'}
             </button>
             <button
               onClick={() => setDrawMode(d => d === 'site' ? null : 'site')}
@@ -422,8 +502,60 @@ export default function SmartPlannerPage() {
               className={`flex items-center gap-1.5 px-3 py-1.5 text-[10px] uppercase tracking-wider rounded border transition-all font-bold ${drawMode === 'site' ? 'bg-cyan-500/20 border-cyan-400 text-cyan-300' : siteClosed ? 'border-cyan-900/40 text-cyan-900 cursor-not-allowed' : !plotClosed ? 'border-gray-800 text-gray-700 cursor-not-allowed' : 'border-cyan-700/40 text-cyan-500 hover:bg-cyan-500/10'}`}
             >
               <span className="w-2 h-2 rounded-full bg-cyan-400 inline-block" />
-              {siteClosed ? 'Site Ext \u2713' : drawMode === 'site' ? 'Drawing Site...' : 'Site Exterior'}
+              {siteClosed ? 'Site Ext ✓' : drawMode === 'site' ? 'Drawing Site...' : 'Site Exterior'}
             </button>
+
+            {/* Undo / Redo */}
+            <button
+              onClick={undo}
+              disabled={undoStack.current.length === 0}
+              title="Undo (Ctrl+Z)"
+              className="flex items-center gap-1 px-2.5 py-1.5 text-[10px] rounded border border-green-900/30 text-green-700 hover:bg-green-500/10 hover:text-green-400 disabled:opacity-20 disabled:cursor-not-allowed transition-all"
+            >
+              <Undo2 size={12} /> Undo
+            </button>
+            <button
+              onClick={redo}
+              disabled={redoStack.current.length === 0}
+              title="Redo (Ctrl+Y)"
+              className="flex items-center gap-1 px-2.5 py-1.5 text-[10px] rounded border border-green-900/30 text-green-700 hover:bg-green-500/10 hover:text-green-400 disabled:opacity-20 disabled:cursor-not-allowed transition-all"
+            >
+              <Redo2 size={12} /> Redo
+            </button>
+
+            {/* Canvas Ratio Picker */}
+            <div className="relative">
+              <button
+                onClick={() => setShowRatioPicker(p => !p)}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] uppercase tracking-wider rounded border border-green-700/40 text-green-500 hover:bg-green-500/10 transition-all"
+              >
+                <Maximize2 size={11} /> {currentRatio.label}
+              </button>
+              {showRatioPicker && (
+                <div className="absolute top-full left-0 mt-1 z-50 bg-[#0a180a] border border-green-800/50 rounded-lg shadow-2xl shadow-black/50 overflow-hidden min-w-[160px]">
+                  {CANVAS_RATIOS.map(r => (
+                    <button
+                      key={r.id}
+                      onClick={() => {
+                        setRatioId(r.id);
+                        setShowRatioPicker(false);
+                        // Clear traces when ratio changes — they'd be on wrong canvas
+                        setPlotPoints([]); setSitePoints([]);
+                        setPlotClosed(false); setSiteClosed(false);
+                        undoStack.current = []; redoStack.current = [];
+                      }}
+                      className={`w-full text-left px-4 py-2.5 text-[10px] flex items-center justify-between gap-4 hover:bg-green-500/10 transition-colors ${
+                        r.id === ratioId ? 'text-green-300 bg-green-500/10' : 'text-green-700'
+                      }`}
+                    >
+                      <span>{r.label}</span>
+                      {r.id === ratioId && <span className="text-green-400">✓</span>}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
             <div className="ml-auto flex items-center gap-2">
               {isGeneratingImage && (
                 <div className="flex items-center gap-2 px-3 py-1.5 text-[10px] text-purple-400 border border-purple-900/40 rounded bg-purple-950/20">
@@ -432,14 +564,14 @@ export default function SmartPlannerPage() {
                 </div>
               )}
               <button
-                onClick={() => { setPlotPoints([]); setSitePoints([]); setPlotClosed(false); setSiteClosed(false); setDrawMode(null); setRoomSchedule(null); setGeneratedImageUrl(null); setShowGeneratedImage(false); setGenerationError(null); }}
+                onClick={() => { setPlotPoints([]); setSitePoints([]); setPlotClosed(false); setSiteClosed(false); setDrawMode(null); setRoomSchedule(null); setGeneratedImageUrl(null); setShowGeneratedImage(false); setGenerationError(null); undoStack.current = []; redoStack.current = []; }}
                 className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] uppercase tracking-wider rounded border border-red-900/40 text-red-700 hover:bg-red-500/10 hover:text-red-500 transition-all"
               >
                 <RotateCcw size={11} /> Reset
               </button>
             </div>
             <div className="text-[9px] text-green-900 border border-green-950 rounded px-2 py-1">
-              1 cell = 1m &nbsp;|&nbsp; {GRID_COLS}m &times; {GRID_ROWS}m
+              1 cell = 1m &nbsp;|&nbsp; {Math.floor(CANVAS_W/CELL_PX)}m &times; {Math.floor(CANVAS_H/CELL_PX)}m
             </div>
           </div>
 

@@ -152,11 +152,16 @@ FINAL CHECKLIST:
 
 export async function POST(req: Request) {
   try {
-    const { imageBase64, roomSchedule } = await req.json();
+    const { imageBase64, roomSchedule, imageSize = 'square' } = await req.json();
 
     if (!imageBase64 || !roomSchedule) {
       return NextResponse.json({ error: 'Missing imageBase64 or roomSchedule' }, { status: 400 });
     }
+
+    // Validate imageSize — only allow fal.ai supported values
+    const VALID_SIZES = ['square_hd', 'square', 'portrait_4_3', 'portrait_16_9', 'landscape_4_3', 'landscape_16_9'];
+    const validatedSize = VALID_SIZES.includes(imageSize) ? imageSize : 'square';
+    console.log('[FloorPlan] Output image_size:', validatedSize);
 
     // 1. Convert base64 to File and upload to fal.ai storage
     const base64Data = imageBase64.replace(/^data:image\/\w+;base64,/, '');
@@ -180,13 +185,13 @@ export async function POST(req: Request) {
     ];
 
     // 4. Call GPT-Image-2 edit — canvas + 3 targeted layout references
-    console.log('[FloorPlan] Calling GPT-Image-2 (medium quality) with 3 flat-layout references...');
+    console.log('[FloorPlan] Calling GPT-Image-2 (medium quality) with image_size:', validatedSize);
     const result = await fal.subscribe('openai/gpt-image-2/edit', {
       input: {
         image_urls: [uploadedUrl, ...REFERENCE_IMAGES],
         prompt,
         quality: 'medium',
-        image_size: 'square',
+        image_size: validatedSize,
         num_images: 1,
       },
     });
