@@ -119,6 +119,16 @@ export default function PngToDxfPage() {
     if (file) loadFile(file);
   };
 
+  const base64ToBlob = (base64Str: string, typeStr: string) => {
+    const byteString = atob(base64Str.split(',')[1]);
+    const ab = new ArrayBuffer(byteString.length);
+    const ia = new Uint8Array(ab);
+    for (let i = 0; i < byteString.length; i++) {
+      ia[i] = byteString.charCodeAt(i);
+    }
+    return new Blob([ab], { type: typeStr });
+  };
+
   const vectorize = async () => {
     if (!originalFile) return;
     setStep('processing');
@@ -126,36 +136,33 @@ export default function PngToDxfPage() {
     startFakeProgress();
 
     try {
-      let base64ToSend = '';
-
-      // If the user has an upscaled image available (and we are on the enhanced tab, or generally if it exists)
+      const formData = new FormData();
+      
+      // If we are on the enhanced tab and have preprocessed image
       if (preprocessedUrl && previewTab === 'enhanced') {
-        base64ToSend = preprocessedUrl;
+        const blob = base64ToBlob(preprocessedUrl, 'image/png');
+        formData.append('image', blob, 'enhanced.png');
       } else {
-        // Convert original file to base64
-        base64ToSend = await new Promise<string>((resolve, reject) => {
-          const reader = new FileReader();
-          reader.onload = () => resolve(reader.result as string);
-          reader.onerror = reject;
-          reader.readAsDataURL(originalFile);
-        });
+        formData.append('image', originalFile);
       }
+      formData.append('format', 'svg');
 
-      // Step 1: Get SVG preview via local potrace pipeline
-      const svgRes = await fetch('/api/vectorize', {
+      // Call high-quality Vectorizer.ai API
+      const svgRes = await fetch('/api/png-to-dxf', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ currentFloorPlanBase64: base64ToSend })
+        body: formData,
       });
-      if (!svgRes.ok) {
-        const j = await svgRes.json().catch(() => ({ error: 'Unknown error' }));
-        throw new Error(j.error || `SVG request failed (${svgRes.status})`);
-      }
-      const data = await svgRes.json();
-      setSvgResult(data.svg);
 
-      // Step 2: Prepare DXF file locally from the SVG
-      const dxfString = convertSvgToDxf(data.svg, [], 20); // 20 ppm default
+      if (!svgRes.ok) {
+        const j = await svgRes.json().catch(() => ({ error: 'Vectorizer API failed' }));
+        throw new Error(j.error || `Vectorizer request failed (${svgRes.status})`);
+      }
+
+      const svgText = await svgRes.text();
+      setSvgResult(svgText);
+
+      // Step 2: Prepare DXF file locally from the Vectorizer.ai SVG
+      const dxfString = convertSvgToDxf(svgText, [], 20); // 20 ppm default
       const dxfBufferObj = new Blob([dxfString], { type: 'application/dxf' });
       setDxfBlob(dxfBufferObj);
 
