@@ -290,7 +290,7 @@ export async function POST(req: Request) {
         image_urls: [uploadedUrl],
         mask_url: uploadedMaskUrl,
         prompt,
-        quality: 'high',  // 'high' = sharper lines + better shape accuracy for architectural blueprints
+        quality: 'medium',  // 'medium' for cost efficiency; switch to 'high' for sharper output
         image_size: outputSize,  // Custom pixel dimensions — matches source/mask resolution exactly
         num_images: 1,
       },
