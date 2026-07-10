@@ -107,7 +107,7 @@ function buildFloorPlanPrompt(schedule: RoomSchedule, sitePolygonPoints?: Polygo
   // ── THE PROMPT — optimized for GPT-Image-2 ──
   // First sentence = most critical constraint (shape).
   // Short, dense, front-loaded. No XML tags. ~400 tokens.
-  return `The source image shows a white polygon shape on a solid black background. This white area IS the building footprint — draw the floor plan ONLY inside this white shape. The black area is outside the building, do NOT draw anything there. Keep the exact shape of the white polygon, do not make it rectangular.
+  return `The source image shows a white polygon shape on a solid black background. The mask restricts editing to the transparent (alpha=0) polygon region. Draw the floor plan ONLY inside this white polygon shape. The black area is protected by the mask and must remain solid black. Keep the exact shape of the white polygon, do not make it rectangular.
 
 ${flatCount} flats, each ${bhk}BHK. You MUST draw all ${flatCount} flats labeled: ${flatLabelList}. Do not skip or merge any flat.
 
