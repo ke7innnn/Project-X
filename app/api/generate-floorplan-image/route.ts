@@ -22,6 +22,11 @@ interface PolygonPoint {
   y: number;
 }
 
+interface CirculationCore {
+  x: number;
+  y: number;
+}
+
 interface RoomSchedule {
   flats: Flat[];
   totalBuildupArea: number;
@@ -29,8 +34,8 @@ interface RoomSchedule {
   plotH: number;
   siteExteriorW: number;
   siteExteriorH: number;
-  layoutType?: string; // selected layout concept
-  sitePolygonPoints?: PolygonPoint[]; // exact vertex coordinates of the traced shape
+  layoutType?: string;
+  sitePolygonPoints?: PolygonPoint[];
 }
 
 /** Detect BHK type from the rooms in one flat group */
@@ -70,7 +75,7 @@ ZONE 3 — BACK (exterior wall): MASTER BEDROOM (with attached MASTER BATH) + re
   }
 }
 
-function buildFloorPlanPrompt(schedule: RoomSchedule, sitePolygonPoints?: PolygonPoint[]): string {
+function buildFloorPlanPrompt(schedule: RoomSchedule, sitePolygonPoints?: PolygonPoint[], circulationCore?: CirculationCore): string {
   // Group flats by layout similarity (same room names & dimensions) to optimize prompt length
   const groups: { [key: string]: { ids: string[]; rooms: Room[] } } = {};
   for (const flat of schedule.flats) {
@@ -100,11 +105,14 @@ function buildFloorPlanPrompt(schedule: RoomSchedule, sitePolygonPoints?: Polygo
   const totalRooms = schedule.flats.reduce((s, f) => s + f.rooms.length, 0);
   const flatCount = schedule.flats.length;
 
+  // Build the flat label sequence as an explicit checklist (research: visual checklists prevent skipping)
+  const flatLabels = Array.from({ length: flatCount }, (_, i) => `FLAT ${String.fromCharCode(65 + i)}`);
+  const flatCheckboxList = flatLabels.map(l => `[ ] ${l}`).join('  ');
+  const lastFlatLetter = String.fromCharCode(65 + flatCount - 1);
+
   const layoutInstructions = schedule.layoutType
-    ? `- SELECTED BUILDING LAYOUT STYLE: ${schedule.layoutType}. Bends corridors and arranges flats precisely as specified by this strategy.`
-    : `- ${flatCount} flats in 2 rows (top row: Flats A–${String.fromCharCode(64+Math.ceil(flatCount/2))}, bottom row: remaining flats)
-- Central CORRIDOR spine 1.5m wide runs horizontally between the 2 rows
-- Staircase 3×2m at the west end of corridor`;
+    ? `SELECTED BUILDING LAYOUT STYLE: ${schedule.layoutType}. Arrange the ${flatCount} flats precisely using this strategy.`
+    : `Arrange ${flatCount} flats in 2 rows with a central corridor spine 1.5m wide running between the rows.`;
 
   // Build shape polygon description from coordinates
   const polygonStr = sitePolygonPoints && sitePolygonPoints.length > 0
@@ -114,75 +122,102 @@ function buildFloorPlanPrompt(schedule: RoomSchedule, sitePolygonPoints?: Polygo
   const shapeVertexCount = sitePolygonPoints?.length ?? 4;
   const isIrregular = shapeVertexCount > 4;
 
-  return `You are a professional AutoCAD architect.
+  // Adaptive stair core location from polygon centroid
+  const coreStr = circulationCore
+    ? `x=${circulationCore.x}m, y=${circulationCore.y}m (polygon geometric centroid — deepest interior point, furthest from all exterior walls)`
+    : `the geometric center of the building footprint`;
 
-████████████████████████████████████████████████████
-⚠ BUILDING FOOTPRINT SHAPE — ABSOLUTE RULE #1:
-████████████████████████████████████████████████████
-- The source image has the building's outer walls PRE-DRAWN as a thick, solid black concrete wall loop. 
-- You MUST paint the floor plan (rooms, internal walls, doors, corridors) EXACTLY inside this pre-drawn black concrete boundary loop.
-- The outer walls of the generated floor plan must align perfectly along this pre-drawn black footprint. Do NOT change, shrink, distort, or flip the shape of this outer footprint.
-- DO NOT draw a rectangle, diamond, or any other shape. Trace the exact outline provided in the source image.
+  return `<role>
+You are a senior AutoCAD draftsman who executes architectural blueprints with absolute precision. You do NOT make creative decisions about which flats to include, skip, or merge. You draw EXACTLY what is listed in the room schedule — no more, no less.
+</role>
 
-- COORDINATE VERTEX REFERENCE:
-  The shape vertices in meters are: ${polygonStr}
+<constraints>
+████████████████████████████████████████████████████
+RULE 1 — BUILDING FOOTPRINT SHAPE (ABSOLUTE):
+████████████████████████████████████████████████████
+- The source image has the building's outer concrete walls PRE-DRAWN as a thick black closed polygon.
+- You MUST draw all rooms and internal walls EXACTLY inside this pre-drawn black boundary.
+- Do NOT alter, shrink, distort, round, or flip this outer wall shape in ANY way.
+- Do NOT draw a rectangle, diamond, circle, or any other shape — only use the shape you see in the source image.
+
+COORDINATE REFERENCE (HTML Canvas — Y increases DOWNWARDS from top-left):
+  Vertices: ${polygonStr}
   This is a ${shapeVertexCount}-vertex ${isIrregular ? 'IRREGULAR POLYGON' : 'rectangle'}.
-  ⚠ COORDINATE SYSTEM: This uses HTML Canvas coordinates where (0,0) is at the TOP-LEFT of the image. Y increases DOWNWARDS (top-to-bottom). So a vertex with y=14m is near the top of the image, and a vertex with y=43m is near the bottom of the image. Do NOT flip it vertically.
-- The mask (white area) in the provided mask image ALREADY matches this exact shape.
+  A vertex with y=10m is near the TOP of the image. A vertex with y=45m is near the BOTTOM. Do NOT flip vertically.
+  The mask (transparent area) in the mask image matches this exact polygon shape.
 ████████████████████████████████████████████████████
 
-BUILDING LAYOUT STRATEGY:
+████████████████████████████████████████████████████
+RULE 2 — ALL ${flatCount} FLATS REQUIRED (NON-NEGOTIABLE):
+████████████████████████████████████████████████████
+Step 1 — ZONE DIVISION: Before drawing any walls, visually divide the building footprint into exactly ${flatCount} distinct zones.
+Step 2 — LABEL ASSIGNMENT: Assign one flat label to each zone in order: FLAT A, FLAT B, ... FLAT ${lastFlatLetter}.
+Step 3 — DRAW ROOMS: Draw all rooms from the room schedule inside each zone.
+
+FLAT LABEL MANDATORY CHECKLIST — you must draw ALL of these, in alphabetical order, none can be skipped:
+${flatCheckboxList}
+
+⛔ DO NOT skip, merge, or omit ANY flat from the list above. If you skip even one flat, the output is INCORRECT.
+⛔ EVERY flat in the checklist MUST have its label visible in the image (e.g., "FLAT A", "FLAT B", ...).
+████████████████████████████████████████████████████
+
+████████████████████████████████████████████████████
+RULE 3 — CIRCULATION CORE PLACEMENT:
+████████████████████████████████████████████████████
+- Place the LIFT (2m × 2.5m) and STAIRCASE (4m × 5m) at approximately ${coreStr}.
+- The circulation core MUST be positioned fully in the interior of the building — it must NOT touch or block any exterior wall.
+- Exterior walls must remain free for ventilation windows of bedrooms, living rooms, and kitchens.
+████████████████████████████████████████████████████
+</constraints>
+
+<layout>
 ${layoutInstructions}
-- Corner flats must adapt their shapes (trapezoidal/angled) to perfectly fill the corners of the pre-drawn black concrete outer footprint.
-- Corridors and utility cores must bend/angle to follow the exact pre-drawn outline.
+- Corner flats must adapt their shapes (trapezoidal/angled) to perfectly fill every corner of the building footprint.
+- Corridors must bend/angle to follow the exact outline of the pre-drawn black boundary.
+</layout>
 
-FLOOR PLAN DATA:
-- Site polygon: ${polygonStr}
-- Site bounding box: ${schedule.siteExteriorW}m × ${schedule.siteExteriorH}m
-- Total buildup: ${schedule.totalBuildupArea} sqm
-- Total flats: ${flatCount} (You MUST draw exactly ${flatCount} flats, labeled FLAT A to FLAT ${String.fromCharCode(65 + flatCount - 1)})
-- Total rooms: ${totalRooms}
+<floor_plan_data>
+Site polygon: ${polygonStr}
+Site bounding box: ${schedule.siteExteriorW}m × ${schedule.siteExteriorH}m
+Total buildup area: ${schedule.totalBuildupArea} sqm
+Total flats: ${flatCount} (FLAT A to FLAT ${lastFlatLetter})
+Total rooms: ${totalRooms}
+</floor_plan_data>
 
-⚠ ENFORCING ALL FLATS (CRITICAL):
-- You must draw exactly ${flatCount} separate, distinct apartments (Flat A to Flat ${String.fromCharCode(65 + flatCount - 1)}) inside the building envelope.
-- Do NOT merge, skip, or omit any flats. If the schedule lists ${flatCount} flats, all ${flatCount} must be explicitly laid out and labeled in the image.
-- Ensure every single flat is accessible via the corridor system.
-
-ROOM SCHEDULE (BHK type and zone layout per group):
+<room_schedule>
 ${flatDescriptions}
+</room_schedule>
 
-═══════════════════════════════════════════════════════
-UNIVERSAL ROOM FLOW & VENTILATION RULES:
-═══════════════════════════════════════════════════════
-⚠ LIVING ROOM is ALWAYS the room directly behind the entrance door. Entrance door from corridor swings directly into the Living Room.
-⚠ Bedrooms, Living Rooms, and Kitchens must touch the outer shell of the polygon to ensure large ventilation windows face the outside.
-⚠ Bathrooms are always internal (placed between bedrooms) and must connect to ventilation shafts/ducts.
-═══════════════════════════════════════════════════════
+<ventilation_rules>
+- LIVING ROOM is ALWAYS placed directly behind the entrance door (corridor-side).
+- Bedrooms, Living Rooms, and Kitchens MUST touch the exterior shell of the polygon for window ventilation.
+- Bathrooms are always internal (between bedrooms) with ventilation shafts.
+</ventilation_rules>
 
-DRAWING STYLE (CRITICAL FOR PROFESSIONAL CAD BLUEPRINT QUALITY):
-- High-contrast, ultra-clean 2D AutoCAD blueprint vectors.
-- White background, solid black walls (thick 30cm outer walls, 20cm dividing walls, 10cm internal partitions).
-- Every room must have a clean door opening with a clear arc swing symbol (0.9m gap).
-- Every room must have centered, clean text labels in a technical sans-serif font (e.g., "A1 Master Bedroom\n4.0m x 5.0m = 20.0 sqm").
-- Every flat must be labeled in a larger, bold technical font (e.g., "FLAT A", "FLAT B").
-- Draw thin dimension lines on the outside of the building walls with ticks and measurements in meters.
-- ABSOLUTELY NO colors, NO furniture (no beds, no toilets, no sofas, no plants), NO textures, NO shadows, and NO 3D views. Just clean 2D vector lines.
-- The output must look like a professional AutoCAD layout sheet.
+<drawing_style>
+- Ultra-clean 2D AutoCAD blueprint. White background, solid black walls.
+- Outer walls: 30cm thick. Flat dividing walls: 20cm. Internal room walls: 10cm.
+- Every room: door opening with arc swing symbol (0.9m gap).
+- Every room: code + name + dimensions in technical font (e.g. "A1 Master Bedroom\n4.0m x 5.0m").
+- Every flat: large bold label ("FLAT A", "FLAT B", etc.).
+- Dimension lines with tick marks on all exterior walls showing measurements in meters.
+- NO furniture, NO colors, NO shadows, NO 3D, NO textures. Pure 2D vector line drawing.
+</drawing_style>
 
-FINAL CHECKLIST:
-1. ✓ Outer building walls MATCH THE POLYGON VERTICES exactly — not a diamond, not a rectangle
-2. ✓ ALL ${totalRooms} rooms present — zero omissions
-3. ✓ LIVING ROOM corridor-side in EVERY flat — never at back
-4. ✓ MASTER BEDROOM at exterior back wall in EVERY flat
-5. ✓ BHK zone layout followed per flat group
-6. ✓ No white gaps inside the white masked footprint`;
+<final_checklist>
+1. [ ] Outer walls match the pre-drawn black polygon exactly — not a diamond, not a rectangle
+2. [ ] All ${flatCount} flats drawn (A to ${lastFlatLetter}) — none skipped or merged
+3. [ ] All ${totalRooms} rooms present — zero omissions
+4. [ ] Living Room corridor-side in every flat
+5. [ ] Circulation core at ${coreStr} — not blocking exterior walls
+6. [ ] All exterior walls have visible dimension lines
+</final_checklist>`;
 }
 
 
 export async function POST(req: Request) {
   try {
-    const { imageBase64, maskBase64, roomSchedule, imageSize = 'square', sitePolygonPoints } = await req.json();
-    // Inject polygon points into schedule for the prompt builder
+    const { imageBase64, maskBase64, roomSchedule, imageSize = 'square', sitePolygonPoints, circulationCoreLocation } = await req.json();
     if (sitePolygonPoints && sitePolygonPoints.length > 0) {
       roomSchedule.sitePolygonPoints = sitePolygonPoints;
     }
@@ -225,8 +260,8 @@ export async function POST(req: Request) {
     // Confirm mask is set before calling
     console.log('[FloorPlan] Mask URL set:', uploadedMaskUrl ? '✓ YES — boundary lock ACTIVE' : '✗ NO — boundary lock INACTIVE');
 
-    // 3. Build the strict architectural prompt
-    const prompt = buildFloorPlanPrompt(roomSchedule, sitePolygonPoints);
+    // 3. Build the strict architectural prompt with all constraint engineering applied
+    const prompt = buildFloorPlanPrompt(roomSchedule, sitePolygonPoints, circulationCoreLocation);
     console.log('[FloorPlan] Prompt length:', prompt.length, 'chars');
 
     // Only keep ref7_bhk_types.png for symbols and styling consistency

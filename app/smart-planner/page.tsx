@@ -108,20 +108,26 @@ function exportCanvasForAI(plotPts: Point[], sitePts: Point[], canvasW: number, 
   return offscreen.toDataURL('image/png');
 }
 
-// ─── Export mask as black-and-white PNG for GPT-Image-2 ──────────────────────
+// ─── Export mask as transparent-alpha PNG for GPT-Image-2 inpainting ─────────
+// OpenAI DALL-E / GPT-Image-2 edit API uses the ALPHA CHANNEL:
+//   alpha = 0   (transparent) → EDITABLE (generate here)
+//   alpha = 255 (opaque)      → FROZEN   (keep unchanged)
+// Previous version used solid black/white (alpha=255 everywhere) — mask was 100% non-functional.
 function exportMaskForAI(activePts: Point[], canvasW: number, canvasH: number): string {
   const offscreen = document.createElement('canvas');
   offscreen.width = canvasW;
   offscreen.height = canvasH;
   const ctx = offscreen.getContext('2d')!;
 
-  // Fill with black (freeze area)
+  // 1. Fill entire canvas with OPAQUE BLACK (freeze/preserve area — alpha=255)
   ctx.fillStyle = '#000000';
   ctx.fillRect(0, 0, canvasW, canvasH);
 
-  // Fill the active polygon with white (edit area)
+  // 2. Punch the active polygon to TRANSPARENT (editable area — alpha=0)
+  //    destination-out: destination pixels become transparent wherever source is drawn
   if (activePts.length >= 3) {
-    ctx.fillStyle = '#ffffff';
+    ctx.globalCompositeOperation = 'destination-out';
+    ctx.fillStyle = 'rgba(0, 0, 0, 1)'; // color doesn't matter for destination-out; alpha does
     ctx.beginPath();
     activePts.forEach((p, i) => {
       if (i === 0) ctx.moveTo(p.x, p.y);
@@ -130,15 +136,37 @@ function exportMaskForAI(activePts: Point[], canvasW: number, canvasH: number): 
     ctx.closePath();
     ctx.fill();
 
-    // Dilate (expand) the mask boundary slightly by drawing a thick white outline
-    // This allows the AI's black outer wall to overlap perfectly with the cyan trace.
-    ctx.strokeStyle = '#ffffff';
-    ctx.lineWidth = 6;
+    // Also punch a thick stroke to dilate the editable boundary by ~12px
+    // This gives the AI room to draw the outer wall exactly on the trace edge
+    ctx.strokeStyle = 'rgba(0, 0, 0, 1)';
+    ctx.lineWidth = 12;
+    ctx.lineJoin = 'round';
     ctx.stroke();
+
+    // Reset composite to default
+    ctx.globalCompositeOperation = 'source-over';
   }
 
   return offscreen.toDataURL('image/png');
 }
+
+// ─── Compute polygon centroid (geometric center) for adaptive stair placement ──
+function computePolygonCentroid(pts: Point[]): { x: number; y: number } {
+  if (pts.length === 0) return { x: 0, y: 0 };
+  let cx = 0, cy = 0, area = 0;
+  for (let i = 0; i < pts.length; i++) {
+    const j = (i + 1) % pts.length;
+    const cross = pts[i].x * pts[j].y - pts[j].x * pts[i].y;
+    area += cross;
+    cx += (pts[i].x + pts[j].x) * cross;
+    cy += (pts[i].y + pts[j].y) * cross;
+  }
+  area /= 2;
+  cx /= (6 * area);
+  cy /= (6 * area);
+  return { x: cx, y: cy };
+}
+
 
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -244,7 +272,7 @@ export default function SmartPlannerPage() {
   const [compareMode, setCompareMode] = useState(false);
   const generatedImageObjRef = useRef<HTMLImageElement | null>(null);
   const [generationError, setGenerationError] = useState<string | null>(null);
-  const [layoutOptions, setLayoutOptions] = useState<{ id: string; name: string; desc: string; }[] | null>(null);
+  const [layoutOptions, setLayoutOptions] = useState<{ id: string; name: string; desc: string; flatCount?: number; bhkType?: string; }[] | null>(null);
 
   useEffect(() => {
     if (generatedImageUrl) {
@@ -671,9 +699,13 @@ export default function SmartPlannerPage() {
           imageBase64,
           maskBase64,
           roomSchedule: schedule,
-          imageSize: currentRatio.falSize, // match output to canvas ratio
-          // Pass the exact site polygon coordinates so the AI can trace the exact shape
+          imageSize: currentRatio.falSize,
           sitePolygonPoints: activePts.map(p => ({ x: pxToMScaled(p.x), y: pxToMScaled(p.y) })),
+          // Compute centroid in meters for adaptive staircase/lift core placement
+          circulationCoreLocation: (() => {
+            const centroidPx = computePolygonCentroid(activePts);
+            return { x: +pxToMScaled(centroidPx.x).toFixed(1), y: +pxToMScaled(centroidPx.y).toFixed(1) };
+          })(),
         }),
       });
 
@@ -1033,17 +1065,24 @@ export default function SmartPlannerPage() {
             {layoutOptions && (
               <div className="border border-yellow-500/20 bg-yellow-950/10 rounded-lg p-4 space-y-3">
                 <div className="text-[10px] font-bold text-yellow-400 uppercase tracking-widest flex items-center gap-1.5">
-                  <Move size={11} /> Select a Layout Option
+                  <Move size={11} /> Select a Layout — Flat Count Pre-Calculated
                 </div>
-                <p className="text-[9px] text-yellow-600/70 uppercase">Choose a layout concept for your traced shape:</p>
+                <p className="text-[9px] text-yellow-600/70 uppercase">Each layout already has the optimal number of flats for your traced shape:</p>
                 <div className="grid grid-cols-1 gap-2">
                   {layoutOptions.map((opt) => (
                     <button
                       key={opt.id}
-                      onClick={() => selectLayoutOption(opt.name)}
+                      onClick={() => selectLayoutOption(`${opt.name}${opt.flatCount ? ` (${opt.flatCount} flats, ${opt.bhkType ?? ''})` : ''}`)}
                       className="text-left p-3 rounded-lg border border-yellow-950/40 bg-[#070f07] hover:bg-yellow-500/5 hover:border-yellow-500/40 transition-all group"
                     >
-                      <div className="text-[10px] font-bold text-yellow-400 group-hover:text-yellow-300">{opt.name}</div>
+                      <div className="flex items-center justify-between">
+                        <div className="text-[10px] font-bold text-yellow-400 group-hover:text-yellow-300">{opt.name}</div>
+                        {opt.flatCount && (
+                          <span className="ml-2 px-2 py-0.5 rounded-full bg-yellow-500/10 border border-yellow-500/30 text-[9px] font-bold text-yellow-400 whitespace-nowrap">
+                            {opt.flatCount} Flats{opt.bhkType ? ` · ${opt.bhkType}` : ''}
+                          </span>
+                        )}
+                      </div>
                       <div className="text-[9px] text-green-700/80 mt-1 leading-normal">{opt.desc}</div>
                     </button>
                   ))}
