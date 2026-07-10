@@ -108,11 +108,10 @@ function exportCanvasForAI(plotPts: Point[], sitePts: Point[], canvasW: number, 
   return offscreen.toDataURL('image/png');
 }
 
-// ─── Export mask as transparent-alpha PNG at fal.ai output resolution ─────────
-// OpenAI / GPT-Image-2 Edit API uses the ALPHA CHANNEL:
-//   alpha = 0   (transparent) → EDITABLE (AI generates content here)
-//   alpha = 255 (opaque)      → PRESERVED (AI must not touch this area)
-// Inside the polygon is transparent (alpha=0), outside is opaque black (alpha=255).
+// ─── Export mask as BLACK/WHITE PNG at fal.ai output resolution ──────────────
+// fal.ai uses standard B/W mask format:
+//   WHITE (#ffffff) → EDITABLE (AI draws the floor plan here)
+//   BLACK (#000000) → PRESERVED (AI must not touch this area)
 // MUST be at the same resolution as the source image for pixel-aligned masking.
 function exportMaskForAI(activePts: Point[], canvasW: number, canvasH: number, falSize: string): string {
   const outSize = FAL_OUTPUT_SIZES[falSize] || { w: canvasW, h: canvasH };
@@ -124,28 +123,24 @@ function exportMaskForAI(activePts: Point[], canvasW: number, canvasH: number, f
   // Scale polygon points to output resolution
   const scaledPts = scalePoints(activePts, canvasW, canvasH, outSize.w, outSize.h);
 
-  // 1. Fill entire canvas with OPAQUE BLACK (preserve/freeze area — alpha=255)
+  // 1. Fill entire canvas with BLACK (preserve/freeze — AI cannot draw here)
   ctx.fillStyle = '#000000';
   ctx.fillRect(0, 0, outSize.w, outSize.h);
 
-  // 2. Punch the active polygon to TRANSPARENT (editable area — alpha=0)
+  // 2. Fill polygon with WHITE (editable — AI draws floor plan here)
   if (scaledPts.length >= 3) {
-    ctx.globalCompositeOperation = 'destination-out';
-    ctx.fillStyle = 'rgba(0, 0, 0, 1)'; // Alpha = 1 drawn with destination-out erases destination to alpha=0
+    ctx.fillStyle = '#ffffff';
     drawPolygonPath(ctx, scaledPts);
     ctx.fill();
 
-    // Dilate the transparent boundary by 16px (matches source image wall thickness)
+    // Dilate the white boundary by 16px (matches source image wall thickness)
     // so the AI can place its outer wall lines exactly on the trace edge
-    ctx.strokeStyle = 'rgba(0, 0, 0, 1)';
+    ctx.strokeStyle = '#ffffff';
     ctx.lineWidth = 16;
     ctx.lineJoin = 'miter';
     ctx.lineCap = 'square';
     drawPolygonPath(ctx, scaledPts);
     ctx.stroke();
-
-    // Reset composite operation to default
-    ctx.globalCompositeOperation = 'source-over';
   }
 
   return offscreen.toDataURL('image/png');

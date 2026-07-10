@@ -107,7 +107,7 @@ function buildFloorPlanPrompt(schedule: RoomSchedule, sitePolygonPoints?: Polygo
   // ── THE PROMPT — optimized for GPT-Image-2 ──
   // First sentence = most critical constraint (shape).
   // Short, dense, front-loaded. No XML tags. ~400 tokens.
-  return `The source image shows a white polygon shape on a solid black background. The mask restricts editing to the transparent (alpha=0) polygon region. Draw the floor plan ONLY inside this white polygon shape. The black area is protected by the mask and must remain solid black. Keep the exact shape of the white polygon, do not make it rectangular.
+  return `The source image shows a white polygon shape on a solid black background. The mask restricts editing to the white polygon region. Draw the floor plan ONLY inside this white polygon shape. The black area is protected by the mask and must remain solid black. Keep the exact shape of the white polygon, do not make it rectangular.
 
 ${flatCount} flats, each ${bhk}BHK. You MUST draw all ${flatCount} flats labeled: ${flatLabelList}. Do not skip or merge any flat.
 
@@ -182,11 +182,11 @@ export async function POST(req: Request) {
 
     // 4. Call GPT-Image-2 edit — source image + mask + prompt
     console.log('[FloorPlan] Calling GPT-Image-2 with dimensions:', outputSize);
-    console.log('[FloorPlan] mask_url being sent:', uploadedMaskUrl ?? 'NONE');
+    console.log('[FloorPlan] mask_image_url being sent:', uploadedMaskUrl ?? 'NONE');
     const result = await fal.subscribe('openai/gpt-image-2/edit', {
       input: {
         image_urls: [uploadedUrl],
-        mask_url: uploadedMaskUrl,
+        mask_image_url: uploadedMaskUrl, // ✓ CORRECT fal.ai parameter
         prompt,
         quality: 'medium',  // 'medium' for cost efficiency; switch to 'high' for sharper output
         image_size: outputSize,  // Custom pixel dimensions — matches source/mask resolution exactly
