@@ -84,18 +84,19 @@ function exportCanvasForAI(plotPts: Point[], sitePts: Point[], canvasW: number, 
   // Scale polygon points to output resolution
   const scaledSitePts = scalePoints(sitePts, canvasW, canvasH, outSize.w, outSize.h);
 
-  // 1. Pure white background
-  ctx.fillStyle = '#ffffff';
+  // 1. Fill ENTIRE canvas with BLACK — the AI sees "nothing exists here"
+  //    This is the #1 shape enforcement: black exterior = AI cannot draw there.
+  ctx.fillStyle = '#000000';
   ctx.fillRect(0, 0, outSize.w, outSize.h);
 
-  // 2. Site polygon — this is the ONLY visual element the AI needs
+  // 2. Fill the polygon interior with WHITE — "this is where the building goes"
   if (scaledSitePts.length >= 3) {
-    // Light gray interior fill (distinguishes building interior from outside white)
-    ctx.fillStyle = '#f0f0f0';
+    ctx.fillStyle = '#ffffff';
     drawPolygonPath(ctx, scaledSitePts);
     ctx.fill();
 
-    // Thick black outer walls (the AI must preserve these exactly)
+    // 3. Draw thick black outer walls ON TOP of the white interior
+    //    These walls sit at the boundary, reinforcing the exact polygon shape
     ctx.strokeStyle = '#000000';
     ctx.lineWidth = 16;
     ctx.lineJoin = 'miter';

@@ -107,7 +107,7 @@ function buildFloorPlanPrompt(schedule: RoomSchedule, sitePolygonPoints?: Polygo
   // ── THE PROMPT — optimized for GPT-Image-2 ──
   // First sentence = most critical constraint (shape).
   // Short, dense, front-loaded. No XML tags. ~400 tokens.
-  return `Draw a 2D AutoCAD floor plan EXACTLY inside the thick black polygon walls shown in the source image. Do NOT change, shrink, or redraw the outer wall shape — use it exactly as drawn.
+  return `The source image shows a white polygon shape on a solid black background. This white area IS the building footprint — draw the floor plan ONLY inside this white shape. The black area is outside the building, do NOT draw anything there. Keep the exact shape of the white polygon, do not make it rectangular.
 
 ${flatCount} flats, each ${bhk}BHK. You MUST draw all ${flatCount} flats labeled: ${flatLabelList}. Do not skip or merge any flat.
 
@@ -119,7 +119,7 @@ Room placement rules: Living Room behind entrance door (corridor side). Bedrooms
 
 Site area: ${schedule.siteExteriorW}m × ${schedule.siteExteriorH}m, ${schedule.totalBuildupArea} sqm total.${vertexStr ? ` Vertices: ${vertexStr}.` : ''}
 
-Drawing style: professional AutoCAD 2D blueprint, white background, solid black wall lines, clean technical sans-serif labels showing room code + name + dimensions inside each room, bold flat labels "FLAT A" through "FLAT ${lastFlatLetter}", dimension lines with measurements on exterior walls. No furniture, no colors, no shadows, no 3D, no textures — pure black lines on white.`;
+Drawing style: professional 2D AutoCAD blueprint, solid black wall lines on white, clean technical labels showing room code + name + dimensions inside each room, bold flat labels "FLAT A" through "FLAT ${lastFlatLetter}", dimension lines on exterior walls. No furniture, no colors, no shadows, no 3D — pure black lines on white.`;
 }
 
 
