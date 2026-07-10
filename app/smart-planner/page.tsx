@@ -44,127 +44,99 @@ function polygonBoundingBox(pts: Point[]) {
 }
 function pxToM(px: number) { return +(px / CELL_PX).toFixed(1); }
 
-// ─── Export canvas as clean white-bg PNG for GPT-Image-2 ────────────────────
-function exportCanvasForAI(plotPts: Point[], sitePts: Point[], canvasW: number, canvasH: number): string {
+// ─── fal.ai output resolution mapping ────────────────────────────────────────
+// Source image + mask MUST be at the EXACT same resolution the model outputs.
+// If they differ, the model internally rescales → polygon vertices drift ~20%.
+const FAL_OUTPUT_SIZES: Record<string, { w: number; h: number }> = {
+  'square_hd':    { w: 1024, h: 1024 },
+  'square':       { w: 512,  h: 512  },
+  'landscape_4_3': { w: 1024, h: 768 },
+  'landscape_16_9': { w: 1024, h: 576 },
+  'portrait_4_3':  { w: 768,  h: 1024 },
+  'portrait_16_9': { w: 576,  h: 1024 },
+};
+
+// ─── Shared polygon path builder (used by both source + mask for pixel-identical alignment)
+function drawPolygonPath(ctx: CanvasRenderingContext2D, pts: { x: number; y: number }[]) {
+  if (pts.length < 3) return;
+  ctx.beginPath();
+  pts.forEach((p, i) => { if (i === 0) ctx.moveTo(p.x, p.y); else ctx.lineTo(p.x, p.y); });
+  ctx.closePath();
+}
+
+// ─── Scale polygon points from canvas space to output resolution ─────────────
+function scalePoints(pts: Point[], fromW: number, fromH: number, toW: number, toH: number): Point[] {
+  const sx = toW / fromW;
+  const sy = toH / fromH;
+  return pts.map(p => ({ x: Math.round(p.x * sx), y: Math.round(p.y * sy) }));
+}
+
+// ─── Export canvas as CLEAN source PNG for GPT-Image-2 ──────────────────────
+// CRITICAL: Exports at the fal.ai output resolution (not canvas resolution)
+// to prevent rescale drift. Contains ONLY the polygon — no grid, no labels, no noise.
+function exportCanvasForAI(plotPts: Point[], sitePts: Point[], canvasW: number, canvasH: number, falSize: string): string {
+  const outSize = FAL_OUTPUT_SIZES[falSize] || { w: canvasW, h: canvasH };
   const offscreen = document.createElement('canvas');
-  offscreen.width = canvasW;
-  offscreen.height = canvasH;
+  offscreen.width = outSize.w;
+  offscreen.height = outSize.h;
   const ctx = offscreen.getContext('2d')!;
 
-  // White background
+  // Scale polygon points to output resolution
+  const scaledSitePts = scalePoints(sitePts, canvasW, canvasH, outSize.w, outSize.h);
+
+  // 1. Pure white background
   ctx.fillStyle = '#ffffff';
-  ctx.fillRect(0, 0, canvasW, canvasH);
+  ctx.fillRect(0, 0, outSize.w, outSize.h);
 
-  // Light grid
-  ctx.strokeStyle = '#e8e8e8';
-  ctx.lineWidth = 0.5;
-  for (let x = 0; x <= canvasW; x += CELL_PX) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, canvasH); ctx.stroke(); }
-  for (let y = 0; y <= canvasH; y += CELL_PX) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(canvasW, y); ctx.stroke(); }
-
-  // Grid scale labels
-  ctx.fillStyle = '#cccccc';
-  ctx.font = '8px monospace';
-  for (let x = 0; x <= canvasW; x += CELL_PX * 10) ctx.fillText(x / CELL_PX + 'm', x + 2, 10);
-  for (let y = CELL_PX * 10; y <= canvasH; y += CELL_PX * 10) ctx.fillText(y / CELL_PX + 'm', 2, y);
-
-  // Orange dashed plot boundary
-  if (plotPts.length >= 3) {
-    ctx.strokeStyle = '#f97316';
-    ctx.lineWidth = 2.5;
-    ctx.setLineDash([8, 4]);
-    ctx.beginPath();
-    plotPts.forEach((p, i) => { if (i === 0) ctx.moveTo(p.x, p.y); else ctx.lineTo(p.x, p.y); });
-    ctx.closePath();
-    ctx.stroke();
-    ctx.setLineDash([]);
-    ctx.fillStyle = '#f97316';
-    ctx.font = 'bold 11px monospace';
-    ctx.fillText('PLOT BOUNDARY', plotPts[0].x + 4, plotPts[0].y - 6);
-  }
-
-  // Cyan solid site exterior with thick black concrete outer walls pre-drawn
-  if (sitePts.length >= 3) {
-    // Fill the interior with a very light gray tint so the AI can distinguish
-    // building interior (gray) from outside (white)
-    ctx.fillStyle = 'rgba(240, 240, 240, 1)';
-    ctx.beginPath();
-    sitePts.forEach((p, i) => { if (i === 0) ctx.moveTo(p.x, p.y); else ctx.lineTo(p.x, p.y); });
-    ctx.closePath();
+  // 2. Site polygon — this is the ONLY visual element the AI needs
+  if (scaledSitePts.length >= 3) {
+    // Light gray interior fill (distinguishes building interior from outside white)
+    ctx.fillStyle = '#f0f0f0';
+    drawPolygonPath(ctx, scaledSitePts);
     ctx.fill();
 
-    // Draw thick black outer walls (14px — matches mask dilation for pixel alignment)
+    // Thick black outer walls (the AI must preserve these exactly)
     ctx.strokeStyle = '#000000';
-    ctx.lineWidth = 14;
+    ctx.lineWidth = 16;
     ctx.lineJoin = 'miter';
     ctx.lineCap = 'square';
-    ctx.setLineDash([]);
-    ctx.beginPath();
-    sitePts.forEach((p, i) => { if (i === 0) ctx.moveTo(p.x, p.y); else ctx.lineTo(p.x, p.y); });
-    ctx.closePath();
+    drawPolygonPath(ctx, scaledSitePts);
     ctx.stroke();
-
-    // Overlay thin cyan guide line on top of the black walls
-    ctx.strokeStyle = '#00bcd4';
-    ctx.lineWidth = 2;
-    ctx.stroke();
-
-    // Add edge length dimension labels on each wall segment
-    ctx.fillStyle = '#333333';
-    ctx.font = 'bold 9px monospace';
-    for (let i = 0; i < sitePts.length; i++) {
-      const a = sitePts[i];
-      const b = sitePts[(i + 1) % sitePts.length];
-      const midX = (a.x + b.x) / 2;
-      const midY = (a.y + b.y) / 2;
-      const len = Math.sqrt((b.x - a.x) ** 2 + (b.y - a.y) ** 2) / CELL_PX;
-      // Offset the label slightly outside the polygon edge
-      const dx = b.y - a.y; const dy = -(b.x - a.x);
-      const mag = Math.sqrt(dx * dx + dy * dy) || 1;
-      const offX = (dx / mag) * 14;
-      const offY = (dy / mag) * 14;
-      ctx.fillText(`${len.toFixed(1)}m`, midX + offX - 12, midY + offY + 3);
-    }
-
-    ctx.fillStyle = '#00bcd4';
-    ctx.font = 'bold 11px monospace';
-    ctx.fillText('SITE EXTERIOR (FILL ROOMS INSIDE HERE)', sitePts[0].x + 4, sitePts[0].y + 14);
   }
 
   return offscreen.toDataURL('image/png');
 }
 
-// ─── Export mask as BLACK/WHITE PNG for fal.ai GPT-Image-2 inpainting ────────
-// fal.ai uses standard B/W mask format (NOT alpha channel):
-//   WHITE (#ffffff) → EDITABLE (AI generates content here)
-//   BLACK (#000000) → PRESERVED (AI must not touch this area)
-// The white polygon area = inside your traced shape where the floor plan goes.
-// The black area = everything outside your trace where the AI must not draw.
-function exportMaskForAI(activePts: Point[], canvasW: number, canvasH: number): string {
+// ─── Export mask as BLACK/WHITE PNG at fal.ai output resolution ──────────────
+// WHITE = AI draws here (inside polygon). BLACK = AI must not touch (outside).
+// MUST be at the same resolution as the source image for pixel-aligned masking.
+function exportMaskForAI(activePts: Point[], canvasW: number, canvasH: number, falSize: string): string {
+  const outSize = FAL_OUTPUT_SIZES[falSize] || { w: canvasW, h: canvasH };
   const offscreen = document.createElement('canvas');
-  offscreen.width = canvasW;
-  offscreen.height = canvasH;
+  offscreen.width = outSize.w;
+  offscreen.height = outSize.h;
   const ctx = offscreen.getContext('2d')!;
 
-  // 1. Fill entire canvas with BLACK (preserve/freeze area — AI cannot draw here)
-  ctx.fillStyle = '#000000';
-  ctx.fillRect(0, 0, canvasW, canvasH);
+  // Scale polygon points to output resolution
+  const scaledPts = scalePoints(activePts, canvasW, canvasH, outSize.w, outSize.h);
 
-  // 2. Fill the active polygon with WHITE (editable area — AI draws the floor plan here)
-  if (activePts.length >= 3) {
+  // 1. Fill with BLACK (preserve/freeze — AI cannot draw here)
+  ctx.fillStyle = '#000000';
+  ctx.fillRect(0, 0, outSize.w, outSize.h);
+
+  // 2. Fill polygon with WHITE (editable — AI draws floor plan here)
+  if (scaledPts.length >= 3) {
     ctx.fillStyle = '#ffffff';
-    ctx.beginPath();
-    activePts.forEach((p, i) => {
-      if (i === 0) ctx.moveTo(p.x, p.y);
-      else ctx.lineTo(p.x, p.y);
-    });
-    ctx.closePath();
+    drawPolygonPath(ctx, scaledPts);
     ctx.fill();
 
-    // Dilate the white boundary by 14px so the AI's thick outer wall lines
-    // can overlap perfectly with the cyan trace edge (prevents inward shifting)
+    // Dilate white boundary by 16px (matches source image wall thickness)
+    // so the AI can place its outer wall lines exactly on the trace edge
     ctx.strokeStyle = '#ffffff';
-    ctx.lineWidth = 14;
-    ctx.lineJoin = 'round';
+    ctx.lineWidth = 16;
+    ctx.lineJoin = 'miter';
+    ctx.lineCap = 'square';
+    drawPolygonPath(ctx, scaledPts);
     ctx.stroke();
   }
 
@@ -709,9 +681,9 @@ export default function SmartPlannerPage() {
     setShowGeneratedImage(false);
 
     try {
-      // Export using the actual canvas dimensions matching the selected ratio
-      const imageBase64 = exportCanvasForAI(plotPts, sitePts, CANVAS_W, CANVAS_H);
-      const maskBase64 = exportMaskForAI(activePts, CANVAS_W, CANVAS_H);
+      // Export at the EXACT fal.ai output resolution to prevent rescale drift
+      const imageBase64 = exportCanvasForAI(plotPts, sitePts, CANVAS_W, CANVAS_H, currentRatio.falSize);
+      const maskBase64 = exportMaskForAI(activePts, CANVAS_W, CANVAS_H, currentRatio.falSize);
 
       const res = await fetch('/api/generate-floorplan-image', {
         method: 'POST',

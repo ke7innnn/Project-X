@@ -239,10 +239,18 @@ export async function POST(req: Request) {
       console.warn('[FloorPlan] ⚠ WARNING: No mask provided — boundary lock is DISABLED');
     }
 
-    // Validate imageSize — only allow fal.ai supported values
-    const VALID_SIZES = ['square_hd', 'square', 'portrait_4_3', 'portrait_16_9', 'landscape_4_3', 'landscape_16_9'];
-    const validatedSize = VALID_SIZES.includes(imageSize) ? imageSize : 'square';
-    console.log('[FloorPlan] Output image_size:', validatedSize);
+    // Validate imageSize — map preset names to exact pixel dimensions
+    // Using custom {width, height} ensures output matches source/mask resolution exactly
+    const SIZE_MAP: Record<string, { width: number; height: number }> = {
+      'square_hd':      { width: 1024, height: 1024 },
+      'square':         { width: 512,  height: 512  },
+      'landscape_4_3':  { width: 1024, height: 768  },
+      'landscape_16_9': { width: 1024, height: 576  },
+      'portrait_4_3':   { width: 768,  height: 1024 },
+      'portrait_16_9':  { width: 576,  height: 1024 },
+    };
+    const outputSize = SIZE_MAP[imageSize] || SIZE_MAP['square_hd'];
+    console.log('[FloorPlan] Output dimensions:', outputSize.width, '×', outputSize.height);
 
     // 1. Convert base64 to File and upload to fal.ai storage (Source image)
     const base64Data = imageBase64.replace(/^data:image\/\w+;base64,/, '');
@@ -274,21 +282,16 @@ export async function POST(req: Request) {
     const prompt = buildFloorPlanPrompt(roomSchedule, sitePolygonPoints, circulationCoreLocation);
     console.log('[FloorPlan] Prompt length:', prompt.length, 'chars');
 
-    // Only keep ref7_bhk_types.png for symbols and styling consistency
-    const REFERENCE_IMAGES = [
-      'https://v3b.fal.media/files/b/0aa1940a/OqSJjCwQJ8MCnITL0aqnp_ref7_bhk_types.png',    // 1BHK/2BHK/3BHK/4BHK flat type comparison — CAD style guide
-    ];
-
-    // 4. Call GPT-Image-2 edit — canvas + mask
-    console.log('[FloorPlan] Calling GPT-Image-2 with image_size:', validatedSize);
+    // 4. Call GPT-Image-2 edit — source image + mask + prompt
+    console.log('[FloorPlan] Calling GPT-Image-2 with dimensions:', outputSize);
     console.log('[FloorPlan] mask_url being sent:', uploadedMaskUrl ?? 'NONE');
     const result = await fal.subscribe('openai/gpt-image-2/edit', {
       input: {
-        image_urls: [uploadedUrl], // REMOVED REFERENCE_IMAGES to prevent decagon shape bleeding!
-        mask_url: uploadedMaskUrl, // ✓ CORRECT fal.ai parameter
+        image_urls: [uploadedUrl],
+        mask_url: uploadedMaskUrl,
         prompt,
-        quality: 'medium',
-        image_size: validatedSize,
+        quality: 'high',  // 'high' = sharper lines + better shape accuracy for architectural blueprints
+        image_size: outputSize,  // Custom pixel dimensions — matches source/mask resolution exactly
         num_images: 1,
       },
     });
