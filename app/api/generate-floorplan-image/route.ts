@@ -140,8 +140,13 @@ FLOOR PLAN DATA:
 - Site polygon: ${polygonStr}
 - Site bounding box: ${schedule.siteExteriorW}m × ${schedule.siteExteriorH}m
 - Total buildup: ${schedule.totalBuildupArea} sqm
-- Total flats: ${flatCount}
+- Total flats: ${flatCount} (You MUST draw exactly ${flatCount} flats, labeled FLAT A to FLAT ${String.fromCharCode(65 + flatCount - 1)})
 - Total rooms: ${totalRooms}
+
+⚠ ENFORCING ALL FLATS (CRITICAL):
+- You must draw exactly ${flatCount} separate, distinct apartments (Flat A to Flat ${String.fromCharCode(65 + flatCount - 1)}) inside the building envelope.
+- Do NOT merge, skip, or omit any flats. If the schedule lists ${flatCount} flats, all ${flatCount} must be explicitly laid out and labeled in the image.
+- Ensure every single flat is accessible via the corridor system.
 
 ROOM SCHEDULE (BHK type and zone layout per group):
 ${flatDescriptions}
@@ -154,18 +159,15 @@ UNIVERSAL ROOM FLOW & VENTILATION RULES:
 ⚠ Bathrooms are always internal (placed between bedrooms) and must connect to ventilation shafts/ducts.
 ═══════════════════════════════════════════════════════
 
-⚠ CRITICAL STYLE REFERENCE RULES:
-- The reference image 'OqSJjCwQJ8MCnITL0aqnp_ref7_bhk_types.png' is provided ONLY as a visual guide for AutoCAD styling (line weights, font, door arc swing symbol).
-- DO NOT copy the room configurations or layouts from the reference image. You must dynamically design room layouts for each flat that fit the traced shape.
-
-DRAWING STYLE:
-- White background, black walls
-- Thick walls (20cm) between flats, thin walls (10cm) inside flat
-- Every room: code + room name + dimensions centered in black text
-- Every room: door with arc swing symbol (0.9m gap)
-- Every flat: bold "FLAT A", "FLAT B" label
-- Dimension lines on outer site walls
-- Clean AutoCAD 2D top-down blueprint — NO furniture, NO shadows, NO 3D
+DRAWING STYLE (CRITICAL FOR PROFESSIONAL CAD BLUEPRINT QUALITY):
+- High-contrast, ultra-clean 2D AutoCAD blueprint vectors.
+- White background, solid black walls (thick 30cm outer walls, 20cm dividing walls, 10cm internal partitions).
+- Every room must have a clean door opening with a clear arc swing symbol (0.9m gap).
+- Every room must have centered, clean text labels in a technical sans-serif font (e.g., "A1 Master Bedroom\n4.0m x 5.0m = 20.0 sqm").
+- Every flat must be labeled in a larger, bold technical font (e.g., "FLAT A", "FLAT B").
+- Draw thin dimension lines on the outside of the building walls with ticks and measurements in meters.
+- ABSOLUTELY NO colors, NO furniture (no beds, no toilets, no sofas, no plants), NO textures, NO shadows, and NO 3D views. Just clean 2D vector lines.
+- The output must look like a professional AutoCAD layout sheet.
 
 FINAL CHECKLIST:
 1. ✓ Outer building walls MATCH THE POLYGON VERTICES exactly — not a diamond, not a rectangle
@@ -232,13 +234,13 @@ export async function POST(req: Request) {
       'https://v3b.fal.media/files/b/0aa1940a/OqSJjCwQJ8MCnITL0aqnp_ref7_bhk_types.png',    // 1BHK/2BHK/3BHK/4BHK flat type comparison — CAD style guide
     ];
 
-    // 4. Call GPT-Image-2 edit — canvas + mask + CAD style reference
+    // 4. Call GPT-Image-2 edit — canvas + mask
     console.log('[FloorPlan] Calling GPT-Image-2 with image_size:', validatedSize);
     console.log('[FloorPlan] mask_url being sent:', uploadedMaskUrl ?? 'NONE');
     const result = await fal.subscribe('openai/gpt-image-2/edit', {
       input: {
-        image_urls: [uploadedUrl, ...REFERENCE_IMAGES],
-        mask_url: uploadedMaskUrl, // ✓ CORRECT fal.ai parameter (NOT mask_image_url)
+        image_urls: [uploadedUrl], // REMOVED REFERENCE_IMAGES to prevent decagon shape bleeding!
+        mask_url: uploadedMaskUrl, // ✓ CORRECT fal.ai parameter
         prompt,
         quality: 'medium',
         image_size: validatedSize,
