@@ -84,9 +84,17 @@ function exportCanvasForAI(plotPts: Point[], sitePts: Point[], canvasW: number, 
 
   // Cyan solid site exterior with thick black concrete outer walls pre-drawn
   if (sitePts.length >= 3) {
-    // First draw a thick black line representing the concrete outer walls of the building footprint
+    // Fill the interior with a very light gray tint so the AI can distinguish
+    // building interior (gray) from outside (white)
+    ctx.fillStyle = 'rgba(240, 240, 240, 1)';
+    ctx.beginPath();
+    sitePts.forEach((p, i) => { if (i === 0) ctx.moveTo(p.x, p.y); else ctx.lineTo(p.x, p.y); });
+    ctx.closePath();
+    ctx.fill();
+
+    // Draw thick black outer walls (14px — matches mask dilation for pixel alignment)
     ctx.strokeStyle = '#000000';
-    ctx.lineWidth = 10;
+    ctx.lineWidth = 14;
     ctx.lineJoin = 'miter';
     ctx.lineCap = 'square';
     ctx.setLineDash([]);
@@ -95,10 +103,27 @@ function exportCanvasForAI(plotPts: Point[], sitePts: Point[], canvasW: number, 
     ctx.closePath();
     ctx.stroke();
 
-    // Then overlay the thin cyan line on top as a guide trace
+    // Overlay thin cyan guide line on top of the black walls
     ctx.strokeStyle = '#00bcd4';
-    ctx.lineWidth = 2.5;
+    ctx.lineWidth = 2;
     ctx.stroke();
+
+    // Add edge length dimension labels on each wall segment
+    ctx.fillStyle = '#333333';
+    ctx.font = 'bold 9px monospace';
+    for (let i = 0; i < sitePts.length; i++) {
+      const a = sitePts[i];
+      const b = sitePts[(i + 1) % sitePts.length];
+      const midX = (a.x + b.x) / 2;
+      const midY = (a.y + b.y) / 2;
+      const len = Math.sqrt((b.x - a.x) ** 2 + (b.y - a.y) ** 2) / CELL_PX;
+      // Offset the label slightly outside the polygon edge
+      const dx = b.y - a.y; const dy = -(b.x - a.x);
+      const mag = Math.sqrt(dx * dx + dy * dy) || 1;
+      const offX = (dx / mag) * 14;
+      const offY = (dy / mag) * 14;
+      ctx.fillText(`${len.toFixed(1)}m`, midX + offX - 12, midY + offY + 3);
+    }
 
     ctx.fillStyle = '#00bcd4';
     ctx.font = 'bold 11px monospace';
@@ -108,26 +133,25 @@ function exportCanvasForAI(plotPts: Point[], sitePts: Point[], canvasW: number, 
   return offscreen.toDataURL('image/png');
 }
 
-// ─── Export mask as transparent-alpha PNG for GPT-Image-2 inpainting ─────────
-// OpenAI DALL-E / GPT-Image-2 edit API uses the ALPHA CHANNEL:
-//   alpha = 0   (transparent) → EDITABLE (generate here)
-//   alpha = 255 (opaque)      → FROZEN   (keep unchanged)
-// Previous version used solid black/white (alpha=255 everywhere) — mask was 100% non-functional.
+// ─── Export mask as BLACK/WHITE PNG for fal.ai GPT-Image-2 inpainting ────────
+// fal.ai uses standard B/W mask format (NOT alpha channel):
+//   WHITE (#ffffff) → EDITABLE (AI generates content here)
+//   BLACK (#000000) → PRESERVED (AI must not touch this area)
+// The white polygon area = inside your traced shape where the floor plan goes.
+// The black area = everything outside your trace where the AI must not draw.
 function exportMaskForAI(activePts: Point[], canvasW: number, canvasH: number): string {
   const offscreen = document.createElement('canvas');
   offscreen.width = canvasW;
   offscreen.height = canvasH;
   const ctx = offscreen.getContext('2d')!;
 
-  // 1. Fill entire canvas with OPAQUE BLACK (freeze/preserve area — alpha=255)
+  // 1. Fill entire canvas with BLACK (preserve/freeze area — AI cannot draw here)
   ctx.fillStyle = '#000000';
   ctx.fillRect(0, 0, canvasW, canvasH);
 
-  // 2. Punch the active polygon to TRANSPARENT (editable area — alpha=0)
-  //    destination-out: destination pixels become transparent wherever source is drawn
+  // 2. Fill the active polygon with WHITE (editable area — AI draws the floor plan here)
   if (activePts.length >= 3) {
-    ctx.globalCompositeOperation = 'destination-out';
-    ctx.fillStyle = 'rgba(0, 0, 0, 1)'; // color doesn't matter for destination-out; alpha does
+    ctx.fillStyle = '#ffffff';
     ctx.beginPath();
     activePts.forEach((p, i) => {
       if (i === 0) ctx.moveTo(p.x, p.y);
@@ -136,15 +160,12 @@ function exportMaskForAI(activePts: Point[], canvasW: number, canvasH: number): 
     ctx.closePath();
     ctx.fill();
 
-    // Also punch a thick stroke to dilate the editable boundary by ~12px
-    // This gives the AI room to draw the outer wall exactly on the trace edge
-    ctx.strokeStyle = 'rgba(0, 0, 0, 1)';
-    ctx.lineWidth = 12;
+    // Dilate the white boundary by 14px so the AI's thick outer wall lines
+    // can overlap perfectly with the cyan trace edge (prevents inward shifting)
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = 14;
     ctx.lineJoin = 'round';
     ctx.stroke();
-
-    // Reset composite to default
-    ctx.globalCompositeOperation = 'source-over';
   }
 
   return offscreen.toDataURL('image/png');

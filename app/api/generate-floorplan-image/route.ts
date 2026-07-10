@@ -144,7 +144,17 @@ COORDINATE REFERENCE (HTML Canvas — Y increases DOWNWARDS from top-left):
   Vertices: ${polygonStr}
   This is a ${shapeVertexCount}-vertex ${isIrregular ? 'IRREGULAR POLYGON' : 'rectangle'}.
   A vertex with y=10m is near the TOP of the image. A vertex with y=45m is near the BOTTOM. Do NOT flip vertically.
-  The mask (transparent area) in the mask image matches this exact polygon shape.
+
+SOURCE IMAGE VISUAL CUES:
+  - The thick BLACK closed polygon outline = the building's outer concrete walls (do NOT change this shape).
+  - The light GRAY fill inside the polygon = the building interior where rooms go.
+  - The WHITE area outside the polygon = outside the building (do NOT draw here).
+  - The thin CYAN line on the walls = guide trace (follow this line precisely).
+  - Dimension labels on each wall edge show the wall length in meters.
+  
+MASK IMAGE:
+  - WHITE area in the mask = the area where you MUST draw (inside the building).
+  - BLACK area in the mask = the area you MUST NOT touch (outside the building).
 ████████████████████████████████████████████████████
 
 ████████████████████████████████████████████████████
