@@ -76,152 +76,50 @@ ZONE 3 — BACK (exterior wall): MASTER BEDROOM (with attached MASTER BATH) + re
 }
 
 function buildFloorPlanPrompt(schedule: RoomSchedule, sitePolygonPoints?: PolygonPoint[], circulationCore?: CirculationCore): string {
-  // Group flats by layout similarity (same room names & dimensions) to optimize prompt length
-  const groups: { [key: string]: { ids: string[]; rooms: Room[] } } = {};
-  for (const flat of schedule.flats) {
-    const key = flat.rooms.map(r => `${r.name}-${r.w}-${r.h}`).join('|');
-    if (!groups[key]) {
-      groups[key] = { ids: [], rooms: flat.rooms };
-    }
-    groups[key].ids.push(flat.id);
-  }
-
-  // Build per-group flat descriptions with BHK type detection
-  const flatDescriptions = Object.entries(groups).map(([_, group]) => {
-    const flatIdsStr = group.ids.map(id => `FLAT ${id}`).join(', ');
-    const bhk = detectBHKType(group.rooms);
-    const roomLines = group.rooms.map((r, idx) => {
-      let suffix = r.code;
-      for (const id of group.ids) {
-        if (r.code.startsWith(id)) { suffix = r.code.slice(id.length); break; }
-      }
-      if (!suffix) suffix = String(idx + 1);
-      const exampleCodes = group.ids.slice(0, 3).map(id => `${id}${suffix}`).join(', ');
-      return `    - Suffix "${suffix}" (e.g. ${exampleCodes}): ${r.name} (${r.w}m × ${r.h}m = ${r.area} sqm, door required)`;
-    }).join('\n');
-    return `  FOR ${flatIdsStr} [${bhk}BHK]:\n${roomLines}\n  LAYOUT → ${getBHKZoneLayout(bhk)}`;
-  }).join('\n\n');
-
-  const totalRooms = schedule.flats.reduce((s, f) => s + f.rooms.length, 0);
   const flatCount = schedule.flats.length;
-
-  // Build the flat label sequence as an explicit checklist (research: visual checklists prevent skipping)
-  const flatLabels = Array.from({ length: flatCount }, (_, i) => `FLAT ${String.fromCharCode(65 + i)}`);
-  const flatCheckboxList = flatLabels.map(l => `[ ] ${l}`).join('  ');
+  const totalRooms = schedule.flats.reduce((s, f) => s + f.rooms.length, 0);
   const lastFlatLetter = String.fromCharCode(65 + flatCount - 1);
+  const flatLabelList = Array.from({ length: flatCount }, (_, i) => `FLAT ${String.fromCharCode(65 + i)}`).join(', ');
 
-  const layoutInstructions = schedule.layoutType
-    ? `SELECTED BUILDING LAYOUT STYLE: ${schedule.layoutType}. Arrange the ${flatCount} flats precisely using this strategy.`
-    : `Arrange ${flatCount} flats in 2 rows with a central corridor spine 1.5m wide running between the rows.`;
+  // Detect BHK from first flat
+  const bhk = detectBHKType(schedule.flats[0]?.rooms || []);
 
-  // Build shape polygon description from coordinates
-  const polygonStr = sitePolygonPoints && sitePolygonPoints.length > 0
-    ? sitePolygonPoints.map((p, i) => `V${i + 1}(${p.x}m,${p.y}m)`).join(' → ') + ` → back to V1`
-    : `a ${schedule.siteExteriorW}m × ${schedule.siteExteriorH}m rectangle`;
+  // Compact room list — just names and sizes, no verbose structure
+  const roomList = schedule.flats[0]?.rooms
+    .map(r => `${r.name} ${r.w}×${r.h}m`)
+    .join(', ') || '';
 
-  const shapeVertexCount = sitePolygonPoints?.length ?? 4;
-  const isIrregular = shapeVertexCount > 4;
+  // Layout instruction
+  const layoutStr = schedule.layoutType
+    ? `Layout: ${schedule.layoutType}.`
+    : `Double-loaded corridor layout, flats on both sides.`;
 
-  // Adaptive stair core location from polygon centroid
+  // Core location
   const coreStr = circulationCore
-    ? `x=${circulationCore.x}m, y=${circulationCore.y}m (polygon geometric centroid — deepest interior point, furthest from all exterior walls)`
-    : `the geometric center of the building footprint`;
+    ? `Place staircase and lift at x=${circulationCore.x}m y=${circulationCore.y}m (building center).`
+    : `Place staircase and lift at the building center.`;
 
-  return `<role>
-You are a senior AutoCAD draftsman who executes architectural blueprints with absolute precision. You do NOT make creative decisions about which flats to include, skip, or merge. You draw EXACTLY what is listed in the room schedule — no more, no less.
-</role>
+  // Polygon vertices (compact)
+  const vertexStr = sitePolygonPoints && sitePolygonPoints.length > 0
+    ? sitePolygonPoints.map((p, i) => `(${p.x},${p.y})`).join('→')
+    : '';
 
-<constraints>
-████████████████████████████████████████████████████
-RULE 1 — BUILDING FOOTPRINT SHAPE (ABSOLUTE):
-████████████████████████████████████████████████████
-- The source image has the building's outer concrete walls PRE-DRAWN as a thick black closed polygon.
-- You MUST draw all rooms and internal walls EXACTLY inside this pre-drawn black boundary.
-- Do NOT alter, shrink, distort, round, or flip this outer wall shape in ANY way.
-- Do NOT draw a rectangle, diamond, circle, or any other shape — only use the shape you see in the source image.
+  // ── THE PROMPT — optimized for GPT-Image-2 ──
+  // First sentence = most critical constraint (shape).
+  // Short, dense, front-loaded. No XML tags. ~400 tokens.
+  return `Draw a 2D AutoCAD floor plan EXACTLY inside the thick black polygon walls shown in the source image. Do NOT change, shrink, or redraw the outer wall shape — use it exactly as drawn.
 
-COORDINATE REFERENCE (HTML Canvas — Y increases DOWNWARDS from top-left):
-  Vertices: ${polygonStr}
-  This is a ${shapeVertexCount}-vertex ${isIrregular ? 'IRREGULAR POLYGON' : 'rectangle'}.
-  A vertex with y=10m is near the TOP of the image. A vertex with y=45m is near the BOTTOM. Do NOT flip vertically.
+${flatCount} flats, each ${bhk}BHK. You MUST draw all ${flatCount} flats labeled: ${flatLabelList}. Do not skip or merge any flat.
 
-SOURCE IMAGE VISUAL CUES:
-  - The thick BLACK closed polygon outline = the building's outer concrete walls (do NOT change this shape).
-  - The light GRAY fill inside the polygon = the building interior where rooms go.
-  - The WHITE area outside the polygon = outside the building (do NOT draw here).
-  - The thin CYAN line on the walls = guide trace (follow this line precisely).
-  - Dimension labels on each wall edge show the wall length in meters.
-  
-MASK IMAGE:
-  - WHITE area in the mask = the area where you MUST draw (inside the building).
-  - BLACK area in the mask = the area you MUST NOT touch (outside the building).
-████████████████████████████████████████████████████
+Each flat contains: ${roomList}. Every room needs a door with arc swing.
 
-████████████████████████████████████████████████████
-RULE 2 — ALL ${flatCount} FLATS REQUIRED (NON-NEGOTIABLE):
-████████████████████████████████████████████████████
-Step 1 — ZONE DIVISION: Before drawing any walls, visually divide the building footprint into exactly ${flatCount} distinct zones.
-Step 2 — LABEL ASSIGNMENT: Assign one flat label to each zone in order: FLAT A, FLAT B, ... FLAT ${lastFlatLetter}.
-Step 3 — DRAW ROOMS: Draw all rooms from the room schedule inside each zone.
+${layoutStr} ${coreStr} Staircase must not touch exterior walls.
 
-FLAT LABEL MANDATORY CHECKLIST — you must draw ALL of these, in alphabetical order, none can be skipped:
-${flatCheckboxList}
+Room placement rules: Living Room behind entrance door (corridor side). Bedrooms and Kitchen on exterior walls for windows. Bathrooms internal between rooms.
 
-⛔ DO NOT skip, merge, or omit ANY flat from the list above. If you skip even one flat, the output is INCORRECT.
-⛔ EVERY flat in the checklist MUST have its label visible in the image (e.g., "FLAT A", "FLAT B", ...).
-████████████████████████████████████████████████████
+Site area: ${schedule.siteExteriorW}m × ${schedule.siteExteriorH}m, ${schedule.totalBuildupArea} sqm total.${vertexStr ? ` Vertices: ${vertexStr}.` : ''}
 
-████████████████████████████████████████████████████
-RULE 3 — CIRCULATION CORE PLACEMENT:
-████████████████████████████████████████████████████
-- Place the LIFT (2m × 2.5m) and STAIRCASE (4m × 5m) at approximately ${coreStr}.
-- The circulation core MUST be positioned fully in the interior of the building — it must NOT touch or block any exterior wall.
-- Exterior walls must remain free for ventilation windows of bedrooms, living rooms, and kitchens.
-████████████████████████████████████████████████████
-</constraints>
-
-<layout>
-${layoutInstructions}
-- Corner flats must adapt their shapes (trapezoidal/angled) to perfectly fill every corner of the building footprint.
-- Corridors must bend/angle to follow the exact outline of the pre-drawn black boundary.
-</layout>
-
-<floor_plan_data>
-Site polygon: ${polygonStr}
-Site bounding box: ${schedule.siteExteriorW}m × ${schedule.siteExteriorH}m
-Total buildup area: ${schedule.totalBuildupArea} sqm
-Total flats: ${flatCount} (FLAT A to FLAT ${lastFlatLetter})
-Total rooms: ${totalRooms}
-</floor_plan_data>
-
-<room_schedule>
-${flatDescriptions}
-</room_schedule>
-
-<ventilation_rules>
-- LIVING ROOM is ALWAYS placed directly behind the entrance door (corridor-side).
-- Bedrooms, Living Rooms, and Kitchens MUST touch the exterior shell of the polygon for window ventilation.
-- Bathrooms are always internal (between bedrooms) with ventilation shafts.
-</ventilation_rules>
-
-<drawing_style>
-- Ultra-clean 2D AutoCAD blueprint. White background, solid black walls.
-- Outer walls: 30cm thick. Flat dividing walls: 20cm. Internal room walls: 10cm.
-- Every room: door opening with arc swing symbol (0.9m gap).
-- Every room: code + name + dimensions in technical font (e.g. "A1 Master Bedroom\n4.0m x 5.0m").
-- Every flat: large bold label ("FLAT A", "FLAT B", etc.).
-- Dimension lines with tick marks on all exterior walls showing measurements in meters.
-- NO furniture, NO colors, NO shadows, NO 3D, NO textures. Pure 2D vector line drawing.
-</drawing_style>
-
-<final_checklist>
-1. [ ] Outer walls match the pre-drawn black polygon exactly — not a diamond, not a rectangle
-2. [ ] All ${flatCount} flats drawn (A to ${lastFlatLetter}) — none skipped or merged
-3. [ ] All ${totalRooms} rooms present — zero omissions
-4. [ ] Living Room corridor-side in every flat
-5. [ ] Circulation core at ${coreStr} — not blocking exterior walls
-6. [ ] All exterior walls have visible dimension lines
-</final_checklist>`;
+Drawing style: professional AutoCAD 2D blueprint, white background, solid black wall lines, clean technical sans-serif labels showing room code + name + dimensions inside each room, bold flat labels "FLAT A" through "FLAT ${lastFlatLetter}", dimension lines with measurements on exterior walls. No furniture, no colors, no shadows, no 3D, no textures — pure black lines on white.`;
 }
 
 
