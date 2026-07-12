@@ -2,7 +2,7 @@
 
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, Send, Loader2, Download, RotateCcw, ImageIcon, Sparkles, RefreshCw, Undo2, Redo2, Maximize2, ImagePlus, X, Move } from 'lucide-react';
+import { ArrowLeft, Send, Loader2, Download, RotateCcw, ImageIcon, Sparkles, RefreshCw, Undo2, Redo2, Maximize2, ImagePlus, X, Move, Terminal } from 'lucide-react';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface Point { x: number; y: number; }
@@ -66,9 +66,15 @@ function drawPolygonPath(ctx: CanvasRenderingContext2D, pts: { x: number; y: num
 
 // ─── Scale polygon points from canvas space to output resolution ─────────────
 function scalePoints(pts: Point[], fromW: number, fromH: number, toW: number, toH: number): Point[] {
-  const sx = toW / fromW;
-  const sy = toH / fromH;
-  return pts.map(p => ({ x: Math.round(p.x * sx), y: Math.round(p.y * sy) }));
+  // Use uniform scaling to prevent squishing/stretching the architectural shape
+  const scale = Math.min(toW / fromW, toH / fromH);
+  const offsetX = (toW - (fromW * scale)) / 2;
+  const offsetY = (toH - (fromH * scale)) / 2;
+
+  return pts.map(p => ({
+    x: Math.round(p.x * scale + offsetX),
+    y: Math.round(p.y * scale + offsetY)
+  }));
 }
 
 // ─── Export canvas as CLEAN source PNG for GPT-Image-2 ──────────────────────
@@ -84,19 +90,18 @@ function exportCanvasForAI(plotPts: Point[], sitePts: Point[], canvasW: number, 
   // Scale polygon points to output resolution
   const scaledSitePts = scalePoints(sitePts, canvasW, canvasH, outSize.w, outSize.h);
 
-  // 1. Fill ENTIRE canvas with BLACK — the AI sees "nothing exists here"
-  //    This is the #1 shape enforcement: black exterior = AI cannot draw there.
-  ctx.fillStyle = '#000000';
+  // 1. Pure white background
+  ctx.fillStyle = '#ffffff';
   ctx.fillRect(0, 0, outSize.w, outSize.h);
 
-  // 2. Fill the polygon interior with WHITE — "this is where the building goes"
+  // 2. Site polygon — this is the ONLY visual element the AI needs
   if (scaledSitePts.length >= 3) {
-    ctx.fillStyle = '#ffffff';
+    // Light gray interior fill (distinguishes building interior from outside white)
+    ctx.fillStyle = '#f0f0f0';
     drawPolygonPath(ctx, scaledSitePts);
     ctx.fill();
 
-    // 3. Draw thick black outer walls ON TOP of the white interior
-    //    These walls sit at the boundary, reinforcing the exact polygon shape
+    // Thick black outer walls (the AI must preserve these exactly)
     ctx.strokeStyle = '#000000';
     ctx.lineWidth = 16;
     ctx.lineJoin = 'miter';
@@ -109,9 +114,7 @@ function exportCanvasForAI(plotPts: Point[], sitePts: Point[], canvasW: number, 
 }
 
 // ─── Export mask as BLACK/WHITE PNG at fal.ai output resolution ──────────────
-// fal.ai uses standard B/W mask format:
-//   WHITE (#ffffff) → EDITABLE (AI draws the floor plan here)
-//   BLACK (#000000) → PRESERVED (AI must not touch this area)
+// WHITE = AI draws here (inside polygon). BLACK = AI must not touch (outside).
 // MUST be at the same resolution as the source image for pixel-aligned masking.
 function exportMaskForAI(activePts: Point[], canvasW: number, canvasH: number, falSize: string): string {
   const outSize = FAL_OUTPUT_SIZES[falSize] || { w: canvasW, h: canvasH };
@@ -123,7 +126,7 @@ function exportMaskForAI(activePts: Point[], canvasW: number, canvasH: number, f
   // Scale polygon points to output resolution
   const scaledPts = scalePoints(activePts, canvasW, canvasH, outSize.w, outSize.h);
 
-  // 1. Fill entire canvas with BLACK (preserve/freeze — AI cannot draw here)
+  // 1. Fill with BLACK (preserve/freeze — AI cannot draw here)
   ctx.fillStyle = '#000000';
   ctx.fillRect(0, 0, outSize.w, outSize.h);
 
@@ -133,7 +136,7 @@ function exportMaskForAI(activePts: Point[], canvasW: number, canvasH: number, f
     drawPolygonPath(ctx, scaledPts);
     ctx.fill();
 
-    // Dilate the white boundary by 16px (matches source image wall thickness)
+    // Dilate white boundary by 16px (matches source image wall thickness)
     // so the AI can place its outer wall lines exactly on the trace edge
     ctx.strokeStyle = '#ffffff';
     ctx.lineWidth = 16;
@@ -144,6 +147,170 @@ function exportMaskForAI(activePts: Point[], canvasW: number, canvasH: number, f
   }
 
   return offscreen.toDataURL('image/png');
+}
+
+// ─── Export clean architectural trace (white canvas, black pencil line) ──
+function exportCleanTraceForAI(activePts: Point[], canvasW: number, canvasH: number, falSize: string): string {
+  const outSize = FAL_OUTPUT_SIZES[falSize] || { w: canvasW, h: canvasH };
+  const offscreen = document.createElement('canvas');
+  offscreen.width = outSize.w;
+  offscreen.height = outSize.h;
+  const ctx = offscreen.getContext('2d')!;
+
+  // 1. Fill entire canvas with pure white
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, outSize.w, outSize.h);
+
+  // 2. Draw the trace boundary as a crisp black architectural line
+  const scaledPts = scalePoints(activePts, canvasW, canvasH, outSize.w, outSize.h);
+  if (scaledPts.length >= 3) {
+    ctx.strokeStyle = '#000000';
+    ctx.lineWidth = 12;
+    ctx.lineJoin = 'miter';
+    ctx.lineCap = 'square';
+    drawPolygonPath(ctx, scaledPts);
+    ctx.stroke();
+  }
+
+  // Compress trace to JPEG to prevent massive payloads crashing the Mastermind API
+  return offscreen.toDataURL('image/jpeg', 0.8);
+}
+
+// ─── Export a plain white sheet canvas for inpainting base ──
+function generateBlankWhiteCanvas(falSize: string, canvasW: number, canvasH: number): string {
+  const outSize = FAL_OUTPUT_SIZES[falSize] || { w: canvasW, h: canvasH };
+  const offscreen = document.createElement('canvas');
+  offscreen.width = outSize.w;
+  offscreen.height = outSize.h;
+  const ctx = offscreen.getContext('2d')!;
+
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, outSize.w, outSize.h);
+
+  return offscreen.toDataURL('image/png');
+}
+
+interface RoomLayout {
+  name: string;
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+
+interface LayoutData {
+  rooms: RoomLayout[];
+}
+
+// ─── Generate vector schematic from mathematical Mastermind JSON (Deprecated) ──
+// (Replaced by algorithmic crop to prevent LLM coordinate hallucination/overlapping)
+function generateSchematicImage(
+  layout: LayoutData,
+  activePts: Point[],
+  canvasW: number,
+  canvasH: number,
+  falSize: string
+): string {
+  // Keep original function signature but unused, or simply remove if unused
+  return '';
+}
+
+// ─── Exact algorithmic composite to shrink/fit GPT layout into trace boundary ──
+function scaleImageToFitPolygon(
+  imageUrl: string,
+  activePts: Point[],
+  canvasW: number,
+  canvasH: number,
+  falSize: string
+): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => {
+      const outSize = FAL_OUTPUT_SIZES[falSize] || { w: canvasW, h: canvasH };
+      const offscreen = document.createElement('canvas');
+      offscreen.width = outSize.w;
+      offscreen.height = outSize.h;
+      const ctx = offscreen.getContext('2d')!;
+
+      // 1. Calculate polygon bounding box in output resolution
+      const scaledPts = scalePoints(activePts, canvasW, canvasH, outSize.w, outSize.h);
+      if (scaledPts.length < 3) return resolve(imageUrl); // Fail safe
+
+      let polyMinX = Infinity, polyMaxX = -Infinity, polyMinY = Infinity, polyMaxY = -Infinity;
+      scaledPts.forEach(p => {
+        if (p.x < polyMinX) polyMinX = p.x;
+        if (p.x > polyMaxX) polyMaxX = p.x;
+        if (p.y < polyMinY) polyMinY = p.y;
+        if (p.y > polyMaxY) polyMaxY = p.y;
+      });
+      const polyW = polyMaxX - polyMinX;
+      const polyH = polyMaxY - polyMinY;
+
+      const polyCx = polyMinX + polyW / 2;
+      const polyCy = polyMinY + polyH / 2;
+
+      // 2. Scan the GPT image to find the actual bounding box of the generated layout
+      const tempCanvas = document.createElement('canvas');
+      tempCanvas.width = img.width;
+      tempCanvas.height = img.height;
+      const tCtx = tempCanvas.getContext('2d', { willReadFrequently: true })!;
+      tCtx.drawImage(img, 0, 0);
+      const imgData = tCtx.getImageData(0, 0, img.width, img.height);
+      const data = imgData.data;
+      
+      let fMinX = img.width, fMaxX = 0, fMinY = img.height, fMaxY = 0;
+      for (let y = 0; y < img.height; y++) {
+        for (let x = 0; x < img.width; x++) {
+          const idx = (y * img.width + x) * 4;
+          if (data[idx] > 50 || data[idx+1] > 50 || data[idx+2] > 50) {
+            if (x < fMinX) fMinX = x;
+            if (x > fMaxX) fMaxX = x;
+            if (y < fMinY) fMinY = y;
+            if (y > fMaxY) fMaxY = y;
+          }
+        }
+      }
+      if (fMinX >= fMaxX) { fMinX = 0; fMaxX = img.width; fMinY = 0; fMaxY = img.height; }
+      
+      const floorW = fMaxX - fMinX;
+      const floorH = fMaxY - fMinY;
+      const floorCx = fMinX + floorW / 2;
+      const floorCy = fMinY + floorH / 2;
+
+      // 3. Calculate exact scale to match the trace bounding box, with a 25% safety shrink so it fits inside perfectly
+      const scaleW = polyW / floorW;
+      const scaleH = polyH / floorH;
+      const scale = Math.min(scaleW, scaleH) * 0.75; // 75% size so it safely clears all red boundaries!
+
+      // 4. Fill black background
+      ctx.fillStyle = '#000000';
+      ctx.fillRect(0, 0, outSize.w, outSize.h);
+
+      // 5. Draw the layout perfectly centered on the trace's geometric center
+      const drawX = polyCx - (floorCx * scale);
+      const drawY = polyCy - (floorCy * scale);
+      ctx.drawImage(img, drawX, drawY, img.width * scale, img.height * scale);
+
+      // 6. Draw the trace boundary in NEON RED exactly where it belongs.
+      // By using a completely different color, Nano Banana Pro won't confuse the boundary with the white walls!
+      ctx.strokeStyle = '#ff0000';
+      ctx.lineWidth = 14;
+      ctx.lineJoin = 'miter';
+      ctx.beginPath();
+      ctx.moveTo(scaledPts[0].x, scaledPts[0].y);
+      for (let i = 1; i < scaledPts.length; i++) {
+        ctx.lineTo(scaledPts[i].x, scaledPts[i].y);
+      }
+      ctx.closePath();
+      ctx.stroke();
+
+      // Compress to JPEG to prevent massive 5MB payloads timing out the Mastermind API fetch
+      resolve(offscreen.toDataURL('image/jpeg', 0.8));
+    };
+    img.onerror = reject;
+    img.src = imageUrl;
+  });
 }
 
 // ─── Compute polygon centroid (geometric center) for adaptive stair placement ──
@@ -163,7 +330,83 @@ function computePolygonCentroid(pts: Point[]): { x: number; y: number } {
   return { x: cx, y: cy };
 }
 
+function detectBHKTypeLocal(rooms: any[]): number {
+  const bedroomCount = rooms.filter(r => 
+    /bedroom|bed\s*room/i.test(r.name) && !/master/i.test(r.name)
+  ).length;
+  return Math.max(1, bedroomCount);
+}
 
+function buildFloorPlanPromptLocal(schedule: any, sitePolygonPoints?: any[]): string {
+  const flatCount = schedule.flats.length;
+  const bhk = detectBHKTypeLocal(schedule.flats[0]?.rooms || []);
+  
+  let hasDiagonals = false;
+  if (sitePolygonPoints && sitePolygonPoints.length >= 3) {
+    for (let i = 0; i < sitePolygonPoints.length; i++) {
+      const a = sitePolygonPoints[i];
+      const b = sitePolygonPoints[(i + 1) % sitePolygonPoints.length];
+      const dx = Math.abs(b.x - a.x);
+      const dy = Math.abs(b.y - a.y);
+      if (dx > 0.5 && dy > 0.5) {
+        hasDiagonals = true;
+        break;
+      }
+    }
+  }
+
+  const diagonalRule = hasDiagonals
+    ? `- Orthogonal Internal Walls: All internal room dividers must be orthogonal (perfectly horizontal and vertical). However, any rooms that touch the diagonal outer boundary walls MUST have diagonal outer walls that align with the trace exactly. Do NOT draw flat horizontal or vertical shoulders at the corners to avoid diagonal walls; the outer walls of the rooms must follow the slanted trace lines directly from the corner.`
+    : `- Orthogonal Walls: All walls and room dividers (both internal and external) MUST be orthogonal (perfectly horizontal and vertical, forming clean 90-degree rectangular rooms). Avoid drawing diagonal, slanted, or triangular rooms.`;
+
+  const circulationRule = flatCount > 1
+    ? `- Include a highly compact, space-efficient circulation core containing one standard staircase and EXACTLY ONE small elevator shaft (LIFT). 
+- Place this core in the widest part of the site or against a flat wall. DO NOT force it into the geometric center if the site is narrow/pinched in the middle, as that will push rooms out of the boundary.
+- DO NOT draw double elevators, and DO NOT draw a full loop/ring corridor around the core.
+- Lobbies and corridors MUST be extremely compact, with a maximum width of 1.2m to 1.5m. Use a simple straight or T-shaped corridor to distribute access. Save as much space as possible.`
+    : `- DO NOT draw any public elevator banks, public staircases, or public lobbies. This is a single, private individual residence/bungalow.
+- Design it purely as a single home layout, utilizing private doors and direct room-to-room flow (no public corridors).`;
+
+  const layoutSpecificInstructions = schedule.layoutType
+    ? `\n\nLAYOUT STRATEGY & ROOM POSITIONING GUIDE (MUST OBEY):\n- Follow this exact spatial layout strategy: ${schedule.layoutType}. Arrange the rooms, corridors, stairs, and entrance lobbies strictly according to these layout directions.`
+    : '';
+
+  const flatList = schedule.flats.map((flat: any) => {
+    const roomCounts = flat.rooms.reduce((acc: Record<string, number>, r: any) => {
+      acc[r.name] = (acc[r.name] || 0) + 1;
+      return acc;
+    }, {});
+    const roomListStr = Object.entries(roomCounts)
+      .map(([name, count]) => `${count}x ${name}`)
+      .join(', ');
+    return `- ${flat.name}: Must contain exactly [ ${roomListStr} ]`;
+  }).join('\n');
+
+  return `2D architectural floor plan, professional AutoCAD layout blueprint style. Solid black wall lines on a crisp white background. 
+
+CRITICAL BOUNDARY RULE — READ THIS FIRST:
+The source image shows a light gray polygon representing the building footprint, outlined by a thick black boundary wall, on a pure white background. You MUST draw the entire floor plan strictly inside this light gray area. The white area outside is empty space and must remain empty. DO NOT add any extra outer layer, DO NOT expand the building footprint, DO NOT extend walls beyond the outer black boundary. The exterior boundary shape must remain EXACTLY as given — never modify it, never grow it, never add to it. 
+- RESPECT INWARD INDENTS: The polygon has inward slots, steps, and V-shaped cutouts. You MUST wrap the building footprint around these cutouts. Do NOT draw a straight wall or rooms across these indents. Keep the outside empty space white.
+- If the rooms do not fit comfortably, SHRINK the individual room sizes and COMPRESS the layout inward. It is better to have smaller rooms than to exceed the boundary. Every wall, label, corridor, and room must sit fully inside the light gray polygon.
+
+EXACT ROOM REQUIREMENTS PER FLAT (YOU MUST INCLUDE ALL OF THEM):
+${flatList}
+
+Layout requirements:
+- Compact, high-efficiency residential floor plan containing exactly ${flatCount} separate flats, configured as ${bhk}BHK units.
+- All flats must be drawn INWARD from the polygon edge, not touching or extending past the outer boundary.
+${circulationRule}
+- STRICT ROOM COUNT: Each flat MUST contain exactly the rooms listed above. Do not omit any kitchens, bedrooms, or bathrooms!
+${diagonalRule}
+- Empty Space (Ventilation Shafts & Courtyards): It is expected and encouraged to leave open light wells, ventilation shafts, or courtyards (empty black pockets) inside the layout. This ensures that interior bathrooms and kitchens have direct window access to open air.
+- Standard residential zoning: Living rooms near entrances, bedrooms and kitchens along exterior walls for windows.
+
+Drawing Aesthetics:
+- Clean, minimal, technical black-and-white drafting style. Pure black lines on white.
+- Crisp, legible architectural labels inside major spaces (e.g., "LIVING", "BEDROOM", "KITCHEN").
+- Standard architectural symbols: door openings with 90-degree swing arcs, window panes in exterior walls.
+- ABSOLUTELY NO furniture, no color fills, no textures, no gray gradients, no 3D elements. Pure 2D schematic blueprint lines.${layoutSpecificInstructions}`;
+}
 
 // ─── Component ────────────────────────────────────────────────────────────────
 export default function SmartPlannerPage() {
@@ -260,25 +503,50 @@ export default function SmartPlannerPage() {
   const [inputText, setInputText] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isGeneratingImage, setIsGeneratingImage] = useState(false);
+  const [generationPhase, setGenerationPhase] = useState<'idle' | 'step1' | 'mastermind' | 'step2'>('idle');
+  const [generationProgress, setGenerationProgress] = useState(0);
+
+  useEffect(() => {
+    if (generationPhase === 'idle') {
+      setGenerationProgress(0);
+      return;
+    }
+    const interval = setInterval(() => {
+      setGenerationProgress(prev => {
+        if (generationPhase === 'step1') {
+          return prev < 49 ? prev + 1 : prev; // Animate up to 49% during step 1
+        } else if (generationPhase === 'step2') {
+          if (prev < 50) return 50;
+          return prev < 99 ? prev + 1 : prev; // Animate up to 99% during step 2
+        }
+        return prev;
+      });
+    }, 200); // 1% every 200ms -> ~10s for 50%
+    return () => clearInterval(interval);
+  }, [generationPhase]);
+
   const chatEndRef = useRef<HTMLDivElement>(null);
 
   const [roomSchedule, setRoomSchedule] = useState<RoomSchedule | null>(null);
-  const [generatedImageUrl, setGeneratedImageUrl] = useState<string | null>(null);
+  const [generatedImageUrls, setGeneratedImageUrls] = useState<string[]>([]);
+  const [activeImageIndex, setActiveImageIndex] = useState<number>(0);
+  const generatedImageUrl = generatedImageUrls[activeImageIndex] || null;
   const [showGeneratedImage, setShowGeneratedImage] = useState(false);
   const [compareMode, setCompareMode] = useState(false);
   const generatedImageObjRef = useRef<HTMLImageElement | null>(null);
   const [generationError, setGenerationError] = useState<string | null>(null);
   const [layoutOptions, setLayoutOptions] = useState<{ id: string; name: string; desc: string; flatCount?: number; bhkType?: string; }[] | null>(null);
 
-  useEffect(() => {
-    if (generatedImageUrl) {
-      const img = new Image();
-      img.onload = () => { generatedImageObjRef.current = img; drawCanvas(); };
-      img.src = generatedImageUrl;
-    } else {
-      generatedImageObjRef.current = null;
-    }
-  }, [generatedImageUrl]);
+  // Real-time Visual Debugging State
+  const [debugStep1Prompt, setDebugStep1Prompt] = useState<string>('');
+  const [debugStep1BaseImage, setDebugStep1BaseImage] = useState<string>('');
+  const [debugStep1MaskImage, setDebugStep1MaskImage] = useState<string>('');
+  const [debugStep1OutputUrl, setDebugStep1OutputUrl] = useState<string>('');
+  const [debugStep2SystemPrompt, setDebugStep2SystemPrompt] = useState<string>('');
+  const [debugStep2UserPrompt, setDebugStep2UserPrompt] = useState<string>('');
+  const [debugStep2TraceImage, setDebugStep2TraceImage] = useState<string>('');
+  const [debugStep15Schematic, setDebugStep15Schematic] = useState<string>('');
+  const [mastermindStrategy, setMastermindStrategy] = useState<string>('');
 
   const snapToGrid = (v: number) => Math.round(v / CELL_PX) * CELL_PX;
 
@@ -565,6 +833,17 @@ export default function SmartPlannerPage() {
     }
   }, [drawCanvas, showGeneratedImage]);
 
+  useEffect(() => {
+    if (generatedImageUrl) {
+      const img = new Image();
+      img.onload = () => { generatedImageObjRef.current = img; drawCanvas(); };
+      img.src = generatedImageUrl;
+    } else {
+      generatedImageObjRef.current = null;
+      drawCanvas();
+    }
+  }, [generatedImageUrl, drawCanvas]);
+
   // Native wheel event listener for smooth map zoom without page scroll
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -669,9 +948,43 @@ export default function SmartPlannerPage() {
   };
 
   // ── Generate floor plan image via GPT-Image-2 ────────────────────────────
-  const generateFloorPlanImage = async (schedule: RoomSchedule) => {
+  const generateFloorPlanImage = async (schedule: RoomSchedule, resumeStep2 = false) => {
+    if (resumeStep2 && debugStep15Schematic && debugStep2TraceImage) {
+      setIsGeneratingImage(true);
+      setGenerationPhase('step2');
+      setGenerationError(null);
+      try {
+        const step2Res = await fetch('/api/generate-floorplan-image', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            schematicBase64: debugStep15Schematic,
+            traceCanvasBase64: debugStep2TraceImage,
+            aspectRatio: ratioId === 'square' ? '1:1' : ratioId === 'landscape' ? '4:3' : '3:4',
+            mastermindPrompt: mastermindStrategy,
+          }),
+        });
+        const step2Data = await step2Res.json();
+        if (!step2Res.ok || step2Data.error) throw new Error(step2Data.error || 'Step 2 Generation failed');
+
+        setDebugStep2SystemPrompt(step2Data.systemPrompt || '');
+        setDebugStep2UserPrompt(step2Data.userPrompt || '');
+        setGeneratedImageUrls(step2Data.imageUrls || []);
+        setActiveImageIndex(0);
+        setShowGeneratedImage(true);
+      } catch (err: any) {
+        setGenerationError('Image generation failed: ' + err.message);
+        console.error('[SmartPlanner] Image gen error:', err);
+      } finally {
+        setIsGeneratingImage(false);
+        setGenerationPhase('idle');
+      }
+      return;
+    }
+
     const plotPts = plotClosed ? plotPoints : [];
-    const sitePts = siteClosed ? sitePoints : plotPts;
+    // If the user drew site points (cyan) but forgot to close the polygon, auto-close it for the AI if >= 3 points exist
+    const sitePts = (siteClosed || sitePoints.length >= 3) ? sitePoints : plotPts;
     const activePts = sitePts.length > 0 ? sitePts : plotPts;
 
     if (activePts.length < 3) {
@@ -680,6 +993,7 @@ export default function SmartPlannerPage() {
     }
 
     setIsGeneratingImage(true);
+    setGenerationPhase('step1');
     setGenerationError(null);
     setShowGeneratedImage(false);
 
@@ -687,17 +1001,63 @@ export default function SmartPlannerPage() {
       // Export at the EXACT fal.ai output resolution to prevent rescale drift
       const imageBase64 = exportCanvasForAI(plotPts, sitePts, CANVAS_W, CANVAS_H, currentRatio.falSize);
       const maskBase64 = exportMaskForAI(activePts, CANVAS_W, CANVAS_H, currentRatio.falSize);
+      const visualTraceBase64 = exportCleanTraceForAI(activePts, CANVAS_W, CANVAS_H, currentRatio.falSize);
 
-      const res = await fetch('/api/generate-floorplan-image', {
+      // Pre-calculate prompts locally to display instantly in the debug console
+      const meterPoints = activePts.map(p => ({ x: pxToMScaled(p.x), y: pxToMScaled(p.y) }));
+      const localStep1Prompt = buildFloorPlanPromptLocal(schedule, meterPoints);
+      const localStep2SystemPrompt = `<role>
+You are an expert CAD draftsman and master architect specializing in strict floor plan shape-fitting.
+</role>
+
+<critical_rules>
+1. THE SHAPE IS SACRED: You MUST replicate the EXACT geometry and shape of the outer black outline from the SECONDARY IMAGE. Do NOT simplify, do NOT smooth out, and do NOT skip any corners, indents, diagonals, or steps. The generated exterior wall must match the provided black boundary shape with 100% fidelity.
+2. NO CHAMFERED OR BEVELED CORNERS: All outer corners of the building must remain sharp, exact angles matching the trace. Do NOT chamfer, bevel, slant, or cut off the corners of the building at 45-degree angles. If the trace has a 90-degree corner, the generated wall must meet at a sharp 90-degree corner.
+3. NO MICRO-STEPS OR BUMPS: Do not add tiny steps, bumps, or jagged edges to the outer walls just to fit windows or toilets. A long straight diagonal wall must remain a single, unbroken straight line from corner to corner.
+4. PRESERVE HORIZONTALS & VERTICALS: If a wall in the boundary trace is perfectly horizontal (like a flat bottom base) or perfectly vertical, your generated wall MUST also be perfectly horizontal or vertical. Do not tilt, slant, or curve it!
+5. ROOMS CAN SHRINK OR DEFORM: To make the layout fit inside this exact boundary, you are allowed to shrink the rooms, squish them, or give them diagonal walls. DO NOT change the outer boundary to make rooms rectangular. The outer boundary shape MUST NOT CHANGE. The rooms must adjust to fit the boundary, not the other way around.
+6. Every flat, corridor, staircase, and room shown in the primary image must be preserved. Do not omit any flats or rooms!
+</critical_rules>
+
+<aesthetics>
+- The black outline itself is the boundary — the area outside is empty.
+- The output must be a clean, technical blueprint style: black lines on a pure white background.
+- Include doors, windows, and labels inside.
+- You MUST generate the final image in a strictly ${ratioId === 'square' ? '1:1' : ratioId === 'landscape' ? '4:3' : '3:4'} aspect ratio.
+</aesthetics>`;
+
+      const localStep2UserPrompt = `PRIMARY IMAGE (GPT'S LAYOUT WITH ROOMS): [Step 1 Image]
+SECONDARY IMAGE (THE TRACE EXTERIOR - MUST NOT CHANGE): [12px Trace Image]
+
+<task>
+You have 3 simple but strict jobs:
+1. The exterior trace boundary (from the SECONDARY IMAGE) MUST remain exactly the same. Do not make a single change to the trace shape.
+2. All rooms and flats shown in the PRIMARY IMAGE (GPT's layout) MUST be placed inside the trace. Do not miss any rooms.
+3. You have full freedom to shrink the room sizes and change the layout a little to make it all fit perfectly inside the trace, as long as you do not expand or change the exterior trace.
+
+Design option variant identifier: [seed_id]. Make the layout slightly different from other variations.
+</task>`;
+
+      // Reset old outputs and save initial canvas exports + pre-calculated prompts to debug state
+      setDebugStep1OutputUrl('');
+      setDebugStep1BaseImage(imageBase64);
+      setDebugStep1MaskImage(maskBase64);
+      setDebugStep2TraceImage(visualTraceBase64);
+      setDebugStep1Prompt(localStep1Prompt);
+      setDebugStep2SystemPrompt(localStep2SystemPrompt);
+      setDebugStep2UserPrompt(localStep2UserPrompt);
+
+      // STEP 1: Generate Raw Layout with GPT-Image-2 (on fal.ai)
+      const step1Res = await fetch('/api/generate-floorplan-step1', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           imageBase64,
           maskBase64,
+          visualTraceBase64,
           roomSchedule: schedule,
           imageSize: currentRatio.falSize,
           sitePolygonPoints: activePts.map(p => ({ x: pxToMScaled(p.x), y: pxToMScaled(p.y) })),
-          // Compute centroid in meters for adaptive staircase/lift core placement
           circulationCoreLocation: (() => {
             const centroidPx = computePolygonCentroid(activePts);
             return { x: +pxToMScaled(centroidPx.x).toFixed(1), y: +pxToMScaled(centroidPx.y).toFixed(1) };
@@ -705,16 +1065,74 @@ export default function SmartPlannerPage() {
         }),
       });
 
-      const data = await res.json();
-      if (!res.ok || data.error) throw new Error(data.error || 'Generation failed');
+      const step1Data = await step1Res.json();
+      if (!step1Res.ok || step1Data.error) throw new Error(step1Data.error || 'Step 1 Generation failed');
 
-      setGeneratedImageUrl(data.imageUrl);
+      // Save Step 1 output image to debug state
+      setDebugStep1OutputUrl(step1Data.imageUrl || '');
+
+      // STEP 1.5: Algorithmic Zoom-Out + Mastermind Strategy Prompt
+      setGenerationPhase('mastermind');
+      console.log('[FloorPlan] Zooming out GPT layout to safely fit inside trace bounds...');
+      
+      const safelyScaledBase64 = await scaleImageToFitPolygon(
+        step1Data.imageUrl,
+        activePts,
+        CANVAS_W,
+        CANVAS_H,
+        currentRatio.falSize
+      );
+      
+      console.log('[FloorPlan] Invoking Mastermind strategy calculation...');
+      const mastermindRes = await fetch('/api/floorplan-mastermind', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          step1ImageUrl: safelyScaledBase64,
+          traceCanvasBase64: visualTraceBase64,
+          sitePolygonPoints: activePts.map(p => ({ x: pxToMScaled(p.x), y: pxToMScaled(p.y) })),
+          roomSchedule: schedule
+        })
+      });
+
+      const mastermindData = await mastermindRes.json();
+      if (!mastermindRes.ok || mastermindData.error) {
+        throw new Error(mastermindData.error || 'Mastermind layout calculation failed');
+      }
+
+      console.log('[FloorPlan] Mastermind strategy generated.');
+      setDebugStep15Schematic(safelyScaledBase64); // We use the zoomed-out layout for Step 2!
+      setMastermindStrategy(mastermindData.mastermindPrompt || '');
+
+      // STEP 2: Style Polish & Render (Fal.ai / OpenAI)
+      setGenerationPhase('step2');
+      const step2Res = await fetch('/api/generate-floorplan-image', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          schematicBase64: safelyScaledBase64,
+          traceCanvasBase64: visualTraceBase64,
+          aspectRatio: ratioId === 'square' ? '1:1' : ratioId === 'landscape' ? '4:3' : '3:4',
+          mastermindPrompt: mastermindData.mastermindPrompt || '',
+        }),
+      });
+
+      const step2Data = await step2Res.json();
+      if (!step2Res.ok || step2Data.error) throw new Error(step2Data.error || 'Step 2 Generation failed');
+
+      // Save Step 2 outputs to debug state
+      setDebugStep2SystemPrompt(step2Data.systemPrompt || '');
+      setDebugStep2UserPrompt(step2Data.userPrompt || '');
+
+      setGeneratedImageUrls(step2Data.imageUrls || []);
+      setActiveImageIndex(0);
       setShowGeneratedImage(true);
     } catch (err: any) {
       setGenerationError('Image generation failed: ' + err.message);
       console.error('[SmartPlanner] Image gen error:', err);
     } finally {
       setIsGeneratingImage(false);
+      setGenerationPhase('idle');
     }
   };
 
@@ -839,10 +1257,34 @@ export default function SmartPlannerPage() {
               &#9888; {generationError}
             </div>
           )}
+          {debugStep15Schematic && (
+            <button 
+              onClick={() => { if (roomSchedule) generateFloorPlanImage(roomSchedule, true); }}
+              className="text-[9px] uppercase tracking-widest px-2 py-1 bg-green-900/50 hover:bg-green-800 text-green-300 rounded border border-green-700 transition-colors"
+            >
+              Retry Step 2
+            </button>
+          )}
           {generatedImageUrl && (
             <button onClick={downloadImage} className="flex items-center gap-2 px-4 py-2 text-[10px] uppercase tracking-widest bg-green-500/10 border border-green-500/40 text-green-400 hover:bg-green-500/20 rounded transition-all">
               <Download size={13} /> Download PNG
             </button>
+          )}
+          {generatedImageUrls.length > 1 && (
+            <div className="flex items-center gap-1 border border-green-700/40 rounded p-1 bg-[#050f05]">
+              {generatedImageUrls.map((_, idx) => (
+                <button
+                  key={idx}
+                  onClick={() => {
+                    setActiveImageIndex(idx);
+                    setShowGeneratedImage(true);
+                  }}
+                  className={`px-3 py-1.5 text-[10px] uppercase tracking-widest rounded transition-all ${activeImageIndex === idx ? 'bg-green-500/20 text-green-300 font-bold' : 'text-green-600 hover:bg-green-900/30'}`}
+                >
+                  Option {idx + 1}
+                </button>
+              ))}
+            </div>
           )}
           {generatedImageUrl && (
             <div className="flex items-center gap-1 border border-green-700/40 rounded p-1 bg-[#050f05]">
@@ -1002,7 +1444,7 @@ export default function SmartPlannerPage() {
                 </div>
               )}
               <button
-                onClick={() => { setPlotPoints([]); setSitePoints([]); setPlotClosed(false); setSiteClosed(false); setDrawMode(null); setRoomSchedule(null); setGeneratedImageUrl(null); setShowGeneratedImage(false); setCompareMode(false); setGenerationError(null); undoStack.current = []; redoStack.current = []; }}
+                onClick={() => { setPlotPoints([]); setSitePoints([]); setPlotClosed(false); setSiteClosed(false); setDrawMode(null); setRoomSchedule(null); setGeneratedImageUrls([]); setActiveImageIndex(0); setShowGeneratedImage(false); setCompareMode(false); setGenerationError(null); undoStack.current = []; redoStack.current = []; }}
                 className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] uppercase tracking-wider rounded border border-red-900/40 text-red-700 hover:bg-red-500/10 hover:text-red-500 transition-all"
               >
                 <RotateCcw size={11} /> Reset
@@ -1034,6 +1476,99 @@ export default function SmartPlannerPage() {
                 onMouseLeave={(e) => { setHoverPoint(null); handleMouseUp(); }}
               />
             )}
+          </div>
+
+          {/* Real-time Architect Pipeline Debug Console */}
+          <div className="h-[320px] shrink-0 border-t border-purple-500/20 bg-[#030903] flex flex-col min-h-0">
+            <div className="flex items-center gap-2 px-4 py-2 border-b border-purple-500/10 bg-[#061406] shrink-0">
+              <Terminal size={12} className="text-purple-400 animate-pulse" />
+              <span className="text-[9px] font-bold uppercase tracking-[2px] text-purple-300">AI Architect Pipeline Debugger (Real-time Payloads)</span>
+              <div className="ml-auto text-[8px] text-purple-500 font-mono uppercase">Step 1 (Fal) &rarr; Step 2 (Gemini Pro)</div>
+            </div>
+            
+            <div className="flex-1 overflow-auto p-4 flex gap-4 divide-x divide-purple-950/40">
+              {/* STEP 1: GPT-Image-2 Input & Output */}
+              <div className="flex-1 flex flex-col gap-3 pr-4 min-w-[320px]">
+                <div className="text-[9px] font-bold text-amber-500 uppercase tracking-wider flex items-center gap-1.5 shrink-0">
+                  <span className="w-1.5 h-1.5 rounded-full bg-amber-500" /> Step 1: GPT-Image-2 (DALL-E 2 Inpainting)
+                </div>
+                
+                {/* Images Row */}
+                <div className="flex gap-4 shrink-0">
+                  {debugStep1OutputUrl && (
+                    <div className="flex flex-col gap-1 items-center">
+                      <span className="text-[7px] text-purple-400 uppercase">3. Output Layout (Blueprint)</span>
+                      <img src={debugStep1OutputUrl} className="w-16 h-16 rounded border border-purple-900/40 bg-white object-contain" />
+                    </div>
+                  )}
+                </div>
+
+                {/* Prompt Text Box */}
+                <div className="flex-1 flex flex-col min-h-0">
+                  <span className="text-[7px] text-green-700 uppercase mb-1">Step 1 Prompt Sent to Fal.ai:</span>
+                  <textarea
+                    readOnly
+                    value={debugStep1Prompt || 'Awaiting generation...'}
+                    className="flex-1 bg-[#020502] border border-green-950/60 rounded p-2 text-[8px] font-mono text-green-400/80 resize-none focus:outline-none"
+                  />
+                </div>
+              </div>
+
+              {/* STEP 2: Nano Banana Pro (Gemini) Input & Output */}
+              <div className="flex-1 flex flex-col gap-3 pl-4 min-w-[320px]">
+                <div className="text-[9px] font-bold text-purple-400 uppercase tracking-wider flex items-center gap-1.5 shrink-0">
+                  <span className="w-1.5 h-1.5 rounded-full bg-purple-400 animate-pulse" /> Step 2: Nano Banana Pro (Strict Tracing)
+                </div>
+
+                {/* Images Row */}
+                <div className="flex overflow-x-auto gap-4 shrink-0 pb-2">
+                  {debugStep1OutputUrl && (
+                    <div className="flex flex-col gap-1 items-center">
+                      <span className="text-[7px] text-green-700 uppercase">Primary Input (Base Layout)</span>
+                      <img src={debugStep1OutputUrl} className="w-32 h-32 rounded border border-green-950 bg-white object-contain shadow-lg" />
+                    </div>
+                  )}
+                  {debugStep2TraceImage && (
+                    <div className="flex flex-col gap-1 items-center">
+                      <span className="text-[7px] text-green-700 uppercase">Secondary Input (Trace Line)</span>
+                      <img src={debugStep2TraceImage} className="w-32 h-32 rounded border border-green-950 bg-white object-contain shadow-lg" />
+                    </div>
+                  )}
+                  {debugStep15Schematic && (
+                    <div className="flex flex-col gap-1 items-center">
+                      <span className="text-[7px] text-purple-400 uppercase">Step 1.5 Schematic (Mastermind)</span>
+                      <img src={debugStep15Schematic} className="w-32 h-32 rounded border border-purple-950 bg-white object-contain shadow-lg" />
+                    </div>
+                  )}
+                  {generatedImageUrls.map((url, idx) => (
+                    <div key={idx} className="flex flex-col gap-1 items-center">
+                      <span className="text-[7px] text-purple-400 uppercase">Nano Banana Pro Output</span>
+                      <img src={url} className="w-32 h-32 rounded border border-purple-900/40 bg-white object-contain shadow-lg shadow-purple-900/20" />
+                    </div>
+                  ))}
+                </div>
+
+                {/* System & User Prompts */}
+                <div className="flex-1 flex gap-2 min-h-0">
+                  <div className="flex-1 flex flex-col min-h-0">
+                    <span className="text-[7px] text-purple-500 uppercase mb-1">System Instruction (Strict Rules):</span>
+                    <textarea
+                      readOnly
+                      value={debugStep2SystemPrompt || 'Awaiting generation...'}
+                      className="flex-1 bg-[#020502] border border-purple-950/30 rounded p-2 text-[8px] font-mono text-purple-300/80 resize-none focus:outline-none"
+                    />
+                  </div>
+                  <div className="flex-1 flex flex-col min-h-0">
+                    <span className="text-[7px] text-purple-500 uppercase mb-1">User Prompt (Image Context):</span>
+                    <textarea
+                      readOnly
+                      value={debugStep2UserPrompt || 'Awaiting generation...'}
+                      className="flex-1 bg-[#020502] border border-purple-950/30 rounded p-2 text-[8px] font-mono text-purple-300/80 resize-none focus:outline-none"
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -1113,7 +1648,7 @@ export default function SmartPlannerPage() {
                     View Full Size
                   </button>
                   <button
-                    onClick={() => { setGeneratedImageUrl(null); roomSchedule && generateFloorPlanImage(roomSchedule); }}
+                    onClick={() => { setGeneratedImageUrls([]); setActiveImageIndex(0); roomSchedule && generateFloorPlanImage(roomSchedule); }}
                     disabled={isGeneratingImage}
                     className="flex-1 flex items-center justify-center gap-1 text-[9px] uppercase tracking-widest text-amber-400 border border-amber-900/40 rounded py-1.5 hover:bg-amber-500/10 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
                   >

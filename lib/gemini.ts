@@ -31,6 +31,7 @@ interface GeminiRequestOptions {
   responseMimeType?: string;
   responseSchema?: any;
   responseModalities?: string[]; // e.g. ['image', 'text']
+  aspectRatio?: string; // e.g. '1:1', '16:9', '4:3', '3:4', '9:16'
   timeoutMs?: number; // Optional timeout in ms
 }
 
@@ -49,6 +50,7 @@ export async function callGemini(options: GeminiRequestOptions) {
     responseMimeType,
     responseSchema,
     responseModalities,
+    aspectRatio,
     timeoutMs = 30000,
   } = options;
 
