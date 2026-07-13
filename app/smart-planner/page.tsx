@@ -2,7 +2,7 @@
 
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, Send, Loader2, Download, RotateCcw, ImageIcon, Sparkles, RefreshCw, Undo2, Redo2, Maximize2, ImagePlus, X, Move, Terminal } from 'lucide-react';
+import { ArrowLeft, Send, Loader2, Download, RotateCcw, ImageIcon, Sparkles, RefreshCw, Undo2, Redo2, Maximize2, ImagePlus, X, Move, Terminal, Pentagon } from 'lucide-react';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface Point { x: number; y: number; }
@@ -20,9 +20,9 @@ interface ChatMessage { role: 'user' | 'assistant'; content: string; }
 
 // ─── Canvas Ratio Presets (3 best sizes) ─────────────────────────────────────
 const CANVAS_RATIOS = [
-  { label: 'Square',    id: 'square',    w: 850, h: 850,  falSize: 'square_hd'    },
-  { label: 'Landscape', id: 'landscape', w: 900, h: 600,  falSize: 'landscape_4_3' },
-  { label: 'Portrait',  id: 'portrait',  w: 600, h: 850,  falSize: 'portrait_4_3'  },
+  { label: 'Square (Large)',    id: 'square',    w: 888, h: 888,  falSize: 'square_hd'    },
+  { label: 'Landscape (Large)', id: 'landscape', w: 960, h: 636,  falSize: 'landscape_4_3' },
+  { label: 'Portrait (Large)',  id: 'portrait',  w: 636, h: 888,  falSize: 'portrait_4_3'  },
 ] as const;
 type RatioId = typeof CANVAS_RATIOS[number]['id'];
 
@@ -57,38 +57,70 @@ const FAL_OUTPUT_SIZES: Record<string, { w: number; h: number }> = {
 };
 
 // ─── Shared polygon path builder (used by both source + mask for pixel-identical alignment)
-function drawPolygonPath(ctx: CanvasRenderingContext2D, pts: { x: number; y: number }[]) {
+// ─── Shared polygon path builder (used by both source + mask for pixel-identical alignment)
+function drawPolygonPath(
+  ctx: CanvasRenderingContext2D,
+  pts: { x: number; y: number }[]
+) {
   if (pts.length < 3) return;
   ctx.beginPath();
-  pts.forEach((p, i) => { if (i === 0) ctx.moveTo(p.x, p.y); else ctx.lineTo(p.x, p.y); });
+  ctx.moveTo(pts[0].x, pts[0].y);
+  for (let i = 0; i < pts.length; i++) {
+    const p2 = pts[(i + 1) % pts.length];
+    ctx.lineTo(p2.x, p2.y);
+  }
   ctx.closePath();
 }
 
 // ─── Scale polygon points from canvas space to output resolution ─────────────
-function scalePoints(pts: Point[], fromW: number, fromH: number, toW: number, toH: number): Point[] {
-  // Use uniform scaling to prevent squishing/stretching the architectural shape
-  const scale = Math.min(toW / fromW, toH / fromH);
-  const offsetX = (toW - (fromW * scale)) / 2;
-  const offsetY = (toH - (fromH * scale)) / 2;
+function scalePoints(pts: Point[], fromW: number, fromH: number, toW: number, toH: number, zoomToFit = false, padding = 10): Point[] {
+  let scale = Math.min(toW / fromW, toH / fromH);
+  let offsetX = (toW - (fromW * scale)) / 2;
+  let offsetY = (toH - (fromH * scale)) / 2;
+
+  if (zoomToFit && pts.length >= 3) {
+    let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+    pts.forEach(p => {
+      if (p.x < minX) minX = p.x;
+      if (p.x > maxX) maxX = p.x;
+      if (p.y < minY) minY = p.y;
+      if (p.y > maxY) maxY = p.y;
+    });
+    const ptsW = maxX - minX;
+    const ptsH = maxY - minY;
+    const targetW = Math.max(1, toW - padding * 2);
+    const targetH = Math.max(1, toH - padding * 2);
+    
+    scale = Math.min(targetW / (ptsW || 1), targetH / (ptsH || 1));
+    offsetX = (toW / 2) - ((minX + maxX) / 2) * scale;
+    offsetY = (toH / 2) - ((minY + maxY) / 2) * scale;
+  }
 
   return pts.map(p => ({
     x: Math.round(p.x * scale + offsetX),
     y: Math.round(p.y * scale + offsetY)
   }));
 }
-
 // ─── Export canvas as CLEAN source PNG for GPT-Image-2 ──────────────────────
 // CRITICAL: Exports at the fal.ai output resolution (not canvas resolution)
 // to prevent rescale drift. Contains ONLY the polygon — no grid, no labels, no noise.
-function exportCanvasForAI(plotPts: Point[], sitePts: Point[], canvasW: number, canvasH: number, falSize: string): string {
+function exportCanvasForAI(
+  plotPts: Point[],
+  sitePts: Point[],
+  canvasW: number,
+  canvasH: number,
+  falSize: string
+): string {
   const outSize = FAL_OUTPUT_SIZES[falSize] || { w: canvasW, h: canvasH };
   const offscreen = document.createElement('canvas');
   offscreen.width = outSize.w;
   offscreen.height = outSize.h;
   const ctx = offscreen.getContext('2d')!;
 
-  // Scale polygon points to output resolution
-  const scaledSitePts = scalePoints(sitePts, canvasW, canvasH, outSize.w, outSize.h);
+  // Scale polygon points, zooming to fit with 24px padding so AI gets maximum resolution
+  const scaledSitePts = scalePoints(
+    sitePts, canvasW, canvasH, outSize.w, outSize.h, true, 24
+  );
 
   // 1. Pure white background
   ctx.fillStyle = '#ffffff';
@@ -116,15 +148,22 @@ function exportCanvasForAI(plotPts: Point[], sitePts: Point[], canvasW: number, 
 // ─── Export mask as BLACK/WHITE PNG at fal.ai output resolution ──────────────
 // WHITE = AI draws here (inside polygon). BLACK = AI must not touch (outside).
 // MUST be at the same resolution as the source image for pixel-aligned masking.
-function exportMaskForAI(activePts: Point[], canvasW: number, canvasH: number, falSize: string): string {
+function exportMaskForAI(
+  activePts: Point[],
+  canvasW: number,
+  canvasH: number,
+  falSize: string
+): string {
   const outSize = FAL_OUTPUT_SIZES[falSize] || { w: canvasW, h: canvasH };
   const offscreen = document.createElement('canvas');
   offscreen.width = outSize.w;
   offscreen.height = outSize.h;
   const ctx = offscreen.getContext('2d')!;
 
-  // Scale polygon points to output resolution
-  const scaledPts = scalePoints(activePts, canvasW, canvasH, outSize.w, outSize.h);
+  // Scale polygon points, zooming to fit with 24px padding so AI gets maximum resolution
+  const scaledPts = scalePoints(
+    activePts, canvasW, canvasH, outSize.w, outSize.h, true, 24
+  );
 
   // 1. Fill with BLACK (preserve/freeze — AI cannot draw here)
   ctx.fillStyle = '#000000';
@@ -150,7 +189,12 @@ function exportMaskForAI(activePts: Point[], canvasW: number, canvasH: number, f
 }
 
 // ─── Export clean architectural trace (white canvas, black pencil line) ──
-function exportCleanTraceForAI(activePts: Point[], canvasW: number, canvasH: number, falSize: string): string {
+function exportCleanTraceForAI(
+  activePts: Point[],
+  canvasW: number,
+  canvasH: number,
+  falSize: string
+): string {
   const outSize = FAL_OUTPUT_SIZES[falSize] || { w: canvasW, h: canvasH };
   const offscreen = document.createElement('canvas');
   offscreen.width = outSize.w;
@@ -162,7 +206,10 @@ function exportCleanTraceForAI(activePts: Point[], canvasW: number, canvasH: num
   ctx.fillRect(0, 0, outSize.w, outSize.h);
 
   // 2. Draw the trace boundary as a crisp black architectural line
-  const scaledPts = scalePoints(activePts, canvasW, canvasH, outSize.w, outSize.h);
+  const scaledPts = scalePoints(
+    activePts, canvasW, canvasH, outSize.w, outSize.h, true, 24
+  );
+
   if (scaledPts.length >= 3) {
     ctx.strokeStyle = '#000000';
     ctx.lineWidth = 12;
@@ -278,10 +325,10 @@ function scaleImageToFitPolygon(
       const floorCx = fMinX + floorW / 2;
       const floorCy = fMinY + floorH / 2;
 
-      // 3. Calculate exact scale to match the trace bounding box, with a 25% safety shrink so it fits inside perfectly
+      // 3. Calculate exact scale to match the trace bounding box, with a 50% safety shrink so it fits inside perfectly
       const scaleW = polyW / floorW;
       const scaleH = polyH / floorH;
-      const scale = Math.min(scaleW, scaleH) * 0.75; // 75% size so it safely clears all red boundaries!
+      const scale = Math.min(scaleW, scaleH) * 0.50; // 50% size as explicitly requested to fit safely inside boundaries!
 
       // 4. Fill black background
       ctx.fillStyle = '#000000';
@@ -416,6 +463,7 @@ export default function SmartPlannerPage() {
   // Canvas ratio
   const [ratioId, setRatioId] = useState<RatioId>('square');
   const [showRatioPicker, setShowRatioPicker] = useState(false);
+  const [showShapePicker, setShowShapePicker] = useState(false);
   const currentRatio = CANVAS_RATIOS.find(r => r.id === ratioId) ?? CANVAS_RATIOS[0];
   const CANVAS_W = currentRatio.w;
   const CANVAS_H = currentRatio.h;
@@ -485,6 +533,98 @@ export default function SmartPlannerPage() {
     setPlotPoints(next.plotPts); setSitePoints(next.sitePts);
     setPlotClosed(next.plotClosed); setSiteClosed(next.siteClosed);
   }, [plotPoints, sitePoints, plotClosed, siteClosed]);
+
+  const loadPresetShape = useCallback((shape: 'box' | 'l-shape' | 'u-shape' | 't-shape' | 'cruciform') => {
+    pushUndo({ plotPts: plotPoints, sitePts: sitePoints, plotClosed, siteClosed });
+    
+    const cx = Math.round(CANVAS_W / 2 / CELL_PX) * CELL_PX;
+    const cy = Math.round(CANVAS_H / 2 / CELL_PX) * CELL_PX;
+    
+    let pts: Point[] = [];
+    
+    if (shape === 'box') {
+      pts = [
+        { x: cx - 180, y: cy - 120 },
+        { x: cx + 180, y: cy - 120 },
+        { x: cx + 180, y: cy + 120 },
+        { x: cx - 180, y: cy + 120 }
+      ];
+    } else if (shape === 'l-shape') {
+      pts = [
+        { x: cx - 180, y: cy - 180 },
+        { x: cx + 180, y: cy - 180 },
+        { x: cx + 180, y: cy },
+        { x: cx, y: cy },
+        { x: cx, y: cy + 180 },
+        { x: cx - 180, y: cy + 180 }
+      ];
+    } else if (shape === 'u-shape') {
+      pts = [
+        { x: cx - 200, y: cy - 150 },
+        { x: cx - 80,  y: cy - 150 },
+        { x: cx - 80,  y: cy + 40 },
+        { x: cx + 80,  y: cy + 40 },
+        { x: cx + 80,  y: cy - 150 },
+        { x: cx + 200, y: cy - 150 },
+        { x: cx + 200, y: cy + 180 },
+        { x: cx - 200, y: cy + 180 }
+      ];
+    } else if (shape === 't-shape') {
+      pts = [
+        { x: cx - 200, y: cy - 150 },
+        { x: cx + 200, y: cy - 150 },
+        { x: cx + 200, y: cy - 30 },
+        { x: cx + 60,  y: cy - 30 },
+        { x: cx + 60,  y: cy + 180 },
+        { x: cx - 60,  y: cy + 180 },
+        { x: cx - 60,  y: cy - 30 },
+        { x: cx - 200, y: cy - 30 }
+      ];
+    } else if (shape === 'cruciform') {
+      pts = [
+        { x: cx - 60,  y: cy - 180 },
+        { x: cx + 60,  y: cy - 180 },
+        { x: cx + 60,  y: cy - 60 },
+        { x: cx + 180, y: cy - 60 },
+        { x: cx + 180, y: cy + 60 },
+        { x: cx + 60,  y: cy + 60 },
+        { x: cx + 60,  y: cy + 180 },
+        { x: cx - 60,  y: cy + 180 },
+        { x: cx - 60,  y: cy + 60 },
+        { x: cx - 180, y: cy + 60 },
+        { x: cx - 180, y: cy - 60 },
+        { x: cx - 60,  y: cy - 60 }
+      ];
+    }
+    
+    // Snap all points to grid
+    const snapped = pts.map(p => ({
+      x: Math.round(p.x / CELL_PX) * CELL_PX,
+      y: Math.round(p.y / CELL_PX) * CELL_PX
+    }));
+    
+    setPlotPoints(snapped);
+    setPlotClosed(true);
+    setDrawMode(null);
+    setSelectedEdge(null);
+    
+    // Auto-create site exterior as offset inside
+    const sitePts = snapped.map(p => {
+      const dx = p.x - cx;
+      const dy = p.y - cy;
+      const dist = Math.hypot(dx, dy) || 1;
+      const shrinkFactor = (dist - 24) / dist;
+      return {
+        x: Math.round((cx + dx * shrinkFactor) / CELL_PX) * CELL_PX,
+        y: Math.round((cy + dy * shrinkFactor) / CELL_PX) * CELL_PX
+      };
+    });
+    setSitePoints(sitePts);
+    setSiteClosed(true);
+  }, [CANVAS_W, CANVAS_H, plotPoints, sitePoints, plotClosed, siteClosed, pushUndo]);
+
+  const [selectedEdge, setSelectedEdge] = useState<{ list: 'plot' | 'site'; index: number } | null>(null);
+  const [draggingPoint, setDraggingPoint] = useState<{ list: 'plot' | 'site'; index: number } | null>(null);
 
   // Keyboard shortcuts Ctrl+Z / Ctrl+Y
   useEffect(() => {
@@ -649,21 +789,54 @@ export default function SmartPlannerPage() {
       ctx.setLineDash([]); ctx.restore();
     }
 
+
     // ── Plot boundary ─────────────────────────────────────────────────────
     if (plotPoints.length > 0) {
       ctx.strokeStyle = '#f97316'; ctx.lineWidth = 2; ctx.setLineDash([8, 4]);
-      ctx.beginPath();
-      plotPoints.forEach((p, i) => { if (i === 0) ctx.moveTo(p.x, p.y); else ctx.lineTo(p.x, p.y); });
-      if (plotClosed) ctx.closePath();
-      else if (drawMode === 'plot' && hoverPoint) ctx.lineTo(hoverPoint.x, hoverPoint.y);
+      if (plotClosed) {
+        drawPolygonPath(ctx, plotPoints);
+      } else {
+        ctx.beginPath();
+        plotPoints.forEach((p, i) => { if (i === 0) ctx.moveTo(p.x, p.y); else ctx.lineTo(p.x, p.y); });
+        if (drawMode === 'plot' && hoverPoint) ctx.lineTo(hoverPoint.x, hoverPoint.y);
+      }
       ctx.stroke(); ctx.setLineDash([]);
       plotPoints.forEach((p, i) => {
-        ctx.beginPath(); ctx.arc(p.x, p.y, 4, 0, Math.PI * 2);
-        ctx.fillStyle = i === 0 ? '#f97316' : '#fb923c'; ctx.fill();
+        ctx.beginPath(); ctx.arc(p.x, p.y, 4.5, 0, Math.PI * 2);
+        ctx.fillStyle = i === 0 ? '#f97316' : '#fb923c';
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 1;
+        ctx.fill(); ctx.stroke();
       });
       if (!plotClosed && plotPoints.length >= 3 && drawMode === 'plot') {
         ctx.beginPath(); ctx.arc(plotPoints[0].x, plotPoints[0].y, 8, 0, Math.PI * 2);
         ctx.strokeStyle = '#f97316aa'; ctx.lineWidth = 1.5; ctx.stroke();
+      }
+
+      // Draw Midpoint Handles for Plot Boundary
+      if (plotClosed && !drawMode) {
+        for (let i = 0; i < plotPoints.length; i++) {
+          const a = plotPoints[i], b = plotPoints[(i + 1) % plotPoints.length];
+          let mx = (a.x + b.x) / 2;
+          let my = (a.y + b.y) / 2;
+          
+          const isSelected = selectedEdge && selectedEdge.list === 'plot' && selectedEdge.index === i;
+
+          ctx.beginPath();
+          ctx.arc(mx, my, isSelected ? 5.5 : 3.5, 0, Math.PI * 2);
+          ctx.fillStyle = '#ffffff';
+          ctx.strokeStyle = isSelected ? '#3b82f6' : '#f97316';
+          ctx.lineWidth = isSelected ? 2.5 : 1.5;
+          ctx.fill(); ctx.stroke();
+
+          // Draw "+" sign inside
+          ctx.strokeStyle = isSelected ? '#3b82f6' : '#f97316';
+          ctx.lineWidth = 1;
+          ctx.beginPath();
+          ctx.moveTo(mx - 2, my); ctx.lineTo(mx + 2, my);
+          ctx.moveTo(mx, my - 2); ctx.lineTo(mx, my + 2);
+          ctx.stroke();
+        }
       }
       // Edge length labels on closed plot polygon
       if (plotClosed) {
@@ -671,7 +844,8 @@ export default function SmartPlannerPage() {
           const a = plotPoints[i], b = plotPoints[(i + 1) % plotPoints.length];
           const dx = b.x - a.x, dy = b.y - a.y;
           const dM = (Math.sqrt(dx*dx + dy*dy) / CELL_PX * metersPerCell).toFixed(1);
-          const mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2;
+          let mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2;
+
           ctx.save();
           ctx.font = 'bold 9px monospace'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
           const tw = ctx.measureText(`${dM}m`).width;
@@ -686,18 +860,51 @@ export default function SmartPlannerPage() {
     // ── Site exterior ─────────────────────────────────────────────────────
     if (sitePoints.length > 0) {
       ctx.strokeStyle = '#00f0ff'; ctx.lineWidth = 2; ctx.setLineDash([]);
-      ctx.beginPath();
-      sitePoints.forEach((p, i) => { if (i === 0) ctx.moveTo(p.x, p.y); else ctx.lineTo(p.x, p.y); });
-      if (siteClosed) { ctx.closePath(); ctx.fillStyle = 'rgba(0,240,255,0.05)'; ctx.fill(); }
-      else if (drawMode === 'site' && hoverPoint) ctx.lineTo(hoverPoint.x, hoverPoint.y);
+      if (siteClosed) {
+        drawPolygonPath(ctx, sitePoints);
+        ctx.fillStyle = 'rgba(0,240,255,0.05)'; ctx.fill();
+      } else {
+        ctx.beginPath();
+        sitePoints.forEach((p, i) => { if (i === 0) ctx.moveTo(p.x, p.y); else ctx.lineTo(p.x, p.y); });
+        if (drawMode === 'site' && hoverPoint) ctx.lineTo(hoverPoint.x, hoverPoint.y);
+      }
       ctx.stroke();
       sitePoints.forEach((p, i) => {
-        ctx.beginPath(); ctx.arc(p.x, p.y, 4, 0, Math.PI * 2);
-        ctx.fillStyle = i === 0 ? '#00f0ff' : '#67e8f9'; ctx.fill();
+        ctx.beginPath(); ctx.arc(p.x, p.y, 4.5, 0, Math.PI * 2);
+        ctx.fillStyle = i === 0 ? '#00f0ff' : '#67e8f9';
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 1;
+        ctx.fill(); ctx.stroke();
       });
       if (!siteClosed && sitePoints.length >= 3 && drawMode === 'site') {
         ctx.beginPath(); ctx.arc(sitePoints[0].x, sitePoints[0].y, 8, 0, Math.PI * 2);
         ctx.strokeStyle = '#00f0ffaa'; ctx.lineWidth = 1.5; ctx.stroke();
+      }
+
+      // Draw Midpoint Handles for Site Exterior
+      if (siteClosed && !drawMode) {
+        for (let i = 0; i < sitePoints.length; i++) {
+          const a = sitePoints[i], b = sitePoints[(i + 1) % sitePoints.length];
+          let mx = (a.x + b.x) / 2;
+          let my = (a.y + b.y) / 2;
+
+          const isSelected = selectedEdge && selectedEdge.list === 'site' && selectedEdge.index === i;
+
+          ctx.beginPath();
+          ctx.arc(mx, my, isSelected ? 5.5 : 3.5, 0, Math.PI * 2);
+          ctx.fillStyle = '#ffffff';
+          ctx.strokeStyle = isSelected ? '#3b82f6' : '#00f0ff';
+          ctx.lineWidth = isSelected ? 2.5 : 1.5;
+          ctx.fill(); ctx.stroke();
+
+          // Draw "+" sign inside
+          ctx.strokeStyle = isSelected ? '#3b82f6' : '#00f0ff';
+          ctx.lineWidth = 1;
+          ctx.beginPath();
+          ctx.moveTo(mx - 2, my); ctx.lineTo(mx + 2, my);
+          ctx.moveTo(mx, my - 2); ctx.lineTo(mx, my + 2);
+          ctx.stroke();
+        }
       }
       // Edge length labels on closed site polygon
       if (siteClosed) {
@@ -705,7 +912,8 @@ export default function SmartPlannerPage() {
           const a = sitePoints[i], b = sitePoints[(i + 1) % sitePoints.length];
           const dx = b.x - a.x, dy = b.y - a.y;
           const dM = (Math.sqrt(dx*dx + dy*dy) / CELL_PX * metersPerCell).toFixed(1);
-          const mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2;
+          let mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2;
+
           ctx.save();
           ctx.font = 'bold 9px monospace'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
           const tw = ctx.measureText(`${dM}m`).width;
@@ -824,7 +1032,7 @@ export default function SmartPlannerPage() {
       ctx.fillText('Creating layout — ~10 seconds', CANVAS_W / 2, CANVAS_H / 2 + 16);
       ctx.textAlign = 'left';
     }
-  }, [plotPoints, sitePoints, plotClosed, siteClosed, hoverPoint, drawMode, isGeneratingImage, CANVAS_W, CANVAS_H, currentRatio, metersPerCell, bgImageLoaded, bgOpacity, bgOffset, bgScale, compareMode]);
+  }, [plotPoints, sitePoints, plotClosed, siteClosed, hoverPoint, drawMode, isGeneratingImage, CANVAS_W, CANVAS_H, currentRatio, metersPerCell, bgImageLoaded, bgOpacity, bgOffset, bgScale, compareMode, selectedEdge, draggingPoint]);
 
   useEffect(() => { 
     // Re-draw when canvas remounts after hiding the generated image or when deps change
@@ -878,6 +1086,7 @@ export default function SmartPlannerPage() {
   };
 
   const handleCanvasClick = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    if (draggingPoint) return;
     if (drawMode !== 'plot' && drawMode !== 'site') return;
     const { x, y } = getCanvasCoords(e);
 
@@ -906,25 +1115,101 @@ export default function SmartPlannerPage() {
   };
 
   const handleMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    const coords = getCanvasCoords(e);
+    
     if (drawMode === 'map') {
       setIsDraggingMap(true);
       lastMousePos.current = { x: e.clientX, y: e.clientY };
+      return;
+    }
+
+    if (!drawMode) {
+      // 1. Direct point handles dragging
+      for (let i = 0; i < plotPoints.length; i++) {
+        const pt = plotPoints[i];
+        if (Math.hypot(pt.x - coords.x, pt.y - coords.y) < 12) {
+          pushUndo({ plotPts: plotPoints, sitePts: sitePoints, plotClosed, siteClosed });
+          setDraggingPoint({ list: 'plot', index: i });
+          return;
+        }
+      }
+      for (let i = 0; i < sitePoints.length; i++) {
+        const pt = sitePoints[i];
+        if (Math.hypot(pt.x - coords.x, pt.y - coords.y) < 12) {
+          pushUndo({ plotPts: plotPoints, sitePts: sitePoints, plotClosed, siteClosed });
+          setDraggingPoint({ list: 'site', index: i });
+          return;
+        }
+      }
+
+      // 2. Midpoint handles click (opens curve segment options modal)
+      if (plotClosed && plotPoints.length >= 3) {
+        for (let i = 0; i < plotPoints.length; i++) {
+          const p1 = plotPoints[i];
+          const p2 = plotPoints[(i + 1) % plotPoints.length];
+          const mx = (p1.x + p2.x) / 2;
+          const my = (p1.y + p2.y) / 2;
+          if (Math.hypot(mx - coords.x, my - coords.y) < 12) {
+            setSelectedEdge({ list: 'plot', index: i });
+            return;
+          }
+        }
+      }
+
+      if (siteClosed && sitePoints.length >= 3) {
+        for (let i = 0; i < sitePoints.length; i++) {
+          const p1 = sitePoints[i];
+          const p2 = sitePoints[(i + 1) % sitePoints.length];
+          const mx = (p1.x + p2.x) / 2;
+          const my = (p1.y + p2.y) / 2;
+          if (Math.hypot(mx - coords.x, my - coords.y) < 12) {
+            setSelectedEdge({ list: 'site', index: i });
+            return;
+          }
+        }
+      }
     }
   };
 
-  const handleMouseUp = () => {
-    setIsDraggingMap(false);
-    lastMousePos.current = null;
-  };
-
   const handleCanvasMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    const coords = getCanvasCoords(e);
+
+    if (draggingPoint) {
+      if (draggingPoint.list === 'plot') {
+        setPlotPoints(prev => {
+          const next = [...prev];
+          next[draggingPoint.index] = coords;
+          return next;
+        });
+      } else {
+        setSitePoints(prev => {
+          const next = [...prev];
+          next[draggingPoint.index] = coords;
+          return next;
+        });
+      }
+      return;
+    }
+
     if (drawMode === 'map' && isDraggingMap && lastMousePos.current) {
       const dx = e.clientX - lastMousePos.current.x;
       const dy = e.clientY - lastMousePos.current.y;
       setBgOffset(prev => ({ x: prev.x + dx, y: prev.y + dy }));
       lastMousePos.current = { x: e.clientX, y: e.clientY };
-    } else if (drawMode === 'plot' || drawMode === 'site') {
-      setHoverPoint(getCanvasCoords(e));
+    } else {
+      setHoverPoint(coords);
+    }
+  };
+
+  const handleMouseUp = () => {
+    if (drawMode === 'map') {
+      setIsDraggingMap(false);
+      lastMousePos.current = null;
+      return;
+    }
+
+    if (draggingPoint) {
+      setDraggingPoint(null);
     }
   };
 
@@ -1307,11 +1592,11 @@ Design option variant identifier: [seed_id]. Make the layout slightly different 
         </div>
       </header>
 
-      <div className="flex flex-1 overflow-hidden">
+      <div className="flex w-full flex-1 min-h-0">
         {/* Canvas / Image Panel */}
-        <div className="flex flex-col flex-1 overflow-hidden">
+        <div className="flex flex-col flex-1 overflow-y-auto border-r border-green-900/40 bg-[#030a03] select-none">
           {/* Mode toolbar */}
-          <div className="flex items-center gap-2 px-4 py-2 border-b border-green-900/30 bg-[#070f07] shrink-0 flex-wrap">
+          <div className="sticky top-0 z-30 flex items-center gap-2 px-4 py-2 border-b border-green-900/30 bg-[#070f07] shrink-0 flex-wrap">
             <span className="text-[9px] tracking-[3px] uppercase text-green-800 mr-1">Canvas:</span>
             <button
               onClick={() => { if (plotClosed) return; setDrawMode(d => d === 'plot' ? null : 'plot'); setSitePoints([]); setSiteClosed(false); }}
@@ -1348,6 +1633,48 @@ Design option variant identifier: [seed_id]. Make the layout slightly different 
               <Redo2 size={12} /> Redo
             </button>
 
+            {/* Curve segment control panel */}
+            {selectedEdge && (
+              <div className="flex items-center gap-2 border border-blue-900/60 bg-[#050c18] px-3 py-1 rounded-md text-blue-300 transition-all select-none">
+                <span className="text-[10px] uppercase font-bold tracking-wider text-blue-400">
+                  Edge #{(selectedEdge.index + 1)}:
+                </span>
+                
+                {/* Split segment / add vertex button */}
+                <button
+                  onClick={() => {
+                    pushUndo({ plotPts: plotPoints, sitePts: sitePoints, plotClosed, siteClosed });
+                    const pts = selectedEdge.list === 'plot' ? [...plotPoints] : [...sitePoints];
+                    const setPts = selectedEdge.list === 'plot' ? setPlotPoints : setSitePoints;
+
+                    const i = selectedEdge.index;
+                    const p1 = pts[i];
+                    const p2 = pts[(i + 1) % pts.length];
+
+                    // Calculate midpoint on line
+                    let mx = (p1.x + p2.x) / 2;
+                    let my = (p1.y + p2.y) / 2;
+
+                    // Insert the new vertex point
+                    pts.splice(i + 1, 0, { x: snapToGrid(mx), y: snapToGrid(my) });
+                    setPts(pts);
+                    setSelectedEdge(null);
+                  }}
+                  className="px-2 py-1 text-[9px] uppercase font-semibold bg-blue-500/20 hover:bg-blue-500/40 text-blue-300 rounded border border-blue-500/30 transition-all font-mono"
+                >
+                  Split Edge
+                </button>
+
+                <button
+                  onClick={() => setSelectedEdge(null)}
+                  className="text-blue-500 hover:text-blue-300 p-0.5"
+                  title="Close"
+                >
+                  <X size={12} />
+                </button>
+              </div>
+            )}
+
             {/* Canvas Ratio Picker */}
             <div className="relative">
               <button
@@ -1375,6 +1702,38 @@ Design option variant identifier: [seed_id]. Make the layout slightly different 
                     >
                       <span>{r.label}</span>
                       {r.id === ratioId && <span className="text-green-400">✓</span>}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Preset Plots Picker */}
+            <div className="relative">
+              <button
+                onClick={() => setShowShapePicker(p => !p)}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] uppercase tracking-wider rounded border border-green-700/40 text-green-500 hover:bg-green-500/10 transition-all"
+              >
+                <Pentagon size={11} className="text-green-500 animate-pulse" /> Preset Plots
+              </button>
+              {showShapePicker && (
+                <div className="absolute top-full left-0 mt-1 z-50 bg-[#0a180a] border border-green-800/50 rounded-lg shadow-2xl shadow-black/50 overflow-hidden min-w-[160px]">
+                  {[
+                    { label: 'Rectangular Box', id: 'box' },
+                    { label: 'L-Shape Plot', id: 'l-shape' },
+                    { label: 'U-Shape Plot', id: 'u-shape' },
+                    { label: 'T-Shape Plot', id: 't-shape' },
+                    { label: 'Cruciform (Cross)', id: 'cruciform' }
+                  ].map(shape => (
+                    <button
+                      key={shape.id}
+                      onClick={() => {
+                        loadPresetShape(shape.id as any);
+                        setShowShapePicker(false);
+                      }}
+                      className="w-full text-left px-4 py-2.5 text-[10px] hover:bg-green-500/10 text-green-300 hover:text-green-200 transition-colors"
+                    >
+                      {shape.label}
                     </button>
                   ))}
                 </div>
@@ -1456,19 +1815,24 @@ Design option variant identifier: [seed_id]. Make the layout slightly different 
           </div>
 
           {/* Canvas or Generated Image */}
-          <div className="flex-1 overflow-auto relative bg-[#030a03]">
+          <div 
+            className="shrink-0 p-8 flex items-center justify-center relative bg-[#030a03] border-b border-green-900/20 select-none overflow-auto"
+            style={{ minHeight: `${CANVAS_H + 64}px` }}
+          >
             {showGeneratedImage && generatedImageUrl ? (
-              <div className="w-full h-full flex items-center justify-center bg-[#030a03] p-4">
+              <div className="flex items-center justify-center bg-[#030a03]">
                 <img
                   src={generatedImageUrl}
                   alt="AI Generated Floor Plan"
-                  className="max-w-full max-h-full object-contain rounded-lg shadow-2xl shadow-purple-900/30 border border-purple-500/20"
+                  style={{ width: `${CANVAS_W}px`, height: `${CANVAS_H}px` }}
+                  className="object-contain rounded-lg shadow-2xl shadow-purple-900/30 border border-purple-500/20"
                 />
               </div>
             ) : (
               <canvas
                 ref={canvasRef} width={CANVAS_W} height={CANVAS_H}
-                className={`block w-full h-full object-contain ${drawMode === 'map' ? (isDraggingMap ? 'cursor-grabbing' : 'cursor-grab') : 'cursor-crosshair'}`}
+                style={{ width: `${CANVAS_W}px`, height: `${CANVAS_H}px` }}
+                className={`block bg-[#020802] rounded-lg shadow-2xl border border-green-900/30 ${drawMode === 'map' ? (isDraggingMap ? 'cursor-grabbing' : 'cursor-grab') : 'cursor-crosshair'}`}
                 onClick={handleCanvasClick}
                 onMouseDown={handleMouseDown}
                 onMouseMove={handleCanvasMove}
@@ -1478,8 +1842,8 @@ Design option variant identifier: [seed_id]. Make the layout slightly different 
             )}
           </div>
 
-          {/* Real-time Architect Pipeline Debug Console */}
-          <div className="h-[320px] shrink-0 border-t border-purple-500/20 bg-[#030903] flex flex-col min-h-0">
+          {/* Real-time Architect Pipeline Debug Console inside Canvas panel */}
+          <div className="h-[360px] shrink-0 border-t border-purple-500/20 bg-[#030903] flex flex-col w-full">
             <div className="flex items-center gap-2 px-4 py-2 border-b border-purple-500/10 bg-[#061406] shrink-0">
               <Terminal size={12} className="text-purple-400 animate-pulse" />
               <span className="text-[9px] font-bold uppercase tracking-[2px] text-purple-300">AI Architect Pipeline Debugger (Real-time Payloads)</span>
@@ -1494,11 +1858,23 @@ Design option variant identifier: [seed_id]. Make the layout slightly different 
                 </div>
                 
                 {/* Images Row */}
-                <div className="flex gap-4 shrink-0">
+                <div className="flex gap-4 shrink-0 overflow-x-auto pb-1">
+                  {debugStep1BaseImage && (
+                    <div className="flex flex-col gap-1 items-center">
+                      <span className="text-[7px] text-green-700 uppercase">1. Base Tracing</span>
+                      <img src={debugStep1BaseImage} className="w-24 h-24 rounded border border-green-950 bg-white object-contain shadow-lg" />
+                    </div>
+                  )}
+                  {debugStep1MaskImage && (
+                    <div className="flex flex-col gap-1 items-center">
+                      <span className="text-[7px] text-green-700 uppercase">2. Inpaint Mask</span>
+                      <img src={debugStep1MaskImage} className="w-24 h-24 rounded border border-green-950 bg-white object-contain shadow-lg" />
+                    </div>
+                  )}
                   {debugStep1OutputUrl && (
                     <div className="flex flex-col gap-1 items-center">
-                      <span className="text-[7px] text-purple-400 uppercase">3. Output Layout (Blueprint)</span>
-                      <img src={debugStep1OutputUrl} className="w-16 h-16 rounded border border-purple-900/40 bg-white object-contain" />
+                      <span className="text-[7px] text-purple-400 uppercase">3. Output (Blueprint)</span>
+                      <img src={debugStep1OutputUrl} className="w-24 h-24 rounded border border-purple-900/40 bg-white object-contain shadow-lg" />
                     </div>
                   )}
                 </div>
@@ -1570,6 +1946,7 @@ Design option variant identifier: [seed_id]. Make the layout slightly different 
               </div>
             </div>
           </div>
+
         </div>
 
         {/* Chat Panel */}
@@ -1717,7 +2094,6 @@ Design option variant identifier: [seed_id]. Make the layout slightly different 
                 <Send size={16} />
               </button>
             </div>
-            <p className="text-[8px] text-green-900 mt-1.5 uppercase tracking-wide">Enter to send &middot; Shift+Enter for new line</p>
           </div>
         </div>
       </div>

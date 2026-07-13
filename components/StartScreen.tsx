@@ -1113,7 +1113,7 @@ NOTE: Each time Master Umesh asks for the brief, these stories are shuffled rand
         router.push('/vector-editor');
       });
     } else if (stageId === 'smart-planner') {
-      speak("Initializing Smart Planner, mathematical accuracy mode engaged.", () => {
+      speak("Smart Planner.", () => {
         router.push('/smart-planner');
       });
     } else if (stageId === 'flythrough') {

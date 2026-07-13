@@ -47,15 +47,20 @@ YOUR JOB:
 
 2. **GEOMETRY FEASIBILITY CHECK (CRITICAL):**
    ### CRITICAL DENSITY & CARPET AREA RULES (MUST OBEY):
-   1. **DETERMINE SITE SHAPE COMPLEXITY & DEDUCTION PERCENTAGE:**
-      Analyze the shape, number of vertices, and indents of the custom shape polygon points:
+   1. **CRITICAL VISUAL ANALYSIS (THE TRACE IMAGE):**
+      You are provided with a visual trace image of the plot boundary (a black polygon on a white canvas). YOU MUST LOOK AT THIS IMAGE carefully! The image reveals the exact geometric shape, deep cutouts, narrow pinch points, and the number of physical "wings" or branches the shape has. Your architectural layout suggestions MUST be mathematically bound by the physical reality of this image. (e.g. If the image shows a cross with 4 distinct wings, you are physically limited to 4 flats maximum. Do not hallucinate extra space!)
+   2. **DETERMINE SITE SHAPE COMPLEXITY & DEDUCTION PERCENTAGE:**
+      Analyze the visual shape, number of vertices, and indents of the custom shape polygon:
       - **Simple Shapes (4-5 vertices, e.g., Square, Rectangle):** Deduct a base of **25%** from the 'True Site Exterior Polygon Area' for corridors, staircases, and walls.
       - **Medium Shapes (6-8 vertices, e.g., L-shape, U-shape, clean hexagon):** Deduct **35%** from the 'True Site Exterior Polygon Area' due to corner inefficiencies.
       - **Complex/Highly Irregular Shapes (8+ vertices OR shapes with deep inward indents/slots, e.g., Star, Butterfly, Bat, shapes with V-shaped cuts or hollow courtyards):** Deduct **45% to 50%** from the 'True Site Exterior Polygon Area' to account for high layout inefficiencies, pinch points, and required light shafts. If there are any inward-pointing vertices, automatically treat it as a Complex Shape!
    2. The remaining percentage (e.g. 50% for complex/indented shapes) is your absolute maximum Net Carpet Area limit. You are strictly FORBIDDEN from generating a room schedule where the sum of individual room areas exceeds this Net Carpet Area.
    3. **Ground Coverage constraint:** For any irregular shape with indents/slots, the total buildup footprint of all flats combined must not exceed **45-50%** of the True Site Area. This ensures the building has enough room to wrap around the indents without bleeding outside the boundary.
-   4. If a user asks for a density (number of flats) that mathematically violates these rules (e.g., asking for 6 flats of 3BHK in a 1140 sqm irregular shape with deep indents), you MUST reject the request in the chat interface and explain: "Based on the geometric complexity and inward indents of this shape, only a maximum of 4 flats can realistically fit."
-
+   4. **AI RENDERER CAPABILITY LIMITS (CRITICAL):** The image rendering engine struggles heavily with spatial reasoning if you cram too many flats into complex shapes.
+      - For CROSS, STAR, or highly indented shapes: DO NOT suggest more than 1 flat per distinct wing/branch (e.g., a cross shape has 4 wings, so max 4 flats). Do NOT suggest 6 or 8 flats for a cross!
+      - For standard shapes (square/rectangle): Max 6 flats.
+      - If you suggest too many flats, the image generation WILL FAIL and hallucinate. Keep the flat count low, spacious, and highly realistic.
+   5. If a user asks for a density (number of flats) that mathematically violates these rules (e.g., asking for 6 flats of 3BHK in a 1140 sqm irregular shape with deep indents), you MUST reject the request in the chat interface and explain: "Based on the geometric complexity and inward indents of this shape, only a maximum of 4 flats can realistically fit."
 3. **SMART LAYOUT SUGGESTIONS (FIRST RESPONSE — ALWAYS USE THIS FLOW):**
    When a user asks about flats or layouts, DO NOT ask them for a flat count.
    Instead, act like a master architect. Look at the specific irregular shape (polygon vertices) and area. Suggest UP TO 3 custom layout options (you can give 1, 2, or 3 options depending on what is actually realistic and architecturally feasible for this shape. If only 1 layout is realistic due to geometric constraints or a tiny area, only suggest 1 option! Do not force bad/infeasible designs).
@@ -153,7 +158,7 @@ const OPENROUTER_MODELS = [
 
 async function callOpenRouterWithFallback(
   systemWithContext: string,
-  messages: { role: string; content: string }[]
+  messages: any[]
 ): Promise<{ text: string; modelUsed: string }> {
   let lastError = '';
 
@@ -176,19 +181,14 @@ async function callOpenRouterWithFallback(
           ],
           temperature: 0.1,
           max_tokens: 6000,
+          response_format: { type: "json_object" },
         }),
       });
 
-      if (!res.ok) {
-        const errText = await res.text();
-        console.warn(`[SmartPlanner] OpenRouter ${model} failed (${res.status}):`, errText.slice(0, 120));
-        lastError = errText;
-        continue;
-      }
-
       const data = await res.json();
-      const text = data.choices?.[0]?.message?.content || '';
+      if (!res.ok) throw new Error(data.error?.message || 'OpenRouter Error');
 
+      const text = data.choices?.[0]?.message?.content;
       if (!text) {
         console.warn(`[SmartPlanner] OpenRouter ${model} returned empty text`);
         lastError = 'Empty response';
@@ -209,7 +209,7 @@ async function callOpenRouterWithFallback(
 
 export async function POST(request: Request) {
   try {
-    const { messages, plotBoundary, plotPoints, sitePoints } = await request.json();
+    const { messages, plotBoundary, plotPoints, sitePoints, traceImageBase64 } = await request.json();
 
     // Prepare polygon coordinates context
     const plotCoordinatesText = plotPoints && plotPoints.length > 0
@@ -298,15 +298,31 @@ ${siteCoordinatesText}
 ${deterministicConstraints}`
       : SYSTEM_PROMPT;
 
-    const { text, modelUsed } = await callOpenRouterWithFallback(systemWithContext, messages);
+    let finalMessages = [...messages];
+    if (traceImageBase64) {
+      const lastUserIndex = finalMessages.map((m: any) => m.role).lastIndexOf('user');
+      if (lastUserIndex !== -1) {
+        const originalText = finalMessages[lastUserIndex].content;
+        finalMessages[lastUserIndex] = {
+          role: 'user',
+          content: [
+            { type: 'text', text: originalText },
+            { type: 'image_url', image_url: { url: traceImageBase64 } }
+          ]
+        };
+      }
+    }
+
+    const { text, modelUsed } = await callOpenRouterWithFallback(systemWithContext, finalMessages);
 
     // Try to extract JSON room schedule or layout options from the response
     let roomSchedule = null;
     let layoutOptions = null;
-    const jsonMatch = text.match(/```json\s*([\s\S]*?)```/);
-    if (jsonMatch) {
-      try {
-        const parsed = JSON.parse(jsonMatch[1]);
+    const jsonMatch = text.match(/```(?:json)?\s*([\s\S]*?)```/);
+    const jsonString = jsonMatch ? jsonMatch[1] : text;
+
+    try {
+      const parsed = JSON.parse(jsonString);
         if (parsed.options) {
           layoutOptions = parsed.options;
 
@@ -363,7 +379,6 @@ ${deterministicConstraints}`
       } catch (e) {
         // Ignore parsing errors
       }
-    }
 
     // Include maxFlats in the response so the frontend can display the cap
     return NextResponse.json({ text, roomSchedule, layoutOptions, modelUsed, maxFlats: maxFlats < 99 ? maxFlats : undefined });

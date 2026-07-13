@@ -96,20 +96,20 @@ function buildFloorPlanPrompt(schedule: RoomSchedule, sitePolygonPoints?: Polygo
 CRITICAL BOUNDARY RULE — READ THIS FIRST:
 The image has a solid BLACK background representing empty space, with a bright WHITE polygon representing the building footprint in the center. 
 You MUST draw the entire floor plan strictly inside the WHITE polygon. 
-The solid black background area outside the white polygon MUST remain completely empty and black.
-DO NOT add any extra outer layer, DO NOT expand the building footprint, DO NOT extend walls into the black area. 
-- If the rooms do not fit comfortably, SHRINK the individual room sizes and COMPRESS the layout inward. It is better to have smaller rooms than to exceed the boundary. Every wall, label, corridor, and room must sit fully inside the white polygon.
+- STRETCH TO FIT: You must fully utilize the space. Expand the rooms outward so that the outer walls of the flats touch the edges of the WHITE polygon. Do not leave empty white space around the borders.
+- 100% INSIDE: The solid black background area outside the white polygon MUST remain completely empty and black. DO NOT add any extra outer layer, DO NOT expand the building footprint, DO NOT extend walls into the black area. 
+- If the rooms do not fit comfortably, SHRINK the individual room sizes and COMPRESS the layout inward. Every wall, label, corridor, and room must sit fully inside the white polygon.
 
 EXACT ROOM REQUIREMENTS PER FLAT (YOU MUST INCLUDE ALL OF THEM):
 ${flatList}
 
 Layout requirements:
 - Compact, high-efficiency residential floor plan containing exactly ${flatCount} separate flats, configured as ${bhk}BHK units.
-- All flats must be drawn INWARD from the polygon edge, not touching or extending past the outer boundary.
+- All flats must be drawn INWARD from the polygon edge, fully filling the interior but NEVER extending past the outer boundary.
 ${circulationRule}
-- STRICT ROOM COUNT: Each flat MUST contain exactly the rooms listed above. Do not omit any kitchens, bedrooms, or bathrooms!
+- STRICT ROOM COUNT (CRITICAL FAIL IF IGNORED): You MUST meticulously count every single room before finishing. Each flat MUST contain EXACTLY the rooms listed above. If the list says 3 bedrooms per flat, you must draw 3 distinct bedrooms for EVERY flat. DO NOT merge rooms, DO NOT omit kitchens, DO NOT skip bathrooms. You are a mathematical architect, not a lazy artist. Every single required room must be present in the final image!
 ${diagonalRule}
-- Empty Space (Ventilation Shafts & Courtyards): It is expected and encouraged to leave open light wells, ventilation shafts, or courtyards (empty black pockets) inside the layout. This ensures that interior bathrooms and kitchens have direct window access to open air.
+- VACANT SPACE FILLER: If there is empty geometric space inside the white polygon after placing the required rooms, YOU MUST FILL IT! Add extra rooms labeled "STORE", "UTILITY", "PUJA", or "BALCONY" to completely pack the footprint. The entire white polygon MUST be densely packed with rooms so that the outer walls perfectly trace the edges of the white polygon. Do not leave empty hollow pockets.
 - Standard residential zoning: Living rooms near entrances, bedrooms and kitchens along exterior walls for windows.
 
 Drawing Aesthetics:
