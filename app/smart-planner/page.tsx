@@ -280,6 +280,19 @@ function scaleImageToFitPolygon(
       offscreen.height = outSize.h;
       const ctx = offscreen.getContext('2d')!;
 
+      // Point-in-polygon helper (defined early so we can use it in scanner)
+      const isPointInPolygon = (p: Point, polygon: Point[]): boolean => {
+        let inside = false;
+        for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
+          const xi = polygon[i].x, yi = polygon[i].y;
+          const xj = polygon[j].x, yj = polygon[j].y;
+          const intersect = ((yi > p.y) !== (yj > p.y))
+              && (p.x < (xj - xi) * (p.y - yi) / (yj - yi || 1) + xi);
+          if (intersect) inside = !inside;
+        }
+        return inside;
+      };
+
       // 1. Calculate polygon bounding box in output resolution
       const scaledPts = scalePoints(activePts, canvasW, canvasH, outSize.w, outSize.h);
       if (scaledPts.length < 3) return resolve(imageUrl); // Fail safe
@@ -305,12 +318,17 @@ function scaleImageToFitPolygon(
       tCtx.drawImage(img, 0, 0);
       const imgData = tCtx.getImageData(0, 0, img.width, img.height);
       const data = imgData.data;
-      
+
+      // Scan for white pixels (R, G, B > 150) representing rooms.
+      // We skip a border margin of 50px from all sides to ignore the white top/bottom letterbox bars.
+      const margin = 50;
       let fMinX = img.width, fMaxX = 0, fMinY = img.height, fMaxY = 0;
-      for (let y = 0; y < img.height; y++) {
-        for (let x = 0; x < img.width; x++) {
+      const stepScan = 2;
+      for (let y = margin; y < img.height - margin; y += stepScan) {
+        for (let x = margin; x < img.width - margin; x += stepScan) {
           const idx = (y * img.width + x) * 4;
-          if (data[idx] > 50 || data[idx+1] > 50 || data[idx+2] > 50) {
+          const isWhite = data[idx] > 150 && data[idx+1] > 150 && data[idx+2] > 150;
+          if (isWhite) {
             if (x < fMinX) fMinX = x;
             if (x > fMaxX) fMaxX = x;
             if (y < fMinY) fMinY = y;
@@ -318,29 +336,240 @@ function scaleImageToFitPolygon(
           }
         }
       }
-      if (fMinX >= fMaxX) { fMinX = 0; fMaxX = img.width; fMinY = 0; fMaxY = img.height; }
+      if (fMinX >= fMaxX) { fMinX = margin; fMaxX = img.width - margin; fMinY = margin; fMaxY = img.height - margin; }
       
       const floorW = fMaxX - fMinX;
       const floorH = fMaxY - fMinY;
       const floorCx = fMinX + floorW / 2;
       const floorCy = fMinY + floorH / 2;
 
-      // 3. Calculate exact scale to match the trace bounding box, with a 50% safety shrink so it fits inside perfectly
-      const scaleW = polyW / floorW;
-      const scaleH = polyH / floorH;
-      const scale = Math.min(scaleW, scaleH) * 0.50; // 50% size as explicitly requested to fit safely inside boundaries!
+      // Find boundary points of the layout (where white floors meet dark walls/background)
+      const boundaryPts: Point[] = [];
+      const step = 2; // Check every 2nd pixel to keep scanner fast
+      for (let y = fMinY + step; y < fMaxY - step; y += step) {
+        for (let x = fMinX + step; x < fMaxX - step; x += step) {
+          const idx = (y * img.width + x) * 4;
+          const isWhite = data[idx] > 150 && data[idx+1] > 150 && data[idx+2] > 150;
+          if (isWhite) {
+            const leftIdx = (y * img.width + (x - step)) * 4;
+            const rightIdx = (y * img.width + (x + step)) * 4;
+            const topIdx = ((y - step) * img.width + x) * 4;
+            const bottomIdx = ((y + step) * img.width + x) * 4;
+            
+            const isLeftDark = data[leftIdx] < 100 && data[leftIdx+1] < 100 && data[leftIdx+2] < 100;
+            const isRightDark = data[rightIdx] < 100 && data[rightIdx+1] < 100 && data[rightIdx+2] < 100;
+            const isTopDark = data[topIdx] < 100 && data[topIdx+1] < 100 && data[topIdx+2] < 100;
+            const isBottomDark = data[bottomIdx] < 100 && data[bottomIdx+1] < 100 && data[bottomIdx+2] < 100;
+            
+            if (isLeftDark || isRightDark || isTopDark || isBottomDark) {
+              boundaryPts.push({ x, y });
+            }
+          }
+        }
+      }
+
+      // Downsample boundary points to ~150 to keep processing under 2ms
+      const maxCheckedPoints = 150;
+      const downsampledPts: Point[] = [];
+      if (boundaryPts.length > 0) {
+        const skip = Math.max(1, Math.floor(boundaryPts.length / maxCheckedPoints));
+        for (let i = 0; i < boundaryPts.length; i += skip) {
+          downsampledPts.push(boundaryPts[i]);
+          if (downsampledPts.length >= maxCheckedPoints) break;
+        }
+      } else {
+        // Fallback grid if no active boundaries found
+        downsampledPts.push({ x: floorCx, y: floorCy });
+      }
+
+      // Map points relative to floor plan bounding box top-left
+      const relPts = downsampledPts.map(p => ({
+        x: p.x - fMinX,
+        y: p.y - fMinY
+      }));
+
+      // 3. Search parameter space for best fit: position + scale (shrinking/scaling)
+      const S_max = Math.min(polyW / (floorW || 1), polyH / (floorH || 1));
+      let bestScale = S_max * 0.50; // Fallback default
+      let bestDrawX = polyCx - (floorCx * bestScale);
+      let bestDrawY = polyCy - (floorCy * bestScale);
+      let coarseFound = false;
+
+      // Coarse Pass: Search scale from S_max down to 0.15 * S_max
+      for (let scale = S_max; scale >= S_max * 0.15; scale -= S_max * 0.025) {
+        const layoutW = floorW * scale;
+        const layoutH = floorH * scale;
+        
+        const minDrawX = polyMinX;
+        const maxDrawX = polyMaxX - layoutW;
+        const minDrawY = polyMinY;
+        const maxDrawY = polyMaxY - layoutH;
+        
+        const rangeX = maxDrawX - minDrawX;
+        const rangeY = maxDrawY - minDrawY;
+        
+        const xSteps = 15;
+        const ySteps = 15;
+        
+        let scaleBestScore = 0;
+        let scaleBestX = minDrawX;
+        let scaleBestY = minDrawY;
+        let scaleBestCenteringDist = Infinity;
+        
+        for (let ix = 0; ix <= xSteps; ix++) {
+          const drawX = minDrawX + (xSteps > 0 ? (rangeX * ix) / xSteps : 0);
+          for (let iy = 0; iy <= ySteps; iy++) {
+            const drawY = minDrawY + (ySteps > 0 ? (rangeY * iy) / ySteps : 0);
+            
+            let insideCount = 0;
+            for (let k = 0; k < relPts.length; k++) {
+              const px = drawX + relPts[k].x * scale;
+              const py = drawY + relPts[k].y * scale;
+              if (isPointInPolygon({ x: px, y: py }, scaledPts)) {
+                insideCount++;
+              }
+            }
+            
+            const score = insideCount / (relPts.length || 1);
+            
+            // Centering score (distance from centroid)
+            const layoutCx = drawX + layoutW / 2;
+            const layoutCy = drawY + layoutH / 2;
+            const dist = Math.hypot(layoutCx - polyCx, layoutCy - polyCy);
+            
+            if (score > scaleBestScore || (score === scaleBestScore && dist < scaleBestCenteringDist)) {
+              scaleBestScore = score;
+              scaleBestX = drawX;
+              scaleBestY = drawY;
+              scaleBestCenteringDist = dist;
+            }
+          }
+        }
+        
+        // Anti-aliasing / edge noise tolerance: accept 97% points inside
+        if (scaleBestScore >= 0.97) {
+          bestScale = scale;
+          bestDrawX = scaleBestX;
+          bestDrawY = scaleBestY;
+          coarseFound = true;
+          break;
+        }
+      }
+
+      // If no candidate was 97% inside, look for the candidate that maximizes score
+      if (!coarseFound) {
+        let globalBestScore = 0;
+        let globalBestScale = S_max * 0.50;
+        let globalBestX = polyCx - (floorCx * globalBestScale);
+        let globalBestY = polyCy - (floorCy * globalBestScale);
+        let globalBestCenteringDist = Infinity;
+
+        for (let scale = S_max; scale >= S_max * 0.15; scale -= S_max * 0.025) {
+          const layoutW = floorW * scale;
+          const layoutH = floorH * scale;
+          
+          const minDrawX = polyMinX;
+          const maxDrawX = polyMaxX - layoutW;
+          const minDrawY = polyMinY;
+          const maxDrawY = polyMaxY - layoutH;
+          
+          const rangeX = maxDrawX - minDrawX;
+          const rangeY = maxDrawY - minDrawY;
+          
+          for (let ix = 0; ix <= 15; ix++) {
+            const drawX = minDrawX + (rangeX * ix) / 15;
+            for (let iy = 0; iy <= 15; iy++) {
+              const drawY = minDrawY + (rangeY * iy) / 15;
+              
+              let insideCount = 0;
+              for (let k = 0; k < relPts.length; k++) {
+                const px = drawX + relPts[k].x * scale;
+                const py = drawY + relPts[k].y * scale;
+                if (isPointInPolygon({ x: px, y: py }, scaledPts)) {
+                  insideCount++;
+                }
+              }
+              const score = insideCount / (relPts.length || 1);
+              const layoutCx = drawX + layoutW / 2;
+              const layoutCy = drawY + layoutH / 2;
+              const dist = Math.hypot(layoutCx - polyCx, layoutCy - polyCy);
+              
+              if (score > globalBestScore || (score === globalBestScore && dist < globalBestCenteringDist)) {
+                globalBestScore = score;
+                globalBestScale = scale;
+                globalBestX = drawX;
+                globalBestY = drawY;
+                globalBestCenteringDist = dist;
+              }
+            }
+          }
+        }
+        bestScale = globalBestScale;
+        bestDrawX = globalBestX;
+        bestDrawY = globalBestY;
+      }
+
+      // Fine-Tuning Pass: Search a localized area (±10px) with 2px steps
+      const fineRange = 10;
+      const fineStep = 2;
+      let fineBestX = bestDrawX;
+      let fineBestY = bestDrawY;
+      let fineBestScore = 0;
+      let fineBestCenteringDist = Infinity;
+
+      for (let dx = -fineRange; dx <= fineRange; dx += fineStep) {
+        for (let dy = -fineRange; dy <= fineRange; dy += fineStep) {
+          const candX = bestDrawX + dx;
+          const candY = bestDrawY + dy;
+          
+          let insideCount = 0;
+          for (let k = 0; k < relPts.length; k++) {
+            const px = candX + relPts[k].x * bestScale;
+            const py = candY + relPts[k].y * bestScale;
+            if (isPointInPolygon({ x: px, y: py }, scaledPts)) {
+              insideCount++;
+            }
+          }
+          
+          const score = insideCount / (relPts.length || 1);
+          const layoutCx = candX + (floorW * bestScale) / 2;
+          const layoutCy = candY + (floorH * bestScale) / 2;
+          const dist = Math.hypot(layoutCx - polyCx, layoutCy - polyCy);
+          
+          if (score > fineBestScore || (score === fineBestScore && dist < fineBestCenteringDist)) {
+            fineBestScore = score;
+            fineBestX = candX;
+            fineBestY = candY;
+            fineBestCenteringDist = dist;
+          }
+        }
+      }
+      bestDrawX = fineBestX;
+      bestDrawY = fineBestY;
 
       // 4. Fill black background
       ctx.fillStyle = '#000000';
       ctx.fillRect(0, 0, outSize.w, outSize.h);
 
-      // 5. Draw the layout perfectly centered on the trace's geometric center
-      const drawX = polyCx - (floorCx * scale);
-      const drawY = polyCy - (floorCy * scale);
-      ctx.drawImage(img, drawX, drawY, img.width * scale, img.height * scale);
+      // 5. Draw the layout at the mathematically optimal scale and offset
+      // Create clipping mask to crop anything bleeding outside the trace boundary
+      ctx.save();
+      ctx.beginPath();
+      ctx.moveTo(scaledPts[0].x, scaledPts[0].y);
+      for (let i = 1; i < scaledPts.length; i++) {
+        ctx.lineTo(scaledPts[i].x, scaledPts[i].y);
+      }
+      ctx.closePath();
+      ctx.clip();
 
-      // 6. Draw the trace boundary in NEON RED exactly where it belongs.
-      // By using a completely different color, Nano Banana Pro won't confuse the boundary with the white walls!
+      // We map the relative offset back to the full image coordinates
+      const imgDrawX = bestDrawX - fMinX * bestScale;
+      const imgDrawY = bestDrawY - fMinY * bestScale;
+      ctx.drawImage(img, imgDrawX, imgDrawY, img.width * bestScale, img.height * bestScale);
+      
+      ctx.restore();
+
+      // 6. Draw the trace boundary in NEON RED exactly where it belongs
       ctx.strokeStyle = '#ff0000';
       ctx.lineWidth = 14;
       ctx.lineJoin = 'miter';
@@ -352,7 +581,7 @@ function scaleImageToFitPolygon(
       ctx.closePath();
       ctx.stroke();
 
-      // Compress to JPEG to prevent massive 5MB payloads timing out the Mastermind API fetch
+      // Compress to JPEG to prevent massive payloads timing out the API fetch
       resolve(offscreen.toDataURL('image/jpeg', 0.8));
     };
     img.onerror = reject;
@@ -433,19 +662,20 @@ function buildFloorPlanPromptLocal(schedule: any, sitePolygonPoints?: any[]): st
 
 CRITICAL BOUNDARY RULE — READ THIS FIRST:
 The source image shows a light gray polygon representing the building footprint, outlined by a thick black boundary wall, on a pure white background. You MUST draw the entire floor plan strictly inside this light gray area. The white area outside is empty space and must remain empty. DO NOT add any extra outer layer, DO NOT expand the building footprint, DO NOT extend walls beyond the outer black boundary. The exterior boundary shape must remain EXACTLY as given — never modify it, never grow it, never add to it. 
+- COMPACT & SHRINK TO FIT (100% FREEDOM): You have absolute freedom to make the rooms, bathrooms, and kitchens as small and compact as needed. If the footprint is small or narrow, you MUST scale down and shrink all room and flat dimensions to make them very compact so that they comfortably fit inside the polygon footprint. Prioritize packing all required rooms inside the boundary over making them large.
 - RESPECT INWARD INDENTS: The polygon has inward slots, steps, and V-shaped cutouts. You MUST wrap the building footprint around these cutouts. Do NOT draw a straight wall or rooms across these indents. Keep the outside empty space white.
-- If the rooms do not fit comfortably, SHRINK the individual room sizes and COMPRESS the layout inward. It is better to have smaller rooms than to exceed the boundary. Every wall, label, corridor, and room must sit fully inside the light gray polygon.
+- RESPECT GEOMETRY: Draw the outer walls to trace the exact shape of the polygon footprint. If the polygon has indents, steps, or diagonal lines, the outer walls must step or slope accordingly.
 
 EXACT ROOM REQUIREMENTS PER FLAT (YOU MUST INCLUDE ALL OF THEM):
 ${flatList}
 
 Layout requirements:
 - Compact, high-efficiency residential floor plan containing exactly ${flatCount} separate flats, configured as ${bhk}BHK units.
-- All flats must be drawn INWARD from the polygon edge, not touching or extending past the outer boundary.
+- All flats must be drawn INWARD from the polygon edge, strictly fitting within the interior but NEVER extending past the outer boundary.
 ${circulationRule}
 - STRICT ROOM COUNT: Each flat MUST contain exactly the rooms listed above. Do not omit any kitchens, bedrooms, or bathrooms!
 ${diagonalRule}
-- Empty Space (Ventilation Shafts & Courtyards): It is expected and encouraged to leave open light wells, ventilation shafts, or courtyards (empty black pockets) inside the layout. This ensures that interior bathrooms and kitchens have direct window access to open air.
+- VENTILATION & COURTYARDS: You are encouraged to leave empty white pockets (open shafts, air wells, or small courtyards) inside the footprint for ventilation. Do not over-inflate room sizes to force-fill every pixel; keeping rooms compact and well-ventilated is much better.
 - Standard residential zoning: Living rooms near entrances, bedrooms and kitchens along exterior walls for windows.
 
 Drawing Aesthetics:
@@ -1963,8 +2193,9 @@ Design option variant identifier: [seed_id]. Make the layout slightly different 
                   <div style={{ whiteSpace: 'pre-wrap' }} dangerouslySetInnerHTML={{
                     __html: msg.content
                       .replace(/\*\*(.*?)\*\*/g, '<strong class="text-green-100">$1</strong>')
-                      .replace(/```json[\s\S]*?```/g, '<span class="text-green-600 text-[9px]">[Room schedule generated ✓ — Click Approve below to generate floor plan]</span>')
-                      .replace(/```[\s\S]*?```/g, '<span class="text-green-600 text-[9px]">[Code block]</span>')
+                      .replace(/```json\s*\{\s*"options"[\s\S]*?```/g, '<div class="mt-2 text-yellow-500 text-[10px] font-bold uppercase tracking-widest">[✓ Layout Options Generated — Select below]</div>')
+                      .replace(/```json[\s\S]*?```/g, '<div class="mt-2 text-green-400 text-[10px] font-bold uppercase tracking-widest">[✓ Room Schedule Generated — Review & click Approve]</div>')
+                      .replace(/```[\s\S]*?```/g, '')
                   }} />
                 </div>
               </div>

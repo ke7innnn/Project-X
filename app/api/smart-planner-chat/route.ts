@@ -54,13 +54,13 @@ YOUR JOB:
       - **Simple Shapes (4-5 vertices, e.g., Square, Rectangle):** Deduct a base of **25%** from the 'True Site Exterior Polygon Area' for corridors, staircases, and walls.
       - **Medium Shapes (6-8 vertices, e.g., L-shape, U-shape, clean hexagon):** Deduct **35%** from the 'True Site Exterior Polygon Area' due to corner inefficiencies.
       - **Complex/Highly Irregular Shapes (8+ vertices OR shapes with deep inward indents/slots, e.g., Star, Butterfly, Bat, shapes with V-shaped cuts or hollow courtyards):** Deduct **45% to 50%** from the 'True Site Exterior Polygon Area' to account for high layout inefficiencies, pinch points, and required light shafts. If there are any inward-pointing vertices, automatically treat it as a Complex Shape!
-   2. The remaining percentage (e.g. 50% for complex/indented shapes) is your absolute maximum Net Carpet Area limit. You are strictly FORBIDDEN from generating a room schedule where the sum of individual room areas exceeds this Net Carpet Area.
-   3. **Ground Coverage constraint:** For any irregular shape with indents/slots, the total buildup footprint of all flats combined must not exceed **45-50%** of the True Site Area. This ensures the building has enough room to wrap around the indents without bleeding outside the boundary.
-   4. **AI RENDERER CAPABILITY LIMITS (CRITICAL):** The image rendering engine struggles heavily with spatial reasoning if you cram too many flats into complex shapes.
-      - For CROSS, STAR, or highly indented shapes: DO NOT suggest more than 1 flat per distinct wing/branch (e.g., a cross shape has 4 wings, so max 4 flats). Do NOT suggest 6 or 8 flats for a cross!
-      - For standard shapes (square/rectangle): Max 6 flats.
-      - If you suggest too many flats, the image generation WILL FAIL and hallucinate. Keep the flat count low, spacious, and highly realistic.
-   5. If a user asks for a density (number of flats) that mathematically violates these rules (e.g., asking for 6 flats of 3BHK in a 1140 sqm irregular shape with deep indents), you MUST reject the request in the chat interface and explain: "Based on the geometric complexity and inward indents of this shape, only a maximum of 4 flats can realistically fit."
+   3. The remaining percentage (e.g. 50% for complex/indented shapes) is your absolute maximum Net Carpet Area limit. You are strictly FORBIDDEN from generating a room schedule where the sum of individual room areas exceeds this Net Carpet Area.
+   4. **Ground Coverage constraint:** For any irregular shape with indents/slots, the total buildup footprint of all flats combined must not exceed **45-50%** of the True Site Area. This ensures the building has enough room to wrap around the indents without bleeding outside the boundary.
+   5. **AI RENDERER CAPABILITY LIMITS & DENSITY RULES (CRITICAL):**
+      - The image rendering engine struggles heavily if you cram too many flats into complex shapes. Keep the flat count low, spacious, and highly realistic.
+      - For CROSS, STAR, or highly indented shapes: DO NOT suggest more than 1 flat per distinct wing/branch (e.g., a cross shape has 4 wings, so max 4 flats). Do NOT suggest high numbers like 6 or 8 flats!
+      - **KEEP FLAT COUNT CONSERVATIVE (LOWER IS BETTER):** Do not suggest high-density layouts. Suggesting fewer, larger, and more spacious flats is highly preferred.
+   6. If a user asks for a density (number of flats) that mathematically violates this dynamic capacity limit, you MUST reject the request in the chat interface and explain: "Based on the geometric complexity and the usable area of this shape, only a maximum of N flats can realistically fit."
 3. **SMART LAYOUT SUGGESTIONS (FIRST RESPONSE — ALWAYS USE THIS FLOW):**
    When a user asks about flats or layouts, DO NOT ask them for a flat count.
    Instead, act like a master architect. Look at the specific irregular shape (polygon vertices) and area. Suggest UP TO 3 custom layout options (you can give 1, 2, or 3 options depending on what is actually realistic and architecturally feasible for this shape. If only 1 layout is realistic due to geometric constraints or a tiny area, only suggest 1 option! Do not force bad/infeasible designs).
@@ -73,30 +73,30 @@ YOUR JOB:
    
    ⚠ STRICT RULE 1: Give ONE exact flat count per option. The number must be architecturally justified by the geometry and the layout style.
    ⚠ STRICT RULE 2: The JSON below is strictly for FORMATTING purposes. You MUST invent your own "id", "name", and "desc" based on the actual shape. DO NOT reuse "radial", "spine", or "l_wing" unless the shape actually calls for it.
-   ⚠ STRICT RULE 3: DO NOT output any conversational text, internal monologue, or step-by-step calculations outside the JSON block. Your ENTIRE response MUST be ONLY the markdown JSON block.
+   ⚠ STRICT RULE 3: Always write a brief, friendly conversational message first to explain your suggestions/schedule to the user, and then append the JSON block in a markdown code block (\`\`\`json ... \`\`\`) at the very end of your response. Never output a raw JSON block without some helpful conversational intro text.
    
-   Output the options ONLY as a JSON block (Format Example):
+   Propose layout options like this (Format Example):
    \`\`\`json
    {
      "options": [
        {
          "id": "custom_geometric_name_1",
          "name": "[Invented Shape-Specific Layout Name]",
-         "flatCount": 8,
+         "flatCount": 3,
          "bhkType": "3BHK",
          "desc": "Staircase placed in the widest part of the [Shape Name], allowing flats to stretch into the narrow wings. [Math breakdown here]."
        },
        {
          "id": "custom_geometric_name_2",
          "name": "[Invented Shape-Specific Layout Name]",
-         "flatCount": 6,
+         "flatCount": 2,
          "bhkType": "2BHK",
          "desc": "A lower density approach to fit the jagged edges of this plot smoothly without squishing rooms. [Math breakdown here]."
        },
        {
          "id": "custom_geometric_name_3",
          "name": "[Invented Shape-Specific Layout Name]",
-         "flatCount": 4,
+         "flatCount": 1,
          "bhkType": "4BHK",
          "desc": "Premium sprawling layout utilizing the deep corners of the site. [Math breakdown here]."
        }
@@ -181,7 +181,6 @@ async function callOpenRouterWithFallback(
           ],
           temperature: 0.1,
           max_tokens: 6000,
-          response_format: { type: "json_object" },
         }),
       });
 
@@ -254,19 +253,24 @@ export async function POST(request: Request) {
       deductionBreakdown.push('8% amenities (pool/gym/clubhouse)');
     }
 
-    // Cap total deduction at 60% (minimum 40% usable)
-    deductionPercent = Math.min(deductionPercent, 0.60);
+    // Ground coverage index limits building footprint to 50% of the site area
+    const groundCoverageRatio = 0.50;
 
-    const usableArea = Math.floor(siteAreaSqm * (1 - deductionPercent));
-    // Use REALISTIC flat sizes (matching actual room schedules), not bare legal minimums
+    // Remaining percentage represents core, stairs, corridors, structural columns, and walls
+    const efficiency = 1 - deductionPercent;
+
+    // The usable flat carpet area is building footprint multiplied by core efficiency
+    const usableArea = Math.floor(siteAreaSqm * groundCoverageRatio * efficiency);
+
+    // Standard carpet sizes (in sqm)
     const MIN_FLAT_SIZES: Record<string, number> = {
-      '1BHK': 45, '2BHK': 70, '3BHK': 105, '4BHK': 140,
+      '1BHK': 55, '2BHK': 85, '3BHK': 125, '4BHK': 170,
     };
 
     // Detect BHK type from user messages
     const bhkMatch = userText.match(/(\d)\s*bhk/i);
     const detectedBHK = bhkMatch ? `${bhkMatch[1]}BHK` : '2BHK';
-    const minFlatSize = MIN_FLAT_SIZES[detectedBHK] || 70;
+    const minFlatSize = MIN_FLAT_SIZES[detectedBHK] || 85;
     const maxFlats = siteAreaSqm > 0 ? Math.max(1, Math.floor(usableArea / minFlatSize)) : 99;
 
     console.log(`[SmartPlanner] Deterministic math: site=${siteAreaSqm}sqm, deduction=${(deductionPercent * 100).toFixed(0)}% [${deductionBreakdown.join(' + ')}], usable=${usableArea}sqm, BHK=${detectedBHK}(${minFlatSize}sqm min), maxFlats=${maxFlats}`);
