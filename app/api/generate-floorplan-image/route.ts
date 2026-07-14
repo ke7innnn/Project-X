@@ -26,8 +26,42 @@ export async function POST(req: Request) {
     const uploadedTraceUrl = traceCanvasBase64;
 
     // 3. Build prompt for Nano Banana Pro Edit
-    const fallbackPrompt = `Redraw IMAGE 1 (the schematic layout) as a professional 2D CAD architectural floor plan. Clean black double-line walls on white floors. Add door swing arcs, window panes, and room labels. Background outside the boundary = solid black. Maximize the layout footprint so that the rooms stretch to touch and fill the boundary shape from IMAGE 2.`;
-    const prompt = mastermindPrompt || fallbackPrompt;
+    const geometryRules = `Reference Image: IMAGE 1 = architectural organization only
+Constraint Image: IMAGE 2 = exact building footprint (ground truth geometry)
+
+The red boundary is the ground truth geometry. IMAGE 1 is only a reference for architectural organization.
+
+IMAGE 2 defines the exact building footprint. The red boundary IS the final exterior wall and is an absolute geometric constraint, not a guide.
+
+Every point inside the red boundary must belong to the building. No enclosed voids, unused space, blank regions, or gaps are permitted. Every point must be part of a room, corridor, wall, core, shaft, or service space.
+
+You may completely reconstruct, resize, relocate, reshape, split, merge, or add rooms and corridors as necessary. Preserve the overall architectural organization, circulation, and apartment relationships from IMAGE 1 while freely reconstructing the geometry. Completely reconstruct the floor plan so the footprint and layout appear to have been designed together from the beginning.
+
+Priority:
+1. Match the red boundary exactly.
+2. Eliminate all interior voids.
+3. Preserve realistic architecture.
+4. Preserve the organization of IMAGE 1.
+
+Incorrect outputs include:
+- any unused interior space
+- any gap between rooms and the exterior wall
+- exterior walls not coinciding with the boundary
+- disconnected building wings
+- distorted or obviously stretched layouts
+
+Maintain realistic circulation, room adjacency, wall alignment, architectural symmetry where appropriate, and recognizable flats, stairs, lifts, and cores. Do not preserve the original exterior wall if it conflicts with the supplied boundary. Nothing may extend outside the boundary.`;
+
+    const styleRules = `Output a clean professional 2D CAD floor plan with black double-line walls, white interior, room labels, door swing arcs, exterior windows, and a solid black background outside the boundary. No furniture, textures, colors, gradients, shadows, or 3D effects.`;
+
+    const prompt = `
+${geometryRules}
+
+Additional design preferences (follow only if they do not violate the geometric constraints above):
+${mastermindPrompt || ''}
+
+${styleRules}
+`.trim();
 
     // 4. Call Nano Banana Pro Edit
     const result = await fal.subscribe('fal-ai/nano-banana-pro/edit', {

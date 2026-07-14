@@ -122,24 +122,21 @@ function exportCanvasForAI(
     sitePts, canvasW, canvasH, outSize.w, outSize.h, true, 24
   );
 
-  // 1. Pure white background
-  ctx.fillStyle = '#ffffff';
+  // The source image MUST match what the Step-1 prompt describes:
+  // solid WHITE buildable polygon on a pure BLACK void background.
+  // (Previously this was white-bg/gray-polygon while the prompt claimed
+  // black-bg/white-polygon — the model was told to anchor to pixels that
+  // did not exist, which caused the trace drift.)
+
+  // 1. Pure black void background
+  ctx.fillStyle = '#000000';
   ctx.fillRect(0, 0, outSize.w, outSize.h);
 
-  // 2. Site polygon — this is the ONLY visual element the AI needs
+  // 2. Solid white footprint polygon — the sharp white/black edge IS the boundary
   if (scaledSitePts.length >= 3) {
-    // Light gray interior fill (distinguishes building interior from outside white)
-    ctx.fillStyle = '#f0f0f0';
+    ctx.fillStyle = '#ffffff';
     drawPolygonPath(ctx, scaledSitePts);
     ctx.fill();
-
-    // Thick black outer walls (the AI must preserve these exactly)
-    ctx.strokeStyle = '#000000';
-    ctx.lineWidth = 16;
-    ctx.lineJoin = 'miter';
-    ctx.lineCap = 'square';
-    drawPolygonPath(ctx, scaledSitePts);
-    ctx.stroke();
   }
 
   return offscreen.toDataURL('image/png');
@@ -319,6 +316,41 @@ function scaleImageToFitPolygon(
       const imgData = tCtx.getImageData(0, 0, img.width, img.height);
       const data = imgData.data;
 
+      // ── Background sanity check ───────────────────────────────────────────
+      // The Step-1 model is asked for a black background, but sometimes flips
+      // to white. If we scan for "white pixels" on a white background, the
+      // bounding box becomes the whole frame and the fit silently collapses.
+      // Sample the four corners, detect the actual background, and scan for
+      // CONTENT (non-background) pixels instead.
+      const cornerSamples = [
+        (10 * img.width + 10) * 4,
+        (10 * img.width + (img.width - 11)) * 4,
+        ((img.height - 11) * img.width + 10) * 4,
+        ((img.height - 11) * img.width + (img.width - 11)) * 4,
+      ];
+      let cornerLum = 0;
+      cornerSamples.forEach(ci => { cornerLum += (data[ci] + data[ci + 1] + data[ci + 2]) / 3; });
+      cornerLum /= cornerSamples.length;
+      const bgIsWhite = cornerLum > 150;
+      console.log(`[SmartPlanner] Step-1 background detected as ${bgIsWhite ? 'WHITE (model flipped — compensating)' : 'black (as requested)'}`);
+
+      // Content = plan pixels. On a black bg the plan floors are light; on a
+      // flipped white bg the plan linework is dark.
+      const isContentPx = (idx: number) => bgIsWhite
+        ? (data[idx] < 150 || data[idx + 1] < 150 || data[idx + 2] < 150)
+        : (data[idx] > 150 && data[idx + 1] > 150 && data[idx + 2] > 150);
+      const isBgPx = (idx: number) => bgIsWhite
+        ? (data[idx] > 200 && data[idx + 1] > 200 && data[idx + 2] > 200)
+        : (data[idx] < 100 && data[idx + 1] < 100 && data[idx + 2] < 100);
+
+      // Make background pixels transparent so they don't overwrite the gray polygon
+      for (let i = 0; i < data.length; i += 4) {
+        if (isBgPx(i)) {
+          data[i + 3] = 0; // Alpha = 0
+        }
+      }
+      tCtx.putImageData(imgData, 0, 0);
+
       // Scan for white pixels (R, G, B > 150) representing rooms.
       // We skip a border margin of 50px from all sides to ignore the white top/bottom letterbox bars.
       const margin = 50;
@@ -327,8 +359,7 @@ function scaleImageToFitPolygon(
       for (let y = margin; y < img.height - margin; y += stepScan) {
         for (let x = margin; x < img.width - margin; x += stepScan) {
           const idx = (y * img.width + x) * 4;
-          const isWhite = data[idx] > 150 && data[idx+1] > 150 && data[idx+2] > 150;
-          if (isWhite) {
+          if (isContentPx(idx)) {
             if (x < fMinX) fMinX = x;
             if (x > fMaxX) fMaxX = x;
             if (y < fMinY) fMinY = y;
@@ -349,19 +380,13 @@ function scaleImageToFitPolygon(
       for (let y = fMinY + step; y < fMaxY - step; y += step) {
         for (let x = fMinX + step; x < fMaxX - step; x += step) {
           const idx = (y * img.width + x) * 4;
-          const isWhite = data[idx] > 150 && data[idx+1] > 150 && data[idx+2] > 150;
-          if (isWhite) {
+          if (isContentPx(idx)) {
             const leftIdx = (y * img.width + (x - step)) * 4;
             const rightIdx = (y * img.width + (x + step)) * 4;
             const topIdx = ((y - step) * img.width + x) * 4;
             const bottomIdx = ((y + step) * img.width + x) * 4;
-            
-            const isLeftDark = data[leftIdx] < 100 && data[leftIdx+1] < 100 && data[leftIdx+2] < 100;
-            const isRightDark = data[rightIdx] < 100 && data[rightIdx+1] < 100 && data[rightIdx+2] < 100;
-            const isTopDark = data[topIdx] < 100 && data[topIdx+1] < 100 && data[topIdx+2] < 100;
-            const isBottomDark = data[bottomIdx] < 100 && data[bottomIdx+1] < 100 && data[bottomIdx+2] < 100;
-            
-            if (isLeftDark || isRightDark || isTopDark || isBottomDark) {
+
+            if (isBgPx(leftIdx) || isBgPx(rightIdx) || isBgPx(topIdx) || isBgPx(bottomIdx)) {
               boundaryPts.push({ x, y });
             }
           }
@@ -446,9 +471,9 @@ function scaleImageToFitPolygon(
           }
         }
         
-        // Accept a scale where 90% of boundary points fit inside (allows larger scale → sharper text)
-        // Overflow correction pass below will handle the remaining ~10% that stick out
-        if (scaleBestScore >= 0.90) {
+        // Accept a scale where 97% of boundary points fit inside — keep layout as large as possible
+        // The hard evenodd clip at the end handles the remaining ~3% that stick out
+        if (scaleBestScore >= 0.97) {
           bestScale = scale;
           bestDrawX = scaleBestX;
           bestDrawY = scaleBestY;
@@ -563,17 +588,30 @@ function scaleImageToFitPolygon(
       ctx.fillStyle = '#000000';
       ctx.fillRect(0, 0, outSize.w, outSize.h);
 
-      // 5. Draw the layout at the best scale and position, clipped to polygon
+      // 5. Inside the polygon: paint GRAY first (= unfinished floor area the
+      //    next AI step must fill with rooms), then draw ONLY the layout's
+      //    content bounding box on top. Any polygon interior the layout does
+      //    not cover stays gray — an unambiguous "fill me" signal, distinct
+      //    from the black void outside.
       ctx.save();
       ctx.beginPath();
       ctx.moveTo(scaledPts[0].x, scaledPts[0].y);
       for (let i = 1; i < scaledPts.length; i++) ctx.lineTo(scaledPts[i].x, scaledPts[i].y);
       ctx.closePath();
       ctx.clip();
+      ctx.fillStyle = '#7a7a7a';
+      ctx.fillRect(0, 0, outSize.w, outSize.h);
+      // Draw ONLY the content bounding box of the layout (no letterbox bars)
+      ctx.drawImage(
+        tempCanvas,
+        fMinX, fMinY, floorW, floorH,                                   // source: content bbox only
+        bestDrawX, bestDrawY, floorW * bestScale, floorH * bestScale    // dest: fitted position
+      );
+      ctx.restore();
+
+      // Precompute draw origin for overflow correction pass below
       const imgDrawX = bestDrawX - fMinX * bestScale;
       const imgDrawY = bestDrawY - fMinY * bestScale;
-      ctx.drawImage(img, imgDrawX, imgDrawY, img.width * bestScale, img.height * bestScale);
-      ctx.restore();
 
       // 6. Overflow Correction Pass:
       //    For any layout content that sticks outside the polygon, crop just that region
@@ -618,8 +656,8 @@ function scaleImageToFitPolygon(
           const padPx = Math.round(30 / bestScale);
           const cropSrcX = Math.max(0, Math.round(ovMinX) - padPx);
           const cropSrcY = Math.max(0, Math.round(ovMinY) - padPx);
-          const cropSrcW = Math.min(img.width - cropSrcX, Math.round(ovMaxX - ovMinX) + padPx * 2);
-          const cropSrcH = Math.min(img.height - cropSrcY, Math.round(ovMaxY - ovMinY) + padPx * 2);
+          const cropSrcW = Math.min(tempCanvas.width - cropSrcX, Math.round(ovMaxX - ovMinX) + padPx * 2);
+          const cropSrcH = Math.min(tempCanvas.height - cropSrcY, Math.round(ovMaxY - ovMinY) + padPx * 2);
 
           if (cropSrcW > 0 && cropSrcH > 0) {
             const destX = imgDrawX + cropSrcX * bestScale + corrX;
@@ -632,23 +670,32 @@ function scaleImageToFitPolygon(
             ctx.closePath();
             ctx.clip();
             // Draw the overflow crop at the corrected inward position
-            ctx.drawImage(img, cropSrcX, cropSrcY, cropSrcW, cropSrcH, destX, destY, cropSrcW * bestScale, cropSrcH * bestScale);
+            ctx.drawImage(tempCanvas, cropSrcX, cropSrcY, cropSrcW, cropSrcH, destX, destY, cropSrcW * bestScale, cropSrcH * bestScale);
             ctx.restore();
             console.log(`[SmartPlanner] Overflow correction applied — pushed (${corrX.toFixed(0)}, ${corrY.toFixed(0)})px inward`);
           }
         }
       }
 
-      // 6. Draw the trace boundary in NEON RED exactly where it belongs
-      ctx.strokeStyle = '#ff0000';
-      ctx.lineWidth = 14;
-      ctx.lineJoin = 'miter';
+      // Explicit hard clip: re-draw black over anything outside the polygon
+      // so the final image never leaks outside the boundary.
+      ctx.save();
+      ctx.fillStyle = '#000000';
+      ctx.beginPath();
+      ctx.rect(0, 0, outSize.w, outSize.h);
+      ctx.moveTo(scaledPts[0].x, scaledPts[0].y);
+      for (let i = 1; i < scaledPts.length; i++) ctx.lineTo(scaledPts[i].x, scaledPts[i].y);
+      ctx.closePath();
+      ctx.fill('evenodd'); // fills outside the polygon
+      ctx.restore();
+
+      // Draw neon red boundary so AI clearly sees the limit
       ctx.beginPath();
       ctx.moveTo(scaledPts[0].x, scaledPts[0].y);
-      for (let i = 1; i < scaledPts.length; i++) {
-        ctx.lineTo(scaledPts[i].x, scaledPts[i].y);
-      }
+      for (let i = 1; i < scaledPts.length; i++) ctx.lineTo(scaledPts[i].x, scaledPts[i].y);
       ctx.closePath();
+      ctx.strokeStyle = '#ff0033';
+      ctx.lineWidth = 6;
       ctx.stroke();
 
       // Compress to JPEG to prevent massive payloads timing out the API fetch
@@ -1673,7 +1720,9 @@ Design option variant identifier: [seed_id]. Make the layout slightly different 
       // Save Step 1 output image to debug state
       setDebugStep1OutputUrl(step1Data.imageUrl || '');
 
-      // STEP 1.5: Algorithmic Zoom-Out + Mastermind Strategy Prompt
+      // STEP 1.5: Build deterministic Nano Banana prompt locally — no extra API call,
+      // no hallucination vector. The previous GPT-4o "Mastermind" middleman (temp 0.7,
+      // unconstrained prose) has been removed; this template is ground truth.
       setGenerationPhase('mastermind');
       console.log('[FloorPlan] Zooming out GPT layout to safely fit inside trace bounds...');
       
@@ -1684,27 +1733,14 @@ Design option variant identifier: [seed_id]. Make the layout slightly different 
         CANVAS_H,
         currentRatio.falSize
       );
-      
-      console.log('[FloorPlan] Invoking Mastermind strategy calculation...');
-      const mastermindRes = await fetch('/api/floorplan-mastermind', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          step1ImageUrl: safelyScaledBase64,
-          traceCanvasBase64: visualTraceBase64,
-          sitePolygonPoints: activePts.map(p => ({ x: pxToMScaled(p.x), y: pxToMScaled(p.y) })),
-          roomSchedule: schedule
-        })
-      });
 
-      const mastermindData = await mastermindRes.json();
-      if (!mastermindRes.ok || mastermindData.error) {
-        throw new Error(mastermindData.error || 'Mastermind layout calculation failed');
-      }
+      const flatCount = schedule.flats.length;
+      const flatLetters = schedule.flats.map((f: any) => f.name || f.id).join(', ');
+      const deterministicNanaBananaPrompt = `Redraw IMAGE 1 (the architectural schematic with ${flatCount} flat(s): ${flatLetters}) as a professional 2D CAD floor plan blueprint. CRITICAL FILL RULE: Any GRAY areas visible inside the building boundary are UNFILLED GAPS — you MUST extend nearby rooms or add new rooms to completely fill every gray patch until there is ZERO gray remaining inside the boundary. IMAGE 2 is the boundary trace — stretch and fill the rooms so the outer walls touch every edge of that boundary shape, especially at wing tips and extremities. Style: clean black double-line walls on pure white interior floors. Add door swing arcs, window panes in exterior walls, and crisp room labels. Background outside the boundary = solid black. Every flat and every room from IMAGE 1 must appear in the output. Do NOT add furniture, color fills, textures, or 3D elements.`;
 
-      console.log('[FloorPlan] Mastermind strategy generated.');
-      setDebugStep15Schematic(safelyScaledBase64); // We use the zoomed-out layout for Step 2!
-      setMastermindStrategy(mastermindData.mastermindPrompt || '');
+      console.log('[FloorPlan] Deterministic Nano Banana prompt built locally.');
+      setDebugStep15Schematic(safelyScaledBase64);
+      setMastermindStrategy(deterministicNanaBananaPrompt);
 
       // STEP 2: Style Polish & Render (Fal.ai / OpenAI)
       setGenerationPhase('step2');
@@ -1715,7 +1751,7 @@ Design option variant identifier: [seed_id]. Make the layout slightly different 
           schematicBase64: safelyScaledBase64,
           traceCanvasBase64: visualTraceBase64,
           aspectRatio: ratioId === 'square' ? '1:1' : ratioId === 'landscape' ? '4:3' : '3:4',
-          mastermindPrompt: mastermindData.mastermindPrompt || '',
+          mastermindPrompt: deterministicNanaBananaPrompt,
         }),
       });
 

@@ -96,6 +96,8 @@ function buildFloorPlanPrompt(schedule: RoomSchedule, sitePolygonPoints?: Polygo
 CRITICAL BOUNDARY RULE — READ THIS FIRST:
 The image has a solid BLACK background representing empty space, with a bright WHITE polygon representing the building footprint in the center. 
 You MUST draw the entire floor plan strictly inside the WHITE polygon. 
+- ZERO TOLERANCE FILL RULE: Every single square centimeter of the WHITE polygon area must contain a room, corridor, wall, or labeled space. There must be ZERO remaining white/empty space inside the polygon when you are finished. If any white pixel remains unfilled inside the polygon boundary, you have FAILED.
+- WING TIP FILL MANDATE: If the polygon has arms, wings, tips, or any protruding extremities (like a cross, T-shape, L-shape, Y-shape, or star), you MUST push rooms all the way to the very tip of every single arm. Bedrooms and kitchens go at the wing tips. Do NOT stop rooms short of the polygon edge. The outer wall of each room must TOUCH the polygon boundary at every point. No room may end before reaching the boundary.
 - FILL THE FOOTPRINT: You must stretch, scale, and align the outer walls of the floor plan so that they completely touch and follow the borders of the bright WHITE polygon. Do not leave large empty white spaces inside the polygon; maximize the layout to fill the entire building footprint.
 - 100% INSIDE: The solid black background area outside the white polygon MUST remain completely empty and black. DO NOT add any extra outer layer, DO NOT expand the building footprint, DO NOT extend walls into the black area. 
 - RESPECT GEOMETRY: Draw the outer walls to trace the exact shape of the white polygon footprint. If the polygon has indents, steps, or diagonal lines, the outer walls must step or slope accordingly.
@@ -107,6 +109,7 @@ Layout requirements:
 - Compact, high-efficiency residential floor plan containing exactly ${flatCount} separate flats, configured as ${bhk}BHK units.
 - EACH FLAT MUST BE A SINGLE, UNBROKEN CONTIGUOUS UNIT: All rooms belonging to a single flat (e.g. FLAT A) MUST be grouped together side-by-side inside a single cohesive wing or zone of the building footprint. You are STRICTLY FORBIDDEN from splitting rooms of the same flat across different wings, and they must not be separated by public corridors or other flats.
 - ONE FLAT PER WING/ZONE: For irregular shapes with multiple wings (like Y-shape, L-shape, Cruciform, Butterfly, T-shape, H-shape), assign exactly one flat to each wing. The center intersection where the wings meet should contain the shared corridor, stairs, and lift core, serving as the central transition between the independent flats.
+- PUSH ROOMS TO EXTREMITIES: Place bedrooms and kitchens at the far ends of each wing. Living rooms go closer to the center core. Every wing tip must have a room that extends all the way to the boundary edge — no empty pockets allowed.
 - NO ROOM DUPLICATIONS OR FILLERS: Do not draw extra copies or duplicate rooms of a flat in another wing. Once a flat has its rooms drawn in its designated wing, do not draw any of its rooms anywhere else.
 - All flats must touch the polygon edge and fit within the interior, never extending past the outer boundary.
 ${circulationRule}

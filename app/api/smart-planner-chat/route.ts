@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import fs from 'fs';
 import path from 'path';
+import { analyzeWings } from '@/lib/wing-analysis';
 
 export const maxDuration = 60;
 
@@ -74,12 +75,11 @@ YOUR JOB:
    When a user asks about flats or layouts, DO NOT ask them for a flat count.
    Instead, act like a master architect.
 
-   **STEP A — WING ANATOMY ANALYSIS (MANDATORY, DO THIS FIRST):**
-   Before suggesting any options, silently analyze the trace image like a structural engineer:
-   - VISUALLY COUNT the number of distinct **tips, outward protrusions, or arms** sticking out from the shape's center mass in the trace image. (e.g., an L-shape has 2 tips, a T-shape or Y-shape has 3 distinct tips, a cross has 4 tips). 
-   - Even if two arms form a wide angle, count them as separate tips!
-   - Your suggested flat count MUST EXACTLY MATCH this visual tip/protrusion count (e.g., if you see 3 tips sticking out, suggest exactly 3 flats. If you see 4 tips, suggest exactly 4 flats). Do NOT force extra flats that will spoil the exterior shape.
-   - Identify the **geometric center or junction point** where these arms meet — this is where the shared staircase/lift core will go.
+   **STEP A — WING ANATOMY (GROUND TRUTH IS PROVIDED — DO NOT GUESS):**
+   A "COMPUTED SHAPE GEOMETRY" block is included in your context, derived mathematically from the exact traced polygon coordinates. It states the number of wings, protrusion tips, and inward notches, with their compass directions.
+   - That block is GROUND TRUTH. Base your flat count on its wing capacity number. Do NOT re-count wings visually, and do NOT invent extra wings beyond it.
+   - Use the trace image only to understand proportions and to describe WHERE each named wing sits (matching the tip directions listed in the geometry block).
+   - The shared staircase/lift core goes near the centroid junction where the wings meet, as stated in the geometry block.
    - **USER REQUESTS (CRITICAL):** If the user asks to add a stair, a lift, or an extra room, or any custom requirement, you MUST catch this and explicitly incorporate it into the layout options and the final room schedule.
 
    **STEP B — SUGGEST LAYOUT OPTIONS:**
@@ -125,16 +125,17 @@ YOUR JOB:
    
    ⚠ **MANDATORY LAYOUT TYPE RULE — WING ZONE ASSIGNMENT (MOST IMPORTANT):**
    The "layoutType" field is the spatial brain of the image generator. It MUST contain:
-   1. **Wing-by-wing flat assignment:** Explicitly state which flat occupies which physical zone. e.g. "FLAT A occupies the TOP-LEFT WING. FLAT B occupies the TOP-RIGHT WING. FLAT C occupies the BOTTOM WING."
-   2. **Core location:** Exactly where the shared staircase and lift core sit. e.g. "The staircase + lift core is centered at the Y-junction, equidistant from all three flat entrances."
-   3. **Room-level guidance:** For each flat, state which specific rooms go where inside their wing. e.g. "In Flat A's top-left wing: Living Room faces the outer tip, Kitchen is mid-wing, Bedrooms are closest to the core."
-   4. **Prohibited zones:** State what must remain empty. e.g. "The center junction is ONLY for the lobby and stairs. NO flat rooms may intrude into this zone."
-   5. Use ONLY descriptive positional language (top, bottom, left, right, inner, outer, tip, base, center). NO raw meter numbers.
+   1. **Wing-by-wing flat assignment:** Explicitly state which flat occupies which physical zone.
+   2. **Core location:** Exactly where the shared staircase and lift core sit.
+   3. **Room-level guidance:** For each flat, state which specific rooms go where inside their wing.
+   4. **Prohibited zones:** State what must remain empty (e.g. center junction).
+   5. Use ONLY descriptive positional language. NO raw meter numbers.
+   6. HARD LIMIT: The entire "layoutType" string MUST be under 80 words. Short, dense, positional commands only.
    
    \`\`\`json
     {
       "confirmed": true,
-      "layoutType": "WING ASSIGNMENT: FLAT A → TOP-LEFT WING (Living faces the outer tip, Kitchen mid-wing, Bedrooms toward core). FLAT B → TOP-RIGHT WING (mirror of Flat A). FLAT C → BOTTOM WING (elongated — Living at the tip, then Kitchen, then 2 bedrooms and bath stacked toward the core). CORE: Centered staircase + single lift at the Y-junction, accessed by a compact T-shaped lobby. The junction center is EXCLUSIVELY for stairs+lift. No flat rooms in the junction.",
+      "layoutType": "FLAT A: Top-left wing. FLAT B: Top-right wing. FLAT C: Bottom wing. CORE: Central junction, stairs/lift at center. Flat rooms follow outer walls. Junction remains empty, lobby only.",
       "targetFlatCount": 3,
      "plotW": <number>,
      "plotH": <number>,
@@ -169,12 +170,14 @@ RULES FOR CONCISE DELIVERY:
 `;
 
 
-// Fast and cheap models on OpenRouter with strong math capabilities
+// VISION-CAPABLE models ONLY. Every call in this route attaches the trace
+// image (and sometimes a template image). Text-only fallbacks silently ignore
+// the images and hallucinate wing counts — never add a text-only model here.
 const OPENROUTER_MODELS = [
-  'google/gemini-2.5-flash',           // Top recommendation: super fast, ultra cheap, solid math & JSON
-  'meta-llama/llama-3.3-70b-instruct',  // High quality reasoning, cheap, excellent math
-  'deepseek/deepseek-chat',             // Extremely cheap, very strong math & general reasoning
-  'qwen/qwen-2.5-coder-32b-instruct',   // Great fallback for structured JSON tasks
+  'google/gemini-2.5-flash',
+  'openai/gpt-4o-mini',
+  'qwen/qwen2.5-vl-72b-instruct',
+  'google/gemini-2.0-flash-001',
 ];
 
 async function callOpenRouterWithFallback(
@@ -330,21 +333,33 @@ export async function POST(request: Request) {
     // Never let the LLM guess — compute the ceiling in code.
     const siteAreaSqm = plotBoundary?.siteAreaM || 0;
 
-    // Calculate base shape deduction deterministically based on the number of vertices
-    const numPoints = sitePoints?.length || plotPoints?.length || 0;
+    // Deterministic wing/notch analysis from exact polygon geometry.
+    const activePolygon =
+      (sitePoints && sitePoints.length >= 3 ? sitePoints : plotPoints) || [];
+    const wingAnalysis =
+      activePolygon.length >= 3 ? analyzeWings(activePolygon) : null;
+    if (wingAnalysis) {
+      console.log(
+        `[SmartPlanner] Wing analysis: ${wingAnalysis.tipCount} tips, ${wingAnalysis.notchCount} notches, est. ${wingAnalysis.estimatedWings} wings (${wingAnalysis.complexity})`
+      );
+    }
+
+    // Base deduction now driven by inward notches (reflex corners) — a far
+    // better complexity signal than raw vertex count.
+    const notchCount = wingAnalysis?.notchCount ?? 0;
     let baseDeduction = 0.30;
-    let complexityLabel = 'simple shape';
-    
-    if (numPoints >= 8 && numPoints < 12) {
-      baseDeduction = 0.40;
-      complexityLabel = 'medium complexity shape';
-    } else if (numPoints >= 12) {
-      baseDeduction = 0.50;
-      complexityLabel = 'highly complex shape';
+    let complexityLabel = 'simple convex shape';
+
+    if (notchCount >= 1 && notchCount <= 2) {
+      baseDeduction = 0.38;
+      complexityLabel = `medium shape (${notchCount} inward notch${notchCount > 1 ? 'es' : ''})`;
+    } else if (notchCount >= 3) {
+      baseDeduction = 0.48;
+      complexityLabel = `complex shape (${notchCount} inward notches)`;
     }
 
     let deductionPercent = baseDeduction;
-    const deductionBreakdown: string[] = [`${(baseDeduction * 100).toFixed(0)}% base (${complexityLabel}, ${numPoints} vertices)`];
+    const deductionBreakdown: string[] = [`${(baseDeduction * 100).toFixed(0)}% base (${complexityLabel})`];
 
     // Dynamic deductions for amenities the user mentioned
     if (/parking|car\s*park|basement/i.test(userText)) {
@@ -390,7 +405,8 @@ DETERMINISTIC CAPACITY GUIDELINES (COMPUTED BY CODE):
 - True Site Exterior Polygon Area: ${siteAreaSqm} sqm
 - Total Deductions: ${(deductionPercent * 100).toFixed(0)}% [${deductionBreakdown.join(' + ')}]
 - Net Usable Carpet Area: ${usableArea} sqm
-- Detected Flat Type: ${detectedBHK} (minimum ${minFlatSize} sqm each)` : '';
+- Detected Flat Type: ${detectedBHK} (minimum ${minFlatSize} sqm each)
+${wingAnalysis ? `\n${wingAnalysis.summaryText}` : ''}` : '';
 
     // Add plot context to the system prompt
     const systemWithContext = plotBoundary 
