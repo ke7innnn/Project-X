@@ -65,26 +65,22 @@ YOUR JOB:
    3. The remaining percentage (e.g. 50% for complex/indented shapes) is your absolute maximum Net Carpet Area limit. You are strictly FORBIDDEN from generating a room schedule where the sum of individual room areas exceeds this Net Carpet Area.
    4. **Ground Coverage constraint:** For any irregular shape with indents/slots, the total buildup footprint of all flats combined must not exceed **45-50%** of the True Site Area. This ensures the building has enough room to wrap around the indents without bleeding outside the boundary.
    5. **AI RENDERER CAPABILITY LIMITS & DENSITY RULES (CRITICAL):**
-       - The image rendering engine struggles heavily if you cram too many flats into complex shapes. Keep the flat count low, spacious, and highly realistic.
-       - **Always suggest layouts matching the specific shape template category:**
-         - For **L-Shape:** Suggest elbow-core splits with max 2-3 flats.
-         - For **Y-Shape (Tri-Star):** Suggest radial centralized cores with max 3 flats.
-         - For **H-Shape (Dumbbell) / U-Shape:** Suggest central open courtyard light wells with max 2-3 flats.
-         - For **Butterfly:** Suggest 45-degree symmetrical wings with max 2-3 flats.
-         - For **Cruciform:** Suggest central vertical lobbies with max 4 flats.
-       - **KEEP FLAT COUNT CONSERVATIVE (LOWER IS BETTER):** Sparing room space and ensuring clean ventilation is much better than cramming flats. Never suggest high-density layouts (e.g. 6 or 8 flats) on irregular custom traces.
+       - The image rendering engine struggles heavily if you cram too many flats into complex shapes. Keep the flat count spacious and highly realistic.
+       - **DYNAMIC SHAPE ADAPTABILITY (VERSATILITY):** Do not restrict yourself to standard shapes (L, T, Y, Cross). If the user provides a completely bizarre, asymmetrical, or custom freeform shape, you MUST adapt dynamically!
+       - Treat every drawing uniquely. If the shape has 5 weird asymmetrical branches, suggest 5 flats. If it has 1 big mass and 1 tiny nub, suggest 2 flats. You are fully unleashed to handle ANY custom polygon geometry based purely on visual inspection of its arms/tips.
+       - **KEEP FLAT COUNT CONSERVATIVE:** Sparing room space and ensuring clean ventilation is better than cramming flats. Never suggest high-density layouts (e.g. 6+ flats) on custom traces UNLESS the shape physically has that many distinct outward branches.
     6. If the user requests more flats than standard capacity limits, warning them about compact room sizing is required, but you must still proceed and fulfill their request by proposing ultra-efficient compact units. Do not refuse to design them.
 3. **SMART LAYOUT SUGGESTIONS (FIRST RESPONSE — ALWAYS USE THIS FLOW):**
    When a user asks about flats or layouts, DO NOT ask them for a flat count.
    Instead, act like a master architect.
 
    **STEP A — WING ANATOMY ANALYSIS (MANDATORY, DO THIS FIRST):**
-   Before suggesting any options, silently analyze the trace shape like a structural engineer:
-   - Count the number of distinct **wings** or **arms** the shape physically has (a box has 1 zone, an L has 2 arms, a Y has 3 arms, a cruciform has 4 arms, etc.).
-   - Identify the **geometric center or junction point** where wings meet — this is where the shared staircase/lift core will go.
-   - Identify how **wide and deep** each wing is — if a wing is narrower than ~4m it cannot host a full flat.
-   - Identify any **pinch points** — narrow necks where no rooms can fit.
-   - This wing count is your **HARD LIMIT** on the maximum number of flats. You CANNOT suggest more flats than the number of viable wings.
+   Before suggesting any options, silently analyze the trace image like a structural engineer:
+   - VISUALLY COUNT the number of distinct **tips, outward protrusions, or arms** sticking out from the shape's center mass in the trace image. (e.g., an L-shape has 2 tips, a T-shape or Y-shape has 3 distinct tips, a cross has 4 tips). 
+   - Even if two arms form a wide angle, count them as separate tips!
+   - Your suggested flat count MUST EXACTLY MATCH this visual tip/protrusion count (e.g., if you see 3 tips sticking out, suggest exactly 3 flats. If you see 4 tips, suggest exactly 4 flats). Do NOT force extra flats that will spoil the exterior shape.
+   - Identify the **geometric center or junction point** where these arms meet — this is where the shared staircase/lift core will go.
+   - **USER REQUESTS (CRITICAL):** If the user asks to add a stair, a lift, or an extra room, or any custom requirement, you MUST catch this and explicitly incorporate it into the layout options and the final room schedule.
 
    **STEP B — SUGGEST LAYOUT OPTIONS:**
    Suggest UP TO 3 layout options based on the wing analysis. Each option MUST be geometrically feasible.
@@ -382,10 +378,10 @@ export async function POST(request: Request) {
     const bhkMatch = userText.match(/(\d)\s*bhk/i);
     const detectedBHK = bhkMatch ? `${bhkMatch[1]}BHK` : '2BHK';
     const minFlatSize = MIN_FLAT_SIZES[detectedBHK] || 55;
-    // Keep maxFlats calculation realistic but more flexible (e.g. assume 60% ground coverage if requested)
-    const maxFlats = siteAreaSqm > 0 ? Math.max(2, Math.floor((siteAreaSqm * 0.60 * 0.70) / minFlatSize)) : 99;
+    // User explicitly requested LLM to handle flat counting based on visual wings, no hard clamping.
+    const maxFlats = 99; 
 
-    console.log(`[SmartPlanner] Deterministic math: site=${siteAreaSqm}sqm, usable=${usableArea}sqm, BHK=${detectedBHK}(${minFlatSize}sqm min), maxFlats=${maxFlats}`);
+    console.log(`[SmartPlanner] Deterministic math: site=${siteAreaSqm}sqm, usable=${usableArea}sqm, BHK=${detectedBHK}(${minFlatSize}sqm min), maxFlats=UNLIMITED(Visual)`);
 
     // ─── Build system prompt with deterministic constraints ───────────────
     const deterministicConstraints = siteAreaSqm > 0 ? `
@@ -394,10 +390,7 @@ DETERMINISTIC CAPACITY GUIDELINES (COMPUTED BY CODE):
 - True Site Exterior Polygon Area: ${siteAreaSqm} sqm
 - Total Deductions: ${(deductionPercent * 100).toFixed(0)}% [${deductionBreakdown.join(' + ')}]
 - Net Usable Carpet Area: ${usableArea} sqm
-- Detected Flat Type: ${detectedBHK} (minimum ${minFlatSize} sqm each)
-- RECOMMENDED MAXIMUM FLATS: ${maxFlats}
-- If the user explicitly asks for more flats than ${maxFlats}, do NOT reject the request. Instead, proceed to generate the requested number of flats, but warn the user that they will be extremely compact (micro-apartments or studio size) and might violate local building codes. Focus on fitting their requested count by proposing ultra-efficient room zoning.
-- Your layout option flat counts should ideally be ≤ ${maxFlats}, but can exceed it if the user explicitly insisted on it.` : '';
+- Detected Flat Type: ${detectedBHK} (minimum ${minFlatSize} sqm each)` : '';
 
     // Add plot context to the system prompt
     const systemWithContext = plotBoundary 
@@ -446,25 +439,8 @@ ${deterministicConstraints}`
       const parsed = JSON.parse(jsonString);
         if (parsed.options) {
           layoutOptions = parsed.options;
-
-          // ─── LAYER 2a: Hard clamp layout option flat counts ──────────────
-          if (maxFlats < 99) {
-            for (const opt of layoutOptions) {
-              if (opt.flatCount && opt.flatCount > maxFlats) {
-                console.warn(`[SmartPlanner] CLAMP: Layout "${opt.name}" suggested ${opt.flatCount} flats → clamped to ${maxFlats}`);
-                opt.flatCount = maxFlats;
-                opt.desc = `[Adjusted: max ${maxFlats} flats for this site] ${opt.desc}`;
-              }
-            }
-          }
         } else if (parsed.confirmed) {
           roomSchedule = parsed;
-
-          // ─── LAYER 2b: Hard clamp targetFlatCount ────────────────────────
-          if (maxFlats < 99 && roomSchedule.targetFlatCount && roomSchedule.targetFlatCount > maxFlats) {
-            console.warn(`[SmartPlanner] CLAMP: LLM requested ${roomSchedule.targetFlatCount} flats → clamped to ${maxFlats}`);
-            roomSchedule.targetFlatCount = maxFlats;
-          }
 
           // Auto-expand flats to handle large numbers (e.g. 10 flats) without LLM truncation
           if (roomSchedule.targetFlatCount && roomSchedule.flats && roomSchedule.flats.length > 0) {

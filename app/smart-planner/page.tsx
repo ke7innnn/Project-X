@@ -446,8 +446,9 @@ function scaleImageToFitPolygon(
           }
         }
         
-        // Anti-aliasing / edge noise tolerance: accept 97% points inside
-        if (scaleBestScore >= 0.97) {
+        // Accept a scale where 90% of boundary points fit inside (allows larger scale → sharper text)
+        // Overflow correction pass below will handle the remaining ~10% that stick out
+        if (scaleBestScore >= 0.90) {
           bestScale = scale;
           bestDrawX = scaleBestX;
           bestDrawY = scaleBestY;
@@ -456,7 +457,7 @@ function scaleImageToFitPolygon(
         }
       }
 
-      // If no candidate was 97% inside, look for the candidate that maximizes score
+      // If no candidate was 90% inside, look for the candidate that maximizes score
       if (!coarseFound) {
         let globalBestScore = 0;
         let globalBestScale = S_max * 0.50;
@@ -547,26 +548,96 @@ function scaleImageToFitPolygon(
       bestDrawX = fineBestX;
       bestDrawY = fineBestY;
 
+      // 3.5 Detect overflow boundary points (white layout pixels outside polygon after best fit)
+      const overflowSrcPts: { srcX: number; srcY: number }[] = [];
+      for (let k = 0; k < relPts.length; k++) {
+        const canvX = bestDrawX + relPts[k].x * bestScale;
+        const canvY = bestDrawY + relPts[k].y * bestScale;
+        if (!isPointInPolygon({ x: canvX, y: canvY }, scaledPts)) {
+          overflowSrcPts.push({ srcX: fMinX + relPts[k].x, srcY: fMinY + relPts[k].y });
+        }
+      }
+      console.log(`[SmartPlanner] scaleImageToFitPolygon — scale: ${bestScale.toFixed(3)}, overflow pts: ${overflowSrcPts.length}/${relPts.length}`);
+
       // 4. Fill black background
       ctx.fillStyle = '#000000';
       ctx.fillRect(0, 0, outSize.w, outSize.h);
 
-      // 5. Draw the layout at the mathematically optimal scale and offset
-      // Create clipping mask to crop anything bleeding outside the trace boundary
+      // 5. Draw the layout at the best scale and position, clipped to polygon
       ctx.save();
       ctx.beginPath();
       ctx.moveTo(scaledPts[0].x, scaledPts[0].y);
-      for (let i = 1; i < scaledPts.length; i++) {
-        ctx.lineTo(scaledPts[i].x, scaledPts[i].y);
-      }
+      for (let i = 1; i < scaledPts.length; i++) ctx.lineTo(scaledPts[i].x, scaledPts[i].y);
       ctx.closePath();
       ctx.clip();
-
       const imgDrawX = bestDrawX - fMinX * bestScale;
       const imgDrawY = bestDrawY - fMinY * bestScale;
       ctx.drawImage(img, imgDrawX, imgDrawY, img.width * bestScale, img.height * bestScale);
-      
       ctx.restore();
+
+      // 6. Overflow Correction Pass:
+      //    For any layout content that sticks outside the polygon, crop just that region
+      //    from the source, translate it inward to the nearest empty polygon interior space,
+      //    and redraw it — seamlessly connected to the main layout with no gaps or cuts.
+      if (overflowSrcPts.length > 5) {
+        // Compute bounding box of overflow in source image coordinates
+        let ovMinX = Infinity, ovMaxX = -Infinity, ovMinY = Infinity, ovMaxY = -Infinity;
+        let avgCanvX = 0, avgCanvY = 0;
+        for (const p of overflowSrcPts) {
+          if (p.srcX < ovMinX) ovMinX = p.srcX;
+          if (p.srcX > ovMaxX) ovMaxX = p.srcX;
+          if (p.srcY < ovMinY) ovMinY = p.srcY;
+          if (p.srcY > ovMaxY) ovMaxY = p.srcY;
+          avgCanvX += imgDrawX + p.srcX * bestScale;
+          avgCanvY += imgDrawY + p.srcY * bestScale;
+        }
+        avgCanvX /= overflowSrcPts.length;
+        avgCanvY /= overflowSrcPts.length;
+
+        // Direction to push: toward polygon centroid
+        const dirX = polyCx - avgCanvX;
+        const dirY = polyCy - avgCanvY;
+        const dirLen = Math.hypot(dirX, dirY) || 1;
+        const dirNX = dirX / dirLen;
+        const dirNY = dirY / dirLen;
+
+        // Walk step-by-step toward centroid until the overflow centroid lands inside polygon
+        let corrX = 0, corrY = 0;
+        for (let step = 5; step <= 400; step += 5) {
+          const testX = avgCanvX + dirNX * step;
+          const testY = avgCanvY + dirNY * step;
+          if (isPointInPolygon({ x: testX, y: testY }, scaledPts)) {
+            corrX = dirNX * step;
+            corrY = dirNY * step;
+            break;
+          }
+        }
+
+        if (corrX !== 0 || corrY !== 0) {
+          // Add overlap padding so the correction blends seamlessly with the main draw
+          const padPx = Math.round(30 / bestScale);
+          const cropSrcX = Math.max(0, Math.round(ovMinX) - padPx);
+          const cropSrcY = Math.max(0, Math.round(ovMinY) - padPx);
+          const cropSrcW = Math.min(img.width - cropSrcX, Math.round(ovMaxX - ovMinX) + padPx * 2);
+          const cropSrcH = Math.min(img.height - cropSrcY, Math.round(ovMaxY - ovMinY) + padPx * 2);
+
+          if (cropSrcW > 0 && cropSrcH > 0) {
+            const destX = imgDrawX + cropSrcX * bestScale + corrX;
+            const destY = imgDrawY + cropSrcY * bestScale + corrY;
+
+            ctx.save();
+            ctx.beginPath();
+            ctx.moveTo(scaledPts[0].x, scaledPts[0].y);
+            for (let i = 1; i < scaledPts.length; i++) ctx.lineTo(scaledPts[i].x, scaledPts[i].y);
+            ctx.closePath();
+            ctx.clip();
+            // Draw the overflow crop at the corrected inward position
+            ctx.drawImage(img, cropSrcX, cropSrcY, cropSrcW, cropSrcH, destX, destY, cropSrcW * bestScale, cropSrcH * bestScale);
+            ctx.restore();
+            console.log(`[SmartPlanner] Overflow correction applied — pushed (${corrX.toFixed(0)}, ${corrY.toFixed(0)})px inward`);
+          }
+        }
+      }
 
       // 6. Draw the trace boundary in NEON RED exactly where it belongs
       ctx.strokeStyle = '#ff0000';

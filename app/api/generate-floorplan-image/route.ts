@@ -26,19 +26,8 @@ export async function POST(req: Request) {
     const uploadedTraceUrl = traceCanvasBase64;
 
     // 3. Build prompt for Nano Banana Pro Edit
-    const boundaryRules = `BOUNDARY CONSTRAINT (ABSOLUTE HARD RULES — VIOLATION = COMPLETE FAILURE):
-IMAGE 1 = the floor plan schematic layout to reproduce.
-IMAGE 2 = the SACRED OUTER BOUNDARY. Every single wall, room, label, and line in your output MUST sit completely INSIDE this boundary shape. This is non-negotiable.
-
-RULE 1 — OUTER WALLS MUST TRACE THE BOUNDARY: The outermost building walls MUST follow the exact edge of the boundary polygon from IMAGE 2. The building perimeter IS the boundary line. Do NOT draw anything outside it.
-RULE 2 — NO OVERFLOW: If any room would overflow outside the boundary shape, you MUST shrink it, remove it, or reshape it until it fits entirely inside. NOTHING can extend past the boundary line.
-RULE 3 — SOLID BLACK BACKGROUND: Any area OUTSIDE the boundary polygon MUST remain completely solid black. Do not put walls, rooms, labels, or any content in the black background area.
-RULE 4 — RESPECT THE SHAPE: The boundary in IMAGE 2 is a Y-shape (or whatever irregular shape is shown). Your output floor plan must fit within that exact Y-shape (or other shape). Do NOT square it off or extend wings beyond the boundary tips.
-RULE 5 — NO PARTIAL ROOMS AT EDGES: Do NOT let a room start inside the boundary and then have its wall continue outside. All rooms must be complete closed rectangles fully contained within the boundary.`;
-
-    const basePrefix = boundaryRules + "\n\n";
-    const fallbackPrompt = `Redraw IMAGE 1 (the schematic layout) as a professional 2D CAD architectural floor plan. STRICT RULE: ALL content must be inside the boundary from IMAGE 2. Clean black double-line walls on white floors. Add door swing arcs, window panes, and room labels. Background outside the boundary = solid black. Zero tolerance for overflow.`;
-    const prompt = mastermindPrompt ? (basePrefix + mastermindPrompt) : (basePrefix + fallbackPrompt);
+    const fallbackPrompt = `Redraw IMAGE 1 (the schematic layout) as a professional 2D CAD architectural floor plan. Clean black double-line walls on white floors. Add door swing arcs, window panes, and room labels. Background outside the boundary = solid black. Maximize the layout footprint so that the rooms stretch to touch and fill the boundary shape from IMAGE 2.`;
+    const prompt = mastermindPrompt || fallbackPrompt;
 
     // 4. Call Nano Banana Pro Edit
     const result = await fal.subscribe('fal-ai/nano-banana-pro/edit', {

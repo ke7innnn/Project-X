@@ -38,19 +38,19 @@ export async function POST(req: Request) {
     }));
 
     const prompt = `You are a master mathematical architect acting as a Mastermind for an AI image generator.
-We must force the layout from the PRIMARY IMAGE to fit 100% inside the rigid boundary of the SECONDARY IMAGE (Trace Boundary).
+We must force the layout from the PRIMARY IMAGE to fit and completely fill the boundary of the SECONDARY IMAGE (Trace Boundary).
 
 ### Required Rooms to Allocate:
 ${JSON.stringify(roomSchedule, null, 2)}
 
 ### Your Mastermind Task:
 1. Examine the PRIMARY IMAGE (Rough Layout) and the SECONDARY IMAGE (Trace Boundary).
-2. Compare them visually. Identify EXACTLY which flats or rooms in the PRIMARY IMAGE are bleeding outside the boundaries of the SECONDARY IMAGE.
-3. Write an aggressive, highly detailed instructional prompt for the final AI image renderer.
-4. Tell the AI exactly what to do: "Make Flat A much smaller, shrink the living room drastically, squish the Master Bedroom into an L-shape to fit the trace," etc. Be specific about which rooms are too big.
-5. CRITICAL INSTRUCTION: The AI renderer has a bad habit of deleting rooms or missing flats when it redraws the layout. You MUST explicitly command the AI to: "RETAIN EVERY SINGLE ROOM AND FLAT exactly as shown in the PRIMARY IMAGE. Do not delete, merge, or omit any bedrooms, bathrooms, or kitchens. ALL flats must be perfectly preserved."
-6. NO EXTRA ROOMS RULE: You must aggressively command the AI to ONLY draw the exact rooms listed. DO NOT invent, generate, or add any extra rooms (NO "STORE", NO "UTILITY", NO "STUDY"). If there is weird geometric empty space near the trace boundary, the AI must STRETCH or DISTORT the existing core rooms to fill that space completely. It must never use filler rooms as a crutch.
-7. RED BOUNDARY RULE: Look closely at the SECONDARY IMAGE. It contains a thick NEON RED trace line. You must explicitly command the AI to use this RED line as the absolute literal boundary. Tell it: "Squash and reshape all the white architectural walls so they fit 100% completely INSIDE the thick NEON RED line. Do not let any white walls bleed past the red line, BUT YOU MUST stretch the layout to touch the red line from the inside! Do not leave empty floating space around the layout; maximize the footprint so the outer walls of the flats hug the red boundary closely."
+2. Compare them visually.
+3. Write a detailed instructional prompt for the final AI image renderer to refine and complete the floor plan.
+4. Tell the AI exactly how to stretch and expand the rooms to fill the entire trace boundary shape. Ensure the outer walls of the layout align with the outer edges of the trace boundary.
+5. RETAIN EVERY SINGLE ROOM AND FLAT: Explicitly command the AI to retain every single room and flat exactly as shown in the PRIMARY IMAGE. Do not delete, merge, or omit any bedrooms, bathrooms, or kitchens. ALL flats must be perfectly preserved.
+6. NO EXTRA ROOMS RULE: You must command the AI to ONLY draw the exact rooms listed. DO NOT invent or add any extra rooms (NO "STORE", NO "UTILITY", NO "STUDY").
+7. BOUNDARY ALIGNMENT: The trace boundary in the SECONDARY IMAGE is a black outline. You must command the AI to stretch the layout to touch this boundary line from the inside. Do not leave empty floating space; maximize the footprint so the outer walls of the flats hug the boundary outline closely.
 8. Return ONLY the raw text prompt, nothing else. Do not use markdown. Start directly with the instructions.`;
 
     const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
