@@ -20,9 +20,9 @@ interface ChatMessage { role: 'user' | 'assistant'; content: string; }
 
 // ─── Canvas Ratio Presets (3 best sizes) ─────────────────────────────────────
 const CANVAS_RATIOS = [
-  { label: 'Square (Large)',    id: 'square',    w: 888, h: 888,  falSize: 'square_hd'    },
-  { label: 'Landscape (Large)', id: 'landscape', w: 960, h: 636,  falSize: 'landscape_4_3' },
-  { label: 'Portrait (Large)',  id: 'portrait',  w: 636, h: 888,  falSize: 'portrait_4_3'  },
+  { label: 'Square (Large)', id: 'square', w: 888, h: 888, falSize: 'square_hd' },
+  { label: 'Landscape (Large)', id: 'landscape', w: 960, h: 636, falSize: 'landscape_4_3' },
+  { label: 'Portrait (Large)', id: 'portrait', w: 636, h: 888, falSize: 'portrait_4_3' },
 ] as const;
 type RatioId = typeof CANVAS_RATIOS[number]['id'];
 
@@ -48,12 +48,12 @@ function pxToM(px: number) { return +(px / CELL_PX).toFixed(1); }
 // Source image + mask MUST be at the EXACT same resolution the model outputs.
 // If they differ, the model internally rescales → polygon vertices drift ~20%.
 const FAL_OUTPUT_SIZES: Record<string, { w: number; h: number }> = {
-  'square_hd':    { w: 1024, h: 1024 },
-  'square':       { w: 512,  h: 512  },
+  'square_hd': { w: 1024, h: 1024 },
+  'square': { w: 512, h: 512 },
   'landscape_4_3': { w: 1024, h: 768 },
   'landscape_16_9': { w: 1024, h: 576 },
-  'portrait_4_3':  { w: 768,  h: 1024 },
-  'portrait_16_9': { w: 576,  h: 1024 },
+  'portrait_4_3': { w: 768, h: 1024 },
+  'portrait_16_9': { w: 576, h: 1024 },
 };
 
 // ─── Shared polygon path builder (used by both source + mask for pixel-identical alignment)
@@ -90,7 +90,7 @@ function scalePoints(pts: Point[], fromW: number, fromH: number, toW: number, to
     const ptsH = maxY - minY;
     const targetW = Math.max(1, toW - padding * 2);
     const targetH = Math.max(1, toH - padding * 2);
-    
+
     scale = Math.min(targetW / (ptsW || 1), targetH / (ptsH || 1));
     offsetX = (toW / 2) - ((minX + maxX) / 2) * scale;
     offsetY = (toH / 2) - ((minY + maxY) / 2) * scale;
@@ -122,18 +122,13 @@ function exportCanvasForAI(
     sitePts, canvasW, canvasH, outSize.w, outSize.h, true, 24
   );
 
-  // The source image MUST match what the Step-1 prompt describes:
-  // solid WHITE buildable polygon on a pure BLACK void background.
-  // (Previously this was white-bg/gray-polygon while the prompt claimed
-  // black-bg/white-polygon — the model was told to anchor to pixels that
-  // did not exist, which caused the trace drift.)
-
-  // 1. Pure black void background
+  // 1. Solid black background
   ctx.fillStyle = '#000000';
   ctx.fillRect(0, 0, outSize.w, outSize.h);
 
-  // 2. Solid white footprint polygon — the sharp white/black edge IS the boundary
+  // 2. Site polygon — this is the ONLY visual element the AI needs
   if (scaledSitePts.length >= 3) {
+    // Pure white interior fill
     ctx.fillStyle = '#ffffff';
     drawPolygonPath(ctx, scaledSitePts);
     ctx.fill();
@@ -284,7 +279,7 @@ function scaleImageToFitPolygon(
           const xi = polygon[i].x, yi = polygon[i].y;
           const xj = polygon[j].x, yj = polygon[j].y;
           const intersect = ((yi > p.y) !== (yj > p.y))
-              && (p.x < (xj - xi) * (p.y - yi) / (yj - yi || 1) + xi);
+            && (p.x < (xj - xi) * (p.y - yi) / (yj - yi || 1) + xi);
           if (intersect) inside = !inside;
         }
         return inside;
@@ -316,41 +311,6 @@ function scaleImageToFitPolygon(
       const imgData = tCtx.getImageData(0, 0, img.width, img.height);
       const data = imgData.data;
 
-      // ── Background sanity check ───────────────────────────────────────────
-      // The Step-1 model is asked for a black background, but sometimes flips
-      // to white. If we scan for "white pixels" on a white background, the
-      // bounding box becomes the whole frame and the fit silently collapses.
-      // Sample the four corners, detect the actual background, and scan for
-      // CONTENT (non-background) pixels instead.
-      const cornerSamples = [
-        (10 * img.width + 10) * 4,
-        (10 * img.width + (img.width - 11)) * 4,
-        ((img.height - 11) * img.width + 10) * 4,
-        ((img.height - 11) * img.width + (img.width - 11)) * 4,
-      ];
-      let cornerLum = 0;
-      cornerSamples.forEach(ci => { cornerLum += (data[ci] + data[ci + 1] + data[ci + 2]) / 3; });
-      cornerLum /= cornerSamples.length;
-      const bgIsWhite = cornerLum > 150;
-      console.log(`[SmartPlanner] Step-1 background detected as ${bgIsWhite ? 'WHITE (model flipped — compensating)' : 'black (as requested)'}`);
-
-      // Content = plan pixels. On a black bg the plan floors are light; on a
-      // flipped white bg the plan linework is dark.
-      const isContentPx = (idx: number) => bgIsWhite
-        ? (data[idx] < 150 || data[idx + 1] < 150 || data[idx + 2] < 150)
-        : (data[idx] > 150 && data[idx + 1] > 150 && data[idx + 2] > 150);
-      const isBgPx = (idx: number) => bgIsWhite
-        ? (data[idx] > 200 && data[idx + 1] > 200 && data[idx + 2] > 200)
-        : (data[idx] < 100 && data[idx + 1] < 100 && data[idx + 2] < 100);
-
-      // Make background pixels transparent so they don't overwrite the gray polygon
-      for (let i = 0; i < data.length; i += 4) {
-        if (isBgPx(i)) {
-          data[i + 3] = 0; // Alpha = 0
-        }
-      }
-      tCtx.putImageData(imgData, 0, 0);
-
       // Scan for white pixels (R, G, B > 150) representing rooms.
       // We skip a border margin of 50px from all sides to ignore the white top/bottom letterbox bars.
       const margin = 50;
@@ -359,7 +319,8 @@ function scaleImageToFitPolygon(
       for (let y = margin; y < img.height - margin; y += stepScan) {
         for (let x = margin; x < img.width - margin; x += stepScan) {
           const idx = (y * img.width + x) * 4;
-          if (isContentPx(idx)) {
+          const isWhite = data[idx] > 150 && data[idx + 1] > 150 && data[idx + 2] > 150;
+          if (isWhite) {
             if (x < fMinX) fMinX = x;
             if (x > fMaxX) fMaxX = x;
             if (y < fMinY) fMinY = y;
@@ -368,7 +329,7 @@ function scaleImageToFitPolygon(
         }
       }
       if (fMinX >= fMaxX) { fMinX = margin; fMaxX = img.width - margin; fMinY = margin; fMaxY = img.height - margin; }
-      
+
       const floorW = fMaxX - fMinX;
       const floorH = fMaxY - fMinY;
       const floorCx = fMinX + floorW / 2;
@@ -380,13 +341,19 @@ function scaleImageToFitPolygon(
       for (let y = fMinY + step; y < fMaxY - step; y += step) {
         for (let x = fMinX + step; x < fMaxX - step; x += step) {
           const idx = (y * img.width + x) * 4;
-          if (isContentPx(idx)) {
+          const isWhite = data[idx] > 150 && data[idx + 1] > 150 && data[idx + 2] > 150;
+          if (isWhite) {
             const leftIdx = (y * img.width + (x - step)) * 4;
             const rightIdx = (y * img.width + (x + step)) * 4;
             const topIdx = ((y - step) * img.width + x) * 4;
             const bottomIdx = ((y + step) * img.width + x) * 4;
 
-            if (isBgPx(leftIdx) || isBgPx(rightIdx) || isBgPx(topIdx) || isBgPx(bottomIdx)) {
+            const isLeftDark = data[leftIdx] < 100 && data[leftIdx + 1] < 100 && data[leftIdx + 2] < 100;
+            const isRightDark = data[rightIdx] < 100 && data[rightIdx + 1] < 100 && data[rightIdx + 2] < 100;
+            const isTopDark = data[topIdx] < 100 && data[topIdx + 1] < 100 && data[topIdx + 2] < 100;
+            const isBottomDark = data[bottomIdx] < 100 && data[bottomIdx + 1] < 100 && data[bottomIdx + 2] < 100;
+
+            if (isLeftDark || isRightDark || isTopDark || isBottomDark) {
               boundaryPts.push({ x, y });
             }
           }
@@ -413,160 +380,91 @@ function scaleImageToFitPolygon(
         y: p.y - fMinY
       }));
 
-      // 3. Search parameter space for best fit: position + scale (shrinking/scaling)
+      // 3. Find best scale + position.
+      //
+      // STRATEGY: We clip the layout to the polygon no matter what, so we do NOT
+      // need every boundary sample-point to land "inside" the concave polygon.
+      // For complex concave shapes (tridents, L-shapes), most rectangular layout
+      // points naturally land in the notch areas and would never score >90%, causing
+      // the old algorithm to shrink all the way to 15% of max — way too small.
+      //
+      // NEW APPROACH:
+      //   1. S_max = largest scale where the layout bbox fits inside the polygon bbox.
+      //   2. Hard cap: never shrink below 98% of S_max (at most 2% shrink).
+      //   3. For each scale (S_max → S_max*0.98), search a 20×20 position grid.
+      //      Score = distance of layout-centroid from polygon-centroid (lower = better).
+      //   4. Pick the largest scale with the most-centred position.
+      //   5. Fine-tune ±20px / 2px steps.
+
       const S_max = Math.min(polyW / (floorW || 1), polyH / (floorH || 1));
-      let bestScale = S_max * 0.50; // Fallback default
+      const S_min = S_max * 0.98; // Hard floor – never shrink more than 2%
+
+      let bestScale = S_max;
+      // Default: centre layout over polygon centroid at S_max
       let bestDrawX = polyCx - (floorCx * bestScale);
       let bestDrawY = polyCy - (floorCy * bestScale);
-      let coarseFound = false;
+      let bestCenteringDist = Infinity;
 
-      // Coarse Pass: Search scale from S_max down to 0.15 * S_max
-      for (let scale = S_max; scale >= S_max * 0.15; scale -= S_max * 0.025) {
+      // Coarse pass: 20×20 position grid; try at most ~10 scale steps within the 2% range
+      const numScaleSteps = 10;
+      for (let si = 0; si <= numScaleSteps; si++) {
+        const scale = S_max - (S_max - S_min) * (si / numScaleSteps);
         const layoutW = floorW * scale;
         const layoutH = floorH * scale;
-        
+
+        // Keep layout inside polygon bounding box
         const minDrawX = polyMinX;
-        const maxDrawX = polyMaxX - layoutW;
+        const maxDrawX = Math.max(polyMinX, polyMaxX - layoutW);
         const minDrawY = polyMinY;
-        const maxDrawY = polyMaxY - layoutH;
-        
+        const maxDrawY = Math.max(polyMinY, polyMaxY - layoutH);
+
         const rangeX = maxDrawX - minDrawX;
         const rangeY = maxDrawY - minDrawY;
-        
-        const xSteps = 15;
-        const ySteps = 15;
-        
-        let scaleBestScore = 0;
-        let scaleBestX = minDrawX;
-        let scaleBestY = minDrawY;
-        let scaleBestCenteringDist = Infinity;
-        
+        const xSteps = 20;
+        const ySteps = 20;
+
         for (let ix = 0; ix <= xSteps; ix++) {
           const drawX = minDrawX + (xSteps > 0 ? (rangeX * ix) / xSteps : 0);
           for (let iy = 0; iy <= ySteps; iy++) {
             const drawY = minDrawY + (ySteps > 0 ? (rangeY * iy) / ySteps : 0);
-            
-            let insideCount = 0;
-            for (let k = 0; k < relPts.length; k++) {
-              const px = drawX + relPts[k].x * scale;
-              const py = drawY + relPts[k].y * scale;
-              if (isPointInPolygon({ x: px, y: py }, scaledPts)) {
-                insideCount++;
-              }
-            }
-            
-            const score = insideCount / (relPts.length || 1);
-            
-            // Centering score (distance from centroid)
+
+            // Score: centring quality only (smaller dist = better centred)
             const layoutCx = drawX + layoutW / 2;
             const layoutCy = drawY + layoutH / 2;
             const dist = Math.hypot(layoutCx - polyCx, layoutCy - polyCy);
-            
-            if (score > scaleBestScore || (score === scaleBestScore && dist < scaleBestCenteringDist)) {
-              scaleBestScore = score;
-              scaleBestX = drawX;
-              scaleBestY = drawY;
-              scaleBestCenteringDist = dist;
+
+            // Prefer larger scale first; only accept smaller scale if notably better centred
+            if (dist < bestCenteringDist) {
+              bestCenteringDist = dist;
+              bestScale = scale;
+              bestDrawX = drawX;
+              bestDrawY = drawY;
             }
           }
         }
-        
-        // Accept a scale where 97% of boundary points fit inside — keep layout as large as possible
-        // The hard evenodd clip at the end handles the remaining ~3% that stick out
-        if (scaleBestScore >= 0.97) {
-          bestScale = scale;
-          bestDrawX = scaleBestX;
-          bestDrawY = scaleBestY;
-          coarseFound = true;
-          break;
-        }
+
+        // If we already have a well-centred result at or near S_max, stop early
+        if (si === 0 && bestCenteringDist < (polyW + polyH) * 0.05) break;
       }
 
-      // If no candidate was 90% inside, look for the candidate that maximizes score
-      if (!coarseFound) {
-        let globalBestScore = 0;
-        let globalBestScale = S_max * 0.50;
-        let globalBestX = polyCx - (floorCx * globalBestScale);
-        let globalBestY = polyCy - (floorCy * globalBestScale);
-        let globalBestCenteringDist = Infinity;
-
-        for (let scale = S_max; scale >= S_max * 0.15; scale -= S_max * 0.025) {
-          const layoutW = floorW * scale;
-          const layoutH = floorH * scale;
-          
-          const minDrawX = polyMinX;
-          const maxDrawX = polyMaxX - layoutW;
-          const minDrawY = polyMinY;
-          const maxDrawY = polyMaxY - layoutH;
-          
-          const rangeX = maxDrawX - minDrawX;
-          const rangeY = maxDrawY - minDrawY;
-          
-          for (let ix = 0; ix <= 15; ix++) {
-            const drawX = minDrawX + (rangeX * ix) / 15;
-            for (let iy = 0; iy <= 15; iy++) {
-              const drawY = minDrawY + (rangeY * iy) / 15;
-              
-              let insideCount = 0;
-              for (let k = 0; k < relPts.length; k++) {
-                const px = drawX + relPts[k].x * scale;
-                const py = drawY + relPts[k].y * scale;
-                if (isPointInPolygon({ x: px, y: py }, scaledPts)) {
-                  insideCount++;
-                }
-              }
-              const score = insideCount / (relPts.length || 1);
-              const layoutCx = drawX + layoutW / 2;
-              const layoutCy = drawY + layoutH / 2;
-              const dist = Math.hypot(layoutCx - polyCx, layoutCy - polyCy);
-              
-              if (score > globalBestScore || (score === globalBestScore && dist < globalBestCenteringDist)) {
-                globalBestScore = score;
-                globalBestScale = scale;
-                globalBestX = drawX;
-                globalBestY = drawY;
-                globalBestCenteringDist = dist;
-              }
-            }
-          }
-        }
-        bestScale = globalBestScale;
-        bestDrawX = globalBestX;
-        bestDrawY = globalBestY;
-      }
-
-      // Fine-Tuning Pass: Search a localized area (±10px) with 2px steps
-      const fineRange = 10;
+      // Fine-Tuning Pass: ±20px with 2px steps around best position
+      const fineRange = 20;
       const fineStep = 2;
       let fineBestX = bestDrawX;
       let fineBestY = bestDrawY;
-      let fineBestScore = 0;
-      let fineBestCenteringDist = Infinity;
+      let fineBestCenteringDist = bestCenteringDist;
 
       for (let dx = -fineRange; dx <= fineRange; dx += fineStep) {
         for (let dy = -fineRange; dy <= fineRange; dy += fineStep) {
           const candX = bestDrawX + dx;
           const candY = bestDrawY + dy;
-          
-          let insideCount = 0;
-          for (let k = 0; k < relPts.length; k++) {
-            const px = candX + relPts[k].x * bestScale;
-            const py = candY + relPts[k].y * bestScale;
-            if (isPointInPolygon({ x: px, y: py }, scaledPts)) {
-              insideCount++;
-            }
-          }
-          
-          const score = insideCount / (relPts.length || 1);
           const layoutCx = candX + (floorW * bestScale) / 2;
           const layoutCy = candY + (floorH * bestScale) / 2;
           const dist = Math.hypot(layoutCx - polyCx, layoutCy - polyCy);
-          
-          if (score > fineBestScore || (score === fineBestScore && dist < fineBestCenteringDist)) {
-            fineBestScore = score;
+          if (dist < fineBestCenteringDist) {
+            fineBestCenteringDist = dist;
             fineBestX = candX;
             fineBestY = candY;
-            fineBestCenteringDist = dist;
           }
         }
       }
@@ -588,30 +486,17 @@ function scaleImageToFitPolygon(
       ctx.fillStyle = '#000000';
       ctx.fillRect(0, 0, outSize.w, outSize.h);
 
-      // 5. Inside the polygon: paint GRAY first (= unfinished floor area the
-      //    next AI step must fill with rooms), then draw ONLY the layout's
-      //    content bounding box on top. Any polygon interior the layout does
-      //    not cover stays gray — an unambiguous "fill me" signal, distinct
-      //    from the black void outside.
+      // 5. Draw the layout at the best scale and position, clipped to polygon
       ctx.save();
       ctx.beginPath();
       ctx.moveTo(scaledPts[0].x, scaledPts[0].y);
       for (let i = 1; i < scaledPts.length; i++) ctx.lineTo(scaledPts[i].x, scaledPts[i].y);
       ctx.closePath();
       ctx.clip();
-      ctx.fillStyle = '#7a7a7a';
-      ctx.fillRect(0, 0, outSize.w, outSize.h);
-      // Draw ONLY the content bounding box of the layout (no letterbox bars)
-      ctx.drawImage(
-        tempCanvas,
-        fMinX, fMinY, floorW, floorH,                                   // source: content bbox only
-        bestDrawX, bestDrawY, floorW * bestScale, floorH * bestScale    // dest: fitted position
-      );
-      ctx.restore();
-
-      // Precompute draw origin for overflow correction pass below
       const imgDrawX = bestDrawX - fMinX * bestScale;
       const imgDrawY = bestDrawY - fMinY * bestScale;
+      ctx.drawImage(img, imgDrawX, imgDrawY, img.width * bestScale, img.height * bestScale);
+      ctx.restore();
 
       // 6. Overflow Correction Pass:
       //    For any layout content that sticks outside the polygon, crop just that region
@@ -656,8 +541,8 @@ function scaleImageToFitPolygon(
           const padPx = Math.round(30 / bestScale);
           const cropSrcX = Math.max(0, Math.round(ovMinX) - padPx);
           const cropSrcY = Math.max(0, Math.round(ovMinY) - padPx);
-          const cropSrcW = Math.min(tempCanvas.width - cropSrcX, Math.round(ovMaxX - ovMinX) + padPx * 2);
-          const cropSrcH = Math.min(tempCanvas.height - cropSrcY, Math.round(ovMaxY - ovMinY) + padPx * 2);
+          const cropSrcW = Math.min(img.width - cropSrcX, Math.round(ovMaxX - ovMinX) + padPx * 2);
+          const cropSrcH = Math.min(img.height - cropSrcY, Math.round(ovMaxY - ovMinY) + padPx * 2);
 
           if (cropSrcW > 0 && cropSrcH > 0) {
             const destX = imgDrawX + cropSrcX * bestScale + corrX;
@@ -670,32 +555,23 @@ function scaleImageToFitPolygon(
             ctx.closePath();
             ctx.clip();
             // Draw the overflow crop at the corrected inward position
-            ctx.drawImage(tempCanvas, cropSrcX, cropSrcY, cropSrcW, cropSrcH, destX, destY, cropSrcW * bestScale, cropSrcH * bestScale);
+            ctx.drawImage(img, cropSrcX, cropSrcY, cropSrcW, cropSrcH, destX, destY, cropSrcW * bestScale, cropSrcH * bestScale);
             ctx.restore();
             console.log(`[SmartPlanner] Overflow correction applied — pushed (${corrX.toFixed(0)}, ${corrY.toFixed(0)})px inward`);
           }
         }
       }
 
-      // Explicit hard clip: re-draw black over anything outside the polygon
-      // so the final image never leaks outside the boundary.
-      ctx.save();
-      ctx.fillStyle = '#000000';
-      ctx.beginPath();
-      ctx.rect(0, 0, outSize.w, outSize.h);
-      ctx.moveTo(scaledPts[0].x, scaledPts[0].y);
-      for (let i = 1; i < scaledPts.length; i++) ctx.lineTo(scaledPts[i].x, scaledPts[i].y);
-      ctx.closePath();
-      ctx.fill('evenodd'); // fills outside the polygon
-      ctx.restore();
-
-      // Draw neon red boundary so AI clearly sees the limit
+      // 6. Draw the trace boundary in NEON RED exactly where it belongs
+      ctx.strokeStyle = '#ff0000';
+      ctx.lineWidth = 14;
+      ctx.lineJoin = 'miter';
       ctx.beginPath();
       ctx.moveTo(scaledPts[0].x, scaledPts[0].y);
-      for (let i = 1; i < scaledPts.length; i++) ctx.lineTo(scaledPts[i].x, scaledPts[i].y);
+      for (let i = 1; i < scaledPts.length; i++) {
+        ctx.lineTo(scaledPts[i].x, scaledPts[i].y);
+      }
       ctx.closePath();
-      ctx.strokeStyle = '#ff0033';
-      ctx.lineWidth = 6;
       ctx.stroke();
 
       // Compress to JPEG to prevent massive payloads timing out the API fetch
@@ -724,83 +600,14 @@ function computePolygonCentroid(pts: Point[]): { x: number; y: number } {
 }
 
 function detectBHKTypeLocal(rooms: any[]): number {
-  const bedroomCount = rooms.filter(r => 
+  const bedroomCount = rooms.filter(r =>
     /bedroom|bed\s*room/i.test(r.name) && !/master/i.test(r.name)
   ).length;
   return Math.max(1, bedroomCount);
 }
 
-function buildFloorPlanPromptLocal(schedule: any, sitePolygonPoints?: any[]): string {
-  const flatCount = schedule.flats.length;
-  const bhk = detectBHKTypeLocal(schedule.flats[0]?.rooms || []);
-  
-  let hasDiagonals = false;
-  if (sitePolygonPoints && sitePolygonPoints.length >= 3) {
-    for (let i = 0; i < sitePolygonPoints.length; i++) {
-      const a = sitePolygonPoints[i];
-      const b = sitePolygonPoints[(i + 1) % sitePolygonPoints.length];
-      const dx = Math.abs(b.x - a.x);
-      const dy = Math.abs(b.y - a.y);
-      if (dx > 0.5 && dy > 0.5) {
-        hasDiagonals = true;
-        break;
-      }
-    }
-  }
-
-  const diagonalRule = hasDiagonals
-    ? `- Orthogonal Internal Walls: All internal room dividers must be orthogonal (perfectly horizontal and vertical). However, any rooms that touch the diagonal outer boundary walls MUST have diagonal outer walls that align with the trace exactly. Do NOT draw flat horizontal or vertical shoulders at the corners to avoid diagonal walls; the outer walls of the rooms must follow the slanted trace lines directly from the corner.`
-    : `- Orthogonal Walls: All walls and room dividers (both internal and external) MUST be orthogonal (perfectly horizontal and vertical, forming clean 90-degree rectangular rooms). Avoid drawing diagonal, slanted, or triangular rooms.`;
-
-  const circulationRule = flatCount > 1
-    ? `- Include a highly compact, space-efficient circulation core containing one standard staircase and EXACTLY ONE small elevator shaft (LIFT). 
-- Place this core in the widest part of the site or against a flat wall. DO NOT force it into the geometric center if the site is narrow/pinched in the middle, as that will push rooms out of the boundary.
-- DO NOT draw double elevators, and DO NOT draw a full loop/ring corridor around the core.
-- Lobbies and corridors MUST be extremely compact, with a maximum width of 1.2m to 1.5m. Use a simple straight or T-shaped corridor to distribute access. Save as much space as possible.`
-    : `- DO NOT draw any public elevator banks, public staircases, or public lobbies. This is a single, private individual residence/bungalow.
-- Design it purely as a single home layout, utilizing private doors and direct room-to-room flow (no public corridors).`;
-
-  const layoutSpecificInstructions = schedule.layoutType
-    ? `\n\nLAYOUT STRATEGY & ROOM POSITIONING GUIDE (MUST OBEY):\n- Follow this exact spatial layout strategy: ${schedule.layoutType}. Arrange the rooms, corridors, stairs, and entrance lobbies strictly according to these layout directions.`
-    : '';
-
-  const flatList = schedule.flats.map((flat: any) => {
-    const roomCounts = flat.rooms.reduce((acc: Record<string, number>, r: any) => {
-      acc[r.name] = (acc[r.name] || 0) + 1;
-      return acc;
-    }, {});
-    const roomListStr = Object.entries(roomCounts)
-      .map(([name, count]) => `${count}x ${name}`)
-      .join(', ');
-    return `- ${flat.name}: Must contain exactly [ ${roomListStr} ]`;
-  }).join('\n');
-
-  return `2D architectural floor plan, professional AutoCAD layout blueprint style. Solid black wall lines on a crisp white background. 
-
-CRITICAL BOUNDARY RULE — READ THIS FIRST:
-The source image shows a light gray polygon representing the building footprint, outlined by a thick black boundary wall, on a pure white background. You MUST draw the entire floor plan strictly inside this light gray area. The white area outside is empty space and must remain empty. DO NOT add any extra outer layer, DO NOT expand the building footprint, DO NOT extend walls beyond the outer black boundary. The exterior boundary shape must remain EXACTLY as given — never modify it, never grow it, never add to it. 
-- COMPACT & SHRINK TO FIT (100% FREEDOM): You have absolute freedom to make the rooms, bathrooms, and kitchens as small and compact as needed. If the footprint is small or narrow, you MUST scale down and shrink all room and flat dimensions to make them very compact so that they comfortably fit inside the polygon footprint. Prioritize packing all required rooms inside the boundary over making them large.
-- RESPECT INWARD INDENTS: The polygon has inward slots, steps, and V-shaped cutouts. You MUST wrap the building footprint around these cutouts. Do NOT draw a straight wall or rooms across these indents. Keep the outside empty space white.
-- RESPECT GEOMETRY: Draw the outer walls to trace the exact shape of the polygon footprint. If the polygon has indents, steps, or diagonal lines, the outer walls must step or slope accordingly.
-
-EXACT ROOM REQUIREMENTS PER FLAT (YOU MUST INCLUDE ALL OF THEM):
-${flatList}
-
-Layout requirements:
-- Compact, high-efficiency residential floor plan containing exactly ${flatCount} separate flats, configured as ${bhk}BHK units.
-- All flats must be drawn INWARD from the polygon edge, strictly fitting within the interior but NEVER extending past the outer boundary.
-${circulationRule}
-- STRICT ROOM COUNT: Each flat MUST contain exactly the rooms listed above. Do not omit any kitchens, bedrooms, or bathrooms!
-${diagonalRule}
-- VENTILATION & COURTYARDS: You are encouraged to leave empty white pockets (open shafts, air wells, or small courtyards) inside the footprint for ventilation. Do not over-inflate room sizes to force-fill every pixel; keeping rooms compact and well-ventilated is much better.
-- Standard residential zoning: Living rooms near entrances, bedrooms and kitchens along exterior walls for windows.
-
-Drawing Aesthetics:
-- Clean, minimal, technical black-and-white drafting style. Pure black lines on white.
-- Crisp, legible architectural labels inside major spaces (e.g., "LIVING", "BEDROOM", "KITCHEN").
-- Standard architectural symbols: door openings with 90-degree swing arcs, window panes in exterior walls.
-- ABSOLUTELY NO furniture, no color fills, no textures, no gray gradients, no 3D elements. Pure 2D schematic blueprint lines.${layoutSpecificInstructions}`;
-}
+// buildFloorPlanPromptLocal removed — prompt is now built server-side in /api/generate-floorplan-step1/route.ts
+// The debug panel reads the actual prompt returned by the API (step1Data.prompt).
 
 // ─── Component ────────────────────────────────────────────────────────────────
 export default function SmartPlannerPage() {
@@ -829,9 +636,9 @@ export default function SmartPlannerPage() {
     const file = e.target.files?.[0]; if (!file) return;
     const url = URL.createObjectURL(file);
     const img = new Image();
-    img.onload = () => { 
-      bgImageRef.current = img; 
-      setBgImageLoaded(true); 
+    img.onload = () => {
+      bgImageRef.current = img;
+      setBgImageLoaded(true);
       setBgOffset({ x: 0, y: 0 });
       setBgScale(1);
     };
@@ -884,12 +691,12 @@ export default function SmartPlannerPage() {
   const loadPresetShape = useCallback((shape: 'box' | 'l-shape' | 'u-shape' | 't-shape' | 'cruciform') => {
     pushUndo({ plotPts: plotPoints, sitePts: sitePoints, plotClosed, siteClosed });
     setActivePreset(shape);
-    
+
     const cx = Math.round(CANVAS_W / 2 / CELL_PX) * CELL_PX;
     const cy = Math.round(CANVAS_H / 2 / CELL_PX) * CELL_PX;
-    
+
     let pts: Point[] = [];
-    
+
     if (shape === 'box') {
       pts = [
         { x: cx - 180, y: cy - 120 },
@@ -909,10 +716,10 @@ export default function SmartPlannerPage() {
     } else if (shape === 'u-shape') {
       pts = [
         { x: cx - 200, y: cy - 150 },
-        { x: cx - 80,  y: cy - 150 },
-        { x: cx - 80,  y: cy + 40 },
-        { x: cx + 80,  y: cy + 40 },
-        { x: cx + 80,  y: cy - 150 },
+        { x: cx - 80, y: cy - 150 },
+        { x: cx - 80, y: cy + 40 },
+        { x: cx + 80, y: cy + 40 },
+        { x: cx + 80, y: cy - 150 },
         { x: cx + 200, y: cy - 150 },
         { x: cx + 200, y: cy + 180 },
         { x: cx - 200, y: cy + 180 }
@@ -922,40 +729,40 @@ export default function SmartPlannerPage() {
         { x: cx - 200, y: cy - 150 },
         { x: cx + 200, y: cy - 150 },
         { x: cx + 200, y: cy - 30 },
-        { x: cx + 60,  y: cy - 30 },
-        { x: cx + 60,  y: cy + 180 },
-        { x: cx - 60,  y: cy + 180 },
-        { x: cx - 60,  y: cy - 30 },
+        { x: cx + 60, y: cy - 30 },
+        { x: cx + 60, y: cy + 180 },
+        { x: cx - 60, y: cy + 180 },
+        { x: cx - 60, y: cy - 30 },
         { x: cx - 200, y: cy - 30 }
       ];
     } else if (shape === 'cruciform') {
       pts = [
-        { x: cx - 60,  y: cy - 180 },
-        { x: cx + 60,  y: cy - 180 },
-        { x: cx + 60,  y: cy - 60 },
+        { x: cx - 60, y: cy - 180 },
+        { x: cx + 60, y: cy - 180 },
+        { x: cx + 60, y: cy - 60 },
         { x: cx + 180, y: cy - 60 },
         { x: cx + 180, y: cy + 60 },
-        { x: cx + 60,  y: cy + 60 },
-        { x: cx + 60,  y: cy + 180 },
-        { x: cx - 60,  y: cy + 180 },
-        { x: cx - 60,  y: cy + 60 },
+        { x: cx + 60, y: cy + 60 },
+        { x: cx + 60, y: cy + 180 },
+        { x: cx - 60, y: cy + 180 },
+        { x: cx - 60, y: cy + 60 },
         { x: cx - 180, y: cy + 60 },
         { x: cx - 180, y: cy - 60 },
-        { x: cx - 60,  y: cy - 60 }
+        { x: cx - 60, y: cy - 60 }
       ];
     }
-    
+
     // Snap all points to grid
     const snapped = pts.map(p => ({
       x: Math.round(p.x / CELL_PX) * CELL_PX,
       y: Math.round(p.y / CELL_PX) * CELL_PX
     }));
-    
+
     setPlotPoints(snapped);
     setPlotClosed(true);
     setDrawMode(null);
     setSelectedEdge(null);
-    
+
     // Auto-create site exterior as offset inside
     const sitePts = snapped.map(p => {
       const dx = p.x - cx;
@@ -1047,7 +854,7 @@ export default function SmartPlannerPage() {
     if (!ctx) return;
 
     ctx.clearRect(0, 0, CANVAS_W, CANVAS_H);
-    
+
     if (compareMode && generatedImageObjRef.current) {
       ctx.drawImage(generatedImageObjRef.current, 0, 0, CANVAS_W, CANVAS_H);
       // Dark semi-transparent overlay so the neon traces still pop
@@ -1062,24 +869,24 @@ export default function SmartPlannerPage() {
     if (!compareMode && bgImageRef.current && bgImageLoaded) {
       ctx.save();
       ctx.globalAlpha = bgOpacity;
-      
+
       const imgW = bgImageRef.current.width;
       const imgH = bgImageRef.current.height;
       const defaultScale = Math.min(CANVAS_W / imgW, CANVAS_H / imgH);
       const finalScale = defaultScale * bgScale;
-      
+
       const scaledW = imgW * finalScale;
       const scaledH = imgH * finalScale;
       const cx = (CANVAS_W - scaledW) / 2 + bgOffset.x;
       const cy = (CANVAS_H - scaledH) / 2 + bgOffset.y;
-      
+
       ctx.drawImage(bgImageRef.current, cx, cy, scaledW, scaledH);
       ctx.restore();
     }
 
     // ── Canvas border (glows based on active mode) ──────────────────────
     const borderColor = drawMode === 'plot' ? '#f97316' : drawMode === 'site' ? '#00f0ff' : '#22c55e44';
-    const borderGlow  = drawMode === 'plot' ? '#f9731640' : drawMode === 'site' ? '#00f0ff40' : '#22c55e20';
+    const borderGlow = drawMode === 'plot' ? '#f9731640' : drawMode === 'site' ? '#00f0ff40' : '#22c55e20';
     ctx.save();
     ctx.shadowColor = borderGlow; ctx.shadowBlur = 16;
     ctx.strokeStyle = borderColor; ctx.lineWidth = drawMode ? 3 : 1.5;
@@ -1168,7 +975,7 @@ export default function SmartPlannerPage() {
           const a = plotPoints[i], b = plotPoints[(i + 1) % plotPoints.length];
           let mx = (a.x + b.x) / 2;
           let my = (a.y + b.y) / 2;
-          
+
           const isSelected = selectedEdge && selectedEdge.list === 'plot' && selectedEdge.index === i;
 
           ctx.beginPath();
@@ -1192,14 +999,14 @@ export default function SmartPlannerPage() {
         for (let i = 0; i < plotPoints.length; i++) {
           const a = plotPoints[i], b = plotPoints[(i + 1) % plotPoints.length];
           const dx = b.x - a.x, dy = b.y - a.y;
-          const dM = (Math.sqrt(dx*dx + dy*dy) / CELL_PX * metersPerCell).toFixed(1);
+          const dM = (Math.sqrt(dx * dx + dy * dy) / CELL_PX * metersPerCell).toFixed(1);
           let mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2;
 
           ctx.save();
           ctx.font = 'bold 9px monospace'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
           const tw = ctx.measureText(`${dM}m`).width;
           ctx.fillStyle = 'rgba(20,10,0,0.85)';
-          ctx.fillRect(mx - tw/2 - 3, my - 7, tw + 6, 14);
+          ctx.fillRect(mx - tw / 2 - 3, my - 7, tw + 6, 14);
           ctx.fillStyle = '#fb923c'; ctx.fillText(`${dM}m`, mx, my);
           ctx.restore();
         }
@@ -1260,14 +1067,14 @@ export default function SmartPlannerPage() {
         for (let i = 0; i < sitePoints.length; i++) {
           const a = sitePoints[i], b = sitePoints[(i + 1) % sitePoints.length];
           const dx = b.x - a.x, dy = b.y - a.y;
-          const dM = (Math.sqrt(dx*dx + dy*dy) / CELL_PX * metersPerCell).toFixed(1);
+          const dM = (Math.sqrt(dx * dx + dy * dy) / CELL_PX * metersPerCell).toFixed(1);
           let mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2;
 
           ctx.save();
           ctx.font = 'bold 9px monospace'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
           const tw = ctx.measureText(`${dM}m`).width;
           ctx.fillStyle = 'rgba(0,20,20,0.85)';
-          ctx.fillRect(mx - tw/2 - 3, my - 7, tw + 6, 14);
+          ctx.fillRect(mx - tw / 2 - 3, my - 7, tw + 6, 14);
           ctx.fillStyle = '#67e8f9'; ctx.fillText(`${dM}m`, mx, my);
           ctx.restore();
         }
@@ -1283,17 +1090,17 @@ export default function SmartPlannerPage() {
       // Concentric snap rings at cursor
       ctx.save();
       ctx.strokeStyle = color + 'cc'; ctx.lineWidth = 1.5;
-      ctx.beginPath(); ctx.arc(hoverPoint.x, hoverPoint.y, 5, 0, Math.PI*2); ctx.stroke();
+      ctx.beginPath(); ctx.arc(hoverPoint.x, hoverPoint.y, 5, 0, Math.PI * 2); ctx.stroke();
       ctx.strokeStyle = color + '55'; ctx.lineWidth = 1;
-      ctx.beginPath(); ctx.arc(hoverPoint.x, hoverPoint.y, 9, 0, Math.PI*2); ctx.stroke();
-      ctx.beginPath(); ctx.arc(hoverPoint.x, hoverPoint.y, 13, 0, Math.PI*2); ctx.stroke();
+      ctx.beginPath(); ctx.arc(hoverPoint.x, hoverPoint.y, 9, 0, Math.PI * 2); ctx.stroke();
+      ctx.beginPath(); ctx.arc(hoverPoint.x, hoverPoint.y, 13, 0, Math.PI * 2); ctx.stroke();
       ctx.restore();
 
       // Line length annotation for current segment
       if (pts.length > 0) {
         const lastPt = pts[pts.length - 1];
         const dx = hoverPoint.x - lastPt.x, dy = hoverPoint.y - lastPt.y;
-        const distPx = Math.sqrt(dx*dx + dy*dy);
+        const distPx = Math.sqrt(dx * dx + dy * dy);
 
         if (distPx > 3) {
           const distM = (distPx / CELL_PX * metersPerCell).toFixed(1);
@@ -1320,7 +1127,7 @@ export default function SmartPlannerPage() {
           // Box
           ctx.fillStyle = 'rgba(5,15,5,0.93)';
           ctx.strokeStyle = color; ctx.lineWidth = 1;
-          ctx.beginPath(); ctx.roundRect(ox - bw/2, oy - bh/2, bw, bh, 4);
+          ctx.beginPath(); ctx.roundRect(ox - bw / 2, oy - bh / 2, bw, bh, 4);
           ctx.fill(); ctx.stroke();
           // Text
           ctx.fillStyle = colorLight; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
@@ -1365,9 +1172,9 @@ export default function SmartPlannerPage() {
       ctx.fillText(
         drawMode === 'plot'
           ? '● Drawing: PLOT BOUNDARY — click to add points, click first point to close'
-          : drawMode === 'site' 
-          ? '● Drawing: SITE EXTERIOR — click to add points, click first point to close'
-          : '● Move Map: Drag on the canvas to pan, scroll to zoom',
+          : drawMode === 'site'
+            ? '● Drawing: SITE EXTERIOR — click to add points, click first point to close'
+            : '● Move Map: Drag on the canvas to pan, scroll to zoom',
         10, CANVAS_H - 12
       );
     }
@@ -1383,7 +1190,7 @@ export default function SmartPlannerPage() {
     }
   }, [plotPoints, sitePoints, plotClosed, siteClosed, hoverPoint, drawMode, isGeneratingImage, CANVAS_W, CANVAS_H, currentRatio, metersPerCell, bgImageLoaded, bgOpacity, bgOffset, bgScale, compareMode, selectedEdge, draggingPoint]);
 
-  useEffect(() => { 
+  useEffect(() => {
     // Re-draw when canvas remounts after hiding the generated image or when deps change
     if (!showGeneratedImage) {
       requestAnimationFrame(drawCanvas);
@@ -1430,7 +1237,7 @@ export default function SmartPlannerPage() {
     const offsetY = (rect.height - renderedH) / 2;
     return {
       x: snapToGrid((e.clientX - rect.left - offsetX) / displayScale),
-      y: snapToGrid((e.clientY - rect.top  - offsetY) / displayScale),
+      y: snapToGrid((e.clientY - rect.top - offsetY) / displayScale),
     };
   };
 
@@ -1466,7 +1273,7 @@ export default function SmartPlannerPage() {
 
   const handleMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
     const coords = getCanvasCoords(e);
-    
+
     if (drawMode === 'map') {
       setIsDraggingMap(true);
       lastMousePos.current = { x: e.clientX, y: e.clientY };
@@ -1654,7 +1461,6 @@ export default function SmartPlannerPage() {
 
       // Pre-calculate prompts locally to display instantly in the debug console
       const meterPoints = activePts.map(p => ({ x: pxToMScaled(p.x), y: pxToMScaled(p.y) }));
-      const localStep1Prompt = buildFloorPlanPromptLocal(schedule, meterPoints);
       const localStep2SystemPrompt = `<role>
 You are an expert CAD draftsman and master architect specializing in strict floor plan shape-fitting.
 </role>
@@ -1692,7 +1498,7 @@ Design option variant identifier: [seed_id]. Make the layout slightly different 
       setDebugStep1BaseImage(imageBase64);
       setDebugStep1MaskImage(maskBase64);
       setDebugStep2TraceImage(visualTraceBase64);
-      setDebugStep1Prompt(localStep1Prompt);
+      // Step 1 prompt will be updated after API response (shows actual prompt sent to GPT-Image-2)
       setDebugStep2SystemPrompt(localStep2SystemPrompt);
       setDebugStep2UserPrompt(localStep2UserPrompt);
 
@@ -1720,12 +1526,10 @@ Design option variant identifier: [seed_id]. Make the layout slightly different 
       // Save Step 1 output image to debug state
       setDebugStep1OutputUrl(step1Data.imageUrl || '');
 
-      // STEP 1.5: Build deterministic Nano Banana prompt locally — no extra API call,
-      // no hallucination vector. The previous GPT-4o "Mastermind" middleman (temp 0.7,
-      // unconstrained prose) has been removed; this template is ground truth.
+      // STEP 1.5: Algorithmic Zoom-Out + Mastermind Strategy Prompt
       setGenerationPhase('mastermind');
       console.log('[FloorPlan] Zooming out GPT layout to safely fit inside trace bounds...');
-      
+
       const safelyScaledBase64 = await scaleImageToFitPolygon(
         step1Data.imageUrl,
         activePts,
@@ -1734,13 +1538,27 @@ Design option variant identifier: [seed_id]. Make the layout slightly different 
         currentRatio.falSize
       );
 
-      const flatCount = schedule.flats.length;
-      const flatLetters = schedule.flats.map((f: any) => f.name || f.id).join(', ');
-      const deterministicNanaBananaPrompt = `Redraw IMAGE 1 (the architectural schematic with ${flatCount} flat(s): ${flatLetters}) as a professional 2D CAD floor plan blueprint. CRITICAL FILL RULE: Any GRAY areas visible inside the building boundary are UNFILLED GAPS — you MUST extend nearby rooms or add new rooms to completely fill every gray patch until there is ZERO gray remaining inside the boundary. IMAGE 2 is the boundary trace — stretch and fill the rooms so the outer walls touch every edge of that boundary shape, especially at wing tips and extremities. Style: clean black double-line walls on pure white interior floors. Add door swing arcs, window panes in exterior walls, and crisp room labels. Background outside the boundary = solid black. Every flat and every room from IMAGE 1 must appear in the output. Do NOT add furniture, color fills, textures, or 3D elements.`;
+      setDebugStep15Schematic(safelyScaledBase64); // We use the zoomed-out layout for Step 2!
 
-      console.log('[FloorPlan] Deterministic Nano Banana prompt built locally.');
-      setDebugStep15Schematic(safelyScaledBase64);
-      setMastermindStrategy(deterministicNanaBananaPrompt);
+      // BUILD DETERMINISTIC PROMPT (Replacing the old hallucinating Mastermind)
+      const deterministicPrompt = `Examine the PRIMARY IMAGE (Schematic) and SECONDARY IMAGE (Trace Boundary). 
+Retain all rooms and flats exactly as shown in the PRIMARY IMAGE. Do not delete, merge, or omit any rooms. 
+
+CRITICAL GEOMETRY RULE: 
+Stretch, expand, and redesign the layout from the PRIMARY IMAGE to completely fill the white polygon shape inside the SECONDARY IMAGE. 
+Ensure the outer walls of the generated layout align perfectly with the outer edges of the boundary.
+The white area inside the boundary must be completely filled with rooms, corridors, or architectural voids (like courtyards). Do not leave lazy unused gray/black gaps.
+
+LAYOUT RULES:
+${schedule.flats.map((f: any, i: number) => {
+  const rooms = Array.isArray(f.rooms) ? f.rooms : Object.keys(f.rooms || {});
+  return `- Flat ${String.fromCharCode(65 + i)}: Must maintain exactly: [ ${rooms.join(', ')} ]`;
+}).join('\n')}
+
+Maximize the footprint so the outer walls touch the boundary line from the inside, ensuring no empty space remains within the trace boundary.
+Output a professional 2D CAD architectural floor plan. Clean black lines on a white background. Add door swing arcs, window panes, and room labels. Background outside the boundary MUST be solid black.`;
+
+      setMastermindStrategy(deterministicPrompt);
 
       // STEP 2: Style Polish & Render (Fal.ai / OpenAI)
       setGenerationPhase('step2');
@@ -1751,7 +1569,7 @@ Design option variant identifier: [seed_id]. Make the layout slightly different 
           schematicBase64: safelyScaledBase64,
           traceCanvasBase64: visualTraceBase64,
           aspectRatio: ratioId === 'square' ? '1:1' : ratioId === 'landscape' ? '4:3' : '3:4',
-          mastermindPrompt: deterministicNanaBananaPrompt,
+          mastermindPrompt: deterministicPrompt,
         }),
       });
 
@@ -1909,7 +1727,7 @@ Design option variant identifier: [seed_id]. Make the layout slightly different 
             </div>
           )}
           {debugStep15Schematic && (
-            <button 
+            <button
               onClick={() => { if (roomSchedule) generateFloorPlanImage(roomSchedule, true); }}
               className="text-[9px] uppercase tracking-widest px-2 py-1 bg-green-900/50 hover:bg-green-800 text-green-300 rounded border border-green-700 transition-colors"
             >
@@ -2005,7 +1823,7 @@ Design option variant identifier: [seed_id]. Make the layout slightly different 
                 <span className="text-[10px] uppercase font-bold tracking-wider text-blue-400">
                   Edge #{(selectedEdge.index + 1)}:
                 </span>
-                
+
                 {/* Split segment / add vertex button */}
                 <button
                   onClick={() => {
@@ -2063,9 +1881,8 @@ Design option variant identifier: [seed_id]. Make the layout slightly different 
                         setActivePreset(null);
                         undoStack.current = []; redoStack.current = [];
                       }}
-                      className={`w-full text-left px-4 py-2.5 text-[10px] flex items-center justify-between gap-4 hover:bg-green-500/10 transition-colors ${
-                        r.id === ratioId ? 'text-green-300 bg-green-500/10' : 'text-green-700'
-                      }`}
+                      className={`w-full text-left px-4 py-2.5 text-[10px] flex items-center justify-between gap-4 hover:bg-green-500/10 transition-colors ${r.id === ratioId ? 'text-green-300 bg-green-500/10' : 'text-green-700'
+                        }`}
                     >
                       <span>{r.label}</span>
                       {r.id === ratioId && <span className="text-green-400">✓</span>}
@@ -2153,11 +1970,10 @@ Design option variant identifier: [seed_id]. Make the layout slightly different 
                     setActivePreset(null);
                     undoStack.current = []; redoStack.current = [];
                   }}
-                  className={`px-2 py-1 text-[9px] font-bold rounded transition-all ${
-                    s === metersPerCell
+                  className={`px-2 py-1 text-[9px] font-bold rounded transition-all ${s === metersPerCell
                       ? 'bg-green-500/20 border border-green-400/60 text-green-300'
                       : 'border border-green-900/30 text-green-800 hover:text-green-600 hover:bg-green-500/10'
-                  }`}
+                    }`}
                 >
                   {s}m
                 </button>
@@ -2178,12 +1994,12 @@ Design option variant identifier: [seed_id]. Make the layout slightly different 
               </button>
             </div>
             <div className="text-[9px] text-green-900 border border-green-950 rounded px-2 py-1">
-              1 cell = {metersPerCell}m &nbsp;|&nbsp; {Math.floor(CANVAS_W/CELL_PX * metersPerCell)}m &times; {Math.floor(CANVAS_H/CELL_PX * metersPerCell)}m
+              1 cell = {metersPerCell}m &nbsp;|&nbsp; {Math.floor(CANVAS_W / CELL_PX * metersPerCell)}m &times; {Math.floor(CANVAS_H / CELL_PX * metersPerCell)}m
             </div>
           </div>
 
           {/* Canvas or Generated Image */}
-          <div 
+          <div
             className="shrink-0 p-8 flex items-center justify-center relative bg-[#030a03] border-b border-green-900/20 select-none overflow-auto"
             style={{ minHeight: `${CANVAS_H + 64}px` }}
           >
@@ -2217,14 +2033,14 @@ Design option variant identifier: [seed_id]. Make the layout slightly different 
               <span className="text-[9px] font-bold uppercase tracking-[2px] text-purple-300">AI Architect Pipeline Debugger (Real-time Payloads)</span>
               <div className="ml-auto text-[8px] text-purple-500 font-mono uppercase">Step 1 (Fal) &rarr; Step 2 (Gemini Pro)</div>
             </div>
-            
+
             <div className="flex-1 overflow-auto p-4 flex gap-4 divide-x divide-purple-950/40">
               {/* STEP 1: GPT-Image-2 Input & Output */}
               <div className="flex-1 flex flex-col gap-3 pr-4 min-w-[320px]">
                 <div className="text-[9px] font-bold text-amber-500 uppercase tracking-wider flex items-center gap-1.5 shrink-0">
                   <span className="w-1.5 h-1.5 rounded-full bg-amber-500" /> Step 1: GPT-Image-2 (DALL-E 2 Inpainting)
                 </div>
-                
+
                 {/* Images Row */}
                 <div className="flex gap-4 shrink-0 overflow-x-auto pb-1">
                   {debugStep1BaseImage && (
