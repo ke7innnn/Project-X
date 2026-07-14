@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Compare Images</title>
+  <style>
+    body { background: #111; color: #fff; font-family: sans-serif; text-align: center; }
+    .container { display: flex; justify-content: center; gap: 20px; margin-top: 50px; }
+    .img-box { border: 2px solid #444; padding: 10px; background: #222; }
+    img { max-width: 400px; max-height: 400px; display: block; margin-top: 10px; }
+  </style>
+</head>
+<body>
+  <h1>Image Comparison</h1>
+  <div class="container">
+    <div class="img-box">
+      <h3>Step 1 Layout (DALL-E 2)</h3>
+      <img src="https://v3b.fal.media/files/b/0aa1d952/EcB_DuegkXdVkWSAEzYzI_YoPQJ8Bj.png" alt="Step 1">
+    </div>
+    <div class="img-box">
+      <h3>Step 2 Layout (Gemini Output)</h3>
+      <!-- We load the saved image file relative to this html file -->
+      <img src="gemini_output.jpeg" alt="Step 2">
+    </div>
+  </div>
+</body>
+</html>
