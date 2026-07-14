@@ -294,7 +294,7 @@ function scaleImageToFitPolygon(
       };
 
       // 1. Calculate polygon bounding box in output resolution
-      const scaledPts = scalePoints(activePts, canvasW, canvasH, outSize.w, outSize.h);
+      const scaledPts = scalePoints(activePts, canvasW, canvasH, outSize.w, outSize.h, true, 24);
       if (scaledPts.length < 3) return resolve(imageUrl); // Fail safe
 
       let polyMinX = Infinity, polyMaxX = -Infinity, polyMinY = Infinity, polyMaxY = -Infinity;
@@ -562,7 +562,6 @@ function scaleImageToFitPolygon(
       ctx.closePath();
       ctx.clip();
 
-      // We map the relative offset back to the full image coordinates
       const imgDrawX = bestDrawX - fMinX * bestScale;
       const imgDrawY = bestDrawY - fMinY * bestScale;
       ctx.drawImage(img, imgDrawX, imgDrawY, img.width * bestScale, img.height * bestScale);

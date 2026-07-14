@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Architectural Inspiration Layout Templates</title>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #030804;
+      --panel: rgba(10, 25, 12, 0.6);
+      --border: rgba(40, 100, 50, 0.2);
+      --text: #e0eee0;
+      --text-muted: #8ca390;
+      --primary: #4ade80;
+      --primary-glow: rgba(74, 222, 128, 0.15);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      background-color: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 3rem 1.5rem;
+      background-image: 
+        radial-gradient(circle at 10% 20%, rgba(15, 50, 20, 0.15) 0%, transparent 40%),
+        radial-gradient(circle at 90% 80%, rgba(20, 60, 30, 0.15) 0%, transparent 40%);
+    }
+
+    .container {
+      max-width: 1400px;
+      margin: 0 auto;
+    }
+
+    header {
+      text-align: center;
+      margin-bottom: 4rem;
+    }
+
+    h1 {
+      font-size: 2.5rem;
+      font-weight: 700;
+      letter-spacing: -0.03em;
+      margin-bottom: 0.5rem;
+      background: linear-gradient(135deg, #ffffff 0%, var(--primary) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .subtitle {
+      color: var(--text-muted);
+      font-size: 1rem;
+      font-weight: 400;
+    }
+
+    .section-title {
+      font-size: 1.75rem;
+      font-weight: 600;
+      margin: 3rem 0 1.5rem 0;
+      color: #ffffff;
+      border-left: 4px solid var(--primary);
+      padding-left: 1rem;
+      letter-spacing: -0.02em;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
+      gap: 2rem;
+    }
+
+    .card {
+      background: var(--panel);
+      backdrop-filter: blur(16px);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 1.5rem;
+      transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+      display: flex;
+      flex-direction: column;
+      gap: 1.25rem;
+      box-shadow: 0 4px 30px rgba(0, 0, 0, 0.4);
+    }
+
+    .card:hover {
+      transform: translateY(-4px);
+      border-color: rgba(74, 222, 128, 0.4);
+      box-shadow: 0 12px 40px rgba(74, 222, 128, 0.1);
+    }
+
+    .card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .category-title {
+      font-size: 1.15rem;
+      font-weight: 600;
+      color: #ffffff;
+    }
+
+    .badge {
+      background: rgba(74, 222, 128, 0.1);
+      border: 1px solid rgba(74, 222, 128, 0.2);
+      color: var(--primary);
+      padding: 0.25rem 0.75rem;
+      border-radius: 99px;
+      font-size: 0.7rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .image-container {
+      position: relative;
+      width: 100%;
+      aspect-ratio: 1;
+      border-radius: 12px;
+      overflow: hidden;
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      background: #000;
+    }
+
+    .image-container img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      transition: transform 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .card:hover .image-container img {
+      transform: scale(1.03);
+    }
+
+    .card-footer {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+
+    .description {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      line-height: 1.5;
+    }
+
+    .filename {
+      font-family: monospace;
+      font-size: 0.75rem;
+      color: var(--primary);
+      opacity: 0.8;
+      background: rgba(0, 0, 0, 0.2);
+      padding: 0.25rem 0.5rem;
+      border-radius: 4px;
+      align-self: flex-start;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>Architectural Inspiration Library</h1>
+      <p class="subtitle">24 High-quality AutoCAD reference designs classified by shape presets (3 options per category)</p>
+    </header>
+
+    <!-- BOX CATEGORY -->
+    <h2 class="section-title">Box (Square/Rectangular Presets)</h2>
+    <div class="grid">
+      <div class="card">
+        <div class="card-header"><span class="category-title">Box Option 1</span><span class="badge">Option 1</span></div>
+        <div class="image-container"><img src="box-1.jpg" alt="Box 1"></div>
+        <div class="card-footer">
+          <p class="description">Central core corridor block layout, symmetrical double apartments.</p>
+          <span class="filename">box-1.jpg</span>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header"><span class="category-title">Box Option 2</span><span class="badge">Option 2</span></div>
+        <div class="image-container"><img src="box-2.jpg" alt="Box 2"></div>
+        <div class="card-footer">
+          <p class="description">Professional high-efficiency core design with standard staircase and lift.</p>
+          <span class="filename">box-2.jpg</span>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header"><span class="category-title">Box Option 3</span><span class="badge">Option 3</span></div>
+        <div class="image-container"><img src="box-3.jpg" alt="Box 3"></div>
+        <div class="card-footer">
+          <p class="description">Classic symmetrical floor plan detailing flat zoning with shared lobby.</p>
+          <span class="filename">box-3.jpg</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- L-SHAPE CATEGORY -->
+    <h2 class="section-title">L-Shape Presets</h2>
+    <div class="grid">
+      <div class="card">
+        <div class="card-header"><span class="category-title">L-Shape Option 1</span><span class="badge">Option 1</span></div>
+        <div class="image-container"><img src="l-shape-1.jpg" alt="L-Shape 1"></div>
+        <div class="card-footer">
+          <p class="description">Service core placed at inner elbow corner, branching to two flat wings.</p>
+          <span class="filename">l-shape-1.jpg</span>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header"><span class="category-title">L-Shape Option 2</span><span class="badge">Option 2</span></div>
+        <div class="image-container"><img src="l-shape-2.jpg" alt="L-Shape 2"></div>
+        <div class="card-footer">
+          <p class="description">Symmetrical wing partitions with staircases at the elbow corridor hub.</p>
+          <span class="filename">l-shape-2.jpg</span>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header"><span class="category-title">L-Shape Option 3</span><span class="badge">Option 3</span></div>
+        <div class="image-container"><img src="l-shape-3.jpg" alt="L-Shape 3"></div>
+        <div class="card-footer">
+          <p class="description">Alternate corner zoning separating horizontal and vertical wing flats.</p>
+          <span class="filename">l-shape-3.jpg</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- U-SHAPE CATEGORY -->
+    <h2 class="section-title">U-Shape Presets</h2>
+    <div class="grid">
+      <div class="card">
+        <div class="card-header"><span class="category-title">U-Shape Option 1</span><span class="badge">Option 1</span></div>
+        <div class="image-container"><img src="u-shape-1.jpg" alt="U-Shape 1"></div>
+        <div class="card-footer">
+          <p class="description">Symmetrical layout wrapping around a centralized open courtyard.</p>
+          <span class="filename">u-shape-1.jpg</span>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header"><span class="category-title">U-Shape Option 2</span><span class="badge">Option 2</span></div>
+        <div class="image-container"><img src="u-shape-2.jpg" alt="U-Shape 2"></div>
+        <div class="card-footer">
+          <p class="description">Connector wing houses the lift core, keeping left/right wings private.</p>
+          <span class="filename">u-shape-2.jpg</span>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header"><span class="category-title">U-Shape Option 3</span><span class="badge">Option 3</span></div>
+        <div class="image-container"><img src="u-shape-3.jpg" alt="U-Shape 3"></div>
+        <div class="card-footer">
+          <p class="description">Direct natural light courtyard corridor alignment.</p>
+          <span class="filename">u-shape-3.jpg</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- T-SHAPE CATEGORY -->
+    <h2 class="section-title">T-Shape Presets</h2>
+    <div class="grid">
+      <div class="card">
+        <div class="card-header"><span class="category-title">T-Shape Option 1</span><span class="badge">Option 1</span></div>
+        <div class="image-container"><img src="t-shape-1.jpg" alt="T-Shape 1"></div>
+        <div class="card-footer">
+          <p class="description">Central staircase core lobby serving three branching layout wings.</p>
+          <span class="filename">t-shape-1.jpg</span>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header"><span class="category-title">T-Shape Option 2</span><span class="badge">Option 2</span></div>
+        <div class="image-container"><img src="t-shape-2.jpg" alt="T-Shape 2"></div>
+        <div class="card-footer">
+          <p class="description">Clean horizontal and vertical stem split with centralized corridor core.</p>
+          <span class="filename">t-shape-2.jpg</span>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header"><span class="category-title">T-Shape Option 3</span><span class="badge">Option 3</span></div>
+        <div class="image-container"><img src="t-shape-3.jpg" alt="T-Shape 3"></div>
+        <div class="card-footer">
+          <p class="description">Compact three-wing private bedroom distribution layout.</p>
+          <span class="filename">t-shape-3.jpg</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- CRUCIFORM CATEGORY -->
+    <h2 class="section-title">Cruciform Presets (Cross)</h2>
+    <div class="grid">
+      <div class="card">
+        <div class="card-header"><span class="category-title">Cruciform Option 1</span><span class="badge">Option 1</span></div>
+        <div class="image-container"><img src="cruciform-1.png" alt="Cruciform 1"></div>
+        <div class="card-footer">
+          <p class="description">Central lift and stair lobby serving 4 symmetrical branching flats.</p>
+          <span class="filename">cruciform-1.png</span>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header"><span class="category-title">Cruciform Option 2</span><span class="badge">Option 2</span></div>
+        <div class="image-container"><img src="cruciform-2.png" alt="Cruciform 2"></div>
+        <div class="card-footer">
+          <p class="description">Symmetrical four-wing layout plan maximizing corner ventilation.</p>
+          <span class="filename">cruciform-2.png</span>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header"><span class="category-title">Cruciform Option 3</span><span class="badge">Option 3</span></div>
+        <div class="image-container"><img src="cruciform-3.png" alt="Cruciform 3"></div>
+        <div class="card-footer">
+          <p class="description">Single-loaded outer corridors with centered lobby.</p>
+          <span class="filename">cruciform-3.png</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- BUTTERFLY CATEGORY -->
+    <h2 class="section-title">Butterfly (Hexagonal Wings)</h2>
+    <div class="grid">
+      <div class="card">
+        <div class="card-header"><span class="category-title">Butterfly Option 1</span><span class="badge">Option 1</span></div>
+        <div class="image-container"><img src="butterfly-1.png" alt="Butterfly 1"></div>
+        <div class="card-footer">
+          <p class="description">Symmetrical 45-degree horizontal wings branching outward from center core.</p>
+          <span class="filename">butterfly-1.png</span>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header"><span class="category-title">Butterfly Option 2</span><span class="badge">Option 2</span></div>
+        <div class="image-container"><img src="butterfly-2.png" alt="Butterfly 2"></div>
+        <div class="card-footer">
+          <p class="description">Wide angle symmetrical single-loaded corridor apartment wings.</p>
+          <span class="filename">butterfly-2.png</span>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header"><span class="category-title">Butterfly Option 3</span><span class="badge">Option 3</span></div>
+        <div class="image-container"><img src="butterfly-3.png" alt="Butterfly 3"></div>
+        <div class="card-footer">
+          <p class="description">Radial hexagonal wings with central elevator foyer link.</p>
+          <span class="filename">butterfly-3.png</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Y-SHAPE CATEGORY -->
+    <h2 class="section-title">Y-Shape (Tri-Star)</h2>
+    <div class="grid">
+      <div class="card">
+        <div class="card-header"><span class="category-title">Y-Shape Option 1</span><span class="badge">Option 1</span></div>
+        <div class="image-container"><img src="y-shape-1.jpg" alt="Y-Shape 1"></div>
+        <div class="card-footer">
+          <p class="description">Symmetrical 3-wing radial layout with a circular central lift lobby.</p>
+          <span class="filename">y-shape-1.jpg</span>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header"><span class="category-title">Y-Shape Option 2</span><span class="badge">Option 2</span></div>
+        <div class="image-container"><img src="y-shape-2.jpg" alt="Y-Shape 2"></div>
+        <div class="card-footer">
+          <p class="description">Double loaded radial corridors branching 120-degrees apart.</p>
+          <span class="filename">y-shape-2.jpg</span>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header"><span class="category-title">Y-Shape Option 3</span><span class="badge">Option 3</span></div>
+        <div class="image-container"><img src="y-shape-3.jpg" alt="Y-Shape 3"></div>
+        <div class="card-footer">
+          <p class="description">Three-wing zoning maximizing natural wind drafts and natural light.</p>
+          <span class="filename">y-shape-3.jpg</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- H-SHAPE CATEGORY -->
+    <h2 class="section-title">H-Shape (Dumbbell)</h2>
+    <div class="grid">
+      <div class="card">
+        <div class="card-header"><span class="category-title">H-Shape Option 1</span><span class="badge">Option 1</span></div>
+        <div class="image-container"><img src="h-shape-1.jpg" alt="H-Shape 1"></div>
+        <div class="card-footer">
+          <p class="description">Symmetrical layout using a central light well shaft to ventilate bathrooms.</p>
+          <span class="filename">h-shape-1.jpg</span>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header"><span class="category-title">H-Shape Option 2</span><span class="badge">Option 2</span></div>
+        <div class="image-container"><img src="h-shape-2.jpg" alt="H-Shape 2"></div>
+        <div class="card-footer">
+          <p class="description">Dumbbell building layout with centered corridors and flanking vertical courtyards.</p>
+          <span class="filename">h-shape-2.jpg</span>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header"><span class="category-title">H-Shape Option 3</span><span class="badge">Option 3</span></div>
+        <div class="image-container"><img src="h-shape-3.jpg" alt="H-Shape 3"></div>
+        <div class="card-footer">
+          <p class="description">Double light well dumbbell corridor split plan layout.</p>
+          <span class="filename">h-shape-3.jpg</span>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</body>
+</html>

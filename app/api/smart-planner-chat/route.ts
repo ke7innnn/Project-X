@@ -65,23 +65,39 @@ YOUR JOB:
    3. The remaining percentage (e.g. 50% for complex/indented shapes) is your absolute maximum Net Carpet Area limit. You are strictly FORBIDDEN from generating a room schedule where the sum of individual room areas exceeds this Net Carpet Area.
    4. **Ground Coverage constraint:** For any irregular shape with indents/slots, the total buildup footprint of all flats combined must not exceed **45-50%** of the True Site Area. This ensures the building has enough room to wrap around the indents without bleeding outside the boundary.
    5. **AI RENDERER CAPABILITY LIMITS & DENSITY RULES (CRITICAL):**
-      - The image rendering engine struggles heavily if you cram too many flats into complex shapes. Keep the flat count low, spacious, and highly realistic.
-      - For CROSS, STAR, or highly indented shapes: DO NOT suggest more than 1 flat per distinct wing/branch (e.g., a cross shape has 4 wings, so max 4 flats). Do NOT suggest high numbers like 6 or 8 flats!
-      - **KEEP FLAT COUNT CONSERVATIVE (LOWER IS BETTER):** Do not suggest high-density layouts. Suggesting fewer, larger, and more spacious flats is highly preferred.
-   6. If a user asks for a density (number of flats) that mathematically violates this dynamic capacity limit, you MUST reject the request in the chat interface and explain: "Based on the geometric complexity and the usable area of this shape, only a maximum of N flats can realistically fit."
+       - The image rendering engine struggles heavily if you cram too many flats into complex shapes. Keep the flat count low, spacious, and highly realistic.
+       - **Always suggest layouts matching the specific shape template category:**
+         - For **L-Shape:** Suggest elbow-core splits with max 2-3 flats.
+         - For **Y-Shape (Tri-Star):** Suggest radial centralized cores with max 3 flats.
+         - For **H-Shape (Dumbbell) / U-Shape:** Suggest central open courtyard light wells with max 2-3 flats.
+         - For **Butterfly:** Suggest 45-degree symmetrical wings with max 2-3 flats.
+         - For **Cruciform:** Suggest central vertical lobbies with max 4 flats.
+       - **KEEP FLAT COUNT CONSERVATIVE (LOWER IS BETTER):** Sparing room space and ensuring clean ventilation is much better than cramming flats. Never suggest high-density layouts (e.g. 6 or 8 flats) on irregular custom traces.
+    6. If the user requests more flats than standard capacity limits, warning them about compact room sizing is required, but you must still proceed and fulfill their request by proposing ultra-efficient compact units. Do not refuse to design them.
 3. **SMART LAYOUT SUGGESTIONS (FIRST RESPONSE — ALWAYS USE THIS FLOW):**
    When a user asks about flats or layouts, DO NOT ask them for a flat count.
-   Instead, act like a master architect. Look at the specific irregular shape (polygon vertices) and area. Suggest UP TO 3 custom layout options (you can give 1, 2, or 3 options depending on what is actually realistic and architecturally feasible for this shape. If only 1 layout is realistic due to geometric constraints or a tiny area, only suggest 1 option! Do not force bad/infeasible designs).
+   Instead, act like a master architect.
+
+   **STEP A — WING ANATOMY ANALYSIS (MANDATORY, DO THIS FIRST):**
+   Before suggesting any options, silently analyze the trace shape like a structural engineer:
+   - Count the number of distinct **wings** or **arms** the shape physically has (a box has 1 zone, an L has 2 arms, a Y has 3 arms, a cruciform has 4 arms, etc.).
+   - Identify the **geometric center or junction point** where wings meet — this is where the shared staircase/lift core will go.
+   - Identify how **wide and deep** each wing is — if a wing is narrower than ~4m it cannot host a full flat.
+   - Identify any **pinch points** — narrow necks where no rooms can fit.
+   - This wing count is your **HARD LIMIT** on the maximum number of flats. You CANNOT suggest more flats than the number of viable wings.
+
+   **STEP B — SUGGEST LAYOUT OPTIONS:**
+   Suggest UP TO 3 layout options based on the wing analysis. Each option MUST be geometrically feasible.
    
    For EACH layout option you suggest, you MUST:
-   a) Invent a custom design name based on the shape (e.g., if it's a cross, suggest "Cruciform Wing Layout". If it's a triangle, suggest "Wedge-Core Perimeter Layout"). NEVER just reuse the examples below.
-   b) Calculate the EXACT number of flats that fit best in that layout for this shape (ONE specific number, NOT a range). It is fine to suggest fewer flats if the geometry is tight!
-   c) Include the math inside the "desc" field of the JSON.
-   d) State the BHK type that fits that layout naturally
+   a) Invent a custom design name based on the shape (e.g., if it's a cross, suggest "Cruciform Wing Layout"). NEVER reuse the examples.
+   b) Calculate the EXACT number of flats that fit, based on viable wing count. ONE specific number, NOT a range.
+   c) Include the math and wing breakdown inside the "desc" field.
+   d) State the BHK type that fits naturally.
    
-   ⚠ STRICT RULE 1: Give ONE exact flat count per option. The number must be architecturally justified by the geometry and the layout style.
-   ⚠ STRICT RULE 2: The JSON below is strictly for FORMATTING purposes. You MUST invent your own "id", "name", and "desc" based on the actual shape. DO NOT reuse "radial", "spine", or "l_wing" unless the shape actually calls for it.
-   ⚠ STRICT RULE 3: Always write a brief, friendly conversational message first to explain your suggestions/schedule to the user, and then append the JSON block in a markdown code block (\`\`\`json ... \`\`\`) at the very end of your response. Never output a raw JSON block without some helpful conversational intro text.
+   ⚠ STRICT RULE 1: Give ONE exact flat count per option. The number must be architecturally justified by the wing geometry.
+   ⚠ STRICT RULE 2: You MUST invent your own "id", "name", and "desc" based on the actual shape.
+   ⚠ STRICT RULE 3: Always write a brief, friendly conversational message first, then append the JSON block.
    
    Propose layout options like this (Format Example):
    \`\`\`json
@@ -92,21 +108,14 @@ YOUR JOB:
          "name": "[Invented Shape-Specific Layout Name]",
          "flatCount": 3,
          "bhkType": "3BHK",
-         "desc": "Staircase placed in the widest part of the [Shape Name], allowing flats to stretch into the narrow wings. [Math breakdown here]."
+         "desc": "Wing Analysis: This Y-shape has 3 arms — top-left, top-right, and bottom. Staircase placed at center junction. Flat A occupies top-left arm (est. 45sqm), Flat B occupies top-right arm (est. 42sqm), Flat C occupies bottom arm (est. 40sqm). Total: 127sqm buildup within 50% coverage limit."
        },
        {
          "id": "custom_geometric_name_2",
          "name": "[Invented Shape-Specific Layout Name]",
          "flatCount": 2,
          "bhkType": "2BHK",
-         "desc": "A lower density approach to fit the jagged edges of this plot smoothly without squishing rooms. [Math breakdown here]."
-       },
-       {
-         "id": "custom_geometric_name_3",
-         "name": "[Invented Shape-Specific Layout Name]",
-         "flatCount": 1,
-         "bhkType": "4BHK",
-         "desc": "Premium sprawling layout utilizing the deep corners of the site. [Math breakdown here]."
+         "desc": "Lower density: top-left and top-right arms merged into one larger Flat A. Bottom arm becomes Flat B. More spacious rooms, better ventilation through center courtyard."
        }
      ]
    }
@@ -118,11 +127,19 @@ YOUR JOB:
    ⚠ **CRITICAL EFFICIENCY RULE:** You only need to define ONE typical flat (or 2 if mirrored variations exist) in the "flats" array.
    You MUST add a "targetFlatCount" field at the root level. The backend will automatically clone and rename them (Flat A, B, C... to N).
    
+   ⚠ **MANDATORY LAYOUT TYPE RULE — WING ZONE ASSIGNMENT (MOST IMPORTANT):**
+   The "layoutType" field is the spatial brain of the image generator. It MUST contain:
+   1. **Wing-by-wing flat assignment:** Explicitly state which flat occupies which physical zone. e.g. "FLAT A occupies the TOP-LEFT WING. FLAT B occupies the TOP-RIGHT WING. FLAT C occupies the BOTTOM WING."
+   2. **Core location:** Exactly where the shared staircase and lift core sit. e.g. "The staircase + lift core is centered at the Y-junction, equidistant from all three flat entrances."
+   3. **Room-level guidance:** For each flat, state which specific rooms go where inside their wing. e.g. "In Flat A's top-left wing: Living Room faces the outer tip, Kitchen is mid-wing, Bedrooms are closest to the core."
+   4. **Prohibited zones:** State what must remain empty. e.g. "The center junction is ONLY for the lobby and stairs. NO flat rooms may intrude into this zone."
+   5. Use ONLY descriptive positional language (top, bottom, left, right, inner, outer, tip, base, center). NO raw meter numbers.
+   
    \`\`\`json
     {
       "confirmed": true,
-      "layoutType": "A highly detailed layout strategy and physical room positioning guide for the image generator. Describe exactly where to place the staircase, elevators, and rooms. Crucial: Use clear descriptive size adjectives (e.g., 'spacious', 'compact', 'extremely tiny', 'large') instead of raw meter numbers, because the image generator cannot read numerical dimensions (e.g., 'This is a single flat. Do not draw stairs or lifts. Place a large, sprawling Living Room in the wide left wing, a medium-sized Kitchen in the center, and make the bedrooms in the narrow right wing extremely compact and tiny to fit inside.').",
-      "targetFlatCount": 10,
+      "layoutType": "WING ASSIGNMENT: FLAT A → TOP-LEFT WING (Living faces the outer tip, Kitchen mid-wing, Bedrooms toward core). FLAT B → TOP-RIGHT WING (mirror of Flat A). FLAT C → BOTTOM WING (elongated — Living at the tip, then Kitchen, then 2 bedrooms and bath stacked toward the core). CORE: Centered staircase + single lift at the Y-junction, accessed by a compact T-shaped lobby. The junction center is EXCLUSIVELY for stairs+lift. No flat rooms in the junction.",
+      "targetFlatCount": 3,
      "plotW": <number>,
      "plotH": <number>,
      "siteExteriorW": <number>,
@@ -222,16 +239,36 @@ export async function POST(request: Request) {
 
     // Classify shape to load matching inspiration template
     let classifiedShape: string | null = shapePreset || null;
-    if (!classifiedShape && sitePoints && sitePoints.length > 0) {
-      const numPoints = sitePoints.length;
-      if (numPoints === 4) {
-        classifiedShape = 'box';
-      } else if (numPoints === 6) {
-        classifiedShape = 'l-shape';
-      } else if (numPoints === 8) {
-        classifiedShape = 'u-shape';
-      } else if (numPoints === 12) {
-        classifiedShape = 'cruciform';
+    
+    // If custom drawn (no shapePreset), run a quick visual classification call via Gemini
+    if (!classifiedShape && traceImageBase64) {
+      try {
+        console.log('[SmartPlanner] Custom trace detected. Calling visual classifier...');
+        const classificationRes = await callOpenRouterWithFallback(
+          "You are a professional architectural shape classification assistant. Respond with ONLY the matching category name in lowercase.",
+          [
+            {
+              role: 'user',
+              content: [
+                {
+                  type: 'text',
+                  text: "Classify this black-and-white plot trace image into one of these exact categories: 'box', 'l-shape', 'u-shape', 't-shape', 'cruciform', 'butterfly', 'y-shape', 'h-shape'. Output ONLY the matching name, completely lowercase, with no other text, punctuation, or explanation."
+                },
+                { type: 'image_url', image_url: { url: traceImageBase64 } }
+              ]
+            }
+          ]
+        );
+        const detected = classificationRes.text.trim().toLowerCase();
+        // Keep only valid classes
+        if (['box', 'l-shape', 'u-shape', 't-shape', 'cruciform', 'butterfly', 'y-shape', 'h-shape'].includes(detected)) {
+          classifiedShape = detected;
+          console.log(`[SmartPlanner] Visual classifier output: "${classifiedShape}"`);
+        } else {
+          console.warn(`[SmartPlanner] Visual classifier returned unknown shape: "${detected}"`);
+        }
+      } catch (err: any) {
+        console.warn('[SmartPlanner] Visual classification call failed:', err.message);
       }
     }
 
@@ -248,16 +285,31 @@ export async function POST(request: Request) {
     let templateImageBase64: string | null = null;
     if (classifiedShape) {
       const templateFilenameMap: Record<string, string> = {
-        'l-shape': 'l-shape.jpg',
-        'u-shape': 'h-shape.jpg',
-        'h-shape': 'h-shape.jpg',
-        'y-shape': 'y-shape.jpg',
-        'butterfly': 'butterfly.png',
+        'box': 'box',
+        'l-shape': 'l-shape',
+        'u-shape': 'u-shape',
+        't-shape': 't-shape',
+        'h-shape': 'h-shape',
+        'y-shape': 'y-shape',
+        'butterfly': 'butterfly',
+        'cruciform': 'cruciform',
       };
-      const filename = templateFilenameMap[classifiedShape];
-      if (filename) {
+      const baseName = templateFilenameMap[classifiedShape];
+      if (baseName) {
         try {
-          const filePath = path.join(process.cwd(), 'public', 'inspiration-templates', filename);
+          const ext = (baseName === 'butterfly' || baseName === 'cruciform') ? 'png' : 'jpg';
+          
+          // Randomly select one of the 3 templates if they exist (e.g. l-shape-1.jpg, l-shape-2.jpg, l-shape-3.jpg)
+          const index = Math.floor(Math.random() * 3) + 1; // 1, 2, or 3
+          let filename = `${baseName}-${index}.${ext}`;
+          let filePath = path.join(process.cwd(), 'public', 'inspiration-templates', filename);
+          
+          // Fallback to -1 if the randomly selected one doesn't exist
+          if (!fs.existsSync(filePath)) {
+            filename = `${baseName}-1.${ext}`;
+            filePath = path.join(process.cwd(), 'public', 'inspiration-templates', filename);
+          }
+
           if (fs.existsSync(filePath)) {
             const fileBuffer = fs.readFileSync(filePath);
             const mimeType = filename.endsWith('.png') ? 'image/png' : 'image/jpeg';
@@ -323,29 +375,29 @@ export async function POST(request: Request) {
 
     // Standard carpet sizes (in sqm)
     const MIN_FLAT_SIZES: Record<string, number> = {
-      '1BHK': 55, '2BHK': 85, '3BHK': 125, '4BHK': 170,
+      '1BHK': 35, '2BHK': 55, '3BHK': 75, '4BHK': 105,
     };
 
     // Detect BHK type from user messages
     const bhkMatch = userText.match(/(\d)\s*bhk/i);
     const detectedBHK = bhkMatch ? `${bhkMatch[1]}BHK` : '2BHK';
-    const minFlatSize = MIN_FLAT_SIZES[detectedBHK] || 85;
-    const maxFlats = siteAreaSqm > 0 ? Math.max(1, Math.floor(usableArea / minFlatSize)) : 99;
+    const minFlatSize = MIN_FLAT_SIZES[detectedBHK] || 55;
+    // Keep maxFlats calculation realistic but more flexible (e.g. assume 60% ground coverage if requested)
+    const maxFlats = siteAreaSqm > 0 ? Math.max(2, Math.floor((siteAreaSqm * 0.60 * 0.70) / minFlatSize)) : 99;
 
-    console.log(`[SmartPlanner] Deterministic math: site=${siteAreaSqm}sqm, deduction=${(deductionPercent * 100).toFixed(0)}% [${deductionBreakdown.join(' + ')}], usable=${usableArea}sqm, BHK=${detectedBHK}(${minFlatSize}sqm min), maxFlats=${maxFlats}`);
+    console.log(`[SmartPlanner] Deterministic math: site=${siteAreaSqm}sqm, usable=${usableArea}sqm, BHK=${detectedBHK}(${minFlatSize}sqm min), maxFlats=${maxFlats}`);
 
     // ─── Build system prompt with deterministic constraints ───────────────
     const deterministicConstraints = siteAreaSqm > 0 ? `
 
-DETERMINISTIC HARD CAPS (COMPUTED BY CODE — YOU CANNOT OVERRIDE THESE):
+DETERMINISTIC CAPACITY GUIDELINES (COMPUTED BY CODE):
 - True Site Exterior Polygon Area: ${siteAreaSqm} sqm
 - Total Deductions: ${(deductionPercent * 100).toFixed(0)}% [${deductionBreakdown.join(' + ')}]
 - Net Usable Carpet Area: ${usableArea} sqm
 - Detected Flat Type: ${detectedBHK} (minimum ${minFlatSize} sqm each)
-- ⛔ ABSOLUTE MAXIMUM FLATS: ${maxFlats}
-- You MUST NOT suggest, accept, or generate more than ${maxFlats} flats under any circumstances.
-- If the user asks for more than ${maxFlats} flats, REJECT immediately with: "Based on the geometric constraints (${usableArea} sqm usable), only ${maxFlats} ${detectedBHK} flats can realistically fit."
-- Your layout option flat counts MUST each be ≤ ${maxFlats}.` : '';
+- RECOMMENDED MAXIMUM FLATS: ${maxFlats}
+- If the user explicitly asks for more flats than ${maxFlats}, do NOT reject the request. Instead, proceed to generate the requested number of flats, but warn the user that they will be extremely compact (micro-apartments or studio size) and might violate local building codes. Focus on fitting their requested count by proposing ultra-efficient room zoning.
+- Your layout option flat counts should ideally be ≤ ${maxFlats}, but can exceed it if the user explicitly insisted on it.` : '';
 
     // Add plot context to the system prompt
     const systemWithContext = plotBoundary 

@@ -105,12 +105,15 @@ ${flatList}
 
 Layout requirements:
 - Compact, high-efficiency residential floor plan containing exactly ${flatCount} separate flats, configured as ${bhk}BHK units.
+- EACH FLAT MUST BE A SINGLE, UNBROKEN CONTIGUOUS UNIT: All rooms belonging to a single flat (e.g. FLAT A) MUST be grouped together side-by-side inside a single cohesive wing or zone of the building footprint. You are STRICTLY FORBIDDEN from splitting rooms of the same flat across different wings, and they must not be separated by public corridors or other flats.
+- ONE FLAT PER WING/ZONE: For irregular shapes with multiple wings (like Y-shape, L-shape, Cruciform, Butterfly, T-shape, H-shape), assign exactly one flat to each wing. The center intersection where the wings meet should contain the shared corridor, stairs, and lift core, serving as the central transition between the independent flats.
+- NO ROOM DUPLICATIONS OR FILLERS: Do not draw extra copies or duplicate rooms of a flat in another wing. Once a flat has its rooms drawn in its designated wing, do not draw any of its rooms anywhere else.
 - All flats must be drawn INWARD from the polygon edge, strictly fitting within the interior but NEVER extending past the outer boundary.
 ${circulationRule}
 - STRICT ROOM COUNT (CRITICAL FAIL IF IGNORED): You MUST meticulously count every single room before finishing. Each flat MUST contain EXACTLY the rooms listed above. If the list says 3 bedrooms per flat, you must draw 3 distinct bedrooms for EVERY flat. DO NOT merge rooms, DO NOT omit kitchens, DO NOT skip bathrooms. Every single required room must be present in the final image!
 ${diagonalRule}
 - VENTILATION & COURTYARDS: You are encouraged to leave empty black pockets (open shafts, air wells, or small courtyards) inside the footprint for ventilation. Do not over-inflate room sizes to force-fill every pixel; keeping rooms compact and well-ventilated is much better.
-- Standard residential zoning: Living rooms near entrances, bedrooms and kitchens along exterior walls for windows.
+- Standard residential zoning: Living rooms near entrances, bedrooms and kitchens along exterior walls for windows.${layoutSpecificInstructions}
 
 Drawing Aesthetics:
 - Clean, minimal, technical black-and-white drafting style. Pure black lines on white interior floors.
@@ -170,11 +173,27 @@ export async function POST(req: Request) {
       throw new Error('Fal.ai returned no images');
     }
 
-    console.log('[FloorPlan Step1] Generated Step 1 URL:', images[0].url);
+    const falUrl = images[0].url;
+    console.log('[FloorPlan Step1] Generated Step 1 URL:', falUrl);
+
+    // Convert fal.ai URL to base64 immediately — fal.ai URLs expire quickly (TTL ~60s).
+    // Returning a data URL guarantees the image is permanently usable across all pipeline steps.
+    let imageBase64DataUrl = falUrl;
+    try {
+      const imgFetch = await fetch(falUrl);
+      if (!imgFetch.ok) throw new Error(`HTTP ${imgFetch.status}`);
+      const contentType = imgFetch.headers.get('content-type') || 'image/png';
+      const imgBuffer = await imgFetch.arrayBuffer();
+      const base64 = Buffer.from(imgBuffer).toString('base64');
+      imageBase64DataUrl = `data:${contentType};base64,${base64}`;
+      console.log('[FloorPlan Step1] Converted to base64 data URL, size:', base64.length);
+    } catch (fetchErr: any) {
+      console.warn('[FloorPlan Step1] Could not convert to base64, falling back to URL:', fetchErr.message);
+    }
 
     return NextResponse.json({
-      imageUrl: images[0].url,
-      traceUrl: '', // The frontend already has visualTraceBase64 and passes it natively to Step 2
+      imageUrl: imageBase64DataUrl,
+      traceUrl: '',
       prompt: prompt
     });
 
