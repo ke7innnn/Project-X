@@ -766,6 +766,7 @@ export default function SmartPlannerPage() {
 
   const loadPresetShape = useCallback((shape: 'box' | 'l-shape' | 'u-shape' | 't-shape' | 'cruciform') => {
     pushUndo({ plotPts: plotPoints, sitePts: sitePoints, plotClosed, siteClosed });
+    setActivePreset(shape);
     
     const cx = Math.round(CANVAS_W / 2 / CELL_PX) * CELL_PX;
     const cy = Math.round(CANVAS_H / 2 / CELL_PX) * CELL_PX;
@@ -898,6 +899,7 @@ export default function SmartPlannerPage() {
   const chatEndRef = useRef<HTMLDivElement>(null);
 
   const [roomSchedule, setRoomSchedule] = useState<RoomSchedule | null>(null);
+  const [activePreset, setActivePreset] = useState<'box' | 'l-shape' | 'u-shape' | 't-shape' | 'cruciform' | null>(null);
   const [generatedImageUrls, setGeneratedImageUrls] = useState<string[]>([]);
   const [activeImageIndex, setActiveImageIndex] = useState<number>(0);
   const generatedImageUrl = generatedImageUrls[activeImageIndex] || null;
@@ -1330,6 +1332,7 @@ export default function SmartPlannerPage() {
       }
       pushUndo({ plotPts: plotPoints, sitePts: sitePoints, plotClosed, siteClosed });
       setPlotPoints(prev => [...prev, { x, y }]);
+      setActivePreset(null);
     }
     if (drawMode === 'site' && !siteClosed) {
       if (sitePoints.length >= 3) {
@@ -1666,6 +1669,7 @@ Design option variant identifier: [seed_id]. Make the layout slightly different 
           plotBoundary: getPlotContext(),
           plotPoints: plotPoints.map(p => ({ x: pxToMScaled(p.x), y: pxToMScaled(p.y) })),
           sitePoints: sitePoints.map(p => ({ x: pxToMScaled(p.x), y: pxToMScaled(p.y) })),
+          shapePreset: activePreset,
         }),
       });
       const data = await res.json();
@@ -1707,6 +1711,7 @@ Design option variant identifier: [seed_id]. Make the layout slightly different 
           plotBoundary: getPlotContext(),
           plotPoints: plotPoints.map(p => ({ x: pxToMScaled(p.x), y: pxToMScaled(p.y) })),
           sitePoints: sitePoints.map(p => ({ x: pxToMScaled(p.x), y: pxToMScaled(p.y) })),
+          shapePreset: activePreset,
         }),
       });
       const data = await res.json();
@@ -1924,6 +1929,7 @@ Design option variant identifier: [seed_id]. Make the layout slightly different 
                         // Clear traces when ratio changes — they'd be on wrong canvas
                         setPlotPoints([]); setSitePoints([]);
                         setPlotClosed(false); setSiteClosed(false);
+                        setActivePreset(null);
                         undoStack.current = []; redoStack.current = [];
                       }}
                       className={`w-full text-left px-4 py-2.5 text-[10px] flex items-center justify-between gap-4 hover:bg-green-500/10 transition-colors ${
@@ -2013,6 +2019,7 @@ Design option variant identifier: [seed_id]. Make the layout slightly different 
                     // Clear traces — measurements would be wrong on old scale
                     setPlotPoints([]); setSitePoints([]);
                     setPlotClosed(false); setSiteClosed(false);
+                    setActivePreset(null);
                     undoStack.current = []; redoStack.current = [];
                   }}
                   className={`px-2 py-1 text-[9px] font-bold rounded transition-all ${
@@ -2033,7 +2040,7 @@ Design option variant identifier: [seed_id]. Make the layout slightly different 
                 </div>
               )}
               <button
-                onClick={() => { setPlotPoints([]); setSitePoints([]); setPlotClosed(false); setSiteClosed(false); setDrawMode(null); setRoomSchedule(null); setGeneratedImageUrls([]); setActiveImageIndex(0); setShowGeneratedImage(false); setCompareMode(false); setGenerationError(null); undoStack.current = []; redoStack.current = []; }}
+                onClick={() => { setPlotPoints([]); setSitePoints([]); setPlotClosed(false); setSiteClosed(false); setDrawMode(null); setRoomSchedule(null); setGeneratedImageUrls([]); setActiveImageIndex(0); setShowGeneratedImage(false); setCompareMode(false); setGenerationError(null); setActivePreset(null); undoStack.current = []; redoStack.current = []; }}
                 className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] uppercase tracking-wider rounded border border-red-900/40 text-red-700 hover:bg-red-500/10 hover:text-red-500 transition-all"
               >
                 <RotateCcw size={11} /> Reset

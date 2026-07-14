@@ -1,4 +1,6 @@
 import { NextResponse } from 'next/server';
+import fs from 'fs';
+import path from 'path';
 
 export const maxDuration = 60;
 
@@ -47,9 +49,15 @@ YOUR JOB:
 
 2. **GEOMETRY FEASIBILITY CHECK (CRITICAL):**
    ### CRITICAL DENSITY & CARPET AREA RULES (MUST OBEY):
-   1. **CRITICAL VISUAL ANALYSIS (THE TRACE IMAGE):**
-      You are provided with a visual trace image of the plot boundary (a black polygon on a white canvas). YOU MUST LOOK AT THIS IMAGE carefully! The image reveals the exact geometric shape, deep cutouts, narrow pinch points, and the number of physical "wings" or branches the shape has. Your architectural layout suggestions MUST be mathematically bound by the physical reality of this image. (e.g. If the image shows a cross with 4 distinct wings, you are physically limited to 4 flats maximum. Do not hallucinate extra space!)
-   2. **DETERMINE SITE SHAPE COMPLEXITY & DEDUCTION PERCENTAGE:**
+    1. **CRITICAL VISUAL ANALYSIS (THE TRACE IMAGE & INSPIRATION TEMPLATE):**
+       - **The Trace Image:** You are provided with a visual trace image of the plot boundary (a black polygon on a white canvas). YOU MUST LOOK AT THIS IMAGE carefully! The image reveals the exact geometric shape, deep cutouts, narrow pinch points, and the number of physical "wings" or branches the shape has. Your architectural layout suggestions MUST be mathematically bound by the physical reality of this image. (e.g. If the image shows a cross with 4 distinct wings, you are physically limited to 4 flats maximum. Do not hallucinate extra space!)
+       - **The Inspiration Template Image:** A second image may be attached representing a professional, clean floor plan designed for the same shape family (e.g. L-shape, Tri-star radial, Butterfly, H-shape dumbbell). YOU MUST LOOK AT THIS TEMPLATE to take layout inspiration:
+         - Notice where a professional architect places the service core (stairs, elevator lobby, foyer).
+         - Notice how corridors branch to distribute flat entrances cleanly.
+         - Notice the general zoning and partition of flats.
+         - **CRITICAL:** Ignore all furniture, colors, textures, text values, dimensions, or grid lines in the template image. Focus only on the spatial floor plan division.
+         - In your room schedule output, describe in "layoutType" how to replicate this professional staircase, elevator core, and corridor arrangement inside the user's custom-traced boundary.
+    2. **DETERMINE SITE SHAPE COMPLEXITY & DEDUCTION PERCENTAGE:**
       Analyze the visual shape, number of vertices, and indents of the custom shape polygon:
       - **Simple Shapes (4-5 vertices, e.g., Square, Rectangle):** Deduct a base of **25%** from the 'True Site Exterior Polygon Area' for corridors, staircases, and walls.
       - **Medium Shapes (6-8 vertices, e.g., L-shape, U-shape, clean hexagon):** Deduct **35%** from the 'True Site Exterior Polygon Area' due to corner inefficiencies.
@@ -208,7 +216,59 @@ async function callOpenRouterWithFallback(
 
 export async function POST(request: Request) {
   try {
-    const { messages, plotBoundary, plotPoints, sitePoints, traceImageBase64 } = await request.json();
+    const { messages, plotBoundary, plotPoints, sitePoints, traceImageBase64, shapePreset } = await request.json();
+
+    const userText = messages.map((m: any) => m.content).join(' ').toLowerCase();
+
+    // Classify shape to load matching inspiration template
+    let classifiedShape: string | null = shapePreset || null;
+    if (!classifiedShape && sitePoints && sitePoints.length > 0) {
+      const numPoints = sitePoints.length;
+      if (numPoints === 4) {
+        classifiedShape = 'box';
+      } else if (numPoints === 6) {
+        classifiedShape = 'l-shape';
+      } else if (numPoints === 8) {
+        classifiedShape = 'u-shape';
+      } else if (numPoints === 12) {
+        classifiedShape = 'cruciform';
+      }
+    }
+
+    // Keyword scans to support user descriptions (e.g. butterfly, radial star, dumbbell)
+    if (userText.includes('butterfly') || userText.includes('hexagonal')) {
+      classifiedShape = 'butterfly';
+    } else if (userText.includes('y-shape') || userText.includes('tri-star') || userText.includes('radial')) {
+      classifiedShape = 'y-shape';
+    } else if (userText.includes('h-shape') || userText.includes('dumbbell')) {
+      classifiedShape = 'h-shape';
+    }
+
+    // Load template image base64
+    let templateImageBase64: string | null = null;
+    if (classifiedShape) {
+      const templateFilenameMap: Record<string, string> = {
+        'l-shape': 'l-shape.jpg',
+        'u-shape': 'h-shape.jpg',
+        'h-shape': 'h-shape.jpg',
+        'y-shape': 'y-shape.jpg',
+        'butterfly': 'butterfly.png',
+      };
+      const filename = templateFilenameMap[classifiedShape];
+      if (filename) {
+        try {
+          const filePath = path.join(process.cwd(), 'public', 'inspiration-templates', filename);
+          if (fs.existsSync(filePath)) {
+            const fileBuffer = fs.readFileSync(filePath);
+            const mimeType = filename.endsWith('.png') ? 'image/png' : 'image/jpeg';
+            templateImageBase64 = `data:${mimeType};base64,${fileBuffer.toString('base64')}`;
+            console.log(`[SmartPlanner] Loaded inspiration template for shape "${classifiedShape}": ${filename}`);
+          }
+        } catch (err: any) {
+          console.warn('[SmartPlanner] Failed to load template image:', err.message);
+        }
+      }
+    }
 
     // Prepare polygon coordinates context
     const plotCoordinatesText = plotPoints && plotPoints.length > 0
@@ -221,7 +281,6 @@ export async function POST(request: Request) {
     // ─── LAYER 1: Deterministic Area Math ─────────────────────────────────
     // Never let the LLM guess — compute the ceiling in code.
     const siteAreaSqm = plotBoundary?.siteAreaM || 0;
-    const userText = messages.map((m: any) => m.content).join(' ').toLowerCase();
 
     // Calculate base shape deduction deterministically based on the number of vertices
     const numPoints = sitePoints?.length || plotPoints?.length || 0;
@@ -307,12 +366,18 @@ ${deterministicConstraints}`
       const lastUserIndex = finalMessages.map((m: any) => m.role).lastIndexOf('user');
       if (lastUserIndex !== -1) {
         const originalText = finalMessages[lastUserIndex].content;
+        const contentArray: any[] = [
+          { type: 'text', text: originalText },
+          { type: 'image_url', image_url: { url: traceImageBase64 } }
+        ];
+
+        if (templateImageBase64) {
+          contentArray.push({ type: 'image_url', image_url: { url: templateImageBase64 } });
+        }
+
         finalMessages[lastUserIndex] = {
           role: 'user',
-          content: [
-            { type: 'text', text: originalText },
-            { type: 'image_url', image_url: { url: traceImageBase64 } }
-          ]
+          content: contentArray
         };
       }
     }
