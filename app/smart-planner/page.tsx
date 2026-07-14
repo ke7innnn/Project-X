@@ -1467,6 +1467,11 @@ export default function SmartPlannerPage() {
   // ── Generate floor plan image via GPT-Image-2 ────────────────────────────
   const generateFloorPlanImage = async (schedule: RoomSchedule, resumeStep2 = false) => {
     if (resumeStep2 && debugStep15Schematic && debugStep2TraceImage) {
+      // Compute activePts here (mirrors the logic below) so the clip has the correct polygon
+      const resumePlotPts = plotClosed ? plotPoints : [];
+      const resumeSitePts = (siteClosed || sitePoints.length >= 3) ? sitePoints : resumePlotPts;
+      const resumeActivePts = resumeSitePts.length > 0 ? resumeSitePts : resumePlotPts;
+
       setIsGeneratingImage(true);
       setGenerationPhase('step2');
       setGenerationError(null);
@@ -1486,7 +1491,16 @@ export default function SmartPlannerPage() {
 
         setDebugStep2SystemPrompt(step2Data.systemPrompt || '');
         setDebugStep2UserPrompt(step2Data.userPrompt || '');
-        setGeneratedImageUrls(step2Data.imageUrls || []);
+
+        // Hard-clip output to polygon boundary
+        const rawUrls2: string[] = step2Data.imageUrls || [];
+        const clippedUrls2 = await Promise.all(
+          rawUrls2.map(url =>
+            scaleImageToFitPolygon(url, resumeActivePts, CANVAS_W, CANVAS_H, currentRatio.falSize)
+              .catch(() => url)
+          )
+        );
+        setGeneratedImageUrls(clippedUrls2);
         setActiveImageIndex(0);
         setShowGeneratedImage(true);
       } catch (err: any) {
@@ -1641,7 +1655,18 @@ Design option variant identifier: [seed_id]. Make the layout slightly different 
       setDebugStep2SystemPrompt(step2Data.systemPrompt || '');
       setDebugStep2UserPrompt(step2Data.userPrompt || '');
 
-      setGeneratedImageUrls(step2Data.imageUrls || []);
+      // Hard-clip each Step 2 output to the polygon boundary using canvas clipping mask.
+      // This surgically removes any content that bled outside the trace, regardless of model behavior.
+      console.log('[FloorPlan] Applying hard polygon clip to Step 2 output(s)...');
+      const rawUrls: string[] = step2Data.imageUrls || [];
+      const clippedUrls = await Promise.all(
+        rawUrls.map(url =>
+          scaleImageToFitPolygon(url, activePts, CANVAS_W, CANVAS_H, currentRatio.falSize)
+            .catch(() => url) // fall back to original if clip fails
+        )
+      );
+
+      setGeneratedImageUrls(clippedUrls);
       setActiveImageIndex(0);
       setShowGeneratedImage(true);
     } catch (err: any) {
