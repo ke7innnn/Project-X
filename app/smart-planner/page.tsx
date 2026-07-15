@@ -1570,10 +1570,32 @@ Design option variant identifier: [seed_id]. Make the layout slightly different 
 
       const flatCount = schedule.flats.length;
       const flatDescriptions = schedule.flats.map((f: any, i: number) => {
-        const roomNames = (Array.isArray(f.rooms) ? f.rooms.map((r: any) => r.name || r) : Object.keys(f.rooms || {})).join(', ');
-        return `Flat ${String.fromCharCode(65 + i)} (${f.name || f.id}): ${roomNames}`;
+        const roomCounts = (Array.isArray(f.rooms) ? f.rooms : []).reduce((acc: any, r: any) => {
+          const name = r.name || r;
+          acc[name] = (acc[name] || 0) + 1;
+          return acc;
+        }, {});
+        const roomList = Object.entries(roomCounts).map(([name, count]) => `${count}x ${name}`).join(', ');
+        return `FLAT ${String.fromCharCode(65 + i)}: ${roomList}`;
       }).join('. ');
-      const deterministicNanaBananaPrompt = `Examine the PRIMARY IMAGE and SECONDARY IMAGE. Retain all rooms and flats exactly as shown in the PRIMARY IMAGE. Do not delete, merge, or omit any rooms. Stretch and expand the layout to completely fill the boundary of the SECONDARY IMAGE. Ensure the outer walls of the layout align with the outer edges of the trace boundary. The layout includes ${flatCount} flat(s) with a central core for the junction and lobby. Each flat must maintain all specified rooms: ${flatDescriptions}. Do not add any extra rooms. Maximize the footprint so the outer walls touch the boundary line from the inside, ensuring no empty space remains within the trace boundary.`;
+      
+      const coreText = flatCount > 1 ? " One shared staircase and one lift at the central junction." : "";
+
+      const deterministicNanaBananaPrompt = `IMAGE 1 is a draft floor plan inside a thick RED boundary on a black background. IMAGE 2 shows the same required outline.
+
+Redraw IMAGE 1 as ONE clean professional 2D CAD floor plan that FILLS the entire red boundary — no black or empty space left anywhere inside the red line.
+
+FILL RULES:
+- The outer walls of the plan must sit exactly on the red boundary line, matching its shape corner for corner, all the way to every tip and corner.
+- Enlarge, stretch and extend the existing rooms outward until they reach the red line on all sides. Wherever a room meets the boundary, its outer wall becomes the boundary wall.
+- Fill wide areas with rooms. Fill long or narrow strips with a corridor, passage, balcony, or utility space running the full length so no gap stays black.
+- Every part of the interior must be occupied — rooms, corridors, or labelled open space. Zero black pockets inside the red line.
+
+KEEP EXACTLY: [${flatDescriptions}]. Do not add, delete, or merge rooms.${coreText}
+
+Outside the red line stays solid black. No red in the final image.
+
+Style: thin black double-line walls, door swing arcs, window ticks on exterior walls, uppercase room labels.`;
 
       console.log('[FloorPlan] Deterministic Nano Banana prompt built locally.');
       setDebugStep15Schematic(safelyScaledBase64);

@@ -83,19 +83,16 @@ export async function POST(req: Request) {
       return finalImageUrl;
     };
 
-    // Fire both generations in parallel for speed
-    const [img1, img2] = await Promise.all([
-      generateOne('seed-1'),
-      generateOne('seed-2'),
-    ]);
+    // Fire a single generation
+    const img1 = await generateOne('seed-1');
 
-    const imageUrls = [img1, img2];
-    console.log(`[FloorPlan Step3] Success — generated ${imageUrls.length} variations.`);
+    const imageUrls = [img1];
+    console.log(`[FloorPlan Step3] Success — generated 1 variation.`);
 
     return NextResponse.json({
       imageUrls,
       systemPrompt: prompt,
-      userPrompt: `SCHEMATIC IMAGE: [Mastermind Output]\nTRACE IMAGE: [Trace Boundary]\nMODEL: fal-ai/nano-banana-pro/edit (2 seeds)`
+      userPrompt: `SCHEMATIC IMAGE: [Mastermind Output]\nTRACE IMAGE: [Trace Boundary]\nMODEL: fal-ai/nano-banana-pro/edit`
     });
 
   } catch (err: any) {

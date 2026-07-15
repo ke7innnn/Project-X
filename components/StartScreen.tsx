@@ -70,6 +70,7 @@ export default function StartScreen() {
     { id: 'enhancement', label: 'ENHANCEMENT', badge: 'NEW' },
     { id: 'png-to-dxf', label: 'PNG TO DXF' },
     { id: 'smart-planner', label: 'SMART PLANNER', badge: 'BETA' },
+    { id: 'concept-generator', label: 'CONCEPT GENERATOR', badge: 'NEW' },
     { id: 'flythrough', label: 'FLYTHROUGH' }
   ];
 
@@ -1113,8 +1114,12 @@ NOTE: Each time Master Umesh asks for the brief, these stories are shuffled rand
         router.push('/vector-editor');
       });
     } else if (stageId === 'smart-planner') {
-      speak("Smart Planner.", () => {
+      speak("Opening Smart Planner.", () => {
         router.push('/smart-planner');
+      });
+    } else if (stageId === 'concept-generator') {
+      speak("Initiating Concept Generator.", () => {
+        router.push('/concept-generator');
       });
     } else if (stageId === 'flythrough') {
       setStorePhase('edit');
