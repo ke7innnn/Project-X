@@ -18,31 +18,38 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Missing traceCanvasBase64' }, { status: 400 });
     }
 
-    console.log('[ConceptGenerator] Initializing Nano Banana Pro Edit for concept generation...');
+    console.log('[ConceptGenerator] Initializing xai/grok-imagine-image/edit for concept generation...');
 
     const uploadedTraceUrl = traceCanvasBase64;
 
-    const prompt = `IMAGE 1 is an empty boundary trace on a white background. IMAGE 2 is the exact same empty boundary trace.
+    const prompt = `The input image is a building boundary. The exterior background is solid black. The interior building footprint is solid white, enclosed by a red border line.
 
-Fill this entire shape with a beautiful, creative, and highly detailed conceptual floor plan. You decide how many rooms, flats, or spaces to add. 
+Redraw this shape as a highly detailed, professional 2D CAD architectural floor plan blueprint inside the white area.
 
-FILL RULES:
-- Ensure the outer walls sit perfectly on the red/black boundary edge.
-- Fill the entire space with rooms and corridors.
-- Zero empty pockets inside the boundary.
+RULES:
+- Keep the background outside the shape solid black. Do not paint anything on the black area.
+- The outer walls of the floor plan must sit exactly on the red boundary line, matching its shape precisely.
+- Ignore the black area completely; only edit and paint inside the white sheet.
+- You must subdivide the white area into multiple independent apartments/flats (e.g. FLAT A, FLAT B) and a shared circulation area (corridor, staircase, lift) if the space allows.
+- Fill the entire white area with rooms, corridors, and service shafts so that there are zero empty white spaces or gaps remaining.
+- The layout must consist of standard configurations (1BHK, 2BHK, 3BHK, or 4BHK units).
+  * A 1BHK has exactly: 1x Living Room, 1x Kitchen, 1x Bedroom, 1x Bathroom.
+  * A 2BHK has exactly: 1x Living Room, 1x Kitchen, 2x Bedroom, 1x Bathroom/WC.
+  * A 3BHK has exactly: 1x Living Room, 1x Kitchen, 3x Bedroom, 2x Bathroom.
+  * A 4BHK has exactly: 1x Living Room, 1x Kitchen, 4x Bedroom, 3x Bathroom.
+- Style: thin black double-line walls, doors shown as swing arcs, windows as ticks in exterior walls, and crisp room labels in uppercase (LIVING, BEDROOM, KITCHEN, BATH, CORRIDOR).
+- Flat white room floors, black-and-white drafting, no furniture, no color fills, no shading, and no 3D elements.`;
 
-Style: professional 2D CAD blueprint, thin black double-line walls, door swing arcs, window ticks, crisp room labels in uppercase. Outside the boundary must be solid black.`;
-
-    const result = await fal.subscribe('fal-ai/nano-banana-pro/edit', {
+    const result = await fal.subscribe('xai/grok-imagine-image/edit', {
       input: {
-        image_urls: [uploadedTraceUrl, uploadedTraceUrl], // Pass trace as both source and controlnet
+        image_url: uploadedTraceUrl,
         prompt,
       },
     });
 
     const images = (result as any)?.images || (result.data as any)?.images;
     if (!images || images.length === 0) {
-      throw new Error(`Nano Banana Pro Edit returned no images`);
+      throw new Error(`xai/grok-imagine-image/edit returned no images`);
     }
 
     const imageUrl = images[0].url;
@@ -78,7 +85,7 @@ Style: professional 2D CAD blueprint, thin black double-line walls, door swing a
     return NextResponse.json({
       imageUrls: [finalImageUrl],
       systemPrompt: prompt,
-      userPrompt: `TRACE IMAGE: [Trace Boundary]\nMODEL: fal-ai/nano-banana-pro/edit`
+      userPrompt: `TRACE IMAGE: [Trace Boundary]\nMODEL: xai/grok-imagine-image/edit`
     });
 
   } catch (err: any) {
