@@ -371,7 +371,16 @@ function scaleImageToFitPolygon(
         }
       } else {
         // Fallback grid if no active boundaries found
-        downsampledPts.push({ x: floorCx, y: floorCy });
+        // Use a 5x5 grid across the bounding box to ensure it shrinks to fit
+        const gridSteps = 5;
+        for (let i = 0; i <= gridSteps; i++) {
+          for (let j = 0; j <= gridSteps; j++) {
+            downsampledPts.push({
+              x: fMinX + (floorW * i) / gridSteps,
+              y: fMinY + (floorH * j) / gridSteps
+            });
+          }
+        }
       }
 
       // Map points relative to floor plan bounding box top-left
@@ -380,96 +389,117 @@ function scaleImageToFitPolygon(
         y: p.y - fMinY
       }));
 
-      // 3. Find best scale + position.
+      // 3. Minimum-shrink algorithm:
+      //    Start at S_max (largest possible scale). At each scale, do a 15×15 grid
+      //    search for the position where ZERO layout boundary points are outside the
+      //    polygon. Stop the instant we find scale+position = zero overflow.
+      //    That gives us the minimum shrink needed to fully contain the layout.
       //
-      // STRATEGY: We clip the layout to the polygon no matter what, so we do NOT
-      // need every boundary sample-point to land "inside" the concave polygon.
-      // For complex concave shapes (tridents, L-shapes), most rectangular layout
-      // points naturally land in the notch areas and would never score >90%, causing
-      // the old algorithm to shrink all the way to 15% of max — way too small.
-      //
-      // NEW APPROACH:
-      //   1. S_max = largest scale where the layout bbox fits inside the polygon bbox.
-      //   2. Hard cap: never shrink below 98% of S_max (at most 2% shrink).
-      //   3. For each scale (S_max → S_max*0.98), search a 20×20 position grid.
-      //      Score = distance of layout-centroid from polygon-centroid (lower = better).
-      //   4. Pick the largest scale with the most-centred position.
-      //   5. Fine-tune ±20px / 2px steps.
+      //    If zero overflow is never achieved (very complex shape), we fall back to
+      //    the scale/position that had the fewest overflow points.
 
-      const S_max = Math.min(polyW / (floorW || 1), polyH / (floorH || 1));
-      const S_min = S_max * 0.98; // Hard floor – never shrink more than 2%
+      const S_max = Math.min(1.0, Math.min(polyW / (floorW || 1), polyH / (floorH || 1)));
+      const SCALE_STEP = 0.005;   // 0.5% per step
+      const MAX_STEPS  = Math.ceil(S_max / SCALE_STEP); // allow up to 100% shrink if needed to fit perfectly
+      const GRID_N     = 15;      // 15×15 = 225 candidate positions per scale
 
       let bestScale = S_max;
-      // Default: centre layout over polygon centroid at S_max
-      let bestDrawX = polyCx - (floorCx * bestScale);
-      let bestDrawY = polyCy - (floorCy * bestScale);
-      let bestCenteringDist = Infinity;
+      let bestDrawX = polyCx - floorCx * S_max;
+      let bestDrawY = polyCy - floorCy * S_max;
+      let bestOverflowSeen = Infinity;
+      let foundZeroOverflow = false;
 
-      // Coarse pass: 20×20 position grid; try at most ~10 scale steps within the 2% range
-      const numScaleSteps = 10;
-      for (let si = 0; si <= numScaleSteps; si++) {
-        const scale = S_max - (S_max - S_min) * (si / numScaleSteps);
+      for (let si = 0; si <= MAX_STEPS; si++) {
+        const scale = S_max - SCALE_STEP * si;
+        if (scale <= 0) break;
+
         const layoutW = floorW * scale;
         const layoutH = floorH * scale;
 
-        // Keep layout inside polygon bounding box
         const minDrawX = polyMinX;
         const maxDrawX = Math.max(polyMinX, polyMaxX - layoutW);
         const minDrawY = polyMinY;
         const maxDrawY = Math.max(polyMinY, polyMaxY - layoutH);
+        const rangeX   = maxDrawX - minDrawX;
+        const rangeY   = maxDrawY - minDrawY;
 
-        const rangeX = maxDrawX - minDrawX;
-        const rangeY = maxDrawY - minDrawY;
-        const xSteps = 20;
-        const ySteps = 20;
+        let stepBestOverflow = Infinity;
+        let stepBestDist     = Infinity;
+        let stepBestX = minDrawX + rangeX / 2;
+        let stepBestY = minDrawY + rangeY / 2;
 
-        for (let ix = 0; ix <= xSteps; ix++) {
-          const drawX = minDrawX + (xSteps > 0 ? (rangeX * ix) / xSteps : 0);
-          for (let iy = 0; iy <= ySteps; iy++) {
-            const drawY = minDrawY + (ySteps > 0 ? (rangeY * iy) / ySteps : 0);
+        for (let ix = 0; ix <= GRID_N; ix++) {
+          const drawX = minDrawX + (GRID_N > 0 ? (rangeX * ix) / GRID_N : 0);
+          for (let iy = 0; iy <= GRID_N; iy++) {
+            const drawY = minDrawY + (GRID_N > 0 ? (rangeY * iy) / GRID_N : 0);
 
-            // Score: centring quality only (smaller dist = better centred)
-            const layoutCx = drawX + layoutW / 2;
-            const layoutCy = drawY + layoutH / 2;
-            const dist = Math.hypot(layoutCx - polyCx, layoutCy - polyCy);
+            // Count how many layout boundary points land outside the polygon
+            let overflow = 0;
+            for (const rp of relPts) {
+              if (!isPointInPolygon({ x: drawX + rp.x * scale, y: drawY + rp.y * scale }, scaledPts)) {
+                overflow++;
+              }
+            }
 
-            // Prefer larger scale first; only accept smaller scale if notably better centred
-            if (dist < bestCenteringDist) {
-              bestCenteringDist = dist;
-              bestScale = scale;
-              bestDrawX = drawX;
-              bestDrawY = drawY;
+            // Tiebreak: prefer more centred layout
+            const dist = Math.hypot(drawX + layoutW / 2 - polyCx, drawY + layoutH / 2 - polyCy);
+            if (overflow < stepBestOverflow || (overflow === stepBestOverflow && dist < stepBestDist)) {
+              stepBestOverflow = overflow;
+              stepBestDist     = dist;
+              stepBestX = drawX;
+              stepBestY = drawY;
             }
           }
         }
 
-        // If we already have a well-centred result at or near S_max, stop early
-        if (si === 0 && bestCenteringDist < (polyW + polyH) * 0.05) break;
-      }
+        if (stepBestOverflow === 0) {
+          // Zero overflow at this (largest so far) scale — perfect result
+          bestScale = scale;
+          bestDrawX = stepBestX;
+          bestDrawY = stepBestY;
+          foundZeroOverflow = true;
+          break;
+        }
 
-      // Fine-Tuning Pass: ±20px with 2px steps around best position
-      const fineRange = 20;
-      const fineStep = 2;
-      let fineBestX = bestDrawX;
-      let fineBestY = bestDrawY;
-      let fineBestCenteringDist = bestCenteringDist;
-
-      for (let dx = -fineRange; dx <= fineRange; dx += fineStep) {
-        for (let dy = -fineRange; dy <= fineRange; dy += fineStep) {
-          const candX = bestDrawX + dx;
-          const candY = bestDrawY + dy;
-          const layoutCx = candX + (floorW * bestScale) / 2;
-          const layoutCy = candY + (floorH * bestScale) / 2;
-          const dist = Math.hypot(layoutCx - polyCx, layoutCy - polyCy);
-          if (dist < fineBestCenteringDist) {
-            fineBestCenteringDist = dist;
-            fineBestX = candX;
-            fineBestY = candY;
-          }
+        // Track the globally best result in case we never reach zero
+        if (stepBestOverflow < bestOverflowSeen) {
+          bestOverflowSeen = stepBestOverflow;
+          bestScale  = scale;
+          bestDrawX  = stepBestX;
+          bestDrawY  = stepBestY;
         }
       }
-      bestDrawX = fineBestX;
-      bestDrawY = fineBestY;
+
+      // Fine-tune: ±15px in 1px steps at the chosen scale to nail the exact sweet spot
+      {
+        const fineRange = 15;
+        let fineBestX        = bestDrawX;
+        let fineBestY        = bestDrawY;
+        let fineBestOverflow = Infinity;
+        let fineBestDist     = Infinity;
+
+        for (let dx = -fineRange; dx <= fineRange; dx++) {
+          for (let dy = -fineRange; dy <= fineRange; dy++) {
+            const candX = bestDrawX + dx;
+            const candY = bestDrawY + dy;
+            let overflow = 0;
+            for (const rp of relPts) {
+              if (!isPointInPolygon({ x: candX + rp.x * bestScale, y: candY + rp.y * bestScale }, scaledPts)) {
+                overflow++;
+              }
+            }
+            const dist = Math.hypot(candX + (floorW * bestScale) / 2 - polyCx, candY + (floorH * bestScale) / 2 - polyCy);
+            if (overflow < fineBestOverflow || (overflow === fineBestOverflow && dist < fineBestDist)) {
+              fineBestOverflow = overflow;
+              fineBestDist     = dist;
+              fineBestX = candX;
+              fineBestY = candY;
+            }
+          }
+        }
+        bestDrawX = fineBestX;
+        bestDrawY = fineBestY;
+      }
 
       // 3.5 Detect overflow boundary points (white layout pixels outside polygon after best fit)
       const overflowSrcPts: { srcX: number; srcY: number }[] = [];
@@ -1538,27 +1568,16 @@ Design option variant identifier: [seed_id]. Make the layout slightly different 
         currentRatio.falSize
       );
 
-      setDebugStep15Schematic(safelyScaledBase64); // We use the zoomed-out layout for Step 2!
+      const flatCount = schedule.flats.length;
+      const flatDescriptions = schedule.flats.map((f: any, i: number) => {
+        const roomNames = (Array.isArray(f.rooms) ? f.rooms.map((r: any) => r.name || r) : Object.keys(f.rooms || {})).join(', ');
+        return `Flat ${String.fromCharCode(65 + i)} (${f.name || f.id}): ${roomNames}`;
+      }).join('. ');
+      const deterministicNanaBananaPrompt = `Examine the PRIMARY IMAGE and SECONDARY IMAGE. Retain all rooms and flats exactly as shown in the PRIMARY IMAGE. Do not delete, merge, or omit any rooms. Stretch and expand the layout to completely fill the boundary of the SECONDARY IMAGE. Ensure the outer walls of the layout align with the outer edges of the trace boundary. The layout includes ${flatCount} flat(s) with a central core for the junction and lobby. Each flat must maintain all specified rooms: ${flatDescriptions}. Do not add any extra rooms. Maximize the footprint so the outer walls touch the boundary line from the inside, ensuring no empty space remains within the trace boundary.`;
 
-      // BUILD DETERMINISTIC PROMPT (Replacing the old hallucinating Mastermind)
-      const deterministicPrompt = `Examine the PRIMARY IMAGE (Schematic) and SECONDARY IMAGE (Trace Boundary). 
-Retain all rooms and flats exactly as shown in the PRIMARY IMAGE. Do not delete, merge, or omit any rooms. 
-
-CRITICAL GEOMETRY RULE: 
-Stretch, expand, and redesign the layout from the PRIMARY IMAGE to completely fill the white polygon shape inside the SECONDARY IMAGE. 
-Ensure the outer walls of the generated layout align perfectly with the outer edges of the boundary.
-The white area inside the boundary must be completely filled with rooms, corridors, or architectural voids (like courtyards). Do not leave lazy unused gray/black gaps.
-
-LAYOUT RULES:
-${schedule.flats.map((f: any, i: number) => {
-  const rooms = Array.isArray(f.rooms) ? f.rooms : Object.keys(f.rooms || {});
-  return `- Flat ${String.fromCharCode(65 + i)}: Must maintain exactly: [ ${rooms.join(', ')} ]`;
-}).join('\n')}
-
-Maximize the footprint so the outer walls touch the boundary line from the inside, ensuring no empty space remains within the trace boundary.
-Output a professional 2D CAD architectural floor plan. Clean black lines on a white background. Add door swing arcs, window panes, and room labels. Background outside the boundary MUST be solid black.`;
-
-      setMastermindStrategy(deterministicPrompt);
+      console.log('[FloorPlan] Deterministic Nano Banana prompt built locally.');
+      setDebugStep15Schematic(safelyScaledBase64);
+      setMastermindStrategy(deterministicNanaBananaPrompt);
 
       // STEP 2: Style Polish & Render (Fal.ai / OpenAI)
       setGenerationPhase('step2');
@@ -1569,7 +1588,7 @@ Output a professional 2D CAD architectural floor plan. Clean black lines on a wh
           schematicBase64: safelyScaledBase64,
           traceCanvasBase64: visualTraceBase64,
           aspectRatio: ratioId === 'square' ? '1:1' : ratioId === 'landscape' ? '4:3' : '3:4',
-          mastermindPrompt: deterministicPrompt,
+          mastermindPrompt: deterministicNanaBananaPrompt,
         }),
       });
 

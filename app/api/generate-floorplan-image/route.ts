@@ -29,64 +29,73 @@ export async function POST(req: Request) {
     const fallbackPrompt = `Redraw IMAGE 1 (the schematic layout) as a professional 2D CAD architectural floor plan. Clean black double-line walls on white floors. Add door swing arcs, window panes, and room labels. Background outside the boundary = solid black. Maximize the layout footprint so that the rooms stretch to touch and fill the boundary shape from IMAGE 2.`;
     const prompt = mastermindPrompt || fallbackPrompt;
 
-    // 4. Call Nano Banana Pro Edit
-    const result = await fal.subscribe('fal-ai/nano-banana-pro/edit', {
-      input: {
-        image_urls: [uploadedSchematicUrl, uploadedTraceUrl], // Pass both schematic and trace reference
-        prompt,
-      },
-    });
+    // 4. Call Nano Banana Pro Edit — fire 2 parallel generations with different seeds
+    const generateOne = async (seedLabel: string) => {
+      const result = await fal.subscribe('fal-ai/nano-banana-pro/edit', {
+        input: {
+          image_urls: [uploadedSchematicUrl, uploadedTraceUrl],
+          prompt,
+        },
+      });
 
-    const images = (result as any)?.images || (result.data as any)?.images;
-    if (!images || images.length === 0) {
-      throw new Error('Nano Banana Pro Edit returned no images');
-    }
-
-    const imageUrl = images[0].url;
-    console.log('[FloorPlan Step3] Output URL:', imageUrl);
-
-    // Wait for the CDN to propagate the file before fetching it
-    let isReady = false;
-    for (let attempt = 0; attempt < 10; attempt++) {
-      try {
-        const headRes = await fetch(imageUrl, { method: 'HEAD', signal: AbortSignal.timeout(2000) });
-        if (headRes.status === 200) {
-          isReady = true;
-          console.log(`[FloorPlan Step3] CDN URL is ready after ${attempt + 1} attempt(s)`);
-          break;
-        }
-      } catch (e: any) {
-        console.warn(`[FloorPlan Step3] CDN propagation check failed (attempt ${attempt + 1}):`, e.message);
+      const images = (result as any)?.images || (result.data as any)?.images;
+      if (!images || images.length === 0) {
+        throw new Error(`Nano Banana Pro Edit (${seedLabel}) returned no images`);
       }
-      await new Promise(resolve => setTimeout(resolve, 1000));
-    }
 
-    if (!isReady) {
-      console.warn(`[FloorPlan Step3] CDN URL did not return 200 after 10 attempts: ${imageUrl}`);
-    }
+      const imageUrl = images[0].url;
+      console.log(`[FloorPlan Step3] Output URL (${seedLabel}):`, imageUrl);
 
-    // Convert to base64 immediately — fal.ai/nano-banana-pro URLs expire.
-    // Using a permanent data URL guarantees the image renders in the browser at any time.
-    let finalImageUrl = imageUrl;
-    try {
-      const imgFetch = await fetch(imageUrl);
-      if (!imgFetch.ok) throw new Error(`HTTP ${imgFetch.status}`);
-      const contentType = imgFetch.headers.get('content-type') || 'image/png';
-      const imgBuffer = await imgFetch.arrayBuffer();
-      const base64 = Buffer.from(imgBuffer).toString('base64');
-      finalImageUrl = `data:${contentType};base64,${base64}`;
-      console.log('[FloorPlan Step3] Converted output to base64 data URL, size:', base64.length);
-    } catch (fetchErr: any) {
-      console.warn('[FloorPlan Step3] Could not convert to base64, falling back to URL:', fetchErr.message);
-    }
+      // Wait for the CDN to propagate the file before fetching it
+      let isReady = false;
+      for (let attempt = 0; attempt < 10; attempt++) {
+        try {
+          const headRes = await fetch(imageUrl, { method: 'HEAD', signal: AbortSignal.timeout(2000) });
+          if (headRes.status === 200) {
+            isReady = true;
+            console.log(`[FloorPlan Step3] CDN URL is ready (${seedLabel}) after ${attempt + 1} attempt(s)`);
+            break;
+          }
+        } catch (e: any) {
+          console.warn(`[FloorPlan Step3] CDN propagation check failed (${seedLabel}, attempt ${attempt + 1}):`, e.message);
+        }
+        await new Promise(resolve => setTimeout(resolve, 1000));
+      }
 
-    const imageUrls = [finalImageUrl];
-    console.log('[FloorPlan Step3] Success polishing schematic into CAD floor plan using Nano Banana Pro Edit.');
+      if (!isReady) {
+        console.warn(`[FloorPlan Step3] CDN URL did not return 200 after 10 attempts (${seedLabel}): ${imageUrl}`);
+      }
+
+      // Convert to base64 immediately — fal.ai/nano-banana-pro URLs expire.
+      let finalImageUrl = imageUrl;
+      try {
+        const imgFetch = await fetch(imageUrl);
+        if (!imgFetch.ok) throw new Error(`HTTP ${imgFetch.status}`);
+        const contentType = imgFetch.headers.get('content-type') || 'image/png';
+        const imgBuffer = await imgFetch.arrayBuffer();
+        const base64 = Buffer.from(imgBuffer).toString('base64');
+        finalImageUrl = `data:${contentType};base64,${base64}`;
+        console.log(`[FloorPlan Step3] Converted (${seedLabel}) to base64, size:`, base64.length);
+      } catch (fetchErr: any) {
+        console.warn(`[FloorPlan Step3] Could not convert (${seedLabel}) to base64:`, fetchErr.message);
+      }
+
+      return finalImageUrl;
+    };
+
+    // Fire both generations in parallel for speed
+    const [img1, img2] = await Promise.all([
+      generateOne('seed-1'),
+      generateOne('seed-2'),
+    ]);
+
+    const imageUrls = [img1, img2];
+    console.log(`[FloorPlan Step3] Success — generated ${imageUrls.length} variations.`);
 
     return NextResponse.json({
       imageUrls,
       systemPrompt: prompt,
-      userPrompt: `SCHEMATIC IMAGE: [Mastermind Output]\nTRACE IMAGE: [Trace Boundary]\nMODEL: fal-ai/nano-banana-pro/edit`
+      userPrompt: `SCHEMATIC IMAGE: [Mastermind Output]\nTRACE IMAGE: [Trace Boundary]\nMODEL: fal-ai/nano-banana-pro/edit (2 seeds)`
     });
 
   } catch (err: any) {
