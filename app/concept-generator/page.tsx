@@ -663,7 +663,7 @@ export default function SmartPlannerPage() {
     setDividerLines(next.divLines); setCoreMarker(next.core);
   }, [plotPoints, sitePoints, plotClosed, siteClosed]);
 
-  const loadPresetShape = useCallback((shape: 'box' | 'l-shape' | 'u-shape' | 't-shape' | 'cruciform') => {
+  const loadPresetShape = useCallback((shape: 'box' | 'l-shape' | 'u-shape' | 't-shape' | 'cruciform' | 'circle') => {
     pushUndo({ plotPts: plotPoints, sitePts: sitePoints, plotClosed, siteClosed, divLines: dividerLines, core: coreMarker });
     setActivePreset(shape);
 
@@ -725,6 +725,15 @@ export default function SmartPlannerPage() {
         { x: cx - 180, y: cy - 60 },
         { x: cx - 60, y: cy - 60 }
       ];
+    } else if (shape === 'circle') {
+      const radius = 150;
+      for (let i = 0; i < 36; i++) {
+        const angle = (i * Math.PI * 2) / 36;
+        pts.push({
+          x: cx + Math.cos(angle) * radius,
+          y: cy + Math.sin(angle) * radius
+        });
+      }
     }
 
     // Snap all points to grid
@@ -798,7 +807,13 @@ export default function SmartPlannerPage() {
   const chatEndRef = useRef<HTMLDivElement>(null);
 
   const [roomSchedule, setRoomSchedule] = useState<RoomSchedule | null>(null);
-  const [activePreset, setActivePreset] = useState<'box' | 'l-shape' | 'u-shape' | 't-shape' | 'cruciform' | null>(null);
+  const [activePreset, setActivePreset] = useState<'box' | 'l-shape' | 'u-shape' | 't-shape' | 'cruciform' | 'circle' | null>(null);
+  const [edgeCurvature, setEdgeCurvature] = useState<number>(0);
+
+  useEffect(() => {
+    setEdgeCurvature(0);
+  }, [selectedEdge]);
+
   const [generatedImageUrls, setGeneratedImageUrls] = useState<string[]>([]);
   const [activeImageIndex, setActiveImageIndex] = useState<number>(0);
   const generatedImageUrl = generatedImageUrls[activeImageIndex] || null;
@@ -845,6 +860,29 @@ export default function SmartPlannerPage() {
   const [mastermindStrategy, setMastermindStrategy] = useState<string>('');
 
   const snapToGrid = (v: number) => Math.round(v / CELL_PX) * CELL_PX;
+
+  const generateCurvePoints = (p1: Point, p2: Point, c: number, numSegments: number = 16) => {
+    if (c === 0) return [];
+    const M = { x: (p1.x + p2.x)/2, y: (p1.y + p2.y)/2 };
+    const dx = p2.x - p1.x;
+    const dy = p2.y - p1.y;
+    const d = Math.hypot(dx, dy);
+    if (d === 0) return [];
+    const N = { x: -dy/d, y: dx/d }; // perpendicular vector pointing outward assuming clockwise rotation
+    
+    // Control Point distance is proportional to curvature 'c'
+    const CP = { x: M.x + N.x * d * c, y: M.y + N.y * d * c };
+    
+    const pts: Point[] = [];
+    for (let i = 1; i < numSegments; i++) {
+      const t = i / numSegments;
+      const invT = 1 - t;
+      const x = invT*invT*p1.x + 2*invT*t*CP.x + t*t*p2.x;
+      const y = invT*invT*p1.y + 2*invT*t*CP.y + t*t*p2.y;
+      pts.push({ x: Math.round(x), y: Math.round(y) });
+    }
+    return pts;
+  };
 
   // Auto-save project state to localStorage on changes
   useEffect(() => {
@@ -1972,43 +2010,62 @@ export default function SmartPlannerPage() {
 
             {/* Curve segment control panel */}
             {selectedEdge && (
-              <div className="flex items-center gap-2 border border-blue-900/60 bg-[#050c18] px-3 py-1 rounded-md text-blue-300 transition-all select-none">
-                <span className="text-[10px] uppercase font-bold tracking-wider text-blue-400">
-                  Edge #{(selectedEdge.index + 1)}:
-                </span>
+              <div className="flex flex-col gap-2 border border-blue-900/60 bg-[#050c18] px-4 py-3 rounded-md text-blue-300 transition-all select-none w-64 shadow-2xl">
+                <div className="flex justify-between items-center w-full">
+                  <span className="text-[10px] uppercase font-bold tracking-wider text-blue-400">
+                    Edge #{(selectedEdge.index + 1)} Editor
+                  </span>
+                  <button onClick={() => setSelectedEdge(null)} className="text-blue-500 hover:text-blue-300">
+                    <X size={12} />
+                  </button>
+                </div>
+                
+                <div className="space-y-2 mt-1">
+                  <div className="flex justify-between text-[8px] uppercase font-bold text-blue-500">
+                    <span>Inward</span>
+                    <span>Curvature</span>
+                    <span>Outward</span>
+                  </div>
+                  <input 
+                    type="range" 
+                    min="-1" max="1" step="0.05"
+                    value={edgeCurvature}
+                    onChange={(e) => setEdgeCurvature(parseFloat(e.target.value))}
+                    className="w-full accent-blue-500 cursor-ew-resize"
+                  />
+                </div>
 
-                {/* Split segment / add vertex button */}
-                <button
-                  onClick={() => {
-                    pushUndo({ plotPts: plotPoints, sitePts: sitePoints, plotClosed, siteClosed, divLines: dividerLines, core: coreMarker });
-                    const pts = selectedEdge.list === 'plot' ? [...plotPoints] : [...sitePoints];
-                    const setPts = selectedEdge.list === 'plot' ? setPlotPoints : setSitePoints;
-
-                    const i = selectedEdge.index;
-                    const p1 = pts[i];
-                    const p2 = pts[(i + 1) % pts.length];
-
-                    // Calculate midpoint on line
-                    let mx = (p1.x + p2.x) / 2;
-                    let my = (p1.y + p2.y) / 2;
-
-                    // Insert the new vertex point
-                    pts.splice(i + 1, 0, { x: snapToGrid(mx), y: snapToGrid(my) });
-                    setPts(pts);
-                    setSelectedEdge(null);
-                  }}
-                  className="px-2 py-1 text-[9px] uppercase font-semibold bg-blue-500/20 hover:bg-blue-500/40 text-blue-300 rounded border border-blue-500/30 transition-all font-mono"
-                >
-                  Split Edge
-                </button>
-
-                <button
-                  onClick={() => setSelectedEdge(null)}
-                  className="text-blue-500 hover:text-blue-300 p-0.5"
-                  title="Close"
-                >
-                  <X size={12} />
-                </button>
+                <div className="flex gap-2 mt-2">
+                  <button
+                    onClick={() => {
+                      pushUndo({ plotPts: plotPoints, sitePts: sitePoints, plotClosed, siteClosed, divLines: dividerLines, core: coreMarker });
+                      const pts = selectedEdge.list === 'plot' ? [...plotPoints] : [...sitePoints];
+                      const setPts = selectedEdge.list === 'plot' ? setPlotPoints : setSitePoints;
+                      const i = selectedEdge.index;
+                      
+                      if (edgeCurvature !== 0) {
+                        const p1 = pts[i];
+                        const p2 = pts[(i + 1) % pts.length];
+                        const curvePts = generateCurvePoints(p1, p2, edgeCurvature, 16);
+                        pts.splice(i + 1, 0, ...curvePts);
+                      } else {
+                        // Just split (default behavior)
+                        const p1 = pts[i];
+                        const p2 = pts[(i + 1) % pts.length];
+                        let mx = (p1.x + p2.x) / 2;
+                        let my = (p1.y + p2.y) / 2;
+                        pts.splice(i + 1, 0, { x: snapToGrid(mx), y: snapToGrid(my) });
+                      }
+                      
+                      setPts(pts);
+                      setSelectedEdge(null);
+                      setEdgeCurvature(0);
+                    }}
+                    className="flex-1 px-2 py-1.5 text-[9px] uppercase font-bold bg-blue-600 hover:bg-blue-500 text-white rounded border border-blue-500/30 transition-all font-mono shadow-[0_0_10px_rgba(59,130,246,0.3)]"
+                  >
+                    {edgeCurvature !== 0 ? 'Apply Curve' : 'Split Edge'}
+                  </button>
+                </div>
               </div>
             )}
 
@@ -2060,7 +2117,8 @@ export default function SmartPlannerPage() {
                     { label: 'L-Shape Plot', id: 'l-shape' },
                     { label: 'U-Shape Plot', id: 'u-shape' },
                     { label: 'T-Shape Plot', id: 't-shape' },
-                    { label: 'Cruciform (Cross)', id: 'cruciform' }
+                    { label: 'Cruciform (Cross)', id: 'cruciform' },
+                    { label: 'Circular Plot', id: 'circle' }
                   ].map(shape => (
                     <button
                       key={shape.id}
