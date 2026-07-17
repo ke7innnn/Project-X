@@ -69,7 +69,6 @@ export default function StartScreen() {
     { id: '3d-render', label: '3D RENDER' },
     { id: 'enhancement', label: 'ENHANCEMENT', badge: 'NEW' },
     { id: 'png-to-dxf', label: 'PNG TO DXF' },
-    { id: 'smart-planner', label: 'SMART PLANNER', badge: 'BETA' },
     { id: 'concept-generator', label: 'CONCEPT GENERATOR', badge: 'NEW' },
     { id: 'flythrough', label: 'FLYTHROUGH' }
   ];
@@ -1112,10 +1111,6 @@ NOTE: Each time Master Umesh asks for the brief, these stories are shuffled rand
     } else if (stageId === 'beta') {
       speak("Initializing Vector Sandbox Beta, Master Umesh.", () => {
         router.push('/vector-editor');
-      });
-    } else if (stageId === 'smart-planner') {
-      speak("Opening Smart Planner.", () => {
-        router.push('/smart-planner');
       });
     } else if (stageId === 'concept-generator') {
       speak("Initiating Concept Generator.", () => {
