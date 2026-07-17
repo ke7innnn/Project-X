@@ -76,7 +76,7 @@ Create ${isSingle ? `1 unified ${buildingType} layout` : `${numFlats} independen
 
 ${hasCore ? 'Design a central circulation core with stairs and lift centered EXACTLY on the CYAN square.' : (isSingle ? '' : 'Design a central circulation core with main staircase, lift, and shared corridor.')}
 
-Use realistic architectural planning, COMPACT miniature rooms, and Vastu principles (Kitchen SE, Bedroom SW, Living NE, Bath W/NW).
+Use realistic architectural planning, COMPACT miniature rooms, and strict Vastu principles.
 A tiny room is always better than a missing room. Micro-size rooms if needed. Pack rooms tightly.
 
 Show: Thick black exterior walls, interior partition walls, doors with swings, windows, room labels, flat numbering, clean CAD style, white background.
@@ -84,15 +84,27 @@ Show: Thick black exterior walls, interior partition walls, doors with swings, w
 ${checklist}
 Validate every unit contains these exact rooms before finalizing. Do not omit any room.
 
-CRITICAL ROOM COMPOSITION & CIRCULATION:
-1. Every room MUST have a physical door swing (clearly drawn arc) connecting it to another room or hallway. No landlocked or doorless rooms.
-2. The flat entrance must lead directly into the Living Room or Foyer.
-3. Bathrooms must connect to a Bedroom or a Common Lobby, never directly opening inside the Kitchen.
-4. Circulation flow must be clean: every room must be reachable without walking through another private bedroom or bathroom.
-5. Wall layouts must align cleanly. Use sensible orthogonal (90-degree) interior partition walls to form logical rectangular rooms.
+CRITICAL ZONING GRADIENT:
+Design every flat logically as a gradient from public to private spaces:
+- "public" zone (Living Room, Dining, Entrance/Foyer) must be near the entry corridor/road side.
+- "service" zone (Kitchen, Utility, Common Bath, Store) acts as a buffer between public and private.
+- "private" zone (Bedrooms, Ensuite Bathrooms) must be placed at the deepest point of the flat, furthest from the entrance.
 
-Specify room relationships:
-Kitchen connected to living, Bathroom adjacent to bedroom, Bedroom on exterior wall, Kitchen on plumbing wall.
+CRITICAL CIRCULATION, DOOR PLACEMENT & ADJACENCY:
+1. Every room MUST have a physical door swing (clearly drawn arc) connecting it to another room or hallway. No landlocked or doorless rooms.
+2. Flat entrance door must open directly into the Living Room or Foyer.
+3. Adjacencies: Dining must touch Kitchen; Kitchen must touch the Utility balcony.
+4. Bathrooms must connect directly to a Bedroom (as ensuite) or a Common Hallway. NEVER make a bathroom door open directly into the Living Room, Dining Room, or Kitchen.
+5. Wall layouts must align cleanly at 90-degree angles to make functional rectangular spaces. No awkward floating walls or random interior shapes.
+
+CRITICAL LIGHT & VENTILATION (EXTERNAL WALLS):
+Bedrooms, Living Rooms, and Kitchens MUST touch an external wall to allow large windows for natural light and ventilation. Internal baths, corridors, and stores can be placed in the interior core without direct light.
+
+VAASTU RULES (Highly Weighted):
+- Kitchen: Position towards the South-East (SE) corner of the flat layout.
+- Master Bedroom: Position towards the South-West (SW) corner of the flat.
+- Main Entrance: Position towards the North-East (NE) corner of the flat.
+- Toilet/Bathroom: Avoid placing in the North-East (NE) corner.
 
 Specify architectural constraints:
 150 mm exterior walls, 100 mm partition walls, 900 mm doors, 1200 mm corridor.
@@ -155,12 +167,24 @@ CRITICAL RULE #3 — APARTMENT ENTRANCES & CIRCULATION:
 Each apartment must have its own entrance door from the common corridor or lobby. No apartment may share an entrance.
 Every room must have a clear door swing (arc) leading into it. No room can be doorless, landlocked, or walled-off.
 
-REALISTIC ROOM COMPOSITION & ADJACENCY:
-1. Flat entrance door must open directly into the Living Room or Foyer.
-2. Kitchens should be open or adjacent to the Living/Dining area.
-3. Bathrooms must connect to a Bedroom (as ensuite) or a Common Hallway, never opening directly into the Kitchen.
-4. Bedrooms must be positioned along exterior walls to allow windows for natural light.
-5. All partition walls must meet cleanly at 90-degree angles to make functional rectangular spaces. No awkward floating walls.
+ZONING GRADIENT:
+Design every flat logically as a gradient from public to private spaces:
+- "public" zone (Living Room, Dining, Entrance/Foyer) must be near the entry corridor/road side.
+- "service" zone (Kitchen, Utility, Common Bath, Store) acts as a buffer between public and private.
+- "private" zone (Bedrooms, Ensuite Bathrooms) must be placed at the deepest point of the flat, furthest from the entrance.
+
+ROOM ADJACENCY & VENTILATION:
+1. Dining must touch Kitchen; Kitchen must touch the Utility balcony.
+2. Every attached ensuite bathroom must touch and connect directly to its own Bedroom.
+3. Living room must connect directly to the dining area.
+4. NEVER make a bathroom door open directly off the living room, dining area, or kitchen. It must be accessed through a corridor/lobby or a private bedroom.
+5. Ventilation constraint: Bedrooms, Living, and Kitchen MUST touch an external wall to allow windows. Bathrooms and utilities can be internal.
+
+VAASTU RULES (Highly Weighted):
+- Kitchen: Position towards the South-East (SE) corner of the flat layout.
+- Master Bedroom: Position towards the South-West (SW) corner of the flat.
+- Main Entrance: Position towards the North-East (NE) corner of the flat.
+- Toilet/Bathroom: Avoid placing in the North-East (NE) corner.
 
 REDESIGN INSTRUCTIONS:
 1. Keep exactly ${numFlats} apartments — no more, no less.
