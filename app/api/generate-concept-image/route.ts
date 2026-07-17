@@ -202,7 +202,7 @@ VAASTU (weighted, but never override RULES #2–#4):
 - Avoid Toilet/Bathroom in the North-East corner.
 
 DRAWING & ANNOTATION REQUIREMENTS:
-- Label every room with its name AND its dimensions in mm (e.g. "F1-Bedroom 1 / 3600 x 3000").
+- Label every room with its name clearly. Do not write numerical dimensions (no "3600 x 3000", no numbers), write names only.
 - Include a graphic SCALE BAR and a NORTH ARROW.
 - Thick black exterior walls, thin interior partitions.
 - Swing doors shown with arc; window ticks on exterior walls.
