@@ -185,8 +185,10 @@ function exportBlackWhiteRedTraceForAI(
   activePts: Point[],
   canvasW: number,
   canvasH: number,
-  falSize: string
-): string {
+  falSize: string,
+  dividerLines: Point[][] = [],
+  coreMarker: Point | null = null
+): { base64: string, numRegions: number } {
   const outSize = FAL_OUTPUT_SIZES[falSize] || { w: canvasW, h: canvasH };
   const offscreen = document.createElement('canvas');
   offscreen.width = outSize.w;
@@ -198,25 +200,149 @@ function exportBlackWhiteRedTraceForAI(
   ctx.fillRect(0, 0, outSize.w, outSize.h);
 
   if (activePts.length >= 3) {
-    const scaledPts = scalePoints(
-      activePts, canvasW, canvasH, outSize.w, outSize.h, true, 24
-    );
+    let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+    activePts.forEach(p => {
+      if (p.x < minX) minX = p.x;
+      if (p.x > maxX) maxX = p.x;
+      if (p.y < minY) minY = p.y;
+      if (p.y > maxY) maxY = p.y;
+    });
+    const ptsW = maxX - minX;
+    const ptsH = maxY - minY;
+    const padding = 24;
+    const targetW = Math.max(1, outSize.w - padding * 2);
+    const targetH = Math.max(1, outSize.h - padding * 2);
 
-    // 2. Solid white inside
+    const scale = Math.min(targetW / (ptsW || 1), targetH / (ptsH || 1));
+    const offsetX = (outSize.w / 2) - ((minX + maxX) / 2) * scale;
+    const offsetY = (outSize.h / 2) - ((minY + maxY) / 2) * scale;
+
+    const applyTransform = (pts: Point[]) => pts.map(p => ({
+      x: Math.round(p.x * scale + offsetX),
+      y: Math.round(p.y * scale + offsetY)
+    }));
+
+    const scaledPts = applyTransform(activePts);
+
+    // 2. Solid white inside (Binary Occupancy Mask)
     ctx.fillStyle = '#ffffff';
     drawPolygonPath(ctx, scaledPts);
     ctx.fill();
 
-    // 3. Thick red boundary trace on the borders
-    ctx.strokeStyle = '#ff0000';
-    ctx.lineWidth = 14;
-    ctx.lineJoin = 'miter';
-    ctx.lineCap = 'square';
+    // 3. Draw Divider Lines in BLACK (#000000) to partition the white region
+    if (dividerLines.length > 0) {
+      ctx.strokeStyle = '#000000';
+      ctx.lineWidth = 10;
+      ctx.lineJoin = 'round';
+      ctx.lineCap = 'round';
+      dividerLines.forEach(line => {
+        if (line.length < 2) return;
+        const scaledLine = applyTransform(line);
+        ctx.beginPath();
+        ctx.moveTo(scaledLine[0].x, scaledLine[0].y);
+        for (let i = 1; i < scaledLine.length; i++) {
+          ctx.lineTo(scaledLine[i].x, scaledLine[i].y);
+        }
+        ctx.stroke();
+      });
+    }
+
+    // 4. Flood-Fill the partitioned white regions with distinct colors
+    // Only run when divider lines exist — otherwise keep it white
+    let regionIdx = 0;
+    if (dividerLines.length > 0) {
+      const imageData = ctx.getImageData(0, 0, outSize.w, outSize.h);
+      const data = imageData.data;
+      const w = outSize.w;
+      const h = outSize.h;
+      const palette = [
+        [255, 0, 0], [0, 255, 0], [0, 0, 255], [255, 255, 0], 
+        [255, 0, 255], [255, 165, 0], [128, 0, 128], [165, 42, 42],
+        [0, 128, 128], [128, 128, 0]
+      ];
+
+      const isWhite = (i: number) => data[i] === 255 && data[i+1] === 255 && data[i+2] === 255;
+      
+      // Basic BFS Flood Fill
+      for (let y = 0; y < h; y++) {
+        for (let x = 0; x < w; x++) {
+          const i = (y * w + x) * 4;
+          if (isWhite(i)) {
+            const color = palette[regionIdx % palette.length];
+            regionIdx++;
+            const queue = [i];
+            data[i] = color[0]; data[i+1] = color[1]; data[i+2] = color[2];
+            let qIdx = 0;
+            while (qIdx < queue.length) {
+              const currI = queue[qIdx++];
+              const pX = (currI / 4) % w;
+              
+              // Neighbors: up, down, left, right
+              const nUp = currI - w * 4;
+              const nDown = currI + w * 4;
+              const nLeft = pX > 0 ? currI - 4 : -1;
+              const nRight = pX < w - 1 ? currI + 4 : -1;
+              
+              if (nUp >= 0 && isWhite(nUp)) { data[nUp] = color[0]; data[nUp+1] = color[1]; data[nUp+2] = color[2]; queue.push(nUp); }
+              if (nDown < data.length && isWhite(nDown)) { data[nDown] = color[0]; data[nDown+1] = color[1]; data[nDown+2] = color[2]; queue.push(nDown); }
+              if (nLeft !== -1 && isWhite(nLeft)) { data[nLeft] = color[0]; data[nLeft+1] = color[1]; data[nLeft+2] = color[2]; queue.push(nLeft); }
+              if (nRight !== -1 && isWhite(nRight)) { data[nRight] = color[0]; data[nRight+1] = color[1]; data[nRight+2] = color[2]; queue.push(nRight); }
+            }
+          }
+        }
+      }
+      ctx.putImageData(imageData, 0, 0);
+    } else {
+      regionIdx = 1; // No dividers = 1 region
+    }
+
+    // 5. Draw low-opacity room-hint grid boxes inside the footprint
+    // These tiny boxes give the AI a visual cue that small rooms are expected
+    ctx.save();
+    // Clip to the polygon so grid lines only appear inside
     drawPolygonPath(ctx, scaledPts);
-    ctx.stroke();
+    ctx.clip();
+    
+    // Calculate grid cell size — aim for ~40-60px cells (room-sized hints)
+    let sMinX = Infinity, sMaxX = -Infinity, sMinY = Infinity, sMaxY = -Infinity;
+    scaledPts.forEach(p => {
+      if (p.x < sMinX) sMinX = p.x;
+      if (p.x > sMaxX) sMaxX = p.x;
+      if (p.y < sMinY) sMinY = p.y;
+      if (p.y > sMaxY) sMaxY = p.y;
+    });
+    const gridCellSize = 50; // ~50px squares = room-scale hint
+    ctx.strokeStyle = 'rgba(0, 0, 0, 0.2)'; // darker low opacity black
+    ctx.lineWidth = 0.5;
+    
+    // Draw random, staggered boxes to simulate unaligned real rooms
+    for (let gy = Math.floor(sMinY / gridCellSize) * gridCellSize; gy <= sMaxY; gy += gridCellSize) {
+      // Offset each row so they don't align perfectly vertically
+      const rowOffset = (Math.random() - 0.5) * gridCellSize;
+      for (let gx = Math.floor(sMinX / gridCellSize) * gridCellSize; gx <= sMaxX; gx += gridCellSize) {
+         // Randomize box dimensions (e.g., 30px to 80px)
+         const w = gridCellSize * (0.6 + Math.random() * 1.0);
+         const h = gridCellSize * (0.6 + Math.random() * 1.0);
+         // Add some random scatter in the y-direction too
+         const yScatter = (Math.random() - 0.5) * 10;
+         
+         ctx.strokeRect(gx + rowOffset, gy + yScatter, w, h);
+      }
+    }
+    ctx.restore();
+
+    // 6. Draw Core Marker in pure CYAN (#00FFFF)
+    if (coreMarker) {
+      const scaledCore = applyTransform([coreMarker])[0];
+      ctx.fillStyle = '#00FFFF';
+      const mSize = 64; // nice big block for AI to notice
+      ctx.fillRect(scaledCore.x - mSize/2, scaledCore.y - mSize/2, mSize, mSize);
+    }
+    
+    return { base64: offscreen.toDataURL('image/png'), numRegions: Math.max(1, regionIdx) };
   }
 
-  return offscreen.toDataURL('image/png');
+  return { base64: offscreen.toDataURL('image/png'), numRegions: 1 };
 }
 
 // ─── Export a plain white sheet canvas for inpainting base ──
@@ -266,7 +392,7 @@ function scaleImageToFitPolygon(
   canvasH: number,
   falSize: string
 ): Promise<string> {
-  return new Promise((resolve, reject) => {
+  return new Promise((resolve) => {
     const img = new Image();
     img.crossOrigin = 'anonymous';
     img.onload = () => {
@@ -276,342 +402,34 @@ function scaleImageToFitPolygon(
       offscreen.height = outSize.h;
       const ctx = offscreen.getContext('2d')!;
 
-      // Point-in-polygon helper (defined early so we can use it in scanner)
-      const isPointInPolygon = (p: Point, polygon: Point[]): boolean => {
-        let inside = false;
-        for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
-          const xi = polygon[i].x, yi = polygon[i].y;
-          const xj = polygon[j].x, yj = polygon[j].y;
-          const intersect = ((yi > p.y) !== (yj > p.y))
-            && (p.x < (xj - xi) * (p.y - yi) / (yj - yi || 1) + xi);
-          if (intersect) inside = !inside;
-        }
-        return inside;
-      };
-
-      // 1. Calculate polygon bounding box in output resolution
-      const scaledPts = scalePoints(activePts, canvasW, canvasH, outSize.w, outSize.h, true, 24);
-      if (scaledPts.length < 3) return resolve(imageUrl); // Fail safe
-
-      let polyMinX = Infinity, polyMaxX = -Infinity, polyMinY = Infinity, polyMaxY = -Infinity;
-      scaledPts.forEach(p => {
-        if (p.x < polyMinX) polyMinX = p.x;
-        if (p.x > polyMaxX) polyMaxX = p.x;
-        if (p.y < polyMinY) polyMinY = p.y;
-        if (p.y > polyMaxY) polyMaxY = p.y;
-      });
-      const polyW = polyMaxX - polyMinX;
-      const polyH = polyMaxY - polyMinY;
-
-      const polyCx = polyMinX + polyW / 2;
-      const polyCy = polyMinY + polyH / 2;
-
-      // 2. Scan the GPT image to find the actual bounding box of the generated layout
-      const tempCanvas = document.createElement('canvas');
-      tempCanvas.width = img.width;
-      tempCanvas.height = img.height;
-      const tCtx = tempCanvas.getContext('2d', { willReadFrequently: true })!;
-      tCtx.drawImage(img, 0, 0);
-      const imgData = tCtx.getImageData(0, 0, img.width, img.height);
-      const data = imgData.data;
-
-      // Scan for white pixels (R, G, B > 150) representing rooms.
-      // We skip a border margin of 50px from all sides to ignore the white top/bottom letterbox bars.
-      const margin = 50;
-      let fMinX = img.width, fMaxX = 0, fMinY = img.height, fMaxY = 0;
-      const stepScan = 2;
-      for (let y = margin; y < img.height - margin; y += stepScan) {
-        for (let x = margin; x < img.width - margin; x += stepScan) {
-          const idx = (y * img.width + x) * 4;
-          const isWhite = data[idx] > 150 && data[idx + 1] > 150 && data[idx + 2] > 150;
-          if (isWhite) {
-            if (x < fMinX) fMinX = x;
-            if (x > fMaxX) fMaxX = x;
-            if (y < fMinY) fMinY = y;
-            if (y > fMaxY) fMaxY = y;
-          }
-        }
-      }
-      if (fMinX >= fMaxX) { fMinX = margin; fMaxX = img.width - margin; fMinY = margin; fMaxY = img.height - margin; }
-
-      const floorW = fMaxX - fMinX;
-      const floorH = fMaxY - fMinY;
-      const floorCx = fMinX + floorW / 2;
-      const floorCy = fMinY + floorH / 2;
-
-      // Find boundary points of the layout (where white floors meet dark walls/background)
-      const boundaryPts: Point[] = [];
-      const step = 2; // Check every 2nd pixel to keep scanner fast
-      for (let y = fMinY + step; y < fMaxY - step; y += step) {
-        for (let x = fMinX + step; x < fMaxX - step; x += step) {
-          const idx = (y * img.width + x) * 4;
-          const isWhite = data[idx] > 150 && data[idx + 1] > 150 && data[idx + 2] > 150;
-          if (isWhite) {
-            const leftIdx = (y * img.width + (x - step)) * 4;
-            const rightIdx = (y * img.width + (x + step)) * 4;
-            const topIdx = ((y - step) * img.width + x) * 4;
-            const bottomIdx = ((y + step) * img.width + x) * 4;
-
-            const isLeftDark = data[leftIdx] < 100 && data[leftIdx + 1] < 100 && data[leftIdx + 2] < 100;
-            const isRightDark = data[rightIdx] < 100 && data[rightIdx + 1] < 100 && data[rightIdx + 2] < 100;
-            const isTopDark = data[topIdx] < 100 && data[topIdx + 1] < 100 && data[topIdx + 2] < 100;
-            const isBottomDark = data[bottomIdx] < 100 && data[bottomIdx + 1] < 100 && data[bottomIdx + 2] < 100;
-
-            if (isLeftDark || isRightDark || isTopDark || isBottomDark) {
-              boundaryPts.push({ x, y });
-            }
-          }
-        }
-      }
-
-      // Downsample boundary points to ~150 to keep processing under 2ms
-      const maxCheckedPoints = 150;
-      const downsampledPts: Point[] = [];
-      if (boundaryPts.length > 0) {
-        const skip = Math.max(1, Math.floor(boundaryPts.length / maxCheckedPoints));
-        for (let i = 0; i < boundaryPts.length; i += skip) {
-          downsampledPts.push(boundaryPts[i]);
-          if (downsampledPts.length >= maxCheckedPoints) break;
-        }
-      } else {
-        // Fallback grid if no active boundaries found
-        // Use a 5x5 grid across the bounding box to ensure it shrinks to fit
-        const gridSteps = 5;
-        for (let i = 0; i <= gridSteps; i++) {
-          for (let j = 0; j <= gridSteps; j++) {
-            downsampledPts.push({
-              x: fMinX + (floorW * i) / gridSteps,
-              y: fMinY + (floorH * j) / gridSteps
-            });
-          }
-        }
-      }
-
-      // Map points relative to floor plan bounding box top-left
-      const relPts = downsampledPts.map(p => ({
-        x: p.x - fMinX,
-        y: p.y - fMinY
-      }));
-
-      // 3. Minimum-shrink algorithm:
-      //    Start at S_max (largest possible scale). At each scale, do a 15×15 grid
-      //    search for the position where ZERO layout boundary points are outside the
-      //    polygon. Stop the instant we find scale+position = zero overflow.
-      //    That gives us the minimum shrink needed to fully contain the layout.
-      //
-      //    If zero overflow is never achieved (very complex shape), we fall back to
-      //    the scale/position that had the fewest overflow points.
-
-      const S_max = Math.min(1.0, Math.min(polyW / (floorW || 1), polyH / (floorH || 1)));
-      const SCALE_STEP = 0.005;   // 0.5% per step
-      const MAX_STEPS  = Math.ceil(S_max / SCALE_STEP); // allow up to 100% shrink if needed to fit perfectly
-      const GRID_N     = 15;      // 15×15 = 225 candidate positions per scale
-
-      let bestScale = S_max;
-      let bestDrawX = polyCx - floorCx * S_max;
-      let bestDrawY = polyCy - floorCy * S_max;
-      let bestOverflowSeen = Infinity;
-      let foundZeroOverflow = false;
-
-      for (let si = 0; si <= MAX_STEPS; si++) {
-        const scale = S_max - SCALE_STEP * si;
-        if (scale <= 0) break;
-
-        const layoutW = floorW * scale;
-        const layoutH = floorH * scale;
-
-        const minDrawX = polyMinX;
-        const maxDrawX = Math.max(polyMinX, polyMaxX - layoutW);
-        const minDrawY = polyMinY;
-        const maxDrawY = Math.max(polyMinY, polyMaxY - layoutH);
-        const rangeX   = maxDrawX - minDrawX;
-        const rangeY   = maxDrawY - minDrawY;
-
-        let stepBestOverflow = Infinity;
-        let stepBestDist     = Infinity;
-        let stepBestX = minDrawX + rangeX / 2;
-        let stepBestY = minDrawY + rangeY / 2;
-
-        for (let ix = 0; ix <= GRID_N; ix++) {
-          const drawX = minDrawX + (GRID_N > 0 ? (rangeX * ix) / GRID_N : 0);
-          for (let iy = 0; iy <= GRID_N; iy++) {
-            const drawY = minDrawY + (GRID_N > 0 ? (rangeY * iy) / GRID_N : 0);
-
-            // Count how many layout boundary points land outside the polygon
-            let overflow = 0;
-            for (const rp of relPts) {
-              if (!isPointInPolygon({ x: drawX + rp.x * scale, y: drawY + rp.y * scale }, scaledPts)) {
-                overflow++;
-              }
-            }
-
-            // Tiebreak: prefer more centred layout
-            const dist = Math.hypot(drawX + layoutW / 2 - polyCx, drawY + layoutH / 2 - polyCy);
-            if (overflow < stepBestOverflow || (overflow === stepBestOverflow && dist < stepBestDist)) {
-              stepBestOverflow = overflow;
-              stepBestDist     = dist;
-              stepBestX = drawX;
-              stepBestY = drawY;
-            }
-          }
-        }
-
-        if (stepBestOverflow === 0) {
-          // Zero overflow at this (largest so far) scale — perfect result
-          bestScale = scale;
-          bestDrawX = stepBestX;
-          bestDrawY = stepBestY;
-          foundZeroOverflow = true;
-          break;
-        }
-
-        // Track the globally best result in case we never reach zero
-        if (stepBestOverflow < bestOverflowSeen) {
-          bestOverflowSeen = stepBestOverflow;
-          bestScale  = scale;
-          bestDrawX  = stepBestX;
-          bestDrawY  = stepBestY;
-        }
-      }
-
-      // Fine-tune: ±15px in 1px steps at the chosen scale to nail the exact sweet spot
-      {
-        const fineRange = 15;
-        let fineBestX        = bestDrawX;
-        let fineBestY        = bestDrawY;
-        let fineBestOverflow = Infinity;
-        let fineBestDist     = Infinity;
-
-        for (let dx = -fineRange; dx <= fineRange; dx++) {
-          for (let dy = -fineRange; dy <= fineRange; dy++) {
-            const candX = bestDrawX + dx;
-            const candY = bestDrawY + dy;
-            let overflow = 0;
-            for (const rp of relPts) {
-              if (!isPointInPolygon({ x: candX + rp.x * bestScale, y: candY + rp.y * bestScale }, scaledPts)) {
-                overflow++;
-              }
-            }
-            const dist = Math.hypot(candX + (floorW * bestScale) / 2 - polyCx, candY + (floorH * bestScale) / 2 - polyCy);
-            if (overflow < fineBestOverflow || (overflow === fineBestOverflow && dist < fineBestDist)) {
-              fineBestOverflow = overflow;
-              fineBestDist     = dist;
-              fineBestX = candX;
-              fineBestY = candY;
-            }
-          }
-        }
-        bestDrawX = fineBestX;
-        bestDrawY = fineBestY;
-      }
-
-      // 3.5 Detect overflow boundary points (white layout pixels outside polygon after best fit)
-      const overflowSrcPts: { srcX: number; srcY: number }[] = [];
-      for (let k = 0; k < relPts.length; k++) {
-        const canvX = bestDrawX + relPts[k].x * bestScale;
-        const canvY = bestDrawY + relPts[k].y * bestScale;
-        if (!isPointInPolygon({ x: canvX, y: canvY }, scaledPts)) {
-          overflowSrcPts.push({ srcX: fMinX + relPts[k].x, srcY: fMinY + relPts[k].y });
-        }
-      }
-      console.log(`[SmartPlanner] scaleImageToFitPolygon — scale: ${bestScale.toFixed(3)}, overflow pts: ${overflowSrcPts.length}/${relPts.length}`);
-
-      // 4. Fill black background
+      // 1. Draw solid black background
       ctx.fillStyle = '#000000';
       ctx.fillRect(0, 0, outSize.w, outSize.h);
 
-      // 5. Draw the layout at the best scale and position, clipped to polygon
-      ctx.save();
-      ctx.beginPath();
-      ctx.moveTo(scaledPts[0].x, scaledPts[0].y);
-      for (let i = 1; i < scaledPts.length; i++) ctx.lineTo(scaledPts[i].x, scaledPts[i].y);
-      ctx.closePath();
-      ctx.clip();
-      const imgDrawX = bestDrawX - fMinX * bestScale;
-      const imgDrawY = bestDrawY - fMinY * bestScale;
-      ctx.drawImage(img, imgDrawX, imgDrawY, img.width * bestScale, img.height * bestScale);
-      ctx.restore();
-
-      // 6. Overflow Correction Pass:
-      //    For any layout content that sticks outside the polygon, crop just that region
-      //    from the source, translate it inward to the nearest empty polygon interior space,
-      //    and redraw it — seamlessly connected to the main layout with no gaps or cuts.
-      if (overflowSrcPts.length > 5) {
-        // Compute bounding box of overflow in source image coordinates
-        let ovMinX = Infinity, ovMaxX = -Infinity, ovMinY = Infinity, ovMaxY = -Infinity;
-        let avgCanvX = 0, avgCanvY = 0;
-        for (const p of overflowSrcPts) {
-          if (p.srcX < ovMinX) ovMinX = p.srcX;
-          if (p.srcX > ovMaxX) ovMaxX = p.srcX;
-          if (p.srcY < ovMinY) ovMinY = p.srcY;
-          if (p.srcY > ovMaxY) ovMaxY = p.srcY;
-          avgCanvX += imgDrawX + p.srcX * bestScale;
-          avgCanvY += imgDrawY + p.srcY * bestScale;
+      // 2. Compute scaled polygon at AI output resolution
+      const scaledPts = scalePoints(activePts, canvasW, canvasH, outSize.w, outSize.h, true, 24);
+      
+      if (scaledPts.length >= 3) {
+        // 3. Draw layout clipped exactly to the trace boundary to clean up exterior bleed (no scaling or shrinking!)
+        ctx.save();
+        ctx.beginPath();
+        ctx.moveTo(scaledPts[0].x, scaledPts[0].y);
+        for (let i = 1; i < scaledPts.length; i++) {
+          ctx.lineTo(scaledPts[i].x, scaledPts[i].y);
         }
-        avgCanvX /= overflowSrcPts.length;
-        avgCanvY /= overflowSrcPts.length;
-
-        // Direction to push: toward polygon centroid
-        const dirX = polyCx - avgCanvX;
-        const dirY = polyCy - avgCanvY;
-        const dirLen = Math.hypot(dirX, dirY) || 1;
-        const dirNX = dirX / dirLen;
-        const dirNY = dirY / dirLen;
-
-        // Walk step-by-step toward centroid until the overflow centroid lands inside polygon
-        let corrX = 0, corrY = 0;
-        for (let step = 5; step <= 400; step += 5) {
-          const testX = avgCanvX + dirNX * step;
-          const testY = avgCanvY + dirNY * step;
-          if (isPointInPolygon({ x: testX, y: testY }, scaledPts)) {
-            corrX = dirNX * step;
-            corrY = dirNY * step;
-            break;
-          }
-        }
-
-        if (corrX !== 0 || corrY !== 0) {
-          // Add overlap padding so the correction blends seamlessly with the main draw
-          const padPx = Math.round(30 / bestScale);
-          const cropSrcX = Math.max(0, Math.round(ovMinX) - padPx);
-          const cropSrcY = Math.max(0, Math.round(ovMinY) - padPx);
-          const cropSrcW = Math.min(img.width - cropSrcX, Math.round(ovMaxX - ovMinX) + padPx * 2);
-          const cropSrcH = Math.min(img.height - cropSrcY, Math.round(ovMaxY - ovMinY) + padPx * 2);
-
-          if (cropSrcW > 0 && cropSrcH > 0) {
-            const destX = imgDrawX + cropSrcX * bestScale + corrX;
-            const destY = imgDrawY + cropSrcY * bestScale + corrY;
-
-            ctx.save();
-            ctx.beginPath();
-            ctx.moveTo(scaledPts[0].x, scaledPts[0].y);
-            for (let i = 1; i < scaledPts.length; i++) ctx.lineTo(scaledPts[i].x, scaledPts[i].y);
-            ctx.closePath();
-            ctx.clip();
-            // Draw the overflow crop at the corrected inward position
-            ctx.drawImage(img, cropSrcX, cropSrcY, cropSrcW, cropSrcH, destX, destY, cropSrcW * bestScale, cropSrcH * bestScale);
-            ctx.restore();
-            console.log(`[SmartPlanner] Overflow correction applied — pushed (${corrX.toFixed(0)}, ${corrY.toFixed(0)})px inward`);
-          }
-        }
+        ctx.closePath();
+        ctx.clip();
+        ctx.drawImage(img, 0, 0, outSize.w, outSize.h);
+        ctx.restore();
+      } else {
+        // Fallback: draw 1:1 if pts invalid
+        ctx.drawImage(img, 0, 0, outSize.w, outSize.h);
       }
 
-      // 6. Draw the trace boundary in NEON RED exactly where it belongs
-      ctx.strokeStyle = '#ff0000';
-      ctx.lineWidth = 14;
-      ctx.lineJoin = 'miter';
-      ctx.beginPath();
-      ctx.moveTo(scaledPts[0].x, scaledPts[0].y);
-      for (let i = 1; i < scaledPts.length; i++) {
-        ctx.lineTo(scaledPts[i].x, scaledPts[i].y);
-      }
-      ctx.closePath();
-      ctx.stroke();
-
-      // Compress to JPEG to prevent massive payloads timing out the API fetch
-      resolve(offscreen.toDataURL('image/jpeg', 0.8));
+      // Compress to JPEG for performance
+      resolve(offscreen.toDataURL('image/jpeg', 0.85));
     };
-    img.onerror = reject;
+    img.onerror = () => resolve(imageUrl);
     img.src = imageUrl;
   });
 }
@@ -682,20 +500,23 @@ export default function SmartPlannerPage() {
   const removeBgImage = () => { bgImageRef.current = null; setBgImageLoaded(false); setBgOffset({ x: 0, y: 0 }); setBgScale(1); setDrawMode(null); };
 
   // Scale — how many real-world metres each grid cell represents
-  const [metersPerCell, setMetersPerCell] = useState(1);
+  const [metersPerCell, setMetersPerCell] = useState(0.5);
   const SCALE_OPTIONS = [0.5, 1, 2, 5];
   // Convert px distance to metres using the current scale
   const pxToMScaled = (px: number) => +((px / CELL_PX) * metersPerCell).toFixed(1);
 
-  const [drawMode, setDrawMode] = useState<'plot' | 'site' | 'map' | null>(null);
+  const [drawMode, setDrawMode] = useState<'plot' | 'site' | 'map' | 'divider' | 'core' | null>(null);
   const [plotPoints, setPlotPoints] = useState<Point[]>([]);
   const [sitePoints, setSitePoints] = useState<Point[]>([]);
   const [plotClosed, setPlotClosed] = useState(false);
   const [siteClosed, setSiteClosed] = useState(false);
+  const [dividerLines, setDividerLines] = useState<Point[][]>([]);
+  const [currentDivider, setCurrentDivider] = useState<Point[]>([]);
+  const [coreMarker, setCoreMarker] = useState<Point | null>(null);
   const [hoverPoint, setHoverPoint] = useState<Point | null>(null);
 
-  // Undo/Redo stacks — each entry is a snapshot of [plotPoints, sitePoints, plotClosed, siteClosed]
-  type Snapshot = { plotPts: Point[]; sitePts: Point[]; plotClosed: boolean; siteClosed: boolean };
+  // Undo/Redo stacks — each entry is a snapshot of [plotPoints, sitePoints, plotClosed, siteClosed, dividerLines, coreMarker]
+  type Snapshot = { plotPts: Point[]; sitePts: Point[]; plotClosed: boolean; siteClosed: boolean; divLines: Point[][]; core: Point | null };
   const undoStack = useRef<Snapshot[]>([]);
   const redoStack = useRef<Snapshot[]>([]);
 
@@ -708,22 +529,24 @@ export default function SmartPlannerPage() {
     if (undoStack.current.length === 0) return;
     const prev = undoStack.current[undoStack.current.length - 1];
     undoStack.current = undoStack.current.slice(0, -1);
-    redoStack.current = [{ plotPts: plotPoints, sitePts: sitePoints, plotClosed, siteClosed }, ...redoStack.current];
+    redoStack.current = [{ plotPts: plotPoints, sitePts: sitePoints, plotClosed, siteClosed, divLines: dividerLines, core: coreMarker }, ...redoStack.current];
     setPlotPoints(prev.plotPts); setSitePoints(prev.sitePts);
     setPlotClosed(prev.plotClosed); setSiteClosed(prev.siteClosed);
+    setDividerLines(prev.divLines); setCoreMarker(prev.core);
   }, [plotPoints, sitePoints, plotClosed, siteClosed]);
 
   const redo = useCallback(() => {
     if (redoStack.current.length === 0) return;
     const next = redoStack.current[0];
     redoStack.current = redoStack.current.slice(1);
-    undoStack.current = [...undoStack.current, { plotPts: plotPoints, sitePts: sitePoints, plotClosed, siteClosed }];
+    undoStack.current = [...undoStack.current, { plotPts: plotPoints, sitePts: sitePoints, plotClosed, siteClosed, divLines: dividerLines, core: coreMarker }];
     setPlotPoints(next.plotPts); setSitePoints(next.sitePts);
     setPlotClosed(next.plotClosed); setSiteClosed(next.siteClosed);
+    setDividerLines(next.divLines); setCoreMarker(next.core);
   }, [plotPoints, sitePoints, plotClosed, siteClosed]);
 
   const loadPresetShape = useCallback((shape: 'box' | 'l-shape' | 'u-shape' | 't-shape' | 'cruciform') => {
-    pushUndo({ plotPts: plotPoints, sitePts: sitePoints, plotClosed, siteClosed });
+    pushUndo({ plotPts: plotPoints, sitePts: sitePoints, plotClosed, siteClosed, divLines: dividerLines, core: coreMarker });
     setActivePreset(shape);
 
     const cx = Math.round(CANVAS_W / 2 / CELL_PX) * CELL_PX;
@@ -866,6 +689,31 @@ export default function SmartPlannerPage() {
   const generatedImageObjRef = useRef<HTMLImageElement | null>(null);
   const [generationError, setGenerationError] = useState<string | null>(null);
   const [layoutOptions, setLayoutOptions] = useState<{ id: string; name: string; desc: string; flatCount?: number; bhkType?: string; }[] | null>(null);
+  const [buildingType, setBuildingType] = useState<string>('multi-residential');
+  const [roomConfig, setRoomConfig] = useState<string>('auto');
+  const [aiModel, setAiModel] = useState<string>('grok'); // kept for debugger display
+  const [workflow, setWorkflow] = useState<string>('grok-gpt');
+  const [flatCount, setFlatCount] = useState<string>('auto');
+  const [stage1ImageUrl, setStage1ImageUrl] = useState<string | null>(null);
+  const [pipelineStage, setPipelineStage] = useState<'idle' | 'stage1' | 'stage2'>('idle');
+
+  // Workflow config helpers
+  const WORKFLOW_LABELS: Record<string, { label: string; stage1: string; stage2?: string; badge?: string }> = {
+    'grok-gpt':          { label: 'Grok + GPT Image 2 Edit', stage1: 'Grok', stage2: 'GPT Image 2 Edit', badge: 'RECOMMENDED' },
+    'grok-nano':         { label: 'Grok + Nano Banana Pro', stage1: 'Grok', stage2: 'Nano Banana' },
+    'grok-kontext':      { label: 'Grok + FLUX Kontext', stage1: 'Grok', stage2: 'FLUX Kontext' },
+    'flux-klein-gpt':    { label: 'FLUX Klein + GPT Image 2 Edit', stage1: 'FLUX Klein', stage2: 'GPT Image 2 Edit' },
+    'flux-klein-nano':   { label: 'FLUX Klein + Nano Banana Pro', stage1: 'FLUX Klein', stage2: 'Nano Banana' },
+    'flux-kontext-gpt':  { label: 'FLUX Kontext + GPT Image 2 Edit', stage1: 'FLUX Kontext', stage2: 'GPT Image 2 Edit' },
+    'grok-solo':         { label: 'Grok only', stage1: 'Grok' },
+    'flux-klein-solo':   { label: 'FLUX Klein only', stage1: 'FLUX Klein' },
+    'flux-kontext-solo': { label: 'FLUX Kontext only', stage1: 'FLUX Kontext' },
+    'gpt-solo':          { label: 'GPT Image 2 Edit only', stage1: 'GPT Image 2' },
+    'gemini-solo':       { label: 'Gemini only', stage1: 'Gemini' },
+    'flux-canny-solo':   { label: 'FLUX Canny only', stage1: 'FLUX Canny' },
+  };
+  const activeWf = WORKFLOW_LABELS[workflow] || WORKFLOW_LABELS['grok-gpt'];
+  const isPipeline = !!activeWf.stage2;
 
   // Real-time Visual Debugging State
   const [debugStep1Prompt, setDebugStep1Prompt] = useState<string>('');
@@ -1115,11 +963,62 @@ export default function SmartPlannerPage() {
       }
     }
 
+    // ── Divider Lines ─────────────────────────────────────────────────────
+    ctx.strokeStyle = '#3b82f6'; ctx.lineWidth = 2.5; ctx.setLineDash([4, 4]);
+    dividerLines.forEach(line => {
+      if (line.length < 2) return;
+      ctx.beginPath();
+      ctx.moveTo(line[0].x, line[0].y);
+      for (let i = 1; i < line.length; i++) ctx.lineTo(line[i].x, line[i].y);
+      ctx.stroke();
+    });
+    // Current drawing divider line
+    if (currentDivider.length > 0) {
+      ctx.beginPath();
+      ctx.moveTo(currentDivider[0].x, currentDivider[0].y);
+      for (let i = 1; i < currentDivider.length; i++) ctx.lineTo(currentDivider[i].x, currentDivider[i].y);
+      if (drawMode === 'divider' && hoverPoint) ctx.lineTo(hoverPoint.x, hoverPoint.y);
+      ctx.stroke();
+      
+      // Draw points for current divider
+      currentDivider.forEach(p => {
+        ctx.beginPath(); ctx.arc(p.x, p.y, 4, 0, Math.PI * 2);
+        ctx.fillStyle = '#3b82f6'; ctx.fill();
+      });
+    }
+    ctx.setLineDash([]);
+
+    // ── Core Marker (Stairs/Lift) ─────────────────────────────────────────
+    if (coreMarker) {
+      ctx.save();
+      ctx.fillStyle = 'rgba(6, 182, 212, 0.2)';
+      ctx.strokeStyle = '#06b6d4';
+      ctx.lineWidth = 2;
+      const mSize = 32;
+      ctx.fillRect(coreMarker.x - mSize/2, coreMarker.y - mSize/2, mSize, mSize);
+      ctx.strokeRect(coreMarker.x - mSize/2, coreMarker.y - mSize/2, mSize, mSize);
+      ctx.fillStyle = '#06b6d4';
+      ctx.font = 'bold 9px monospace';
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText('CORE', coreMarker.x, coreMarker.y);
+      ctx.restore();
+    }
+    if (drawMode === 'core' && hoverPoint) {
+      ctx.save();
+      ctx.fillStyle = 'rgba(6, 182, 212, 0.1)';
+      ctx.strokeStyle = 'rgba(6, 182, 212, 0.5)';
+      ctx.lineWidth = 2;
+      const mSize = 32;
+      ctx.fillRect(hoverPoint.x - mSize/2, hoverPoint.y - mSize/2, mSize, mSize);
+      ctx.strokeRect(hoverPoint.x - mSize/2, hoverPoint.y - mSize/2, mSize, mSize);
+      ctx.restore();
+    }
+
     // ── Snap indicator + real-time annotation (while drawing) ─────────────
     if (drawMode && hoverPoint) {
-      const pts = drawMode === 'plot' ? plotPoints : sitePoints;
-      const color = drawMode === 'plot' ? '#f97316' : '#00f0ff';
-      const colorLight = drawMode === 'plot' ? '#fb923c' : '#67e8f9';
+      const pts = drawMode === 'plot' ? plotPoints : drawMode === 'site' ? sitePoints : currentDivider;
+      const color = drawMode === 'plot' ? '#f97316' : drawMode === 'site' ? '#00f0ff' : '#3b82f6';
+      const colorLight = drawMode === 'plot' ? '#fb923c' : drawMode === 'site' ? '#67e8f9' : '#93c5fd';
 
       // Concentric snap rings at cursor
       ctx.save();
@@ -1202,13 +1101,17 @@ export default function SmartPlannerPage() {
     // ── Status hint bar ───────────────────────────────────────────────────
     if (drawMode) {
       ctx.font = 'bold 11px monospace';
-      ctx.fillStyle = drawMode === 'plot' ? '#f97316' : drawMode === 'site' ? '#00f0ff' : '#eab308';
+      ctx.fillStyle = drawMode === 'plot' ? '#f97316' : drawMode === 'site' ? '#00f0ff' : drawMode === 'divider' ? '#3b82f6' : drawMode === 'core' ? '#06b6d4' : '#eab308';
       ctx.fillText(
         drawMode === 'plot'
           ? '● Drawing: PLOT BOUNDARY — click to add points, click first point to close'
           : drawMode === 'site'
             ? '● Drawing: SITE EXTERIOR — click to add points, click first point to close'
-            : '● Move Map: Drag on the canvas to pan, scroll to zoom',
+            : drawMode === 'divider'
+              ? '● Drawing: DIVIDER LINES — click once to start line, click again to finish line'
+              : drawMode === 'core'
+                ? '● Placing: STAIRS/LIFT CORE — click anywhere to place the core marker'
+                : '● Move Map: Drag on the canvas to pan, scroll to zoom',
         10, CANVAS_H - 12
       );
     }
@@ -1222,7 +1125,7 @@ export default function SmartPlannerPage() {
       ctx.fillText('Creating layout — ~10 seconds', CANVAS_W / 2, CANVAS_H / 2 + 16);
       ctx.textAlign = 'left';
     }
-  }, [plotPoints, sitePoints, plotClosed, siteClosed, hoverPoint, drawMode, isGeneratingImage, CANVAS_W, CANVAS_H, currentRatio, metersPerCell, bgImageLoaded, bgOpacity, bgOffset, bgScale, compareMode, selectedEdge, draggingPoint]);
+  }, [plotPoints, sitePoints, plotClosed, siteClosed, dividerLines, currentDivider, coreMarker, hoverPoint, drawMode, isGeneratingImage, CANVAS_W, CANVAS_H, currentRatio, metersPerCell, bgImageLoaded, bgOpacity, bgOffset, bgScale, compareMode, selectedEdge, draggingPoint]);
 
   useEffect(() => {
     // Re-draw when canvas remounts after hiding the generated image or when deps change
@@ -1277,18 +1180,37 @@ export default function SmartPlannerPage() {
 
   const handleCanvasClick = (e: React.MouseEvent<HTMLCanvasElement>) => {
     if (draggingPoint) return;
-    if (drawMode !== 'plot' && drawMode !== 'site') return;
+    if (!['plot', 'site', 'divider', 'core'].includes(drawMode || '')) return;
     const { x, y } = getCanvasCoords(e);
+
+    if (drawMode === 'core') {
+      pushUndo({ plotPts: plotPoints, sitePts: sitePoints, plotClosed, siteClosed, divLines: dividerLines, core: coreMarker });
+      setCoreMarker({ x, y });
+      setDrawMode(null);
+      return;
+    }
+
+    if (drawMode === 'divider') {
+      pushUndo({ plotPts: plotPoints, sitePts: sitePoints, plotClosed, siteClosed, divLines: dividerLines, core: coreMarker });
+      if (currentDivider.length === 1) {
+        // Finish the 2-point divider line
+        setDividerLines(prev => [...prev, [currentDivider[0], { x, y }]]);
+        setCurrentDivider([]);
+        return;
+      }
+      setCurrentDivider([{ x, y }]);
+      return;
+    }
 
     if (drawMode === 'plot' && !plotClosed) {
       if (plotPoints.length >= 3) {
         const dx = x - plotPoints[0].x, dy = y - plotPoints[0].y;
         if (Math.sqrt(dx * dx + dy * dy) < 15) {
-          pushUndo({ plotPts: plotPoints, sitePts: sitePoints, plotClosed, siteClosed });
+          pushUndo({ plotPts: plotPoints, sitePts: sitePoints, plotClosed, siteClosed, divLines: dividerLines, core: coreMarker });
           setPlotClosed(true); setDrawMode(null); return;
         }
       }
-      pushUndo({ plotPts: plotPoints, sitePts: sitePoints, plotClosed, siteClosed });
+      pushUndo({ plotPts: plotPoints, sitePts: sitePoints, plotClosed, siteClosed, divLines: dividerLines, core: coreMarker });
       setPlotPoints(prev => [...prev, { x, y }]);
       setActivePreset(null);
     }
@@ -1296,11 +1218,11 @@ export default function SmartPlannerPage() {
       if (sitePoints.length >= 3) {
         const dx = x - sitePoints[0].x, dy = y - sitePoints[0].y;
         if (Math.sqrt(dx * dx + dy * dy) < 15) {
-          pushUndo({ plotPts: plotPoints, sitePts: sitePoints, plotClosed, siteClosed });
+          pushUndo({ plotPts: plotPoints, sitePts: sitePoints, plotClosed, siteClosed, divLines: dividerLines, core: coreMarker });
           setSiteClosed(true); setDrawMode(null); return;
         }
       }
-      pushUndo({ plotPts: plotPoints, sitePts: sitePoints, plotClosed, siteClosed });
+      pushUndo({ plotPts: plotPoints, sitePts: sitePoints, plotClosed, siteClosed, divLines: dividerLines, core: coreMarker });
       setSitePoints(prev => [...prev, { x, y }]);
     }
   };
@@ -1319,7 +1241,7 @@ export default function SmartPlannerPage() {
       for (let i = 0; i < plotPoints.length; i++) {
         const pt = plotPoints[i];
         if (Math.hypot(pt.x - coords.x, pt.y - coords.y) < 12) {
-          pushUndo({ plotPts: plotPoints, sitePts: sitePoints, plotClosed, siteClosed });
+          pushUndo({ plotPts: plotPoints, sitePts: sitePoints, plotClosed, siteClosed, divLines: dividerLines, core: coreMarker });
           setDraggingPoint({ list: 'plot', index: i });
           return;
         }
@@ -1327,7 +1249,7 @@ export default function SmartPlannerPage() {
       for (let i = 0; i < sitePoints.length; i++) {
         const pt = sitePoints[i];
         if (Math.hypot(pt.x - coords.x, pt.y - coords.y) < 12) {
-          pushUndo({ plotPts: plotPoints, sitePts: sitePoints, plotClosed, siteClosed });
+          pushUndo({ plotPts: plotPoints, sitePts: sitePoints, plotClosed, siteClosed, divLines: dividerLines, core: coreMarker });
           setDraggingPoint({ list: 'site', index: i });
           return;
         }
@@ -1437,19 +1359,23 @@ export default function SmartPlannerPage() {
     setIsGeneratingImage(true);
     setGenerationError(null);
     setShowGeneratedImage(false);
+    setStage1ImageUrl(null);
+    setPipelineStage(isPipeline ? 'stage1' : 'idle');
 
     try {
-      // Export layout trace using the custom black/white/red format
-      const traceCanvasBase64 = exportBlackWhiteRedTraceForAI(activePts, CANVAS_W, CANVAS_H, currentRatio.falSize);
-      
-          // Save input trace to debug state
+      const { base64: traceCanvasBase64, numRegions } = exportBlackWhiteRedTraceForAI(activePts, CANVAS_W, CANVAS_H, currentRatio.falSize, dividerLines, coreMarker);
       setDebugStep2TraceImage(traceCanvasBase64);
+      const plotInfo = getPlotContext();
 
-      console.log('[ConceptGenerator] Calling Direct Concept Generator API...');
       const res = await fetch('/api/generate-concept-image', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ traceCanvasBase64 }),
+        body: JSON.stringify({ 
+          traceCanvasBase64, buildingType, roomConfig, workflow, plotInfo, flatCount,
+          hasDividers: dividerLines.length > 0,
+          hasCore: !!coreMarker,
+          numRegions
+        }),
       });
 
       const data = await res.json();
@@ -1458,17 +1384,13 @@ export default function SmartPlannerPage() {
       setDebugStep2SystemPrompt(data.systemPrompt || '');
       setDebugStep2UserPrompt(data.userPrompt || '');
 
-      // Hard-clip the output to the polygon boundary to clean up exterior bleed
-      console.log('[ConceptGenerator] Applying hard polygon clip to Grok output...');
-      const rawUrls: string[] = data.imageUrls || [];
-      const clippedUrls = await Promise.all(
-        rawUrls.map(url =>
-          scaleImageToFitPolygon(url, activePts, CANVAS_W, CANVAS_H, currentRatio.falSize)
-            .catch(() => url)
-        )
-      );
+      if (isPipeline && data.stage1ImageUrl) {
+        setStage1ImageUrl(data.stage1ImageUrl);
+        setPipelineStage('stage2');
+      }
 
-      setGeneratedImageUrls(clippedUrls);
+      const rawUrls: string[] = data.imageUrls || [];
+      setGeneratedImageUrls(rawUrls);
       setActiveImageIndex(0);
       setShowGeneratedImage(true);
     } catch (err: any) {
@@ -1476,6 +1398,7 @@ export default function SmartPlannerPage() {
       console.error('[ConceptGenerator] Error:', err);
     } finally {
       setIsGeneratingImage(false);
+      setPipelineStage('idle');
     }
   };
 
@@ -1602,14 +1525,7 @@ export default function SmartPlannerPage() {
               &#9888; {generationError}
             </div>
           )}
-          {debugStep15Schematic && (
-            <button
-              onClick={() => { if (roomSchedule) generateFloorPlanImage(roomSchedule, true); }}
-              className="text-[9px] uppercase tracking-widest px-2 py-1 bg-green-900/50 hover:bg-green-800 text-green-300 rounded border border-green-700 transition-colors"
-            >
-              Retry Step 2
-            </button>
-          )}
+
           {generatedImageUrl && (
             <button onClick={downloadImage} className="flex items-center gap-2 px-4 py-2 text-[10px] uppercase tracking-widest bg-green-500/10 border border-green-500/40 text-green-400 hover:bg-green-500/20 rounded transition-all">
               <Download size={13} /> Download PNG
@@ -1674,6 +1590,24 @@ export default function SmartPlannerPage() {
               <span className="w-2 h-2 rounded-full bg-cyan-400 inline-block" />
               {siteClosed ? 'Site Ext ✓' : drawMode === 'site' ? 'Drawing Site...' : 'Site Exterior'}
             </button>
+            <button
+              onClick={() => setDrawMode(d => d === 'divider' ? null : 'divider')}
+              disabled={!plotClosed && !siteClosed}
+              className={`flex items-center gap-1.5 px-3 py-1.5 text-[10px] uppercase tracking-wider rounded border transition-all font-bold ${drawMode === 'divider' ? 'bg-blue-500/20 border-blue-400 text-blue-300' : 'border-blue-700/40 text-blue-500 hover:bg-blue-500/10'}`}
+              title="Draw colored lines to divide the plot into flats"
+            >
+              <span className="w-2 h-2 rounded-full bg-blue-400 inline-block" />
+              {drawMode === 'divider' ? 'Drawing Dividers...' : 'Draw Dividers'}
+            </button>
+            <button
+              onClick={() => setDrawMode(d => d === 'core' ? null : 'core')}
+              disabled={!plotClosed && !siteClosed}
+              className={`flex items-center gap-1.5 px-3 py-1.5 text-[10px] uppercase tracking-wider rounded border transition-all font-bold ${drawMode === 'core' ? 'bg-cyan-500/20 border-cyan-400 text-cyan-300' : 'border-cyan-700/40 text-cyan-500 hover:bg-cyan-500/10'}`}
+              title="Place a marker to explicitly dictate where the Stairs/Lift core must be placed"
+            >
+              <span className="w-3 h-3 rounded-sm bg-cyan-400 inline-block" />
+              {coreMarker ? (drawMode === 'core' ? 'Moving Core...' : 'Core ✓') : 'Place Stairs/Lift'}
+            </button>
 
             {/* Undo / Redo */}
             <button
@@ -1703,7 +1637,7 @@ export default function SmartPlannerPage() {
                 {/* Split segment / add vertex button */}
                 <button
                   onClick={() => {
-                    pushUndo({ plotPts: plotPoints, sitePts: sitePoints, plotClosed, siteClosed });
+                    pushUndo({ plotPts: plotPoints, sitePts: sitePoints, plotClosed, siteClosed, divLines: dividerLines, core: coreMarker });
                     const pts = selectedEdge.list === 'plot' ? [...plotPoints] : [...sitePoints];
                     const setPts = selectedEdge.list === 'plot' ? setPlotPoints : setSitePoints;
 
@@ -1927,24 +1861,39 @@ export default function SmartPlannerPage() {
                 </div>
               </div>
 
-              {/* OUTPUT: Grok Generated CAD Blueprint */}
+              {/* OUTPUT: Stage 1 + Stage 2 */}
               <div className="flex-1 flex flex-col gap-3 pl-4 min-w-[320px]">
+                {stage1ImageUrl && isPipeline && (
+                  <>
+                    <div className="text-[9px] font-bold text-yellow-500 uppercase tracking-wider flex items-center gap-1.5 shrink-0">
+                      <span className="w-1.5 h-1.5 rounded-full bg-yellow-500" /> Stage 1: {activeWf.stage1} Output
+                    </div>
+                    <div className="flex overflow-x-auto gap-4 shrink-0 pb-2">
+                      <div className="flex flex-col gap-1 items-center">
+                        <span className="text-[7px] text-yellow-600 uppercase">Raw Stage 1 Result</span>
+                        <img src={stage1ImageUrl} className="w-32 h-32 rounded border border-yellow-900/40 bg-white object-contain shadow-lg" />
+                      </div>
+                    </div>
+                  </>
+                )}
+
                 <div className="text-[9px] font-bold text-purple-400 uppercase tracking-wider flex items-center gap-1.5 shrink-0">
-                  <span className="w-1.5 h-1.5 rounded-full bg-purple-400 animate-pulse" /> Grok Edit CAD Output
+                  <span className="w-1.5 h-1.5 rounded-full bg-purple-400 animate-pulse" />
+                  {isPipeline ? `Stage 2: ${activeWf.stage2} Refined Output` : `${activeWf.stage1} CAD Output`}
                 </div>
 
                 <div className="flex overflow-x-auto gap-4 shrink-0 pb-2">
                   {generatedImageUrls.map((url, idx) => (
                     <div key={idx} className="flex flex-col gap-1 items-center">
-                      <span className="text-[7px] text-purple-400 uppercase">Clipped Blueprint Result</span>
+                      <span className="text-[7px] text-purple-400 uppercase">{isPipeline ? `${activeWf.stage2} Result` : 'Blueprint Result'}</span>
                       <img src={url} className="w-32 h-32 rounded border border-purple-900/40 bg-white object-contain shadow-lg shadow-purple-900/20" />
                     </div>
                   ))}
                 </div>
 
-                {/* Prompt Sent to Grok */}
+                {/* Prompt Sent to Model */}
                 <div className="flex-1 flex flex-col min-h-0">
-                  <span className="text-[7px] text-purple-500 uppercase mb-1">System Instructions Sent to Grok:</span>
+                  <span className="text-[7px] text-purple-500 uppercase mb-1">System Instructions:</span>
                   <textarea
                     readOnly
                     value={debugStep2SystemPrompt || 'Awaiting generation...'}
@@ -1961,7 +1910,7 @@ export default function SmartPlannerPage() {
         <div className="w-[420px] border-l border-green-900/30 bg-[#070f07] flex flex-col shrink-0">
           <div className="px-5 py-3 border-b border-green-900/30 shrink-0">
             <h2 className="text-[11px] font-bold tracking-[3px] uppercase text-green-400">Concept Generator Panel</h2>
-            <p className="text-[9px] text-green-800 uppercase tracking-wide mt-0.5">Instant Concept Blueprints via Grok Edit</p>
+            <p className="text-[9px] text-green-800 uppercase tracking-wide mt-0.5">AI Floor Plan Generation Pipeline</p>
           </div>
 
           <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
@@ -1970,17 +1919,137 @@ export default function SmartPlannerPage() {
                 How it works:
               </h3>
               <ul className="text-[9px] text-green-700/90 list-disc pl-4 space-y-1">
-                <li>Trace your site boundary using the Plot or Site Extension tools on the canvas.</li>
-                <li>All advanced tools (Snapping, Preset shapes, Map overlays, Splitting lines, and Curves) are fully active.</li>
-                <li>Click the generate button below. Grok Edit will automatically invent a detailed CAD layout fitting perfectly inside the trace boundaries.</li>
+                <li>Trace your site boundary on the canvas.</li>
+                <li>Select a workflow — single model for speed, 2-model pipeline for best quality.</li>
+                <li>Click Generate. Stage 1 creates the raw floor plan, Stage 2 (if enabled) refines rooms.</li>
               </ul>
+            </div>
+
+            {/* Parameter Input Options */}
+            <div className="bg-[#0a140a] border border-green-900/40 rounded-lg p-4 space-y-3">
+              <h3 className="text-[10px] font-bold text-green-400 uppercase tracking-widest">
+                Configure Layout Parameters:
+              </h3>
+
+              {/* Workflow Selector */}
+              <div className="space-y-1">
+                <label className="text-[9px] uppercase text-green-700 font-mono">Generation Workflow</label>
+                <select
+                  value={workflow}
+                  onChange={(e) => setWorkflow(e.target.value)}
+                  className="w-full bg-black border border-purple-900/50 rounded px-2.5 py-1.5 text-[10px] text-purple-300 font-mono focus:outline-none focus:border-purple-500"
+                >
+                  <optgroup label="2-Model Pipeline (Best Quality - Keeps Footprint)">
+                    <option value="grok-gpt">Grok + GPT Image 2 Edit [Recommended]</option>
+                    <option value="grok-nano">Grok + Nano Banana Pro</option>
+                    <option value="grok-kontext">Grok + FLUX Kontext [pro]</option>
+                    <option value="flux-klein-gpt">FLUX Klein 9B + GPT Image 2 Edit</option>
+                    <option value="flux-klein-nano">FLUX Klein 9B + Nano Banana Pro</option>
+                    <option value="flux-kontext-gpt">FLUX Kontext [pro] + GPT Image 2 Edit</option>
+                  </optgroup>
+                  <optgroup label="Single Model (Faster)">
+                    <option value="grok-solo">Grok only</option>
+                    <option value="flux-klein-solo">FLUX Klein 9B only</option>
+                    <option value="flux-kontext-solo">FLUX Kontext [pro] only</option>
+                    <option value="gpt-solo">GPT Image 2 Edit only</option>
+                    <option value="gemini-solo">Gemini only</option>
+                    <option value="flux-canny-solo">FLUX Canny ControlNet only</option>
+                  </optgroup>
+                </select>
+                {/* Pipeline badge */}
+                <div className="flex items-center gap-1.5 pt-0.5">
+                  {isPipeline ? (
+                    <>
+                      <span className="px-1.5 py-0.5 rounded text-[7px] font-bold bg-purple-900/40 text-purple-400 border border-purple-800/40">STAGE 1</span>
+                      <span className="text-[8px] text-purple-600">{activeWf.stage1}</span>
+                      <span className="text-[8px] text-green-900">-&gt;</span>
+                      <span className="px-1.5 py-0.5 rounded text-[7px] font-bold bg-blue-900/40 text-blue-400 border border-blue-800/40">STAGE 2</span>
+                      <span className="text-[8px] text-blue-600">{activeWf.stage2}</span>
+                    </>
+                  ) : (
+                    <>
+                      <span className="px-1.5 py-0.5 rounded text-[7px] font-bold bg-green-900/30 text-green-600 border border-green-800/30">SINGLE</span>
+                      <span className="text-[8px] text-green-800">{activeWf.stage1}</span>
+                    </>
+                  )}
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-[9px] uppercase text-green-700 font-mono">Building Type</label>
+                <select
+                  value={buildingType}
+                  onChange={(e) => {
+                    setBuildingType(e.target.value);
+                    // Reset config to first sensible default on building type change
+                    setRoomConfig('auto');
+                  }}
+                  className="w-full bg-black border border-green-900/50 rounded px-2.5 py-1.5 text-[10px] text-green-300 font-mono focus:outline-none focus:border-green-500"
+                >
+                  <option value="multi-residential">Multi-Unit Residential Building</option>
+                  <option value="single-residential">Single Private Residence (Bungalow)</option>
+                  <option value="healthcare">Healthcare Facility</option>
+                  <option value="office">Commercial Office Floor</option>
+                </select>
+              </div>
+
+              {buildingType === 'multi-residential' && (
+                <>
+                  <div className="space-y-1">
+                    <label className="text-[9px] uppercase text-green-700 font-mono">BHK Configuration</label>
+                    <select
+                      value={roomConfig}
+                      onChange={(e) => setRoomConfig(e.target.value)}
+                      className="w-full bg-black border border-green-900/50 rounded px-2.5 py-1.5 text-[10px] text-green-300 font-mono focus:outline-none focus:border-green-500"
+                    >
+                      <option value="auto">Auto / Mix (1BHK-4BHK)</option>
+                      <option value="1bhk">Pure 1 BHK Units</option>
+                      <option value="2bhk">Pure 2 BHK Units</option>
+                      <option value="3bhk">Pure 3 BHK Units</option>
+                      <option value="4bhk">Pure 4 BHK Units</option>
+                    </select>
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-[9px] uppercase text-green-700 font-mono">Number of Flats</label>
+                    <select
+                      value={flatCount}
+                      onChange={(e) => setFlatCount(e.target.value)}
+                      className="w-full bg-black border border-green-900/50 rounded px-2.5 py-1.5 text-[10px] text-green-300 font-mono focus:outline-none focus:border-green-500"
+                    >
+                      <option value="auto">Auto (Determine by Size)</option>
+                      <option value="1">1 Flat</option>
+                      <option value="2">2 Flats</option>
+                      <option value="3">3 Flats</option>
+                      <option value="4">4 Flats</option>
+                      <option value="5">5 Flats</option>
+                      <option value="6">6 Flats</option>
+                    </select>
+                  </div>
+                </>
+              )}
             </div>
 
             {isGeneratingImage && (
               <div className="flex justify-start">
-                <div className="w-full bg-purple-950/30 border border-purple-900/40 rounded-lg px-4 py-3 flex items-center gap-2">
-                  <Sparkles size={14} className="animate-pulse text-purple-400 shrink-0" />
-                  <span className="text-[10px] text-purple-400">Grok is designing CAD concept plan...</span>
+                <div className="w-full bg-purple-950/30 border border-purple-900/40 rounded-lg px-4 py-3 space-y-2">
+                  <div className="flex items-center gap-2">
+                    <Sparkles size={14} className="animate-pulse text-purple-400 shrink-0" />
+                    <span className="text-[10px] text-purple-400 font-bold">
+                      {pipelineStage === 'stage2' ? `Stage 2: ${activeWf.stage2} refining rooms...` :
+                       isPipeline ? `Stage 1: ${activeWf.stage1} generating base plan...` :
+                       `${activeWf.stage1} generating concept plan...`}
+                    </span>
+                  </div>
+                  {isPipeline && (
+                    <div className="flex items-center gap-2 mt-1">
+                      <div className={`w-2 h-2 rounded-full ${pipelineStage !== 'stage2' ? 'bg-yellow-400 animate-pulse' : 'bg-yellow-600'}`} />
+                      <span className="text-[8px] text-green-700">Stage 1: {activeWf.stage1}</span>
+                      <span className="text-[8px] text-green-900 mx-1">-&gt;</span>
+                      <div className={`w-2 h-2 rounded-full ${pipelineStage === 'stage2' ? 'bg-blue-400 animate-pulse' : 'bg-blue-900/30'}`} />
+                      <span className={`text-[8px] ${pipelineStage === 'stage2' ? 'text-blue-400' : 'text-blue-900/60'}`}>Stage 2: {activeWf.stage2}</span>
+                    </div>
+                  )}
                 </div>
               </div>
             )}
