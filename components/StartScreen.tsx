@@ -64,19 +64,18 @@ export default function StartScreen() {
   const setStorePhase = useArchitectStore((state) => state.setPhase);
 
   const startScreenStages: { id: string; label: string; badge?: string }[] = [
-    { id: 'render-zone', label: 'RENDER ZONE' },
+    { id: 'concept-generator', label: 'CONCEPT GENERATOR', badge: 'NEW' },
     { id: 'edit', label: 'EDIT' },
     { id: '3d-render', label: '3D RENDER' },
     { id: 'enhancement', label: 'ENHANCEMENT', badge: 'NEW' },
     { id: 'png-to-dxf', label: 'PNG TO DXF' },
-    { id: 'concept-generator', label: 'CONCEPT GENERATOR', badge: 'NEW' },
     { id: 'flythrough', label: 'FLYTHROUGH' }
   ];
 
   const getInitialStage = (phase: string) => {
-    if (phase === 'export') return 'render-zone';
+    if (phase === 'export') return 'concept-generator';
     if (phase === 'edit' || phase === 'measure' || phase === 'generate') return 'edit';
-    return 'render-zone';
+    return 'concept-generator';
   };
 
   const router = useRouter();

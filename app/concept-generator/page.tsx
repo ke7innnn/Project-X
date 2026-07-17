@@ -2,7 +2,9 @@
 
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, Send, Loader2, Download, RotateCcw, ImageIcon, Sparkles, RefreshCw, Undo2, Redo2, Maximize2, ImagePlus, X, Move, Terminal, Pentagon } from 'lucide-react';
+import { ArrowLeft, Send, Loader2, Download, RotateCcw, ImageIcon, Sparkles, RefreshCw, Undo2, Redo2, Maximize2, ImagePlus, X, Move, Terminal, Pentagon, Folder, Plus, Clock, MapPin, Trash2, Map } from 'lucide-react';
+import { useArchitectStore } from '@/store/useArchitectStore';
+import { v4 as uuidv4 } from 'uuid';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface Point { x: number; y: number; }
@@ -466,6 +468,122 @@ export default function SmartPlannerPage() {
   const router = useRouter();
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
+  // Concept Projects local state (localStorage-based, DB disconnected)
+  const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
+  const [projectsList, setProjectsList] = useState<any[]>([]);
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [projNameInput, setProjNameInput] = useState('');
+  const [projLocationInput, setProjLocationInput] = useState('');
+
+  // Routing from concept outputs to workspace pages
+  const handleSendToSection = (targetSection: 'edit' | 'png-to-dxf' | '3d-render') => {
+    if (!generatedImageUrl) return;
+    
+    // Auto-populate the current floor plan state inside Zustand
+    useArchitectStore.setState({ currentFloorPlan: generatedImageUrl });
+    
+    // Set the store phase appropriately so workspaces initialize correctly
+    if (targetSection === 'edit') {
+      useArchitectStore.setState({ phase: 'edit' });
+    } else if (targetSection === '3d-render') {
+      useArchitectStore.setState({ phase: 'edit' }); // 3D render operates under edit session
+    }
+
+    router.push(`/${targetSection}`);
+  };
+
+  // Load projects list
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const data = localStorage.getItem('concept_generator_projects');
+      if (data) {
+        try {
+          setProjectsList(JSON.parse(data));
+        } catch (e) {
+          console.error('[ConceptGenerator] Error parsing projects', e);
+        }
+      }
+    }
+  }, []);
+
+  // Create Project
+  const createNewProject = () => {
+    if (!projNameInput.trim()) return;
+    const newProj = {
+      id: uuidv4(),
+      name: projNameInput.trim(),
+      location: projLocationInput.trim() || 'Unknown Location',
+      createdAt: new Date().toISOString(),
+      state: {
+        ratioId: 'square',
+        plotPoints: [],
+        sitePoints: [],
+        plotClosed: false,
+        siteClosed: false,
+        dividerLines: [],
+        coreMarker: null,
+        buildingType: 'multi-residential',
+        roomConfig: 'auto',
+        workflow: 'grok-gpt',
+        flatCount: 'auto',
+        generatedImageUrls: [],
+        stage1ImageUrl: null,
+        debugStep2SystemPrompt: '',
+        debugStep2UserPrompt: '',
+        debugStep2TraceImage: '',
+      }
+    };
+    const nextList = [newProj, ...projectsList];
+    setProjectsList(nextList);
+    localStorage.setItem('concept_generator_projects', JSON.stringify(nextList));
+    
+    setSelectedProjectId(newProj.id);
+    setProjNameInput('');
+    setProjLocationInput('');
+    setShowCreateModal(false);
+  };
+
+  // Delete Project
+  const deleteProject = (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    const nextList = projectsList.filter(p => p.id !== id);
+    setProjectsList(nextList);
+    localStorage.setItem('concept_generator_projects', JSON.stringify(nextList));
+    if (selectedProjectId === id) {
+      setSelectedProjectId(null);
+    }
+  };
+
+  // Auto-save tracker
+  const isInitialLoadRef = useRef(false);
+
+  // Load project settings on selection
+  useEffect(() => {
+    if (!selectedProjectId) return;
+    const proj = projectsList.find(p => p.id === selectedProjectId);
+    if (proj && proj.state) {
+      const s = proj.state;
+      isInitialLoadRef.current = true; // Block save trigger on initial load
+      setRatioId(s.ratioId || 'square');
+      setPlotPoints(s.plotPoints || []);
+      setSitePoints(s.sitePoints || []);
+      setPlotClosed(s.plotClosed || false);
+      setSiteClosed(s.siteClosed || false);
+      setDividerLines(s.dividerLines || []);
+      setCoreMarker(s.coreMarker || null);
+      setBuildingType(s.buildingType || 'multi-residential');
+      setRoomConfig(s.roomConfig || 'auto');
+      setWorkflow(s.workflow || 'grok-gpt');
+      setFlatCount(s.flatCount || 'auto');
+      setGeneratedImageUrls(s.generatedImageUrls || []);
+      setStage1ImageUrl(s.stage1ImageUrl || null);
+      setShowGeneratedImage(s.generatedImageUrls?.length > 0);
+      setDebugStep2SystemPrompt(s.debugStep2SystemPrompt || '');
+      setDebugStep2UserPrompt(s.debugStep2UserPrompt || '');
+      setDebugStep2TraceImage(s.debugStep2TraceImage || '');
+    }
+  }, [selectedProjectId]);
+
   // Canvas ratio
   const [ratioId, setRatioId] = useState<RatioId>('square');
   const [showRatioPicker, setShowRatioPicker] = useState(false);
@@ -727,6 +845,65 @@ export default function SmartPlannerPage() {
   const [mastermindStrategy, setMastermindStrategy] = useState<string>('');
 
   const snapToGrid = (v: number) => Math.round(v / CELL_PX) * CELL_PX;
+
+  // Auto-save project state to localStorage on changes
+  useEffect(() => {
+    if (!selectedProjectId) return;
+    if (isInitialLoadRef.current) {
+      isInitialLoadRef.current = false;
+      return;
+    }
+    const timeout = setTimeout(() => {
+      const updatedList = projectsList.map(p => {
+        if (p.id === selectedProjectId) {
+          return {
+            ...p,
+            state: {
+              ratioId,
+              plotPoints,
+              sitePoints,
+              plotClosed,
+              siteClosed,
+              dividerLines,
+              coreMarker,
+              buildingType,
+              roomConfig,
+              workflow,
+              flatCount,
+              generatedImageUrls,
+              stage1ImageUrl,
+              debugStep2SystemPrompt,
+              debugStep2UserPrompt,
+              debugStep2TraceImage,
+            }
+          };
+        }
+        return p;
+      });
+      setProjectsList(updatedList);
+      localStorage.setItem('concept_generator_projects', JSON.stringify(updatedList));
+    }, 1000);
+
+    return () => clearTimeout(timeout);
+  }, [
+    selectedProjectId,
+    ratioId,
+    plotPoints,
+    sitePoints,
+    plotClosed,
+    siteClosed,
+    dividerLines,
+    coreMarker,
+    buildingType,
+    roomConfig,
+    workflow,
+    flatCount,
+    generatedImageUrls,
+    stage1ImageUrl,
+    debugStep2SystemPrompt,
+    debugStep2UserPrompt,
+    debugStep2TraceImage
+  ]);
 
   // ── Canvas Renderer ─────────────────────────────────────────────────────────
   const drawCanvas = useCallback(() => {
@@ -1498,17 +1675,183 @@ export default function SmartPlannerPage() {
   const plotInfo = getPlotContext();
   const totalRooms = roomSchedule?.flats.reduce((s, f) => s + f.rooms.length, 0) ?? 0;
 
+  if (!selectedProjectId) {
+    return (
+      <div className="min-h-screen bg-[#070f07] text-[#4af626] font-mono p-8 relative flex flex-col w-full h-full overflow-y-auto">
+        {/* Tech grid texture */}
+        <div className="absolute inset-0 bg-[linear-gradient(rgba(18,38,18,0.1)_1px,transparent_1px),linear-gradient(90deg,rgba(18,38,18,0.1)_1px,transparent_1px)] bg-[size:30px_30px] pointer-events-none z-0" />
+        
+        {/* Header */}
+        <header className="relative z-10 max-w-7xl mx-auto w-full flex items-center justify-between mb-12 border-b border-green-900/30 pb-6 shrink-0">
+          <div className="flex items-center gap-6">
+            <button 
+              onClick={() => router.push('/')}
+              className="flex items-center justify-center w-10 h-10 rounded-full border border-green-900/30 hover:border-green-400 hover:bg-green-950/20 transition-all group"
+            >
+              <ArrowLeft className="text-green-500/70 group-hover:text-green-400" size={18} />
+            </button>
+            <div>
+              <h1 className="text-2xl font-bold tracking-[4px] uppercase text-white drop-shadow-[0_0_8px_rgba(0,255,100,0.3)] flex items-center gap-3">
+                <Folder className="text-green-400" /> Concept Projects
+              </h1>
+              <span className="text-[9px] tracking-[3px] text-green-700/80 uppercase">
+                AI Layout Design Portal
+              </span>
+            </div>
+          </div>
+          
+          <button 
+            onClick={() => setShowCreateModal(true)}
+            className="flex items-center gap-2 px-5 py-2.5 bg-green-500 text-black hover:bg-green-400 font-bold uppercase tracking-wider text-xs rounded transition-all shadow-[0_0_15px_rgba(74,246,38,0.2)]"
+          >
+            <Plus size={16} /> New Concept Project
+          </button>
+        </header>
+
+        {/* Project List */}
+        <main className="relative z-10 max-w-7xl mx-auto w-full flex-1 flex flex-col">
+          {projectsList.length === 0 ? (
+            <div className="flex-1 flex flex-col items-center justify-center py-20 border border-dashed border-green-900/20 rounded bg-[#0b160b]/30 backdrop-blur">
+              <Folder size={48} className="text-green-900/40 mb-4" />
+              <h2 className="text-sm tracking-widest uppercase text-green-400 mb-1">No Concept Projects</h2>
+              <p className="text-[10px] tracking-wider uppercase text-green-700 mb-6">Create a project to initialize the layout canvas</p>
+              <button 
+                onClick={() => setShowCreateModal(true)}
+                className="px-6 py-2.5 bg-transparent border border-green-500 text-green-400 hover:bg-green-900/20 text-xs font-bold uppercase tracking-wider transition-all"
+              >
+                Create Project
+              </button>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {projectsList.map((p) => {
+                const hasImg = p.state?.generatedImageUrls?.length > 0;
+                const imgThumb = hasImg ? p.state.generatedImageUrls[0] : null;
+                
+                return (
+                  <div 
+                    key={p.id}
+                    onClick={() => setSelectedProjectId(p.id)}
+                    className="group relative bg-[#0b160b]/40 border border-green-900/30 rounded p-4 flex flex-col gap-3 cursor-pointer hover:border-green-500/50 hover:bg-green-950/10 transition-all duration-300 shadow-md shadow-black/40"
+                  >
+                    {/* Thumbnail area */}
+                    <div className="w-full h-36 bg-black/60 border border-green-950 rounded flex items-center justify-center overflow-hidden relative shrink-0">
+                      {imgThumb ? (
+                        <img 
+                          src={imgThumb} 
+                          alt={p.name} 
+                          className="w-full h-full object-contain opacity-70 group-hover:opacity-90 group-hover:scale-105 transition-all duration-500" 
+                        />
+                      ) : (
+                        <Map size={36} className="text-green-900/20 group-hover:scale-110 transition-all duration-300" />
+                      )}
+                      
+                      <div className="absolute top-2 right-2 flex gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button
+                          onClick={(e) => deleteProject(p.id, e)}
+                          className="w-7 h-7 rounded bg-black/80 border border-red-900/50 flex items-center justify-center text-red-400 hover:bg-red-950/60 hover:text-red-300 transition-all"
+                          title="Delete Project"
+                        >
+                          <Trash2 size={12} />
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="flex-1 flex flex-col justify-between gap-2">
+                      <div>
+                        <h3 className="text-xs font-bold text-white uppercase group-hover:text-green-400 transition-colors tracking-wider line-clamp-1">{p.name}</h3>
+                        <div className="flex items-center gap-1 mt-1 text-[9px] text-green-700">
+                          <MapPin size={10} />
+                          <span className="line-clamp-1">{p.location}</span>
+                        </div>
+                      </div>
+                      
+                      <div className="flex items-center justify-between border-t border-green-900/20 pt-2.5 text-[8px] text-green-700 uppercase font-mono">
+                        <span className="flex items-center gap-1">
+                          <Clock size={9} />
+                          {new Date(p.createdAt).toLocaleDateString()}
+                        </span>
+                        <span className="text-green-500 font-bold">
+                          {p.state?.buildingType === 'multi-residential' ? `${p.state?.roomConfig?.toUpperCase() || 'Auto'}` : 'Single Unit'}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </main>
+
+        {/* Create Modal */}
+        {showCreateModal && (
+          <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <div className="bg-[#070f07] border border-green-500/30 rounded max-w-sm w-full p-6 space-y-4 shadow-2xl">
+              <div className="flex justify-between items-center border-b border-green-900/30 pb-2">
+                <h3 className="text-xs font-bold text-green-400 uppercase tracking-widest">Initialize Concept</h3>
+                <button onClick={() => setShowCreateModal(false)} className="text-green-700 hover:text-green-400">
+                  <X size={16} />
+                </button>
+              </div>
+              
+              <div className="space-y-3">
+                <div className="space-y-1">
+                  <label className="text-[8px] text-green-700 uppercase tracking-wider">Project Name</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. Vasai-Virar Heights"
+                    value={projNameInput}
+                    onChange={(e) => setProjNameInput(e.target.value)}
+                    className="w-full bg-black border border-green-900/40 rounded px-2.5 py-1.5 text-xs text-white placeholder-green-900/60 focus:outline-none focus:border-green-400"
+                  />
+                </div>
+                
+                <div className="space-y-1">
+                  <label className="text-[8px] text-green-700 uppercase tracking-wider">Location / Site Address</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. Vasai Road East"
+                    value={projLocationInput}
+                    onChange={(e) => setProjLocationInput(e.target.value)}
+                    className="w-full bg-black border border-green-900/40 rounded px-2.5 py-1.5 text-xs text-white placeholder-green-900/60 focus:outline-none focus:border-green-400"
+                  />
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-2 pt-2 border-t border-green-900/30">
+                <button
+                  onClick={() => setShowCreateModal(false)}
+                  className="px-4 py-1.5 bg-transparent border border-green-900/40 text-green-700 hover:text-green-500 rounded text-[9px] uppercase tracking-wider"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={createNewProject}
+                  disabled={!projNameInput.trim()}
+                  className="px-4 py-1.5 bg-green-500 text-black hover:bg-green-400 font-bold rounded text-[9px] uppercase tracking-wider disabled:opacity-40"
+                >
+                  Create Project
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  }
+
   return (
     <main className="flex flex-col w-full h-screen bg-[#050f05] text-green-400 font-mono overflow-hidden">
       {/* Header */}
       <header className="flex items-center justify-between px-6 py-4 border-b border-green-900/40 bg-[#050f05]/90 backdrop-blur-md shrink-0">
         <div className="flex items-center gap-4">
-          <button onClick={() => router.push('/')} className="w-9 h-9 rounded-full border border-green-700/40 hover:border-green-400 hover:bg-green-500/10 flex items-center justify-center transition-all">
+          <button onClick={() => setSelectedProjectId(null)} className="w-9 h-9 rounded-full border border-green-700/40 hover:border-green-400 hover:bg-green-500/10 flex items-center justify-center transition-all">
             <ArrowLeft size={16} className="text-green-500" />
           </button>
           <div>
-            <h1 className="text-lg font-bold tracking-[4px] uppercase text-white drop-shadow-[0_0_8px_rgba(0,255,100,0.3)]">
-              Smart Planner <span className="text-[10px] bg-green-500/20 border border-green-500/40 text-green-400 px-2 py-0.5 rounded ml-2">v3</span>
+            <h1 className="text-lg font-bold tracking-[4px] uppercase text-white drop-shadow-[0_0_8px_rgba(0,255,100,0.3)] flex items-center gap-2">
+              {projectsList.find(p => p.id === selectedProjectId)?.name || 'Concept Project'}
+              <span className="text-[10px] bg-green-500/20 border border-green-500/40 text-green-400 px-2 py-0.5 rounded ml-2 font-mono uppercase tracking-normal">Concept</span>
             </h1>
             <span className="text-[9px] tracking-[3px] text-green-600 uppercase">Mathematical Planning &middot; Visual Layout &middot; Vastu Compliant</span>
           </div>
@@ -2078,6 +2421,31 @@ export default function SmartPlannerPage() {
                     <RefreshCw size={10} className={isGeneratingImage ? 'animate-spin' : ''} />
                     Regenerate
                   </button>
+                </div>
+
+                {/* Send layout to other workspaces */}
+                <div className="border-t border-purple-900/30 pt-3 space-y-2">
+                  <div className="text-[8px] font-bold text-purple-400 uppercase tracking-wider">Send layout to workspace:</div>
+                  <div className="grid grid-cols-3 gap-1.5">
+                    <button 
+                      onClick={() => handleSendToSection('edit')}
+                      className="text-[8px] font-bold uppercase tracking-wider text-green-400 bg-green-950/40 border border-green-900/40 rounded py-1.5 hover:bg-green-900/30 hover:border-green-500/50 transition-all"
+                    >
+                      ✏️ Edit
+                    </button>
+                    <button 
+                      onClick={() => handleSendToSection('png-to-dxf')}
+                      className="text-[8px] font-bold uppercase tracking-wider text-blue-400 bg-blue-950/40 border border-blue-900/40 rounded py-1.5 hover:bg-blue-900/30 hover:border-blue-500/50 transition-all"
+                    >
+                      📐 Vector
+                    </button>
+                    <button 
+                      onClick={() => handleSendToSection('3d-render')}
+                      className="text-[8px] font-bold uppercase tracking-wider text-amber-400 bg-amber-950/40 border border-amber-900/40 rounded py-1.5 hover:bg-amber-900/30 hover:border-amber-500/50 transition-all"
+                    >
+                      🏢 3D Render
+                    </button>
+                  </div>
                 </div>
               </div>
             )}
