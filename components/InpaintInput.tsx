@@ -20,32 +20,32 @@ export default function InpaintInput({ onSend, disabled }: InpaintInputProps) {
   };
 
   return (
-    <div className="p-4 bg-[#0A0E1A] shrink-0 font-mono flex flex-col justify-center border-t border-gray-900">
-      <form onSubmit={handleSubmit} className="flex flex-col gap-3">
-        <div className="flex items-center gap-3">
-          <span className="text-[#00B8D9] uppercase font-bold tracking-widest text-sm whitespace-nowrap">
+    <div className="p-2.5 bg-[#02050c]/85 shrink-0 font-sans flex flex-col justify-center border-t border-blue-900/35 glass-panel z-10">
+      <form onSubmit={handleSubmit} className="flex flex-col gap-2">
+        <div className="flex items-center gap-2">
+          <span className="text-cyan-400 uppercase font-bold tracking-widest text-xs whitespace-nowrap text-glow-blue">
             Replace Green With:
           </span>
-          <div className="flex-1 relative flex items-center border-b border-[#00B8D9]/50">
+          <div className="flex-1 relative flex items-center border-b border-cyan-500/50">
             <input
               type="text"
               value={text}
               onChange={(e) => setText(e.target.value)}
               disabled={disabled}
-              placeholder="E.G. KITCHEN LAYOUT,"
-              className="w-full bg-transparent text-[#00B8D9] placeholder:text-[#00B8D9]/40 outline-none uppercase tracking-widest text-sm py-2 pr-10"
+              placeholder="E.G. KITCHEN LAYOUT"
+              className="w-full bg-transparent text-cyan-400 placeholder:text-cyan-400/30 outline-none uppercase tracking-widest text-xs py-1.5 pr-8"
               autoFocus
             />
             <button
               type="submit"
               disabled={disabled || !text.trim()}
-              className="absolute right-0 text-[#00B8D9] hover:text-white transition-colors disabled:opacity-50"
+              className="absolute right-0 text-cyan-400 hover:text-white transition-colors disabled:opacity-50 cursor-pointer"
             >
-              <Send size={18} className="transform -rotate-45" />
+              <Send size={14} className="transform -rotate-45" />
             </button>
           </div>
         </div>
-        <p className="text-[#00B8D9]/70 uppercase tracking-wider text-[10px] leading-relaxed">
+        <p className="text-cyan-400/60 uppercase tracking-wider text-[9px] leading-relaxed">
           Paint the target room green and enter the new design above. Try "EMPTY ROOM" to remove furniture.
         </p>
       </form>

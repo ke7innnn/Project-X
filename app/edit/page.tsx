@@ -98,6 +98,10 @@ export default function EditPage() {
   };
 
   useEffect(() => {
+    localStorage.setItem('last_used_tool', 'edit');
+  }, []);
+
+  useEffect(() => {
     if (!textDrag.isDragging) return;
     const handleMouseMove = (e: MouseEvent) => {
       const dx = e.clientX - textDrag.startX;
@@ -711,7 +715,7 @@ const blendImagesWithMask = (
       <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGRlZnM+PHBhdHRlcm4gaWQ9ImdyaWQiIHdpZHRoPSI0MCIgaGVpZ2h0PSI0MCIgcGF0dGVyblVuaXRzPSJ1c2VyU3BhY2VPblVzZSI+PHBhdGggZD0iTSAwIDEwIEwgNDAgMTAgTSAxMCAwIEwgMTAgNDAiIGZpbGw9Im5vbmUiIHN0cm9rZT0iIzExMSIgc3Ryb2tlLXdpZHRoPSIwLjUiLz48L3BhdHRlcm4+PC9kZWZzPjxyZWN0IHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiIGZpbGw9InVybCgjZ3JpZCkiLz48L3N2Zz4=')] opacity-10 pointer-events-none z-0" />
 
       {/* Top Bar */}
-      <header className="relative z-10 flex items-center justify-between px-8 py-6 border-b border-[#1e1810] bg-[#0f0f18]/80 backdrop-blur-md shadow-[0_4px_20px_rgba(0,0,0,0.5)]">
+      <header className="relative z-10 flex items-center justify-between px-8 py-4 border-b border-blue-900/30 glass-panel shadow-[0_4px_30px_rgba(0,0,0,0.4)]">
         <div className="flex items-center gap-6">
           <button 
             onClick={() => {
@@ -722,15 +726,15 @@ const blendImagesWithMask = (
                 router.push('/');
               }
             }}
-            className="flex items-center justify-center w-10 h-10 rounded-full border border-cyan-500/30 hover:border-cyan-400 hover:bg-cyan-500/10 transition-all group"
+            className="flex items-center justify-center w-10 h-10 rounded-full border border-blue-500/30 hover:border-blue-400 hover:bg-blue-500/10 transition-all group cursor-pointer"
           >
-            <ArrowLeft className="text-cyan-500/70 group-hover:text-cyan-400" size={18} />
+            <ArrowLeft className="text-blue-500/70 group-hover:text-blue-400" size={18} />
           </button>
           <div>
             <h1 className="text-xl font-bold tracking-[4px] uppercase text-white drop-shadow-[0_0_8px_rgba(255,255,255,0.3)]">
               Edit Matrix
             </h1>
-            <span className="text-[10px] tracking-[3px] text-cyan-500/60 uppercase">
+            <span className="text-[10px] tracking-[3px] text-blue-500/60 uppercase">
               {projectName ? `Project: ${projectName} (${placeName || 'Unknown Location'})` : 'Powered by Groq Vision'}
             </span>
           </div>
@@ -743,61 +747,65 @@ const blendImagesWithMask = (
             onChange={handleFileUpload} 
             className="hidden" 
           />
-          <button 
-            onClick={() => fileInputRef.current?.click()}
-            className="flex items-center gap-2 px-4 py-2 text-[10px] uppercase tracking-widest bg-[#1e1810] border border-cyan-500/30 text-cyan-400 hover:bg-cyan-500/10 hover:border-cyan-400 font-bold rounded transition-colors"
-          >
-            <UploadCloud size={14} /> Upload Plan
-          </button>
 
-          {currentFloorPlan && (
+          {/* Project Tools Group */}
+          <div className="flex items-center bg-white/5 rounded-lg border border-blue-900/25 p-1">
             <button 
-              onClick={() => setIsSaveModalOpen(true)}
-              className="flex items-center gap-2 px-4 py-2 text-[10px] uppercase tracking-widest bg-[#1e1810] border border-cyan-500/30 text-cyan-400 hover:bg-cyan-500/10 hover:border-cyan-400 font-bold rounded transition-colors"
+              onClick={() => fileInputRef.current?.click()}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-[9px] uppercase tracking-wider text-blue-400 hover:bg-white/5 font-bold rounded-md transition-colors cursor-pointer"
             >
-              <Folder size={14} /> Save to Project
+              <UploadCloud size={12} /> Upload Plan
             </button>
-          )}
+            
+            <button 
+              onClick={() => setShowSelector(true)}
+              className="px-3 py-1.5 text-[9px] uppercase tracking-wider text-blue-400 hover:bg-white/5 rounded-md transition-colors cursor-pointer"
+            >
+              Switch Project
+            </button>
+
+            {currentFloorPlan && (
+              <button 
+                onClick={() => setIsSaveModalOpen(true)}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-[9px] uppercase tracking-wider text-blue-400 hover:bg-white/5 font-bold rounded-md transition-colors cursor-pointer"
+              >
+                <Folder size={12} /> Save to Project
+              </button>
+            )}
+          </div>
 
           {sessionId && (
             <button 
               onClick={() => router.push('/3d-render')}
-              className="flex items-center gap-2 px-4 py-2 text-[10px] uppercase tracking-widest bg-cyan-600/80 border border-cyan-400 text-white hover:bg-cyan-500 font-bold rounded shadow-[0_0_10px_rgba(6,182,212,0.3)] transition-all animate-pulse"
+              className="flex items-center gap-1.5 px-3 py-2 text-[9px] uppercase tracking-wider bg-gradient-to-r from-blue-600 to-cyan-600 border border-blue-400 text-white hover:from-blue-500 hover:to-cyan-500 font-bold rounded-lg shadow-[0_0_12px_rgba(14,165,233,0.3)] transition-all cursor-pointer"
             >
-              <Box size={14} /> Head to 3D Render Section
+              <Box size={12} /> 3D Render
             </button>
           )}
 
-          <button 
-            onClick={() => setShowSelector(true)}
-            className="px-4 py-2 text-[10px] uppercase tracking-widest border border-cyan-500/50 text-cyan-400 hover:bg-cyan-500/10 rounded transition-colors"
-          >
-            Switch Project
-          </button>
-          
           {/* Undo / Redo Control Group */}
-          <div className="flex items-center gap-0.5 border border-[#c8a84b]/30 rounded overflow-hidden bg-[#12100a]">
+          <div className="flex items-center bg-white/5 rounded-lg border border-blue-900/25 p-1">
             <button
               onClick={handleUndo}
               disabled={!floorPlanHistory || floorPlanHistory.length <= 1}
               title="Undo last edit (Ctrl+Z)"
-              className="flex items-center gap-1.5 px-3 py-2 text-[10px] uppercase tracking-widest font-bold transition-all
-                disabled:text-gray-600 disabled:cursor-not-allowed disabled:bg-transparent
-                enabled:text-[#c8a84b] enabled:hover:bg-[#c8a84b]/10"
+              className="flex items-center gap-1.5 px-3 py-1.5 text-[9px] uppercase tracking-wider font-bold transition-all rounded-md cursor-pointer
+                disabled:text-blue-900/30 disabled:cursor-not-allowed disabled:bg-transparent
+                enabled:text-blue-400 enabled:hover:bg-white/5"
             >
-              <Undo2 size={13} />
+              <Undo2 size={12} />
               <span>Undo</span>
             </button>
-            <div className="w-px h-5 bg-[#c8a84b]/20" />
+            <div className="w-px h-4 bg-blue-900/20" />
             <button
               onClick={handleRedo}
               disabled={floorPlanRedoStack.length === 0}
               title="Redo last undone edit (Ctrl+Shift+Z)"
-              className="flex items-center gap-1.5 px-3 py-2 text-[10px] uppercase tracking-widest font-bold transition-all
-                disabled:text-gray-600 disabled:cursor-not-allowed disabled:bg-transparent
-                enabled:text-[#c8a84b] enabled:hover:bg-[#c8a84b]/10"
+              className="flex items-center gap-1.5 px-3 py-1.5 text-[9px] uppercase tracking-wider font-bold transition-all rounded-md cursor-pointer
+                disabled:text-blue-900/30 disabled:cursor-not-allowed disabled:bg-transparent
+                enabled:text-blue-400 enabled:hover:bg-white/5"
             >
-              <Undo2 size={13} className="scale-x-[-1]" />
+              <Undo2 size={12} className="scale-x-[-1]" />
               <span>Redo</span>
             </button>
           </div>
@@ -1210,15 +1218,15 @@ const blendImagesWithMask = (
               )}
             </div>
           ) : (
-            <div className="flex flex-col items-center justify-center text-cyan-500/40 p-12 border-2 border-dashed border-cyan-500/20 rounded-xl bg-[#0f0f18]/30">
-              <UploadCloud size={64} className="mb-6 opacity-50 text-cyan-500" />
-              <h2 className="text-xl tracking-[4px] font-bold text-white uppercase mb-2">Upload Floor Plan</h2>
-              <p className="text-cyan-500/60 tracking-[2px] text-xs uppercase max-w-md text-center mb-8">
+            <div className="flex flex-col items-center justify-center text-blue-500/40 p-12 border border-blue-900/35 rounded-2xl glass-card shadow-2xl relative max-w-lg">
+              <UploadCloud size={64} className="mb-6 opacity-60 text-blue-400" />
+              <h2 className="text-xl tracking-[4px] font-bold text-white uppercase mb-2 text-glow-blue">Upload Floor Plan</h2>
+              <p className="text-blue-400/60 tracking-[2px] text-xs uppercase max-w-md text-center mb-8">
                 Upload a 2D floor plan image to initialize the Grok editing sequence.
               </p>
               <button 
                 onClick={() => fileInputRef.current?.click()}
-                className="flex items-center gap-3 px-8 py-4 bg-cyan-500/10 border border-cyan-500 text-cyan-400 hover:bg-cyan-500 hover:text-[#0a0a0f] uppercase tracking-widest font-bold transition-all"
+                className="flex items-center gap-3 px-8 py-4 bg-gradient-to-r from-blue-600 to-cyan-600 border border-blue-400 text-white hover:from-blue-500 hover:to-cyan-500 uppercase tracking-widest font-bold rounded-lg shadow-lg hover:shadow-blue-950/30 transition-all cursor-pointer"
               >
                 <UploadCloud size={18} /> Select Image
               </button>
@@ -1227,19 +1235,19 @@ const blendImagesWithMask = (
         </div>
 
         {/* Right Side: Command Prompt */}
-        <div className="w-[400px] border-l border-[#1e1810] bg-[#0f0f18]/90 backdrop-blur-md flex flex-col shadow-[-10px_0_30px_rgba(0,0,0,0.5)]">
-          <div className="p-6 border-b border-[#1e1810]">
-            <h2 className="text-sm tracking-[3px] text-cyan-400 font-bold uppercase flex items-center gap-2">
+        <div className="w-[400px] border-l border-blue-900/30 glass-panel flex flex-col shadow-[-10px_0_30px_rgba(0,0,0,0.5)]">
+          <div className="p-6 border-b border-blue-900/20">
+            <h2 className="text-sm tracking-[3px] text-blue-400 font-bold uppercase flex items-center gap-2">
               <PenTool size={14} /> Modification Protocols
             </h2>
-            <p className="text-[10px] tracking-wide text-cyan-500/60 mt-2 leading-relaxed">
+            <p className="text-[10px] tracking-wide text-blue-500/60 mt-2 leading-relaxed">
               Instruct the Groq Vision model to modify specific elements of your floor plan. E.g., "Add a pool to the backyard" or "Expand the master bedroom."
             </p>
           </div>
 
           {/* Plan Intelligence Panel */}
           {(isOcrLoading || ocrResult || ocrError) && (
-            <div className="border-b border-[#1e1810] p-4">
+            <div className="border-b border-blue-900/20 p-4">
               <div className="flex items-center justify-between mb-3">
                 <h3 className="text-[10px] tracking-[2px] text-purple-400 font-bold uppercase flex items-center gap-2">
                   <span className="w-2 h-2 rounded-full bg-purple-400 inline-block" />
@@ -1272,7 +1280,7 @@ const blendImagesWithMask = (
                     {ocrResult.totalAreaSqft && (
                       <span className="px-2 py-1 bg-purple-500/10 border border-purple-400/20 rounded text-[9px] text-purple-300 tracking-widest uppercase">Total: {ocrResult.totalAreaSqft} sqft</span>
                     )}
-                    <span className={`px-2 py-1 rounded text-[9px] tracking-widest uppercase border ${ocrResult.confidence === 'high' ? 'bg-green-500/10 border-green-400/30 text-green-400' : ocrResult.confidence === 'medium' ? 'bg-yellow-500/10 border-yellow-400/30 text-yellow-400' : 'bg-red-500/10 border-red-400/30 text-red-400'}`}>
+                    <span className={`px-2 py-1 rounded text-[9px] tracking-widest uppercase border ${ocrResult.confidence === 'high' ? 'bg-blue-500/10 border-blue-400/30 text-blue-400' : ocrResult.confidence === 'medium' ? 'bg-yellow-500/10 border-yellow-400/30 text-yellow-400' : 'bg-red-500/10 border-red-400/30 text-red-400'}`}>
                       {ocrResult.confidence} confidence
                     </span>
                   </div>
@@ -1298,7 +1306,7 @@ const blendImagesWithMask = (
                           // Activate inpaint so user can paint the room
                           setIsInpaintMode(true);
                         }}
-                        className="flex items-center justify-between px-3 py-2 rounded bg-[#0a0a0f] hover:bg-purple-500/10 border border-transparent hover:border-purple-500/30 text-left transition-all group"
+                        className="flex items-center justify-between px-3 py-2 rounded bg-black/30 hover:bg-purple-500/10 border border-transparent hover:border-purple-500/30 text-left transition-all group"
                       >
                         <div>
                           <span className="text-[10px] text-white font-medium group-hover:text-purple-300 transition-colors">{room.label || room.name}</span>
@@ -1324,10 +1332,10 @@ const blendImagesWithMask = (
             
             <form onSubmit={handleEdit} className="relative flex flex-col gap-3">
               {isInpaintMode ? (
-                <div className="flex flex-col gap-2 p-4 bg-[#0a0a0f] border-2 border-green-500/40 rounded shadow-[0_0_15px_rgba(34,197,94,0.1)] pr-16 relative">
+                <div className="flex flex-col gap-2 p-4 bg-black/40 border border-blue-900/35 rounded-xl shadow-lg pr-16 relative glass-card">
                   <div className="flex items-center justify-between mb-1">
-                    <span className="text-green-400 uppercase tracking-widest text-xs font-bold whitespace-nowrap">Targeted Inpaint Edit</span>
-                    <span className="text-[9px] text-green-500/60 tracking-wider uppercase bg-green-500/10 px-2 py-0.5 rounded">Green Dot Active</span>
+                    <span className="text-blue-400 uppercase tracking-widest text-xs font-bold whitespace-nowrap">Targeted Inpaint Edit</span>
+                    <span className="text-[9px] text-blue-500/60 tracking-wider uppercase bg-blue-500/10 px-2 py-0.5 rounded">Green Dot Active</span>
                   </div>
                   <input 
                     type="text"
@@ -1335,36 +1343,36 @@ const blendImagesWithMask = (
                     onChange={(e) => setPrompt(e.target.value)}
                     placeholder="E.G. 'INCREASE VERTICAL HEIGHT BY 2X'"
                     disabled={isEditing || !currentFloorPlan}
-                    className="w-full bg-transparent border-b border-green-500/30 focus:border-green-400 text-sm text-white placeholder-green-500/20 focus:outline-none py-2 uppercase tracking-wide disabled:opacity-50"
+                    className="w-full bg-transparent border-b border-blue-500/30 focus:border-blue-400 text-sm text-white placeholder-blue-500/20 focus:outline-none py-2 uppercase tracking-wide disabled:opacity-50"
                   />
-                  <span className="text-[9px] text-green-500/40 tracking-wider uppercase">
+                  <span className="text-[9px] text-blue-500/40 tracking-wider uppercase">
                     The highlighted green region will be replaced. Enter your structural instruction above.
                   </span>
                   <button 
                     type="submit"
                     disabled={isEditing || !currentFloorPlan || !prompt.trim()}
-                    className="absolute top-1/2 -translate-y-1/2 right-4 bg-green-500/20 hover:bg-green-500/40 text-green-400 p-2 rounded transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                    className="absolute top-1/2 -translate-y-1/2 right-4 bg-blue-500/20 hover:bg-blue-500/40 text-blue-400 p-2 rounded transition-colors disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
                   >
                     {isEditing ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
                   </button>
                 </div>
               ) : (
-                <div className="flex flex-col gap-2 p-4 bg-[#0a0a0f] border border-cyan-500/30 rounded pr-16 relative">
-                  <span className="text-cyan-400 uppercase tracking-widest text-xs font-bold whitespace-nowrap mb-1">Global Architectural Edit</span>
+                <div className="flex flex-col gap-2 p-4 bg-black/40 border border-blue-900/35 rounded-xl shadow-lg pr-16 relative glass-card">
+                  <span className="text-blue-400 uppercase tracking-widest text-xs font-bold whitespace-nowrap mb-1">Global Architectural Edit</span>
                   <textarea
                     value={prompt}
                     onChange={(e) => setPrompt(e.target.value)}
                     placeholder="E.G. 'MOVE THE KITCHEN WALL 1.5 METERS TOWARD THE LIVING ROOM'"
                     disabled={isEditing || !currentFloorPlan}
-                    className="w-full h-24 bg-transparent border border-cyan-500/20 focus:border-cyan-400 rounded p-3 text-xs text-white placeholder-cyan-500/30 focus:outline-none resize-none custom-scrollbar transition-all uppercase tracking-wide disabled:opacity-50"
+                    className="w-full h-24 bg-transparent border border-blue-900/20 focus:border-blue-400 rounded-lg p-3 text-xs text-white placeholder-blue-500/30 focus:outline-none resize-none custom-scrollbar transition-all uppercase tracking-wide disabled:opacity-50"
                   />
-                  <span className="text-[9px] text-cyan-500/40 tracking-wider uppercase">
+                  <span className="text-[9px] text-blue-500/40 tracking-wider uppercase">
                     No target selected. The entire floor plan structure will be analyzed.
                   </span>
                   <button 
                     type="submit"
                     disabled={isEditing || !currentFloorPlan || !prompt.trim()}
-                    className="absolute bottom-6 right-6 bg-cyan-500/20 hover:bg-cyan-500/40 text-cyan-400 p-2 rounded transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                    className="absolute bottom-6 right-6 bg-blue-500/20 hover:bg-blue-500/40 text-blue-400 p-2 rounded transition-colors disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
                   >
                     {isEditing ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
                   </button>

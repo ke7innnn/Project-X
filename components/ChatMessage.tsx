@@ -129,7 +129,7 @@ const ChatMessage = React.memo(function ChatMessage({ message, isCustomType, cus
         <button 
           onClick={handleDownload}
           disabled={isDownloading}
-          className="flex items-center gap-2 bg-[#FFB000] hover:bg-[#D8B78D] text-black font-semibold py-2 px-4 rounded-lg transition-colors disabled:opacity-50"
+          className="flex items-center gap-2 bg-gradient-to-r from-blue-600 to-cyan-600 border border-blue-400 text-white font-semibold py-2 px-4 rounded-lg hover:from-blue-500 hover:to-cyan-500 transition-colors disabled:opacity-50 cursor-pointer"
         >
           <Download size={18} />
           {isDownloading ? 'Downloading...' : text}
@@ -159,9 +159,9 @@ const ChatMessage = React.memo(function ChatMessage({ message, isCustomType, cus
             useArchitectStore.getState().addMessage({ role: 'user', parts: [{ text: "I want to trace my plot manually." }]});
             useArchitectStore.getState().addMessage({ role: 'model', parts: [{ text: "Let's draw! Use the CAD tools below to trace your plot boundary. When you're done, we'll continue with the setup." }], customType: 'plot-draw-canvas' });
           }}
-          className="flex items-center gap-3 bg-[#111] hover:bg-[#222] border border-[#333] text-white p-3 rounded-lg transition-colors text-left"
+          className="flex items-center gap-3 bg-black/30 hover:bg-blue-900/10 border border-blue-900/35 text-white p-3 rounded-lg transition-colors text-left glass-card cursor-pointer"
         >
-          <div className="bg-[#333] p-2 rounded"><PenTool size={16} className="text-[#FFB000]" /></div>
+          <div className="bg-[#02050c] p-2 rounded border border-blue-900/20"><PenTool size={16} className="text-blue-300" /></div>
           <div>
             <div className="font-semibold text-sm">Trace Plot Manually</div>
             <div className="text-xs text-gray-500">Use drawing tools to sketch your exact boundary</div>
@@ -173,9 +173,9 @@ const ChatMessage = React.memo(function ChatMessage({ message, isCustomType, cus
             useArchitectStore.getState().addMessage({ role: 'user', parts: [{ text: "I want to use a reference image or text prompt." }]});
             useArchitectStore.getState().addMessage({ role: 'model', parts: [{ text: "Understood. How would you like to provide the reference shape for your floor plan?" }], customType: 'onboarding-options' });
           }}
-          className="flex items-center gap-3 bg-[#111] hover:bg-[#222] border border-[#333] text-white p-3 rounded-lg transition-colors text-left"
+          className="flex items-center gap-3 bg-black/30 hover:bg-blue-900/10 border border-blue-900/35 text-white p-3 rounded-lg transition-colors text-left glass-card cursor-pointer"
         >
-          <div className="bg-[#333] p-2 rounded"><Map size={16} className="text-[#FFB000]" /></div>
+          <div className="bg-[#02050c] p-2 rounded border border-blue-900/20"><Map size={16} className="text-blue-300" /></div>
           <div>
             <div className="font-semibold text-sm">Use Reference Image / Text</div>
             <div className="text-xs text-gray-500">Upload a photo, search library, or use a text prompt</div>
@@ -205,9 +205,9 @@ const ChatMessage = React.memo(function ChatMessage({ message, isCustomType, cus
             useArchitectStore.getState().addMessage({ role: 'user', parts: [{ text: "I want to upload my own reference image." }]});
             useArchitectStore.getState().addMessage({ role: 'model', parts: [{ text: "Great! Please use the attachment (📎) icon below to upload your image or sketch." }]});
           }}
-          className="flex items-center gap-3 bg-[#111] hover:bg-[#222] border border-[#333] text-white p-3 rounded-lg transition-colors text-left"
+          className="flex items-center gap-3 bg-black/30 hover:bg-blue-900/10 border border-blue-900/35 text-white p-3 rounded-lg transition-colors text-left glass-card cursor-pointer"
         >
-          <div className="bg-[#333] p-2 rounded"><Upload size={16} className="text-[#FFB000]" /></div>
+          <div className="bg-[#02050c] p-2 rounded border border-blue-900/20"><Upload size={16} className="text-blue-300" /></div>
           <div>
             <div className="font-semibold text-sm">Upload Reference Image</div>
             <div className="text-xs text-gray-500">Upload your own photo or hand-drawn sketch</div>
@@ -220,9 +220,9 @@ const ChatMessage = React.memo(function ChatMessage({ message, isCustomType, cus
             useArchitectStore.getState().addMessage({ role: 'user', parts: [{ text: "I want to search the App Library." }]});
             useArchitectStore.getState().addMessage({ role: 'model', parts: [{ text: "Awesome! What kind of nature reference are you looking for? (e.g. coral, leaf, honeycomb)" }]});
           }}
-          className="flex items-center gap-3 bg-[#111] hover:bg-[#222] border border-[#333] text-white p-3 rounded-lg transition-colors text-left"
+          className="flex items-center gap-3 bg-black/30 hover:bg-blue-900/10 border border-blue-900/35 text-white p-3 rounded-lg transition-colors text-left glass-card cursor-pointer"
         >
-          <div className="bg-[#333] p-2 rounded"><Library size={16} className="text-[#FFB000]" /></div>
+          <div className="bg-[#02050c] p-2 rounded border border-blue-900/20"><Library size={16} className="text-blue-300" /></div>
           <div>
             <div className="font-semibold text-sm">Search App Library</div>
             <div className="text-xs text-gray-500">Find nature-inspired shapes in our Pexels library</div>
@@ -235,9 +235,9 @@ const ChatMessage = React.memo(function ChatMessage({ message, isCustomType, cus
             useArchitectStore.getState().addMessage({ role: 'user', parts: [{ text: "I just want to type a text prompt." }]});
             useArchitectStore.getState().addMessage({ role: 'model', parts: [{ text: "Perfect! Please describe the shape you want for your floor plan (e.g. 'L-shaped', 'clove shaped leaves', 'conch shell')." }]});
           }}
-          className="flex items-center gap-3 bg-[#111] hover:bg-[#222] border border-[#333] text-white p-3 rounded-lg transition-colors text-left"
+          className="flex items-center gap-3 bg-black/30 hover:bg-blue-900/10 border border-blue-900/35 text-white p-3 rounded-lg transition-colors text-left glass-card cursor-pointer"
         >
-          <div className="bg-[#333] p-2 rounded"><Type size={16} className="text-[#FFB000]" /></div>
+          <div className="bg-[#02050c] p-2 rounded border border-blue-900/20"><Type size={16} className="text-blue-300" /></div>
           <div>
             <div className="font-semibold text-sm">Text Prompt Only</div>
             <div className="text-xs text-gray-500">Describe the shape using text only</div>
@@ -254,8 +254,8 @@ const ChatMessage = React.memo(function ChatMessage({ message, isCustomType, cus
     if (!imgData.base64) {
       return (
         <div className="flex justify-start my-4 w-full">
-          <div className="bg-[#0A0E1A] border border-gray-800 rounded-xl p-4 shadow-xl max-w-[85%] w-full">
-             <span className="text-[10px] text-[#FFB000] tracking-wider uppercase font-bold mb-2 block">🖼️ Uploaded Design Reference</span>
+          <div className="bg-[#02050c]/85 border border-blue-900/35 rounded-xl p-4 shadow-xl max-w-[85%] w-full glass-card">
+             <span className="text-[10px] text-blue-300 tracking-wider uppercase font-bold mb-2 block">🖼️ Uploaded Design Reference</span>
              <p className="text-xs text-white font-semibold">{imgData.description || 'Custom reference image'}</p>
              <p className="text-[10px] text-gray-500 mt-2 italic">[Image data removed from archive to optimize storage limit]</p>
           </div>
@@ -265,16 +265,16 @@ const ChatMessage = React.memo(function ChatMessage({ message, isCustomType, cus
 
     return (
       <div className="flex justify-start my-4 w-full">
-        <div className="bg-[#0A0E1A] border border-gray-800 rounded-xl overflow-hidden shadow-xl max-w-[85%] w-full">
-          <div className="p-3 border-b border-gray-800 flex justify-between items-center bg-[#0d0d15]">
-            <span className="text-[10px] text-[#FFB000] tracking-wider uppercase font-bold">🖼️ Uploaded Design Reference</span>
+        <div className="bg-[#02050c]/85 border border-blue-900/35 rounded-xl overflow-hidden shadow-xl max-w-[85%] w-full glass-card">
+          <div className="p-3 border-b border-blue-900/25 flex justify-between items-center bg-black/45">
+            <span className="text-[10px] text-blue-300 tracking-wider uppercase font-bold">🖼️ Uploaded Design Reference</span>
           </div>
           <img 
             src={`data:image/jpeg;base64,${imgData.base64}`} 
             alt={imgData.description || 'Reference Image'}
             className="w-full max-h-60 object-contain bg-neutral-900"
           />
-          <div className="p-3 bg-[#0a0a0f]/60 backdrop-blur">
+          <div className="p-3 bg-black/40 backdrop-blur">
             <p className="text-xs text-white font-semibold">{imgData.description || 'Custom reference image'}</p>
           </div>
         </div>
@@ -287,16 +287,16 @@ const ChatMessage = React.memo(function ChatMessage({ message, isCustomType, cus
     if (!img) return null;
     return (
       <div className="flex justify-start my-4 w-full">
-        <div className="bg-[#0A0E1A] border border-gray-800 rounded-xl overflow-hidden shadow-xl max-w-[85%] w-full">
-          <div className="p-3 border-b border-gray-800 flex justify-between items-center bg-[#0d0d15]">
-            <span className="text-[10px] text-[#FFB000] tracking-wider uppercase font-bold">🌿 Selected Nature Reference</span>
+        <div className="bg-[#02050c]/85 border border-blue-900/35 rounded-xl overflow-hidden shadow-xl max-w-[85%] w-full glass-card">
+          <div className="p-3 border-b border-blue-900/25 flex justify-between items-center bg-black/45">
+            <span className="text-[10px] text-blue-300 tracking-wider uppercase font-bold">🌿 Selected Nature Reference</span>
           </div>
           <img 
             src={img.url || img.thumbUrl} 
             alt={img.description}
             className="w-full max-h-48 object-cover"
           />
-          <div className="p-3 bg-[#0a0a0f]/60 backdrop-blur">
+          <div className="p-3 bg-black/40 backdrop-blur">
             <p className="text-xs text-white font-semibold truncate">{img.description}</p>
             <p className="text-[10px] text-gray-500 mt-1">Photo by {img.photographer || 'Unsplash'}</p>
           </div>
@@ -323,30 +323,30 @@ const ChatMessage = React.memo(function ChatMessage({ message, isCustomType, cus
     const hasSelection = selectedIndex !== -1;
 
     return (
-      <div className="flex justify-start my-4 w-full font-mono">
-        <div className="bg-[#0A0E1A] border border-gray-800 rounded-xl overflow-hidden shadow-xl w-full">
-          <div className="p-3 border-b border-gray-800 bg-[#0d0d15]">
-            <span className="text-[10px] text-[#FFB000] tracking-wider uppercase font-bold">📐 Generated Concept Layouts</span>
+      <div className="flex justify-start my-4 w-full font-sans">
+        <div className="bg-[#02050c]/85 border border-blue-900/35 rounded-xl overflow-hidden shadow-xl w-full glass-panel">
+          <div className="p-3 border-b border-blue-900/25 bg-black/45">
+            <span className="text-[10px] text-blue-300 tracking-wider uppercase font-bold">📐 Generated Concept Layouts</span>
           </div>
-          <div className="grid grid-cols-2 gap-3 p-3 bg-[#0a0a0f]/40">
+          <div className="grid grid-cols-2 gap-3 p-3 bg-[#02050c]/40">
             {options.map((optUrl, idx) => {
               const isActive = currentFloorPlan === optUrl;
               return (
-                <div key={idx} className={`relative rounded-lg overflow-hidden border ${isActive ? 'border-[#FFB000]' : 'border-gray-800 bg-white/5'}`}>
+                <div key={idx} className={`relative rounded-lg overflow-hidden border ${isActive ? 'border-blue-500 shadow-[0_0_12px_rgba(14,165,233,0.3)]' : 'border-blue-900/25 bg-white/5'}`}>
                   <img 
                     src={`data:image/jpeg;base64,${optUrl}`} 
                     alt={`Option ${idx + 1}`} 
                     className="w-full aspect-square object-contain bg-white"
                   />
-                  <div className="p-2 flex flex-col gap-1.5 bg-[#0a0a0f]/90 border-t border-gray-800">
+                  <div className="p-2 flex flex-col gap-1.5 bg-black/90 border-t border-blue-900/25">
                     <button
                       onClick={() => {
                         setSelectedOption(idx, optUrl);
                         setPhase('measure');
                       }}
-                      className={`w-full py-1 text-[10px] uppercase font-bold tracking-wider rounded transition-colors ${
+                      className={`w-full py-1 text-[10px] uppercase font-bold tracking-wider rounded transition-colors cursor-pointer ${
                         isActive 
-                          ? 'bg-[#FFB000] text-black' 
+                          ? 'bg-blue-600 text-white' 
                           : 'bg-transparent border border-gray-700 text-gray-400 hover:text-white hover:border-white'
                       }`}
                     >
@@ -359,14 +359,14 @@ const ChatMessage = React.memo(function ChatMessage({ message, isCustomType, cus
           </div>
 
           {/* Bottom action buttons */}
-          <div className="p-3 border-t border-gray-800 bg-[#0d0d15] flex flex-col gap-2">
+          <div className="p-3 border-t border-blue-900/25 bg-black/45 flex flex-col gap-2">
             {/* Enter Edit Section — only visible once one option is selected */}
             {hasSelection && (
               <button
                 onClick={() => {
                   setPhase('edit');
                 }}
-                className="w-full py-2.5 bg-[#FFB000] hover:bg-[#e6a000] text-black text-[11px] uppercase font-black tracking-widest rounded transition-all flex items-center justify-center gap-2 shadow-[0_0_20px_rgba(255,176,0,0.3)] hover:shadow-[0_0_30px_rgba(255,176,0,0.5)] cursor-pointer"
+                className="w-full py-2.5 bg-gradient-to-r from-blue-600 to-cyan-600 border border-blue-400 text-white text-[11px] uppercase font-black tracking-widest rounded transition-all flex items-center justify-center gap-2 shadow-[0_0_20px_rgba(14,165,233,0.3)] hover:shadow-[0_0_30px_rgba(14,165,233,0.5)] cursor-pointer"
               >
                 ✏️ Enter Edit Section
               </button>
@@ -374,7 +374,7 @@ const ChatMessage = React.memo(function ChatMessage({ message, isCustomType, cus
             <button
               onClick={handleGenerateMore}
               disabled={isLoading}
-              className="w-full py-2 bg-transparent hover:bg-[#FFB000]/10 border border-[#FFB000]/40 hover:border-[#FFB000] text-[#FFB000] hover:text-white text-[10px] uppercase font-bold tracking-widest rounded transition-all disabled:opacity-30 disabled:pointer-events-none flex items-center justify-center gap-2 cursor-pointer font-mono"
+              className="w-full py-2 bg-transparent hover:bg-blue-950/20 border border-blue-500/40 hover:border-blue-500 text-blue-400 hover:text-white text-[10px] uppercase font-bold tracking-widest rounded transition-all disabled:opacity-30 disabled:pointer-events-none flex items-center justify-center gap-2 cursor-pointer font-sans"
             >
               🔄 Generate More Options
             </button>
@@ -402,12 +402,12 @@ const ChatMessage = React.memo(function ChatMessage({ message, isCustomType, cus
     const isActive = currentFloorPlan === editPlan;
 
     return (
-      <div className="flex justify-start my-4 w-full font-mono">
-        <div className="bg-[#0A0E1A] border border-gray-800 rounded-xl overflow-hidden shadow-xl max-w-[85%] w-full">
-          <div className="p-3 border-b border-gray-800 bg-[#0d0d15]">
+      <div className="flex justify-start my-4 w-full font-sans">
+        <div className="bg-[#02050c]/85 border border-blue-900/35 rounded-xl overflow-hidden shadow-xl max-w-[85%] w-full glass-card">
+          <div className="p-3 border-b border-blue-900/25 bg-black/45">
             <span className="text-[10px] text-cyan-400 tracking-wider uppercase font-bold">✏️ Floor Plan Modification</span>
           </div>
-          <div className="p-3 bg-[#0a0a0f]/40 flex flex-col gap-3">
+          <div className="p-3 bg-black/40 flex flex-col gap-3">
             <p className="text-[10px] text-gray-400 uppercase tracking-wider leading-relaxed">
               Instruction: <span className="text-white">"{instruction}"</span>
             </p>
@@ -423,7 +423,7 @@ const ChatMessage = React.memo(function ChatMessage({ message, isCustomType, cus
                 setCurrentFloorPlan(editPlan);
                 setPhase('edit');
               }}
-              className={`w-full py-1.5 text-[10px] uppercase font-bold tracking-wider rounded transition-colors ${
+              className={`w-full py-1.5 text-[10px] uppercase font-bold tracking-wider rounded transition-colors cursor-pointer ${
                 isActive 
                   ? 'bg-cyan-500 text-black' 
                   : 'bg-transparent border border-gray-700 text-cyan-400 hover:text-cyan-300 hover:border-cyan-500'
@@ -442,8 +442,8 @@ const ChatMessage = React.memo(function ChatMessage({ message, isCustomType, cus
       <div 
         className={`max-w-[85%] rounded-2xl p-3 text-sm ${
           isUser 
-            ? 'bg-[#FFB000] text-black rounded-tr-sm' 
-            : 'glass text-gray-200 rounded-tl-sm'
+            ? 'bg-blue-600 text-white rounded-tr-sm shadow-md' 
+            : 'glass text-gray-200 rounded-tl-sm border border-blue-900/25 shadow-lg bg-black/25'
         }`}
       >
         <div className="whitespace-pre-wrap">{text}</div>

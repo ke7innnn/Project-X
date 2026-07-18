@@ -856,7 +856,7 @@ YOUR TASK:
   };
 
   return (
-    <div className="w-full bg-[#0d0d0d]/80 backdrop-blur flex flex-col shrink-0 h-full relative font-mono">
+    <div className="w-full bg-[#02050c]/75 backdrop-blur flex flex-col shrink-0 h-full relative font-sans">
       {/* Subtle scanline overlay */}
       <div className="absolute inset-0 pointer-events-none bg-[linear-gradient(to_bottom,transparent_50%,rgba(0,0,0,0.1)_51%)] bg-[length:100%_4px] z-0 opacity-20" />
       
@@ -885,10 +885,10 @@ YOUR TASK:
       </div>
       {/* Sunpath controls if phase is render/export and floorplan exists */}
       {(phase === 'export' || phase === 'reimport') && currentFloorPlan && (
-        <div className="mx-4 mb-4 p-3 border border-[#FFB000]/30 bg-[#FFB000]/5 rounded-lg flex flex-col gap-2 relative z-10">
+        <div className="mx-4 mb-4 p-3 border border-blue-900/35 bg-blue-950/10 rounded-lg flex flex-col gap-2 relative z-10 glass-card">
           <div className="flex justify-between items-center">
-            <span className="text-[9px] font-bold tracking-[2px] uppercase text-[#FFB000]">Sunpath Controller</span>
-            {isLocalRenderLoading && <Loader2 size={10} className="animate-spin text-[#FFB000]" />}
+            <span className="text-[9px] font-bold tracking-[2px] uppercase text-blue-300 text-glow-blue">Sunpath Controller</span>
+            {isLocalRenderLoading && <Loader2 size={10} className="animate-spin text-blue-400" />}
           </div>
           
           <div className="flex gap-2">
@@ -899,7 +899,7 @@ YOUR TASK:
                 if (e.target.value !== 'custom') setCustomSunpath('');
               }}
               disabled={isLocalRenderLoading}
-              className="flex-1 bg-black text-[10px] border border-gray-700 text-white rounded px-2 py-1.5 focus:outline-none focus:border-[#FFB000] uppercase font-mono"
+              className="flex-1 bg-[#02050c]/45 text-[10px] border border-blue-900/35 text-white rounded px-2 py-1.5 focus:outline-none focus:border-blue-500 uppercase font-sans glass-card"
             >
               <option value="North">North (Shadows S)</option>
               <option value="South">South (Shadows N)</option>
@@ -915,12 +915,12 @@ YOUR TASK:
             <button
               onClick={handleApplySunpathEdit}
               disabled={isLocalRenderLoading}
-              className="px-3 py-1.5 bg-[#FFB000] hover:bg-[#D8B78D] text-black font-bold uppercase tracking-widest text-[9px] rounded transition-colors disabled:opacity-50 cursor-pointer"
+              className="px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white font-bold uppercase tracking-widest text-[9px] rounded transition-colors disabled:opacity-50 shadow-[0_0_10px_rgba(14,165,233,0.3)] cursor-pointer"
             >
               {isLocalRenderLoading ? 'Modifying...' : 'Apply'}
             </button>
           </div>
-
+ 
           {sunpath === 'custom' && (
             <input
               type="text"
@@ -928,7 +928,7 @@ YOUR TASK:
               onChange={(e) => setCustomSunpath(e.target.value)}
               disabled={isLocalRenderLoading}
               placeholder="E.G. SUN FROM NORTH-WEST"
-              className="w-full bg-black text-[9px] border border-gray-700 text-white rounded px-2 py-1.5 focus:outline-none focus:border-[#FFB000] uppercase font-mono tracking-wider"
+              className="w-full bg-[#02050c]/45 text-[9px] border border-blue-900/35 text-white rounded px-2 py-1.5 focus:outline-none focus:border-blue-500 uppercase font-sans tracking-wider glass-card"
             />
           )}
         </div>

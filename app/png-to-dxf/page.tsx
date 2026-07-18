@@ -27,6 +27,10 @@ export default function PngToDxfPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const progressRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
+  useEffect(() => {
+    localStorage.setItem('last_used_tool', 'png-to-dxf');
+  }, []);
+
   // Check if we came from the edit section with a floor plan
   useEffect(() => {
     const store = useArchitectStore.getState();

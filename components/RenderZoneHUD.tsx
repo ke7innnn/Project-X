@@ -92,7 +92,7 @@ export default function RenderZoneHUD() {
   };
 
   return (
-    <div className="w-full h-20 bg-[#0a0a0a] border-b border-[#222] flex items-center justify-between px-6 relative shrink-0 z-20 shadow-[0_4px_30px_rgba(0,0,0,0.8)] font-mono">
+    <div className="w-full h-20 bg-[#030612]/75 border-b border-blue-900/30 flex items-center justify-between px-6 relative shrink-0 z-20 glass-panel shadow-[0_4px_30px_rgba(0,0,0,0.5)] font-mono">
       {/* Background HUD texture */}
       <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGRlZnM+PHBhdHRlcm4gaWQ9ImdyaWQiIHdpZHRoPSI0MCIgaGVpZ2h0PSI0MCIgcGF0dGVyblVuaXRzPSJ1c2VyU3BhY2VPblVzZSI+PHBhdGggZD0iTSAwIDEwIEwgNDAgMTAgTSAxMCAwIEwgMTAgNDAiIGZpbGw9Im5vbmUiIHN0cm9rZT0iIzExMSIgc3Ryb2tlLXdpZHRoPSIwLjUiLz48L3BhdHRlcm4+PC9kZWZzPjxyZWN0IHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiIGZpbGw9InVybCgjZ3JpZCkiLz48L3N2Zz4=')] opacity-20 pointer-events-none" />
       
@@ -100,7 +100,7 @@ export default function RenderZoneHUD() {
       <div className="flex items-center gap-4 z-20 w-[220px] shrink-0">
         <button 
           onClick={handleExit}
-          className="flex items-center gap-1 text-[#666] hover:text-[#FFB000] transition-colors group"
+          className="flex items-center gap-1 text-blue-500/60 hover:text-blue-300 transition-colors group cursor-pointer"
         >
           <ChevronLeft size={20} className="group-hover:-translate-x-1 transition-transform" />
           <span className="text-[10px] uppercase tracking-[2px] font-bold hidden md:inline">Exit</span>
@@ -108,7 +108,7 @@ export default function RenderZoneHUD() {
 
         <button 
           onClick={handleRestart}
-          className="flex items-center gap-2 px-3 py-1.5 border border-[#333] rounded text-[#888] hover:text-[#FFB000] hover:border-[#FFB000]/50 hover:bg-[#FFB000]/10 transition-all group"
+          className="flex items-center gap-2 px-3 py-1.5 border border-blue-900/35 rounded text-blue-400 hover:text-blue-300 hover:border-blue-500/50 hover:bg-blue-500/10 transition-all group cursor-pointer"
           title="Restart Project"
         >
           <RotateCcw size={14} className="group-hover:-rotate-180 transition-transform duration-500" />
@@ -119,11 +119,11 @@ export default function RenderZoneHUD() {
       {/* CENTER COLUMN: Breadcrumbs */}
       <div className="flex-1 flex justify-between items-center relative max-w-4xl mx-8 z-20 hidden md:flex">
         {/* Connecting Line */}
-        <div className="absolute top-1/2 left-0 right-0 h-[2px] -translate-y-1/2 bg-[#222] z-0" />
+        <div className="absolute top-1/2 left-0 right-0 h-[2px] -translate-y-1/2 bg-blue-900/30 z-0" />
         
         {/* Active Line Fill */}
         <div 
-          className="absolute top-1/2 left-0 h-[2px] -translate-y-1/2 bg-[#FFB000] shadow-[0_0_8px_#FFB000] z-0 transition-all duration-700 ease-in-out" 
+          className="absolute top-1/2 left-0 h-[2px] -translate-y-1/2 bg-blue-500 shadow-[0_0_12px_rgba(14,165,233,0.5)] z-0 transition-all duration-700 ease-in-out" 
           style={{ width: `${(currentIndex / (STAGES.length - 1)) * 100}%` }}
         />
 
@@ -142,25 +142,25 @@ export default function RenderZoneHUD() {
               {/* Node Point */}
               <div 
                 className={`
-                  w-8 h-8 rounded-full flex items-center justify-center border-2 transition-all duration-500 bg-[#0a0a0a]
+                  w-8 h-8 rounded-full flex items-center justify-center border-2 transition-all duration-500 bg-[#02050c]
                   ${isActive 
-                    ? 'border-[#FFB000] shadow-[0_0_15px_rgba(255,176,0,0.5)] scale-110' 
+                    ? 'border-blue-500 shadow-[0_0_15px_rgba(14,165,233,0.5)] scale-110' 
                     : isPassed 
-                      ? 'border-[#FFB000] text-[#FFB000]' 
-                      : 'border-[#333] text-[#555]'
+                      ? 'border-blue-500 text-blue-400' 
+                      : 'border-blue-900/40 text-blue-900/50'
                   }
-                  ${isClickable && !isActive ? 'group-hover:border-[#FFB000] group-hover:bg-[#FFB000]/10' : ''}
+                  ${isClickable && !isActive ? 'group-hover:border-blue-400 group-hover:bg-blue-500/10' : ''}
                 `}
               >
-                <Icon size={14} className={isActive ? 'text-[#FFB000]' : ''} />
+                <Icon size={14} className={isActive ? 'text-blue-300' : ''} />
               </div>
 
               {/* Label */}
               <span 
                 className={`
                   absolute -bottom-6 whitespace-nowrap text-[10px] uppercase tracking-[2px] font-bold transition-colors duration-300
-                  ${isActive ? 'text-[#FFB000]' : isPassed ? 'text-[#aaa]' : 'text-[#444]'}
-                  ${isClickable && !isActive ? 'group-hover:text-[#FFB000]' : ''}
+                  ${isActive ? 'text-blue-300' : isPassed ? 'text-[#aaa]' : 'text-blue-900/40'}
+                  ${isClickable && !isActive ? 'group-hover:text-blue-400' : ''}
                 `}
               >
                 {stage.label}
@@ -176,7 +176,7 @@ export default function RenderZoneHUD() {
           onClick={() => {
             alert("Project successfully saved to database!");
           }}
-          className="flex items-center gap-2 px-3 py-1.5 border border-[#FFB000]/50 rounded text-[#FFB000] hover:bg-[#FFB000]/10 transition-all group"
+          className="flex items-center gap-2 px-3 py-1.5 border border-blue-500/50 rounded text-blue-400 hover:bg-blue-500/10 transition-all group cursor-pointer"
         >
           <Save size={14} className="group-hover:scale-110 transition-transform" />
           <span className="text-[10px] uppercase tracking-[2px] font-bold hidden md:inline">Save</span>

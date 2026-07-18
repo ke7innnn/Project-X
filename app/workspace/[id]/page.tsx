@@ -32,8 +32,8 @@ export default function WorkspacePage() {
   // While restoring from the database, show a cool loader
   if (id !== currentSessionId || !isRestored) {
     return (
-      <div className="flex flex-col items-center justify-center w-full h-screen bg-[#0d0d0d] font-mono text-[#FFB000]">
-         <div className="w-12 h-12 border-4 border-[#FFB000] border-t-transparent rounded-full animate-spin mb-4" />
+      <div className="flex flex-col items-center justify-center w-full h-screen bg-[#02050c] font-sans text-blue-300 text-glow-blue">
+         <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mb-4" />
          <p className="tracking-widest uppercase">Connecting to Workspace Node...</p>
       </div>
     );
@@ -48,7 +48,7 @@ export default function WorkspacePage() {
   }
 
   return (
-    <main className="flex flex-col w-full h-screen bg-[#0d0d0d] overflow-hidden font-mono text-white relative">
+    <main className="flex flex-col w-full h-screen bg-[#02050c] overflow-hidden font-sans text-white relative">
       <CinematicIntro 
         key={introVideo}
         videoPath={introVideo} 
@@ -64,7 +64,7 @@ export default function WorkspacePage() {
       {/* Main Split Screen Area */}
       <div className="flex flex-1 overflow-hidden relative z-10">
         {/* Left Panel: Chat (30%) */}
-        <div className="w-[30%] h-full flex flex-col border-r border-[#222] bg-[#0d0d0d]/80 backdrop-blur">
+        <div className="w-[30%] h-full flex flex-col border-r border-blue-900/35 bg-[#02050c]/80 backdrop-blur">
           <ChatPanel />
         </div>
 

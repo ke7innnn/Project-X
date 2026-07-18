@@ -483,7 +483,7 @@ export default function VectorEditorPage() {
                 </label>
               )}
               {schema.scale.pixelsPerMeter && (
-                <span className="text-[10px] bg-green-500/10 border border-green-500/30 text-green-400 px-2 py-0.5 rounded tracking-wider">
+                <span className="text-[10px] bg-blue-500/10 border border-blue-500/30 text-blue-400 px-2 py-0.5 rounded tracking-wider">
                   SCALE: 1m = {schema.scale.pixelsPerMeter.toFixed(0)}px
                 </span>
               )}
@@ -513,7 +513,7 @@ export default function VectorEditorPage() {
               {['upload','verify','calibrate','edit'].map((s, i) => (
                 <span key={s} className={`px-2 py-0.5 rounded ${
                   stage === s ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-400/40' :
-                  ['upload','verify','calibrate','edit'].indexOf(stage) > i ? 'text-green-400' : 'text-cyan-500/30'
+                  ['upload','verify','calibrate','edit'].indexOf(stage) > i ? 'text-blue-400' : 'text-cyan-500/30'
                 }`}>
                   {i+1}. {s}
                 </span>

@@ -45,6 +45,10 @@ export default function Render3DPage() {
   const [newPlaceName, setNewPlaceName] = useState('');
 
   useEffect(() => {
+    localStorage.setItem('last_used_tool', '3d-render');
+  }, []);
+
+  useEffect(() => {
     if (sessionId) {
       setShowSelector(false);
     }
@@ -187,7 +191,7 @@ export default function Render3DPage() {
   };
 
   return (
-    <main className="flex flex-col w-full h-screen bg-[#0a0a0f] text-[#FFB000] font-mono overflow-hidden relative">
+    <main className="flex flex-col w-full h-screen bg-[#02050c] text-blue-300 font-sans overflow-hidden relative">
       <CinematicIntro 
         videoPath="/stage videos/Chapter 3 - 3D Render.mp4" 
         title="Chapter 3 - THE RENDER" 
@@ -197,7 +201,7 @@ export default function Render3DPage() {
       <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGRlZnM+PHBhdHRlcm4gaWQ9ImdyaWQiIHdpZHRoPSI0MCIgaGVpZ2h0PSI0MCIgcGF0dGVyblVuaXRzPSJ1c2VyU3BhY2VPblVzZSI+PHBhdGggZD0iTSAwIDEwIEwgNDAgMTAgTSAxMCAwIEwgMTAgNDAiIGZpbGw9Im5vbmUiIHN0cm9rZT0iIzExMSIgc3Ryb2tlLXdpZHRoPSIwLjUiLz48L3BhdHRlcm4+PC9kZWZzPjxyZWN0IHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiIGZpbGw9InVybCgjZ3JpZCkiLz48L3N2Zz4=')] opacity-10 pointer-events-none z-0" />
 
       {/* Top Bar */}
-      <header className="relative z-10 flex items-center justify-between px-8 py-6 border-b border-[#1e1810] bg-[#0f0f18]/80 backdrop-blur-md shadow-[0_4px_20px_rgba(0,0,0,0.5)]">
+      <header className="relative z-10 flex items-center justify-between px-8 py-6 border-b border-blue-900/30 bg-[#02050c]/80 backdrop-blur-md shadow-[0_4px_30px_rgba(0,0,0,0.5)] glass-panel">
         <div className="flex items-center gap-6">
           <button 
             onClick={() => {
@@ -207,15 +211,15 @@ export default function Render3DPage() {
                 router.push('/');
               }
             }}
-            className="flex items-center justify-center w-10 h-10 rounded-full border border-[#FFB000]/30 hover:border-[#FFB000] hover:bg-[#FFB000]/10 transition-all group cursor-pointer"
+            className="flex items-center justify-center w-10 h-10 rounded-full border border-blue-500/30 hover:border-blue-500 hover:bg-blue-500/10 transition-all group cursor-pointer glass-card"
           >
-            <ArrowLeft className="text-[#FFB000]/70 group-hover:text-[#FFB000]" size={18} />
+            <ArrowLeft className="text-blue-400 group-hover:text-blue-300" size={18} />
           </button>
           <div>
             <h1 className="text-xl font-bold tracking-[4px] uppercase text-white drop-shadow-[0_0_8px_rgba(255,255,255,0.3)]">
               3D Render Matrix
             </h1>
-            <span className="text-[10px] tracking-[3px] text-[#FFB000]/60 uppercase">
+            <span className="text-[10px] tracking-[3px] text-blue-400/60 uppercase">
               {projectName ? `Project: ${projectName} (${placeName || 'Unknown Location'})` : 'Photorealistic Generation Engine'}
             </span>
           </div>
@@ -231,7 +235,7 @@ export default function Render3DPage() {
           />
           <button 
             onClick={() => fileInputRef.current?.click()}
-            className="flex items-center gap-2 px-4 py-2 text-[10px] uppercase tracking-widest bg-[#1e1810] border border-[#FFB000]/30 text-[#FFB000] hover:bg-[#FFB000]/10 hover:border-[#FFB000] font-bold rounded transition-colors cursor-pointer"
+            className="flex items-center gap-2 px-4 py-2 text-[10px] uppercase tracking-widest bg-blue-600/10 border border-blue-500/30 text-blue-300 hover:bg-blue-600/20 hover:border-blue-500 font-bold rounded transition-all cursor-pointer glass-card"
           >
             <UploadCloud size={14} /> Upload Plan
           </button>
@@ -239,7 +243,7 @@ export default function Render3DPage() {
           {finalRender && (
             <button 
               onClick={() => setIsSaveModalOpen(true)}
-              className="flex items-center gap-2 px-4 py-2 text-[10px] uppercase tracking-widest bg-[#1e1810] border border-[#FFB000]/30 text-[#FFB000] hover:bg-[#FFB000]/10 hover:border-[#FFB000] font-bold rounded transition-colors cursor-pointer"
+              className="flex items-center gap-2 px-4 py-2 text-[10px] uppercase tracking-widest bg-blue-600/10 border border-blue-500/30 text-blue-300 hover:bg-blue-600/20 hover:border-blue-500 font-bold rounded transition-all cursor-pointer glass-card"
             >
               <Folder size={14} /> Save to Project
             </button>
@@ -247,7 +251,7 @@ export default function Render3DPage() {
 
           <button 
             onClick={() => setShowSelector(true)}
-            className="px-4 py-2 text-[10px] uppercase tracking-widest border border-[#FFB000]/50 text-[#FFB000] hover:bg-[#FFB000]/10 rounded transition-colors cursor-pointer"
+            className="px-4 py-2 text-[10px] uppercase tracking-widest border border-blue-500/50 text-blue-300 hover:bg-blue-500/10 rounded transition-all cursor-pointer glass-card"
           >
             Switch Project
           </button>
@@ -262,11 +266,11 @@ export default function Render3DPage() {
           {currentFloorPlan ? (
             <div className="flex flex-col gap-6 w-full mb-8">
               {/* 2D Blueprint Image Viewport */}
-              <div className="flex justify-between items-center pb-4 border-b border-[#1e1810]">
+              <div className="flex justify-between items-center pb-4 border-b border-blue-900/30">
                 <h3 className="text-sm font-bold tracking-[3px] text-white uppercase">2D Blueprint View</h3>
                 <button 
                   onClick={downloadFloorPlan}
-                  className="flex items-center gap-2 bg-[#1e1810] hover:bg-[#FFB000]/10 border border-[#FFB000]/30 text-[#FFB000] px-4 py-2 rounded text-[10px] uppercase tracking-widest font-bold transition-all cursor-pointer"
+                  className="flex items-center gap-2 bg-blue-600/10 hover:bg-blue-500/20 border border-blue-500/30 text-blue-300 px-4 py-2 rounded text-[10px] uppercase tracking-widest font-bold transition-all cursor-pointer glass-card"
                 >
                   <Download size={12} /> Download Plan
                 </button>
@@ -286,13 +290,13 @@ export default function Render3DPage() {
                 
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-6">
                   {renderHistory.map((item) => (
-                    <div key={item.id} className="bg-[#0f0f18] border border-zinc-800 rounded-xl overflow-hidden hover:border-[#FFB000]/50 transition-all flex flex-col shadow-lg">
+                    <div key={item.id} className="bg-black/35 border border-blue-900/20 rounded-xl overflow-hidden hover:border-blue-500/50 transition-all flex flex-col shadow-lg glass-card">
                       <div className="aspect-video relative overflow-hidden bg-black/40">
                         <img src={item.base64.startsWith('data:image/') ? item.base64 : `data:image/jpeg;base64,${item.base64}`} alt="Render Thumb" className="w-full h-full object-cover" />
                       </div>
-                      <div className="p-3 flex-1 flex flex-col justify-between gap-3">
+                      <div className="p-3 flex-1 flex flex-col justify-between gap-3 font-sans">
                         <div>
-                          <div className="text-[10px] font-bold text-[#FFB000] uppercase truncate">{item.style}</div>
+                          <div className="text-[10px] font-bold text-blue-300 uppercase truncate text-glow-blue">{item.style}</div>
                           <div className="text-[9px] text-zinc-500 uppercase tracking-widest mt-1">Sun: {item.sunpath}</div>
                         </div>
                         
@@ -304,7 +308,7 @@ export default function Render3DPage() {
                             setEditRenderError(null);
                             setViewingHistoryId(item.id);
                           }}
-                            className="flex-1 py-1.5 bg-[#FFB000]/10 border border-[#FFB000]/30 hover:border-[#FFB000] text-[#FFB000] hover:text-[#0a0a0f] hover:bg-[#FFB000] font-bold uppercase tracking-widest text-[8px] rounded transition-all cursor-pointer font-mono"
+                            className="flex-1 py-1.5 bg-blue-500/10 border border-blue-500/30 hover:border-blue-500 text-blue-300 hover:text-white hover:bg-blue-600 font-bold uppercase tracking-widest text-[8px] rounded transition-all cursor-pointer font-sans"
                           >
                             Inspect
                           </button>
@@ -332,14 +336,14 @@ export default function Render3DPage() {
 
                   {/* GENERATING LOADING CARD */}
                   {isRendering && (
-                    <div className="bg-[#0f0f18] border border-[#FFB000]/40 rounded-xl overflow-hidden animate-pulse flex flex-col justify-center items-center p-6 min-h-[160px]">
-                      <div className="w-8 h-8 border-3 border-[#FFB000] border-t-transparent rounded-full animate-spin mb-3" />
-                      <span className="text-[9px] text-[#FFB000] tracking-widest uppercase text-center font-bold">Generating Render...</span>
+                    <div className="bg-black/35 border border-blue-500/30 rounded-xl overflow-hidden animate-pulse flex flex-col justify-center items-center p-6 min-h-[160px] glass-card">
+                      <div className="w-8 h-8 border-3 border-blue-500 border-t-transparent rounded-full animate-spin mb-3" />
+                      <span className="text-[9px] text-blue-300 tracking-widest uppercase text-center font-bold text-glow-blue">Generating Render...</span>
                     </div>
                   )}
 
                   {!isRendering && renderHistory.length === 0 && (
-                    <div className="col-span-full py-12 flex flex-col items-center justify-center border border-dashed border-zinc-800 rounded-xl bg-black/10 text-zinc-500">
+                    <div className="col-span-full py-12 flex flex-col items-center justify-center border border-dashed border-blue-900/20 rounded-xl bg-black/10 text-zinc-500 glass-card">
                       <span className="text-xs uppercase tracking-widest">No Renders Generated Yet</span>
                       <span className="text-[9px] uppercase tracking-widest mt-1 text-zinc-600">Select a style and sunpath on the right to start</span>
                     </div>
@@ -348,15 +352,15 @@ export default function Render3DPage() {
               </div>
             </div>
           ) : (
-            <div className="flex flex-col items-center justify-center text-[#FFB000]/40 p-12 border-2 border-dashed border-[#FFB000]/20 rounded-xl bg-[#0f0f18]/30">
-              <UploadCloud size={64} className="mb-6 opacity-50 text-[#FFB000]" />
+            <div className="flex flex-col items-center justify-center text-blue-400/40 p-12 border-2 border-dashed border-blue-500/20 rounded-xl bg-black/20 glass-card">
+              <UploadCloud size={64} className="mb-6 opacity-50 text-blue-400" />
               <h2 className="text-xl tracking-[4px] font-bold text-white uppercase mb-2">Upload Floor Plan</h2>
-              <p className="text-[#FFB000]/60 tracking-[2px] text-xs uppercase max-w-md text-center mb-8">
+              <p className="text-blue-300/60 tracking-[2px] text-xs uppercase max-w-md text-center mb-8">
                 Upload a 2D floor plan image to initialize the photorealistic 3D generation sequence.
               </p>
               <button 
                 onClick={() => fileInputRef.current?.click()}
-                className="flex items-center gap-3 px-8 py-4 bg-[#FFB000]/10 border border-[#FFB000] text-[#FFB000] hover:bg-[#FFB000] hover:text-[#0a0a0f] uppercase tracking-widest font-bold transition-all cursor-pointer"
+                className="flex items-center gap-3 px-8 py-4 bg-blue-600 hover:bg-blue-500 text-white border border-blue-400/30 uppercase tracking-widest font-bold transition-all cursor-pointer shadow-[0_0_15px_rgba(14,165,233,0.35)] rounded-lg"
               >
                 <UploadCloud size={18} /> Select Image
               </button>
@@ -365,12 +369,12 @@ export default function Render3DPage() {
         </div>
 
         {/* Right Side: Filters & Settings */}
-        <div className="w-[360px] border-l border-[#1e1810] bg-[#0f0f18]/90 backdrop-blur-md flex flex-col shadow-[-10px_0_30px_rgba(0,0,0,0.5)]">
-          <div className="p-6 border-b border-[#1e1810]">
-            <h2 className="text-sm tracking-[3px] text-[#FFB000] font-bold uppercase flex items-center gap-2">
+        <div className="w-[360px] border-l border-blue-900/35 bg-[#02050c]/75 backdrop-blur-md flex flex-col shadow-[-10px_0_30px_rgba(0,0,0,0.5)] glass-panel">
+          <div className="p-6 border-b border-blue-900/30">
+            <h2 className="text-sm tracking-[3px] text-blue-300 font-bold uppercase flex items-center gap-2 text-glow-blue">
               <Settings2 size={14} /> Render Filters
             </h2>
-            <p className="text-[10px] tracking-wide text-[#FFB000]/60 mt-2 leading-relaxed">
+            <p className="text-[10px] tracking-wide text-blue-400/60 mt-2 leading-relaxed">
               Configure lighting, environment, and material aesthetics.
             </p>
           </div>
@@ -385,7 +389,7 @@ export default function Render3DPage() {
             {currentFloorPlan ? (
               <div className="flex flex-col gap-6">
                 {/* Architectural Style Selector */}
-                <div className="p-4 border border-zinc-800 bg-[#07070a] rounded flex flex-col gap-3">
+                <div className="p-4 border border-blue-900/35 bg-black/45 rounded flex flex-col gap-3 glass-card">
                   <span className="text-[10px] font-bold tracking-[2px] uppercase text-white">Architectural Style</span>
                   <p className="text-[9px] text-zinc-500 uppercase tracking-wider leading-relaxed">
                     Choose an architectural aesthetic theme for the generated 3D render.
@@ -396,7 +400,7 @@ export default function Render3DPage() {
                       value={selectedStyle}
                       onChange={(e) => setSelectedStyle(e.target.value)}
                       disabled={isRendering}
-                      className="w-full bg-black text-xs border border-gray-700 text-white rounded px-3 py-2.5 focus:outline-none focus:border-[#FFB000] uppercase font-mono cursor-pointer"
+                      className="w-full bg-black text-xs border border-blue-900/35 text-white rounded px-3 py-2.5 focus:outline-none focus:border-blue-500 uppercase font-sans cursor-pointer glass-card"
                     >
                       <option value="Normal">Style: Normal / Default</option>
                       <optgroup label="Minimalist">
@@ -445,10 +449,10 @@ export default function Render3DPage() {
                   </div>
                 </div>
 
-                {/* Sunpath Controller */}
-                <div className="p-4 border border-[#FFB000]/30 bg-[#FFB000]/5 rounded flex flex-col gap-3">
-                  <span className="text-[10px] font-bold tracking-[2px] uppercase text-[#FFB000]">Shadows (Sunpath)</span>
-                  <p className="text-[9px] text-[#FFB000]/60 uppercase tracking-wider leading-relaxed">
+                {/* Shadows (Sunpath) Controller */}
+                <div className="p-4 border border-blue-900/35 bg-blue-950/10 rounded flex flex-col gap-3 glass-card">
+                  <span className="text-[10px] font-bold tracking-[2px] uppercase text-blue-300 text-glow-blue">Shadows (Sunpath)</span>
+                  <p className="text-[9px] text-blue-400/60 uppercase tracking-wider leading-relaxed">
                     Shift the position of the sun. Extremely faint, diffuse shadows will project on the opposite side.
                   </p>
                   
@@ -461,7 +465,7 @@ export default function Render3DPage() {
                         if (e.target.value !== 'custom') setCustomSunpath('');
                       }}
                       disabled={isRendering}
-                      className="w-full bg-black text-xs border border-gray-700 text-white rounded px-3 py-2.5 focus:outline-none focus:border-[#FFB000] uppercase font-mono cursor-pointer"
+                      className="w-full bg-black text-xs border border-blue-900/35 text-white rounded px-3 py-2.5 focus:outline-none focus:border-blue-500 uppercase font-sans cursor-pointer glass-card"
                     >
                       <option value="North">North (Shadows South)</option>
                       <option value="South">South (Shadows North)</option>
@@ -484,7 +488,7 @@ export default function Render3DPage() {
                         onChange={(e) => setCustomSunpath(e.target.value)}
                         disabled={isRendering}
                         placeholder="E.G. LOW ON THE WESTERN HORIZON"
-                        className="w-full bg-black text-xs border border-gray-700 text-white rounded px-3 py-2.5 focus:outline-none focus:border-[#FFB000] uppercase font-mono tracking-wider"
+                        className="w-full bg-black text-xs border border-blue-900/35 text-white rounded px-3 py-2.5 focus:outline-none focus:border-blue-500 uppercase font-sans tracking-wider glass-card"
                       />
                     </div>
                   )}
@@ -493,7 +497,7 @@ export default function Render3DPage() {
                 <button
                   onClick={handleGenerateRender}
                   disabled={isRendering}
-                  className="w-full py-4 bg-[#FFB000] text-black font-bold uppercase tracking-widest text-xs rounded hover:bg-[#e09c00] transition-colors disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer shadow-[0_0_15px_rgba(255,176,0,0.15)]"
+                  className="w-full py-4 bg-blue-600 text-white font-bold uppercase tracking-widest text-xs rounded hover:bg-blue-500 transition-colors disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer shadow-[0_0_15px_rgba(14,165,233,0.35)] border border-blue-400/30"
                 >
                   {isRendering && <Loader2 size={14} className="animate-spin" />}
                   {isRendering ? 'Generating Concept...' : 'Generate 3D Render'}
@@ -507,26 +511,26 @@ export default function Render3DPage() {
 
             {/* Filter Placeholders */}
             <div className="space-y-4 opacity-30 pointer-events-none">
-              <div className="flex justify-between items-center pb-2 border-b border-[#1e1810]">
+              <div className="flex justify-between items-center pb-2 border-b border-blue-900/20">
                 <span className="text-[10px] tracking-[2px] uppercase text-white">Time of Day</span>
-                <span className="text-[9px] tracking-widest text-[#FFB000]">Coming Soon</span>
+                <span className="text-[9px] tracking-widest text-blue-400">Coming Soon</span>
               </div>
-              <div className="flex justify-between items-center pb-2 border-b border-[#1e1810]">
+              <div className="flex justify-between items-center pb-2 border-b border-blue-900/20">
                 <span className="text-[10px] tracking-[2px] uppercase text-white">Atmosphere</span>
-                <span className="text-[9px] tracking-widest text-[#FFB000]">Coming Soon</span>
+                <span className="text-[9px] tracking-widest text-blue-400">Coming Soon</span>
               </div>
-              <div className="flex justify-between items-center pb-2 border-b border-[#1e1810]">
+              <div className="flex justify-between items-center pb-2 border-b border-blue-900/20">
                 <span className="text-[10px] tracking-[2px] uppercase text-white">Material Style</span>
-                <span className="text-[9px] tracking-widest text-[#FFB000]">Coming Soon</span>
+                <span className="text-[9px] tracking-widest text-blue-400">Coming Soon</span>
               </div>
-              <div className="flex justify-between items-center pb-2 border-b border-[#1e1810]">
+              <div className="flex justify-between items-center pb-2 border-b border-blue-900/20">
                 <span className="text-[10px] tracking-[2px] uppercase text-white">Camera Angle</span>
-                <span className="text-[9px] tracking-widest text-[#FFB000]">Coming Soon</span>
+                <span className="text-[9px] tracking-widest text-blue-400">Coming Soon</span>
               </div>
             </div>
 
-            <div className="mt-auto p-4 border border-[#FFB000]/20 bg-[#FFB000]/5 rounded">
-              <p className="text-[9px] tracking-widest uppercase text-[#FFB000]/80 leading-relaxed text-center">
+            <div className="mt-auto p-4 border border-blue-900/35 bg-blue-950/10 rounded glass-card">
+              <p className="text-[9px] tracking-widest uppercase text-blue-400/80 leading-relaxed text-center">
                 Advanced structural filtering modules are currently offline pending authorization.
               </p>
             </div>
@@ -541,25 +545,25 @@ export default function Render3DPage() {
         if (!activeItem) return null;
         return (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-md p-4 md:p-8 animate-fadeIn">
-            <div className="bg-[#0A0E1A] border border-[#FFB000]/30 rounded-xl w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden shadow-2xl">
+            <div className="bg-black/85 backdrop-blur-md border border-blue-900/35 rounded-xl w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden shadow-2xl glass-panel">
               {/* Modal Header */}
-              <div className="flex justify-between items-center p-4 border-b border-zinc-800 bg-[#07070d]">
+              <div className="flex justify-between items-center p-4 border-b border-blue-900/30 bg-[#02050c]">
                 <div>
-                  <h3 className="text-[#FFB000] text-sm font-semibold uppercase tracking-wider">Viewing Rendered Concept</h3>
-                  <span className="text-[10px] text-zinc-400 uppercase tracking-widest block mt-0.5">
+                  <h3 className="text-blue-300 text-sm font-semibold uppercase tracking-wider text-glow-blue">Viewing Rendered Concept</h3>
+                  <span className="text-[10px] text-zinc-400 uppercase tracking-widest block mt-0.5 font-sans">
                     Style: {activeItem.style} | Shadows: {activeItem.sunpath}
                   </span>
                 </div>
                 <div className="flex gap-2">
                   <button
                     onClick={() => downloadImageDirect(activeItem.base64, `render-${activeItem.style.replace(/\s+/g, '-')}.png`)}
-                    className="flex items-center gap-2 bg-[#1F2937] hover:bg-[#374151] px-4 py-2 rounded-lg text-xs transition-colors cursor-pointer text-white font-mono"
+                    className="flex items-center gap-2 bg-black/35 hover:bg-blue-900/15 px-4 py-2 rounded-lg text-xs transition-all cursor-pointer text-white border border-blue-900/35 font-sans glass-card"
                   >
                     <Download size={14} /> Download PNG
                   </button>
                   <button 
                     onClick={() => setViewingHistoryId(null)}
-                    className="flex items-center gap-2 bg-[#FFB000] hover:bg-[#e09c00] text-black font-bold px-4 py-2 rounded-lg text-xs transition-colors cursor-pointer font-mono"
+                    className="flex items-center gap-2 bg-blue-600 hover:bg-blue-500 text-white font-bold px-4 py-2 rounded-lg text-xs transition-all cursor-pointer font-sans shadow-[0_0_10px_rgba(14,165,233,0.25)] border border-blue-400/30"
                   >
                     Close
                   </button>
@@ -578,10 +582,10 @@ export default function Render3DPage() {
                 </div>
 
                 {/* Edit panel */}
-                <div className="border-t border-zinc-800 bg-[#07070d] p-5 flex flex-col gap-3">
+                <div className="border-t border-blue-900/30 bg-[#02050c] p-5 flex flex-col gap-3 font-sans">
                   <div className="flex items-center gap-2">
-                    <Sparkles size={13} className="text-[#FFB000]" />
-                    <span className="text-[10px] font-bold uppercase tracking-[3px] text-[#FFB000]">Edit This Render with Grok</span>
+                    <Sparkles size={13} className="text-blue-300" />
+                    <span className="text-[10px] font-bold uppercase tracking-[3px] text-blue-300 text-glow-blue">Edit This Render with Grok</span>
                   </div>
                   <p className="text-[9px] text-zinc-500 uppercase tracking-wider">Describe what to change — lighting, materials, landscaping, time of day, colours, etc.</p>
 
@@ -591,7 +595,7 @@ export default function Render3DPage() {
                     </div>
                   )}
                   {editedRenderBase64 && !isEditingRender && (
-                    <div className="text-green-400 text-[9px] uppercase tracking-wide border border-green-500/30 bg-green-500/10 rounded px-3 py-2">
+                    <div className="text-blue-400 text-[9px] uppercase tracking-wide border border-blue-500/30 bg-blue-500/10 rounded px-3 py-2">
                       ✓ Edit applied — saved to render history
                     </div>
                   )}
@@ -610,12 +614,12 @@ export default function Render3DPage() {
                       placeholder="E.G. change the sky to golden hour sunset, add lush greenery around the building..."
                       rows={2}
                       disabled={isEditingRender}
-                      className="flex-1 bg-[#0a0a0f] border border-zinc-700 focus:border-[#FFB000] text-white text-xs rounded-lg px-3 py-2.5 resize-none outline-none font-mono placeholder:text-zinc-600 transition-colors disabled:opacity-50"
+                      className="flex-1 bg-[#02050c]/45 border border-blue-900/35 focus:border-blue-500 text-white text-xs rounded-lg px-3 py-2.5 resize-none outline-none font-sans placeholder:text-zinc-600 transition-colors disabled:opacity-50 glass-card"
                     />
                     <button
                       onClick={() => handleEditRender(editedRenderBase64 || activeItem.base64)}
                       disabled={!editRenderPrompt.trim() || isEditingRender}
-                      className="flex items-center gap-2 px-4 py-2.5 bg-[#FFB000] hover:bg-[#e09c00] text-black font-black uppercase tracking-widest text-[10px] rounded-lg transition-all disabled:opacity-40 disabled:cursor-not-allowed shadow-[0_0_12px_rgba(255,176,0,0.3)] cursor-pointer whitespace-nowrap"
+                      className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-black uppercase tracking-widest text-[10px] rounded-lg transition-all disabled:opacity-40 disabled:cursor-not-allowed shadow-[0_0_12px_rgba(14,165,233,0.3)] cursor-pointer whitespace-nowrap border border-blue-400/30"
                     >
                       {isEditingRender ? <Loader2 size={13} className="animate-spin" /> : <Sparkles size={13} />}
                       {isEditingRender ? 'Editing...' : 'Apply Edit'}
@@ -623,7 +627,7 @@ export default function Render3DPage() {
                   </div>
 
                   {isEditingRender && (
-                    <div className="flex items-center gap-2 text-[#FFB000] text-[9px] uppercase tracking-widest animate-pulse">
+                    <div className="flex items-center gap-2 text-blue-300 text-[9px] uppercase tracking-widest animate-pulse font-sans">
                       <Loader2 size={11} className="animate-spin" />
                       Grok is processing your edit...
                     </div>
@@ -638,10 +642,10 @@ export default function Render3DPage() {
 
       {/* Selector view insertion */}
       {showSelector && (
-        <div className="fixed inset-0 z-40 bg-[#0a0a0f] text-[#FFB000] overflow-y-auto">
+        <div className="fixed inset-0 z-40 bg-[#02050c] text-blue-300 overflow-y-auto font-sans">
           <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGRlZnM+PHBhdHRlcm4gaWQ9ImdyaWQiIHdpZHRoPSI0MCIgaGVpZ2h0PSI0MCIgcGF0dGVyblVuaXRzPSJ1c2VyU3BhY2VPblVzZSI+PHBhdGggZD0iTSAwIDEwIEwgNDAgMTAgTSAxMCAwIEwgMTAgNDAiIGZpbGw9Im5vbmUiIHN0cm9rZT0iIzExMSIgc3Ryb2tlLXdpZHRoPSIwLjUiLz48L3BhdHRlcm4+PC9kZWZzPjxyZWN0IHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiIGZpbGw9InVybCgjZ3JpZCkiLz48L3N2Zz4=')] opacity-10 pointer-events-none z-0 fixed" />
           
-          <header className="relative z-10 max-w-7xl mx-auto flex items-center justify-between p-8 border-b border-[#FFB000]/20">
+          <header className="relative z-10 max-w-7xl mx-auto flex items-center justify-between p-8 border-b border-blue-900/30">
             <div className="flex items-center gap-6">
               <button 
                 onClick={() => {
@@ -651,15 +655,15 @@ export default function Render3DPage() {
                     router.push('/');
                   }
                 }}
-                className="flex items-center justify-center w-10 h-10 rounded-full border border-[#FFB000]/30 hover:border-[#FFB000] hover:bg-[#FFB000]/10 transition-all group cursor-pointer"
+                className="flex items-center justify-center w-10 h-10 rounded-full border border-blue-500/30 hover:border-blue-500 hover:bg-blue-500/10 transition-all group cursor-pointer glass-card"
               >
-                <ArrowLeft className="text-[#FFB000]/70 group-hover:text-[#FFB000]" size={18} />
+                <ArrowLeft className="text-blue-400 group-hover:text-blue-300" size={18} />
               </button>
               <div>
                 <h1 className="text-2xl font-bold tracking-[4px] uppercase text-white drop-shadow-[0_0_8px_rgba(255,255,255,0.3)]">
                   3D Render Project Matrix
                 </h1>
-                <span className="text-xs tracking-[3px] text-[#FFB000]/60 uppercase">
+                <span className="text-xs tracking-[3px] text-blue-400/60 uppercase">
                   Select a project for photorealistic generation
                 </span>
               </div>
@@ -669,14 +673,14 @@ export default function Render3DPage() {
               {sessionId && (
                 <button 
                   onClick={() => setShowSelector(false)}
-                  className="px-6 py-3 border border-[#FFB000]/50 text-[#FFB000] hover:text-yellow-400 hover:bg-[#FFB000]/10 font-bold uppercase tracking-widest rounded-lg text-xs transition-colors cursor-pointer"
+                  className="px-6 py-3 border border-blue-500/50 text-blue-300 hover:text-white hover:bg-blue-500/10 font-bold uppercase tracking-widest rounded-lg text-xs transition-all cursor-pointer glass-card"
                 >
                   Resume Current Project
                 </button>
               )}
               <button 
                 onClick={() => setIsNewProjectModalOpen(true)}
-                className="flex items-center gap-2 px-6 py-3 bg-[#FFB000] text-black hover:bg-[#e09c00] font-bold uppercase tracking-widest rounded-lg transition-all shadow-[0_0_20px_rgba(255,176,0,0.3)] cursor-pointer"
+                className="flex items-center gap-2 px-6 py-3 bg-blue-600 text-white hover:bg-blue-500 font-bold uppercase tracking-widest rounded-lg transition-all shadow-[0_0_20px_rgba(14,165,233,0.3)] border border-blue-400/30 cursor-pointer"
               >
                 <Plus size={18} /> Initialize Project
               </button>
@@ -685,29 +689,29 @@ export default function Render3DPage() {
 
           <main className="relative z-10 max-w-7xl mx-auto p-8">
             <div className="relative max-w-md mb-8">
-              <Search className="absolute left-3 top-3 text-[#FFB000]/50 w-5 h-5" />
+              <Search className="absolute left-3 top-3 text-blue-500/50 w-5 h-5" />
               <input 
                 type="text"
                 placeholder="SEARCH PROJECT ARCHIVES..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full bg-[#0f0f18] border border-[#FFB000]/30 rounded pl-11 pr-4 py-3 text-white focus:outline-none focus:border-[#FFB000] transition-colors uppercase font-mono tracking-wider text-sm"
+                className="w-full bg-[#02050c]/45 border border-blue-900/35 rounded pl-11 pr-4 py-3 text-white focus:outline-none focus:border-blue-500 transition-colors uppercase font-sans tracking-wider text-sm glass-card"
               />
             </div>
 
             {loadingProjects ? (
               <div className="flex flex-col items-center justify-center py-32 opacity-50">
-                 <div className="w-12 h-12 border-4 border-[#FFB000] border-t-transparent rounded-full animate-spin mb-4" />
-                 <p className="tracking-widest uppercase">Querying secure node...</p>
+                 <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mb-4" />
+                 <p className="tracking-widest uppercase text-blue-300 text-glow-blue">Querying secure node...</p>
               </div>
             ) : projects.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-32 border-2 border-dashed border-[#FFB000]/20 rounded-xl bg-[#0f0f18]/50 backdrop-blur">
-                <Folder size={64} className="text-[#FFB000]/30 mb-6" />
+              <div className="flex flex-col items-center justify-center py-32 border-2 border-dashed border-blue-500/20 rounded-xl bg-black/25 backdrop-blur glass-card">
+                <Folder size={64} className="text-blue-400/30 mb-6" />
                 <h2 className="text-xl tracking-widest uppercase text-white mb-2">No active projects found</h2>
-                <p className="text-sm tracking-widest uppercase text-[#FFB000]/60 mb-8">Initialize a new project to begin rendering</p>
+                <p className="text-sm tracking-widest uppercase text-blue-300/60 mb-8">Initialize a new project to begin rendering</p>
                 <button 
                   onClick={() => setIsNewProjectModalOpen(true)}
-                  className="px-8 py-3 bg-transparent border border-[#FFB000] text-[#FFB000] hover:bg-[#FFB000] hover:text-black font-bold uppercase tracking-widest transition-all cursor-pointer"
+                  className="px-8 py-3 bg-transparent border border-blue-500 text-blue-300 hover:bg-blue-500 hover:text-white font-bold uppercase tracking-widest transition-all cursor-pointer rounded-lg shadow-[0_0_15px_rgba(14,165,233,0.25)]"
                 >
                   Create Project
                 </button>
@@ -731,9 +735,9 @@ export default function Render3DPage() {
                         switchSession(proj.session_id, name, place);
                         setShowSelector(false);
                       }}
-                      className="group bg-[#0f0f18]/80 backdrop-blur border border-[#FFB000]/20 hover:border-[#FFB000] rounded-xl overflow-hidden cursor-pointer transition-all duration-300 shadow-lg hover:shadow-[0_0_30px_rgba(255,176,0,0.2)] flex flex-col"
+                      className="group bg-black/35 border border-blue-900/20 hover:border-blue-500 rounded-xl overflow-hidden cursor-pointer transition-all duration-300 shadow-lg hover:shadow-[0_0_30px_rgba(14,165,233,0.25)] flex flex-col glass-card"
                     >
-                      <div className="relative aspect-video bg-[#0a0a0f] flex items-center justify-center border-b border-[#FFB000]/10 overflow-hidden">
+                      <div className="relative aspect-video bg-black flex items-center justify-center border-b border-blue-900/20 overflow-hidden">
                         {thumb ? (
                           <img 
                             src={thumb.startsWith('data:image/') ? thumb : `data:image/jpeg;base64,${thumb}`} 
@@ -741,9 +745,9 @@ export default function Render3DPage() {
                             className="w-full h-full object-cover opacity-80 group-hover:opacity-100 group-hover:scale-105 transition-all duration-500" 
                           />
                         ) : (
-                          <Map size={48} className="text-[#FFB000]/20" />
+                          <Map size={48} className="text-blue-400/20" />
                         )}
-                        <div className="absolute inset-0 bg-gradient-to-t from-[#0f0f18] to-transparent opacity-80" />
+                        <div className="absolute inset-0 bg-gradient-to-t from-[#02050c] to-transparent opacity-80" />
                         
                         <button
                           onClick={async (e) => {
@@ -762,20 +766,20 @@ export default function Render3DPage() {
                               console.error(err);
                             }
                           }}
-                          className="absolute top-3 right-3 z-20 flex items-center justify-center w-8 h-8 rounded-full border border-red-500/30 bg-[#0a0a0f]/80 text-red-500/70 hover:text-red-500 hover:border-red-500 hover:bg-red-500/10 transition-all shadow-md cursor-pointer"
+                          className="absolute top-3 right-3 z-20 flex items-center justify-center w-8 h-8 rounded-full border border-red-500/30 bg-black/80 text-red-500/70 hover:text-red-500 hover:border-red-500 hover:bg-red-500/10 transition-all shadow-md cursor-pointer"
                           title="Delete Project"
                         >
                           <Trash2 size={14} />
                         </button>
 
-                        <div className="absolute bottom-3 left-3 flex items-center gap-2 text-[10px] text-[#FFB000] font-bold tracking-widest uppercase bg-[#0a0a0f]/80 px-2 py-1 rounded backdrop-blur">
+                        <div className="absolute bottom-3 left-3 flex items-center gap-2 text-[10px] text-blue-300 font-bold tracking-widest uppercase bg-black/80 px-2 py-1 rounded backdrop-blur">
                           <Clock size={12} /> {date}
                         </div>
                       </div>
-                      <div className="p-5 flex-1 flex flex-col justify-between">
+                      <div className="p-5 flex-1 flex flex-col justify-between font-sans">
                         <div>
-                          <h3 className="text-sm font-bold text-white uppercase tracking-wider mb-2 group-hover:text-[#FFB000] transition-colors">{name}</h3>
-                          <p className="flex items-center gap-2 text-xs text-[#FFB000]/60 tracking-widest uppercase">
+                          <h3 className="text-sm font-bold text-white uppercase tracking-wider mb-2 group-hover:text-blue-300 transition-colors">{name}</h3>
+                          <p className="flex items-center gap-2 text-xs text-blue-400/60 tracking-widest uppercase">
                             <MapPin size={12} /> {place}
                           </p>
                         </div>
@@ -791,9 +795,9 @@ export default function Render3DPage() {
 
       {/* Create Project Modal */}
       {isNewProjectModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#0a0a0f]/90 backdrop-blur-sm">
-          <div className="bg-[#0f0f18] border border-[#FFB000]/30 rounded-xl p-8 max-w-md w-full shadow-[0_0_50px_rgba(255,176,0,0.15)] relative">
-            <h2 className="text-xl font-bold uppercase tracking-[3px] text-white mb-6">Initialize Render Project</h2>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-sm font-sans">
+          <div className="bg-black/85 border border-blue-900/35 rounded-xl p-8 max-w-md w-full shadow-[0_0_50px_rgba(14,165,233,0.15)] relative glass-panel">
+            <h2 className="text-xl font-bold uppercase tracking-[3px] text-white mb-6 text-glow-blue">Initialize Render Project</h2>
             
             <form onSubmit={async (e) => {
               e.preventDefault();
@@ -815,26 +819,26 @@ export default function Render3DPage() {
               setIsNewProjectModalOpen(false);
             }} className="space-y-6">
               <div>
-                <label className="block text-xs uppercase tracking-widest text-[#FFB000]/80 mb-2">Project Designation (Name)</label>
+                <label className="block text-xs uppercase tracking-widest text-blue-300/80 mb-2">Project Designation (Name)</label>
                 <input 
                   autoFocus
                   type="text" 
                   value={newProjectName}
                   onChange={(e) => setNewProjectName(e.target.value)}
                   placeholder="E.g. Wayne Manor Redesign"
-                  className="w-full bg-[#0a0a0f] border border-[#FFB000]/30 rounded p-3 text-white focus:outline-none focus:border-[#FFB000] transition-colors uppercase tracking-wider text-xs font-mono"
+                  className="w-full bg-[#02050c]/45 border border-blue-900/35 rounded p-3 text-white focus:outline-none focus:border-blue-500 transition-colors uppercase tracking-wider text-xs font-sans glass-card"
                   required
                 />
               </div>
               
               <div>
-                <label className="block text-xs uppercase tracking-widest text-[#FFB000]/80 mb-2">Geographic Location</label>
+                <label className="block text-xs uppercase tracking-widest text-blue-300/80 mb-2">Geographic Location</label>
                 <input 
                   type="text" 
                   value={newPlaceName}
                   onChange={(e) => setNewPlaceName(e.target.value)}
                   placeholder="E.g. Gotham City"
-                  className="w-full bg-[#0a0a0f] border border-[#FFB000]/30 rounded p-3 text-white focus:outline-none focus:border-[#FFB000] transition-colors uppercase tracking-wider text-xs font-mono"
+                  className="w-full bg-[#02050c]/45 border border-blue-900/35 rounded p-3 text-white focus:outline-none focus:border-blue-500 transition-colors uppercase tracking-wider text-xs font-sans glass-card"
                 />
               </div>
 
@@ -842,14 +846,14 @@ export default function Render3DPage() {
                 <button 
                   type="button"
                   onClick={() => setIsNewProjectModalOpen(false)}
-                  className="flex-1 py-3 border border-[#FFB000]/50 text-[#FFB000] hover:text-yellow-400 hover:bg-[#FFB000]/10 uppercase tracking-widest font-bold rounded text-xs transition-colors cursor-pointer"
+                  className="flex-1 py-3 border border-blue-500/50 text-blue-300 hover:text-white hover:bg-blue-500/10 uppercase tracking-widest font-bold rounded text-xs transition-colors cursor-pointer glass-card"
                 >
                   Cancel
                 </button>
                 <button 
                   type="submit"
                   disabled={!newProjectName.trim()}
-                  className="flex-1 py-3 bg-[#FFB000] text-black hover:bg-[#e09c00] uppercase tracking-widest font-bold rounded text-xs transition-colors disabled:opacity-50 cursor-pointer"
+                  className="flex-1 py-3 bg-blue-600 text-white hover:bg-blue-500 uppercase tracking-widest font-bold rounded text-xs transition-all disabled:opacity-50 cursor-pointer shadow-[0_0_10px_rgba(14,165,233,0.3)] border border-blue-400/30"
                 >
                   Initialize
                 </button>
@@ -863,7 +867,7 @@ export default function Render3DPage() {
         onClose={() => setIsSaveModalOpen(false)}
         currentImageBase64={finalRender}
         imageType="finalRender"
-        theme="gold"
+        theme="cyan"
         tableName="render3d_projects"
         onSaveSuccess={(name) => {
           setSaveSuccessMsg(name);

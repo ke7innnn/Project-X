@@ -1741,23 +1741,23 @@ Style: thin black double-line walls, door swing arcs, window ticks on exterior w
   const totalRooms = roomSchedule?.flats.reduce((s, f) => s + f.rooms.length, 0) ?? 0;
 
   return (
-    <main className="flex flex-col w-full h-screen bg-[#050f05] text-green-400 font-mono overflow-hidden">
+    <main className="flex flex-col w-full h-screen bg-[#02050c] text-blue-400 font-mono overflow-hidden">
       {/* Header */}
-      <header className="flex items-center justify-between px-6 py-4 border-b border-green-900/40 bg-[#050f05]/90 backdrop-blur-md shrink-0">
+      <header className="flex items-center justify-between px-6 py-4 border-b border-blue-900/40 bg-[#02050c]/90 backdrop-blur-md shrink-0">
         <div className="flex items-center gap-4">
-          <button onClick={() => router.push('/')} className="w-9 h-9 rounded-full border border-green-700/40 hover:border-green-400 hover:bg-green-500/10 flex items-center justify-center transition-all">
-            <ArrowLeft size={16} className="text-green-500" />
+          <button onClick={() => router.push('/')} className="w-9 h-9 rounded-full border border-blue-700/40 hover:border-blue-400 hover:bg-blue-500/10 flex items-center justify-center transition-all">
+            <ArrowLeft size={16} className="text-blue-500" />
           </button>
           <div>
             <h1 className="text-lg font-bold tracking-[4px] uppercase text-white drop-shadow-[0_0_8px_rgba(0,255,100,0.3)]">
-              Smart Planner <span className="text-[10px] bg-green-500/20 border border-green-500/40 text-green-400 px-2 py-0.5 rounded ml-2">v3</span>
+              Smart Planner <span className="text-[10px] bg-blue-500/20 border border-blue-500/40 text-blue-400 px-2 py-0.5 rounded ml-2">v3</span>
             </h1>
-            <span className="text-[9px] tracking-[3px] text-green-600 uppercase">Mathematical Planning &middot; Visual Layout &middot; Vastu Compliant</span>
+            <span className="text-[9px] tracking-[3px] text-blue-600 uppercase">Mathematical Planning &middot; Visual Layout &middot; Vastu Compliant</span>
           </div>
         </div>
         <div className="flex items-center gap-3">
           {plotInfo && (
-            <div className="flex items-center gap-4 text-[10px] border border-green-900/50 rounded px-3 py-1.5 bg-[#0a1a0a]">
+            <div className="flex items-center gap-4 text-[10px] border border-blue-900/50 rounded px-3 py-1.5 bg-[#081528]">
               <span className="text-orange-400">Plot: <strong>{plotInfo.widthM}m &times; {plotInfo.heightM}m = {plotInfo.areaM} sqm</strong></span>
               {siteClosed && <span className="text-cyan-400">Site: <strong>{plotInfo.siteWidthM}m &times; {plotInfo.siteHeightM}m = {plotInfo.siteAreaM} sqm</strong></span>}
             </div>
@@ -1770,18 +1770,18 @@ Style: thin black double-line walls, door swing arcs, window ticks on exterior w
           {debugStep15Schematic && (
             <button
               onClick={() => { if (roomSchedule) generateFloorPlanImage(roomSchedule, true); }}
-              className="text-[9px] uppercase tracking-widest px-2 py-1 bg-green-900/50 hover:bg-green-800 text-green-300 rounded border border-green-700 transition-colors"
+              className="text-[9px] uppercase tracking-widest px-2 py-1 bg-blue-900/50 hover:bg-blue-800 text-blue-300 rounded border border-blue-700 transition-colors"
             >
               Retry Step 2
             </button>
           )}
           {generatedImageUrl && (
-            <button onClick={downloadImage} className="flex items-center gap-2 px-4 py-2 text-[10px] uppercase tracking-widest bg-green-500/10 border border-green-500/40 text-green-400 hover:bg-green-500/20 rounded transition-all">
+            <button onClick={downloadImage} className="flex items-center gap-2 px-4 py-2 text-[10px] uppercase tracking-widest bg-blue-500/10 border border-blue-500/40 text-blue-400 hover:bg-blue-500/20 rounded transition-all">
               <Download size={13} /> Download PNG
             </button>
           )}
           {generatedImageUrls.length > 1 && (
-            <div className="flex items-center gap-1 border border-green-700/40 rounded p-1 bg-[#050f05]">
+            <div className="flex items-center gap-1 border border-blue-700/40 rounded p-1 bg-[#02050c]">
               {generatedImageUrls.map((_, idx) => (
                 <button
                   key={idx}
@@ -1789,7 +1789,7 @@ Style: thin black double-line walls, door swing arcs, window ticks on exterior w
                     setActiveImageIndex(idx);
                     setShowGeneratedImage(true);
                   }}
-                  className={`px-3 py-1.5 text-[10px] uppercase tracking-widest rounded transition-all ${activeImageIndex === idx ? 'bg-green-500/20 text-green-300 font-bold' : 'text-green-600 hover:bg-green-900/30'}`}
+                  className={`px-3 py-1.5 text-[10px] uppercase tracking-widest rounded transition-all ${activeImageIndex === idx ? 'bg-blue-500/20 text-blue-300 font-bold' : 'text-blue-600 hover:bg-blue-900/30'}`}
                 >
                   Option {idx + 1}
                 </button>
@@ -1797,17 +1797,17 @@ Style: thin black double-line walls, door swing arcs, window ticks on exterior w
             </div>
           )}
           {generatedImageUrl && (
-            <div className="flex items-center gap-1 border border-green-700/40 rounded p-1 bg-[#050f05]">
+            <div className="flex items-center gap-1 border border-blue-700/40 rounded p-1 bg-[#02050c]">
               <button
                 onClick={() => { setShowGeneratedImage(!showGeneratedImage); setCompareMode(false); }}
-                className={`px-3 py-1.5 text-[10px] uppercase tracking-widest rounded transition-all ${showGeneratedImage && !compareMode ? 'bg-purple-500/20 text-purple-300' : 'text-green-600 hover:bg-green-900/30'}`}
+                className={`px-3 py-1.5 text-[10px] uppercase tracking-widest rounded transition-all ${showGeneratedImage && !compareMode ? 'bg-purple-500/20 text-purple-300' : 'text-blue-600 hover:bg-blue-900/30'}`}
               >
                 <ImageIcon size={11} className="inline mr-1 mb-0.5" /> {showGeneratedImage && !compareMode ? 'Show Traces' : 'Floor Plan'}
               </button>
-              <div className="w-px h-4 bg-green-900/50"></div>
+              <div className="w-px h-4 bg-blue-900/50"></div>
               <button
                 onClick={() => { setCompareMode(!compareMode); setShowGeneratedImage(false); }}
-                className={`px-3 py-1.5 text-[10px] uppercase tracking-widest rounded transition-all ${compareMode ? 'bg-orange-500/20 text-orange-300 border border-orange-500/30' : 'text-green-600 hover:bg-green-900/30 border border-transparent'}`}
+                className={`px-3 py-1.5 text-[10px] uppercase tracking-widest rounded transition-all ${compareMode ? 'bg-orange-500/20 text-orange-300 border border-orange-500/30' : 'text-blue-600 hover:bg-blue-900/30 border border-transparent'}`}
                 title="Overlay the generated floor plan behind your traces to verify dimensions"
               >
                 <RefreshCw size={11} className="inline mr-1 mb-0.5" /> Compare Traces
@@ -1819,10 +1819,10 @@ Style: thin black double-line walls, door swing arcs, window ticks on exterior w
 
       <div className="flex w-full flex-1 min-h-0">
         {/* Canvas / Image Panel */}
-        <div className="flex flex-col flex-1 overflow-y-auto border-r border-green-900/40 bg-[#030a03] select-none">
+        <div className="flex flex-col flex-1 overflow-y-auto border-r border-blue-900/40 bg-[#01040a] select-none">
           {/* Mode toolbar */}
-          <div className="sticky top-0 z-30 flex items-center gap-2 px-4 py-2 border-b border-green-900/30 bg-[#070f07] shrink-0 flex-wrap">
-            <span className="text-[9px] tracking-[3px] uppercase text-green-800 mr-1">Canvas:</span>
+          <div className="sticky top-0 z-30 flex items-center gap-2 px-4 py-2 border-b border-blue-900/30 bg-[#040815] shrink-0 flex-wrap">
+            <span className="text-[9px] tracking-[3px] uppercase text-blue-800 mr-1">Canvas:</span>
             <button
               onClick={() => { if (plotClosed) return; setDrawMode(d => d === 'plot' ? null : 'plot'); setSitePoints([]); setSiteClosed(false); }}
               disabled={plotClosed}
@@ -1845,7 +1845,7 @@ Style: thin black double-line walls, door swing arcs, window ticks on exterior w
               onClick={undo}
               disabled={undoStack.current.length === 0}
               title="Undo (Ctrl+Z)"
-              className="flex items-center gap-1 px-2.5 py-1.5 text-[10px] rounded border border-green-900/30 text-green-700 hover:bg-green-500/10 hover:text-green-400 disabled:opacity-20 disabled:cursor-not-allowed transition-all"
+              className="flex items-center gap-1 px-2.5 py-1.5 text-[10px] rounded border border-blue-900/30 text-blue-700 hover:bg-blue-500/10 hover:text-blue-400 disabled:opacity-20 disabled:cursor-not-allowed transition-all"
             >
               <Undo2 size={12} /> Undo
             </button>
@@ -1853,7 +1853,7 @@ Style: thin black double-line walls, door swing arcs, window ticks on exterior w
               onClick={redo}
               disabled={redoStack.current.length === 0}
               title="Redo (Ctrl+Y)"
-              className="flex items-center gap-1 px-2.5 py-1.5 text-[10px] rounded border border-green-900/30 text-green-700 hover:bg-green-500/10 hover:text-green-400 disabled:opacity-20 disabled:cursor-not-allowed transition-all"
+              className="flex items-center gap-1 px-2.5 py-1.5 text-[10px] rounded border border-blue-900/30 text-blue-700 hover:bg-blue-500/10 hover:text-blue-400 disabled:opacity-20 disabled:cursor-not-allowed transition-all"
             >
               <Redo2 size={12} /> Redo
             </button>
@@ -1904,12 +1904,12 @@ Style: thin black double-line walls, door swing arcs, window ticks on exterior w
             <div className="relative">
               <button
                 onClick={() => setShowRatioPicker(p => !p)}
-                className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] uppercase tracking-wider rounded border border-green-700/40 text-green-500 hover:bg-green-500/10 transition-all"
+                className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] uppercase tracking-wider rounded border border-blue-700/40 text-blue-500 hover:bg-blue-500/10 transition-all"
               >
                 <Maximize2 size={11} /> {currentRatio.label}
               </button>
               {showRatioPicker && (
-                <div className="absolute top-full left-0 mt-1 z-50 bg-[#0a180a] border border-green-800/50 rounded-lg shadow-2xl shadow-black/50 overflow-hidden min-w-[160px]">
+                <div className="absolute top-full left-0 mt-1 z-50 bg-[#0a180a] border border-blue-800/50 rounded-lg shadow-2xl shadow-black/50 overflow-hidden min-w-[160px]">
                   {CANVAS_RATIOS.map(r => (
                     <button
                       key={r.id}
@@ -1922,11 +1922,11 @@ Style: thin black double-line walls, door swing arcs, window ticks on exterior w
                         setActivePreset(null);
                         undoStack.current = []; redoStack.current = [];
                       }}
-                      className={`w-full text-left px-4 py-2.5 text-[10px] flex items-center justify-between gap-4 hover:bg-green-500/10 transition-colors ${r.id === ratioId ? 'text-green-300 bg-green-500/10' : 'text-green-700'
+                      className={`w-full text-left px-4 py-2.5 text-[10px] flex items-center justify-between gap-4 hover:bg-blue-500/10 transition-colors ${r.id === ratioId ? 'text-blue-300 bg-blue-500/10' : 'text-blue-700'
                         }`}
                     >
                       <span>{r.label}</span>
-                      {r.id === ratioId && <span className="text-green-400">✓</span>}
+                      {r.id === ratioId && <span className="text-blue-400">✓</span>}
                     </button>
                   ))}
                 </div>
@@ -1937,12 +1937,12 @@ Style: thin black double-line walls, door swing arcs, window ticks on exterior w
             <div className="relative">
               <button
                 onClick={() => setShowShapePicker(p => !p)}
-                className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] uppercase tracking-wider rounded border border-green-700/40 text-green-500 hover:bg-green-500/10 transition-all"
+                className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] uppercase tracking-wider rounded border border-blue-700/40 text-blue-500 hover:bg-blue-500/10 transition-all"
               >
-                <Pentagon size={11} className="text-green-500 animate-pulse" /> Preset Plots
+                <Pentagon size={11} className="text-blue-500 animate-pulse" /> Preset Plots
               </button>
               {showShapePicker && (
-                <div className="absolute top-full left-0 mt-1 z-50 bg-[#0a180a] border border-green-800/50 rounded-lg shadow-2xl shadow-black/50 overflow-hidden min-w-[160px]">
+                <div className="absolute top-full left-0 mt-1 z-50 bg-[#0a180a] border border-blue-800/50 rounded-lg shadow-2xl shadow-black/50 overflow-hidden min-w-[160px]">
                   {[
                     { label: 'Rectangular Box', id: 'box' },
                     { label: 'L-Shape Plot', id: 'l-shape' },
@@ -1956,7 +1956,7 @@ Style: thin black double-line walls, door swing arcs, window ticks on exterior w
                         loadPresetShape(shape.id as any);
                         setShowShapePicker(false);
                       }}
-                      className="w-full text-left px-4 py-2.5 text-[10px] hover:bg-green-500/10 text-green-300 hover:text-green-200 transition-colors"
+                      className="w-full text-left px-4 py-2.5 text-[10px] hover:bg-blue-500/10 text-blue-300 hover:text-blue-200 transition-colors"
                     >
                       {shape.label}
                     </button>
@@ -1966,7 +1966,7 @@ Style: thin black double-line walls, door swing arcs, window ticks on exterior w
             </div>
 
             {/* Background Map / Tracing Paper */}
-            <div className="flex items-center gap-2 border-l border-green-900/30 pl-2 ml-2">
+            <div className="flex items-center gap-2 border-l border-blue-900/30 pl-2 ml-2">
               <input type="file" accept="image/*" ref={bgInputRef} onChange={handleBgUpload} className="hidden" />
               {bgImageLoaded ? (
                 <div className="flex items-center gap-2">
@@ -1977,11 +1977,11 @@ Style: thin black double-line walls, door swing arcs, window ticks on exterior w
                   >
                     <Move size={11} /> Move Map
                   </button>
-                  <span className="text-[9px] text-green-800 ml-1">Opacity:</span>
+                  <span className="text-[9px] text-blue-800 ml-1">Opacity:</span>
                   <input
                     type="range" min="0.1" max="1" step="0.1"
                     value={bgOpacity} onChange={e => setBgOpacity(Number(e.target.value))}
-                    className="w-16 accent-green-500"
+                    className="w-16 accent-blue-500"
                   />
                   <button onClick={removeBgImage} className="text-red-500 hover:text-red-400 p-1 rounded hover:bg-red-500/10 transition-all ml-1" title="Remove Map">
                     <X size={12} />
@@ -1990,7 +1990,7 @@ Style: thin black double-line walls, door swing arcs, window ticks on exterior w
               ) : (
                 <button
                   onClick={() => bgInputRef.current?.click()}
-                  className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] uppercase tracking-wider rounded border border-green-700/40 text-green-500 hover:bg-green-500/10 transition-all"
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] uppercase tracking-wider rounded border border-blue-700/40 text-blue-500 hover:bg-blue-500/10 transition-all"
                   title="Upload a map or plot image to trace over"
                 >
                   <ImagePlus size={11} /> Trace Map
@@ -1999,7 +1999,7 @@ Style: thin black double-line walls, door swing arcs, window ticks on exterior w
             </div>
             {/* Scale selector — metres per grid cell */}
             <div className="flex items-center gap-0.5">
-              <span className="text-[9px] text-green-800 mr-1">Scale:</span>
+              <span className="text-[9px] text-blue-800 mr-1">Scale:</span>
               {SCALE_OPTIONS.map(s => (
                 <button
                   key={s}
@@ -2012,8 +2012,8 @@ Style: thin black double-line walls, door swing arcs, window ticks on exterior w
                     undoStack.current = []; redoStack.current = [];
                   }}
                   className={`px-2 py-1 text-[9px] font-bold rounded transition-all ${s === metersPerCell
-                      ? 'bg-green-500/20 border border-green-400/60 text-green-300'
-                      : 'border border-green-900/30 text-green-800 hover:text-green-600 hover:bg-green-500/10'
+                      ? 'bg-blue-500/20 border border-blue-400/60 text-blue-300'
+                      : 'border border-blue-900/30 text-blue-800 hover:text-blue-600 hover:bg-blue-500/10'
                     }`}
                 >
                   {s}m
@@ -2034,18 +2034,18 @@ Style: thin black double-line walls, door swing arcs, window ticks on exterior w
                 <RotateCcw size={11} /> Reset
               </button>
             </div>
-            <div className="text-[9px] text-green-900 border border-green-950 rounded px-2 py-1">
+            <div className="text-[9px] text-blue-900 border border-blue-950 rounded px-2 py-1">
               1 cell = {metersPerCell}m &nbsp;|&nbsp; {Math.floor(CANVAS_W / CELL_PX * metersPerCell)}m &times; {Math.floor(CANVAS_H / CELL_PX * metersPerCell)}m
             </div>
           </div>
 
           {/* Canvas or Generated Image */}
           <div
-            className="shrink-0 p-8 flex items-center justify-center relative bg-[#030a03] border-b border-green-900/20 select-none overflow-auto"
+            className="shrink-0 p-8 flex items-center justify-center relative bg-[#01040a] border-b border-blue-900/20 select-none overflow-auto"
             style={{ minHeight: `${CANVAS_H + 64}px` }}
           >
             {showGeneratedImage && generatedImageUrl ? (
-              <div className="flex items-center justify-center bg-[#030a03]">
+              <div className="flex items-center justify-center bg-[#01040a]">
                 <img
                   src={generatedImageUrl}
                   alt="AI Generated Floor Plan"
@@ -2057,7 +2057,7 @@ Style: thin black double-line walls, door swing arcs, window ticks on exterior w
               <canvas
                 ref={canvasRef} width={CANVAS_W} height={CANVAS_H}
                 style={{ width: `${CANVAS_W}px`, height: `${CANVAS_H}px` }}
-                className={`block bg-[#020802] rounded-lg shadow-2xl border border-green-900/30 ${drawMode === 'map' ? (isDraggingMap ? 'cursor-grabbing' : 'cursor-grab') : 'cursor-crosshair'}`}
+                className={`block bg-[#01040a] rounded-lg shadow-2xl border border-blue-900/30 ${drawMode === 'map' ? (isDraggingMap ? 'cursor-grabbing' : 'cursor-grab') : 'cursor-crosshair'}`}
                 onClick={handleCanvasClick}
                 onMouseDown={handleMouseDown}
                 onMouseMove={handleCanvasMove}
@@ -2086,14 +2086,14 @@ Style: thin black double-line walls, door swing arcs, window ticks on exterior w
                 <div className="flex gap-4 shrink-0 overflow-x-auto pb-1">
                   {debugStep1BaseImage && (
                     <div className="flex flex-col gap-1 items-center">
-                      <span className="text-[7px] text-green-700 uppercase">1. Base Tracing</span>
-                      <img src={debugStep1BaseImage} className="w-24 h-24 rounded border border-green-950 bg-white object-contain shadow-lg" />
+                      <span className="text-[7px] text-blue-700 uppercase">1. Base Tracing</span>
+                      <img src={debugStep1BaseImage} className="w-24 h-24 rounded border border-blue-950 bg-white object-contain shadow-lg" />
                     </div>
                   )}
                   {debugStep1MaskImage && (
                     <div className="flex flex-col gap-1 items-center">
-                      <span className="text-[7px] text-green-700 uppercase">2. Inpaint Mask</span>
-                      <img src={debugStep1MaskImage} className="w-24 h-24 rounded border border-green-950 bg-white object-contain shadow-lg" />
+                      <span className="text-[7px] text-blue-700 uppercase">2. Inpaint Mask</span>
+                      <img src={debugStep1MaskImage} className="w-24 h-24 rounded border border-blue-950 bg-white object-contain shadow-lg" />
                     </div>
                   )}
                   {debugStep1OutputUrl && (
@@ -2106,11 +2106,11 @@ Style: thin black double-line walls, door swing arcs, window ticks on exterior w
 
                 {/* Prompt Text Box */}
                 <div className="flex-1 flex flex-col min-h-0">
-                  <span className="text-[7px] text-green-700 uppercase mb-1">Step 1 Prompt Sent to Fal.ai:</span>
+                  <span className="text-[7px] text-blue-700 uppercase mb-1">Step 1 Prompt Sent to Fal.ai:</span>
                   <textarea
                     readOnly
                     value={debugStep1Prompt || 'Awaiting generation...'}
-                    className="flex-1 bg-[#020502] border border-green-950/60 rounded p-2 text-[8px] font-mono text-green-400/80 resize-none focus:outline-none"
+                    className="flex-1 bg-[#020502] border border-blue-950/60 rounded p-2 text-[8px] font-mono text-blue-400/80 resize-none focus:outline-none"
                   />
                 </div>
               </div>
@@ -2125,14 +2125,14 @@ Style: thin black double-line walls, door swing arcs, window ticks on exterior w
                 <div className="flex overflow-x-auto gap-4 shrink-0 pb-2">
                   {debugStep1OutputUrl && (
                     <div className="flex flex-col gap-1 items-center">
-                      <span className="text-[7px] text-green-700 uppercase">Primary Input (Base Layout)</span>
-                      <img src={debugStep1OutputUrl} className="w-32 h-32 rounded border border-green-950 bg-white object-contain shadow-lg" />
+                      <span className="text-[7px] text-blue-700 uppercase">Primary Input (Base Layout)</span>
+                      <img src={debugStep1OutputUrl} className="w-32 h-32 rounded border border-blue-950 bg-white object-contain shadow-lg" />
                     </div>
                   )}
                   {debugStep2TraceImage && (
                     <div className="flex flex-col gap-1 items-center">
-                      <span className="text-[7px] text-green-700 uppercase">Secondary Input (Trace Line)</span>
-                      <img src={debugStep2TraceImage} className="w-32 h-32 rounded border border-green-950 bg-white object-contain shadow-lg" />
+                      <span className="text-[7px] text-blue-700 uppercase">Secondary Input (Trace Line)</span>
+                      <img src={debugStep2TraceImage} className="w-32 h-32 rounded border border-blue-950 bg-white object-contain shadow-lg" />
                     </div>
                   )}
                   {debugStep15Schematic && (
@@ -2175,21 +2175,21 @@ Style: thin black double-line walls, door swing arcs, window ticks on exterior w
         </div>
 
         {/* Chat Panel */}
-        <div className="w-[420px] border-l border-green-900/30 bg-[#070f07] flex flex-col shrink-0">
-          <div className="px-5 py-3 border-b border-green-900/30 shrink-0">
-            <h2 className="text-[11px] font-bold tracking-[3px] uppercase text-green-400">Smart Architect Chat</h2>
-            <p className="text-[9px] text-green-800 uppercase tracking-wide mt-0.5">Mathematical Planning &middot; Visual Layout &middot; Vastu</p>
+        <div className="w-[420px] border-l border-blue-900/30 bg-[#040815] flex flex-col shrink-0">
+          <div className="px-5 py-3 border-b border-blue-900/30 shrink-0">
+            <h2 className="text-[11px] font-bold tracking-[3px] uppercase text-blue-400">Smart Architect Chat</h2>
+            <p className="text-[9px] text-blue-800 uppercase tracking-wide mt-0.5">Mathematical Planning &middot; Visual Layout &middot; Vastu</p>
           </div>
 
           <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
             {messages.map((msg, i) => (
               <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                <div className={`max-w-[85%] rounded-lg px-4 py-3 text-[11px] leading-relaxed ${msg.role === 'user' ? 'bg-green-500/15 border border-green-500/30 text-green-200' : 'bg-[#0a180a] border border-green-900/40 text-green-300'}`}>
+                <div className={`max-w-[85%] rounded-lg px-4 py-3 text-[11px] leading-relaxed ${msg.role === 'user' ? 'bg-blue-500/15 border border-blue-500/30 text-blue-200' : 'bg-[#0a180a] border border-blue-900/40 text-blue-300'}`}>
                   <div style={{ whiteSpace: 'pre-wrap' }} dangerouslySetInnerHTML={{
                     __html: msg.content
-                      .replace(/\*\*(.*?)\*\*/g, '<strong class="text-green-100">$1</strong>')
+                      .replace(/\*\*(.*?)\*\*/g, '<strong class="text-blue-100">$1</strong>')
                       .replace(/```json\s*\{\s*"options"[\s\S]*?```/g, '<div class="mt-2 text-yellow-500 text-[10px] font-bold uppercase tracking-widest">[✓ Layout Options Generated — Select below]</div>')
-                      .replace(/```json[\s\S]*?```/g, '<div class="mt-2 text-green-400 text-[10px] font-bold uppercase tracking-widest">[✓ Room Schedule Generated — Review & click Approve]</div>')
+                      .replace(/```json[\s\S]*?```/g, '<div class="mt-2 text-blue-400 text-[10px] font-bold uppercase tracking-widest">[✓ Room Schedule Generated — Review & click Approve]</div>')
                       .replace(/```[\s\S]*?```/g, '')
                   }} />
                 </div>
@@ -2207,7 +2207,7 @@ Style: thin black double-line walls, door swing arcs, window ticks on exterior w
                     <button
                       key={opt.id}
                       onClick={() => selectLayoutOption(`${opt.name}${opt.flatCount ? ` (${opt.flatCount} flats, ${opt.bhkType ?? ''})` : ''}`)}
-                      className="text-left p-3 rounded-lg border border-yellow-950/40 bg-[#070f07] hover:bg-yellow-500/5 hover:border-yellow-500/40 transition-all group"
+                      className="text-left p-3 rounded-lg border border-yellow-950/40 bg-[#040815] hover:bg-yellow-500/5 hover:border-yellow-500/40 transition-all group"
                     >
                       <div className="flex items-center justify-between">
                         <div className="text-[10px] font-bold text-yellow-400 group-hover:text-yellow-300">{opt.name}</div>
@@ -2217,7 +2217,7 @@ Style: thin black double-line walls, door swing arcs, window ticks on exterior w
                           </span>
                         )}
                       </div>
-                      <div className="text-[9px] text-green-700/80 mt-1 leading-normal">{opt.desc}</div>
+                      <div className="text-[9px] text-blue-700/80 mt-1 leading-normal">{opt.desc}</div>
                     </button>
                   ))}
                 </div>
@@ -2226,9 +2226,9 @@ Style: thin black double-line walls, door swing arcs, window ticks on exterior w
 
             {isLoading && (
               <div className="flex justify-start">
-                <div className="bg-[#0a180a] border border-green-900/40 rounded-lg px-4 py-3 flex items-center gap-2">
-                  <Loader2 size={14} className="animate-spin text-green-500" />
-                  <span className="text-[10px] text-green-600">I'm thinking & calculating rooms...</span>
+                <div className="bg-[#0a180a] border border-blue-900/40 rounded-lg px-4 py-3 flex items-center gap-2">
+                  <Loader2 size={14} className="animate-spin text-blue-500" />
+                  <span className="text-[10px] text-blue-600">I'm thinking & calculating rooms...</span>
                 </div>
               </div>
             )}
@@ -2262,24 +2262,24 @@ Style: thin black double-line walls, door swing arcs, window ticks on exterior w
               </div>
             )}
             {roomSchedule && (
-              <div className="border border-green-500/30 rounded-lg bg-[#0a180a] p-4">
-                <div className="text-[10px] font-bold text-green-300 uppercase tracking-widest mb-3">&#10003; Room Schedule ({roomSchedule.flats.length} flats, {totalRooms} rooms)</div>
+              <div className="border border-blue-500/30 rounded-lg bg-[#0a180a] p-4">
+                <div className="text-[10px] font-bold text-blue-300 uppercase tracking-widest mb-3">&#10003; Room Schedule ({roomSchedule.flats.length} flats, {totalRooms} rooms)</div>
                 <div className="max-h-[300px] overflow-y-auto pr-1 space-y-3">
                   {roomSchedule.flats.map(flat => (
-                    <div key={flat.id} className="border-b border-green-950/50 pb-2">
-                      <div className="text-[10px] font-bold text-green-200 mb-1">Flat {flat.id}</div>
+                    <div key={flat.id} className="border-b border-blue-950/50 pb-2">
+                      <div className="text-[10px] font-bold text-blue-200 mb-1">Flat {flat.id}</div>
                       {flat.rooms.map((room: Room) => (
-                        <div key={room.code} className="flex justify-between text-[9px] text-green-600 py-0.5 border-b border-green-950/30">
-                          <span><strong className="text-green-400">{room.code}</strong> &mdash; {room.name}</span>
-                          <span>{room.w}m &times; {room.h}m = <strong className="text-green-300">{room.area} sqm</strong></span>
+                        <div key={room.code} className="flex justify-between text-[9px] text-blue-600 py-0.5 border-b border-blue-950/30">
+                          <span><strong className="text-blue-400">{room.code}</strong> &mdash; {room.name}</span>
+                          <span>{room.w}m &times; {room.h}m = <strong className="text-blue-300">{room.area} sqm</strong></span>
                         </div>
                       ))}
                     </div>
                   ))}
                 </div>
-                <div className="mt-3 pt-2 border-t border-green-900/40 flex justify-between text-[9px]">
-                  <span className="text-green-700">Total buildup area</span>
-                  <strong className="text-green-300">{roomSchedule.totalBuildupArea} sqm</strong>
+                <div className="mt-3 pt-2 border-t border-blue-900/40 flex justify-between text-[9px]">
+                  <span className="text-blue-700">Total buildup area</span>
+                  <strong className="text-blue-300">{roomSchedule.totalBuildupArea} sqm</strong>
                 </div>
 
                 {!generatedImageUrl && (
@@ -2306,7 +2306,7 @@ Style: thin black double-line walls, door swing arcs, window ticks on exterior w
             <div ref={chatEndRef} />
           </div>
 
-          <div className="px-4 py-3 border-t border-green-900/30 shrink-0">
+          <div className="px-4 py-3 border-t border-blue-900/30 shrink-0">
             <div className="flex gap-2">
               <textarea
                 value={inputText}
@@ -2314,9 +2314,9 @@ Style: thin black double-line walls, door swing arcs, window ticks on exterior w
                 onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); } }}
                 placeholder="e.g. fit 4 flats of 2BHK in my plot..."
                 rows={2}
-                className="flex-1 bg-[#0a180a] border border-green-900/40 text-green-200 placeholder-green-900 text-[11px] rounded px-3 py-2 focus:outline-none focus:border-green-500/60 resize-none"
+                className="flex-1 bg-[#0a180a] border border-blue-900/40 text-blue-200 placeholder-green-900 text-[11px] rounded px-3 py-2 focus:outline-none focus:border-blue-500/60 resize-none"
               />
-              <button onClick={sendMessage} disabled={isLoading || isGeneratingImage || !inputText.trim()} className="px-4 bg-green-500/20 border border-green-500/40 text-green-400 hover:bg-green-500/30 disabled:opacity-30 disabled:cursor-not-allowed rounded transition-all">
+              <button onClick={sendMessage} disabled={isLoading || isGeneratingImage || !inputText.trim()} className="px-4 bg-blue-500/20 border border-blue-500/40 text-blue-400 hover:bg-blue-500/30 disabled:opacity-30 disabled:cursor-not-allowed rounded transition-all">
                 <Send size={16} />
               </button>
             </div>

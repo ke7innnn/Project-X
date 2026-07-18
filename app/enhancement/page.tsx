@@ -25,6 +25,10 @@ export default function EnhancementPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
+  useEffect(() => {
+    localStorage.setItem('last_used_tool', 'enhancement');
+  }, []);
+
   // Auto-load current floor plan from store if available
   useEffect(() => {
     if (currentFloorPlan && step === 'upload' && !originalPreviewUrl) {

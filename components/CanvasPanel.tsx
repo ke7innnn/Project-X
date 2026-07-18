@@ -131,7 +131,7 @@ export default function CanvasPanel() {
     ctx.lineJoin = 'round';
     if (paintTool === 'brush') {
       ctx.globalCompositeOperation = 'source-over';
-      ctx.strokeStyle = 'rgba(34, 197, 94, 0.45)'; // Semi-transparent green
+      ctx.strokeStyle = 'rgba(56, 189, 248, 0.45)'; // Semi-transparent blue/cyan
       ctx.lineWidth = brushSize;
     } else {
       ctx.globalCompositeOperation = 'destination-out';
@@ -241,7 +241,7 @@ export default function CanvasPanel() {
     ctx.lineJoin = 'round';
     if (paintTool === 'brush') {
       ctx.globalCompositeOperation = 'source-over';
-      ctx.strokeStyle = 'rgba(34, 197, 94, 0.45)'; // Semi-transparent green
+      ctx.strokeStyle = 'rgba(56, 189, 248, 0.45)'; // Semi-transparent blue/cyan
       ctx.lineWidth = brushSize;
     } else {
       ctx.globalCompositeOperation = 'destination-out';
@@ -282,7 +282,7 @@ export default function CanvasPanel() {
     const ctx = offscreen.getContext('2d');
     if (!ctx) return;
 
-    // 1. Composite the green strokes over the original image for the visual preview state
+    // 1. Composite the blue/cyan strokes over the original image for the visual preview state
     ctx.drawImage(img, 0, 0, offscreen.width, offscreen.height);
     ctx.drawImage(canvas, 0, 0, offscreen.width, offscreen.height);
 
@@ -583,8 +583,8 @@ export default function CanvasPanel() {
             }} />
           </div>
         ) : (hoveredNatureImage || selectedNatureImage) ? (
-          <div className="relative w-full h-full max-h-[80vh] flex flex-col items-center justify-center bg-[#0A0E1A] rounded-xl p-4 border border-gray-800 shadow-xl mb-8">
-            <h3 className="text-[#FFB000] font-semibold mb-3 flex items-center self-start z-10 relative">
+          <div className="relative w-full h-full max-h-[80vh] flex flex-col items-center justify-center bg-[#02050c]/85 rounded-xl p-4 border border-blue-900/35 shadow-xl mb-8 glass-card">
+            <h3 className="text-blue-300 font-semibold mb-3 flex items-center self-start z-10 relative text-glow-blue">
               <span className="mr-2">🌿</span> Nature Reference {hoveredNatureImage ? '(Preview)' : ''}
             </h3>
             <img 
@@ -613,8 +613,8 @@ export default function CanvasPanel() {
   if (phase === 'generate' && isLoading) {
     return (
       <div className="flex-1 flex flex-col items-center justify-center bg-transparent">
-        <div className="w-16 h-16 border-4 border-[#FFB000] border-t-transparent rounded-full animate-spin mb-6" />
-        <h2 className="text-xl text-[#FFB000]">{loadingMessage || 'Generating floor plans...'}</h2>
+        <div className="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mb-6" />
+        <h2 className="text-xl text-blue-300 text-glow-blue">{loadingMessage || 'Generating floor plans...'}</h2>
       </div>
     );
   }
@@ -633,9 +633,9 @@ export default function CanvasPanel() {
     return (
       <div className="flex-1 bg-transparent p-8 relative flex items-center justify-center overflow-hidden">
         {isLoading && (
-          <div className="absolute inset-0 z-50 bg-transparent/80 backdrop-blur-sm flex flex-col items-center justify-center">
-             <div className="w-12 h-12 border-4 border-[#FFB000] border-t-transparent rounded-full animate-spin mb-4" />
-             <p className="text-[#FFB000]">{loadingMessage || 'Applying your changes... ✦'}</p>
+          <div className="absolute inset-0 z-50 bg-black/45 backdrop-blur-sm flex flex-col items-center justify-center">
+             <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mb-4" />
+             <p className="text-blue-300 text-glow-blue">{loadingMessage || 'Applying your changes... ✦'}</p>
           </div>
         )}
 
@@ -643,7 +643,7 @@ export default function CanvasPanel() {
           <div className="absolute top-6 right-6 z-50">
             <button
               onClick={() => router.push('/edit')}
-              className="bg-[#c8a84b] hover:bg-[#d8b85b] text-black font-semibold py-2 px-6 rounded-lg transition-colors shadow-xl text-sm"
+              className="bg-blue-600 hover:bg-blue-500 text-white font-semibold py-2 px-6 rounded-lg transition-colors shadow-[0_0_15px_rgba(14,165,233,0.35)] border border-blue-400/30 text-sm cursor-pointer"
             >
               Go to Edit Section
             </button>
@@ -651,8 +651,8 @@ export default function CanvasPanel() {
         )}
         
         {floorPlanHistory && floorPlanHistory.length > 1 && (
-          <div className="absolute left-6 top-6 bottom-6 w-24 bg-[#0A0E1A]/80 backdrop-blur-md border border-[#222] rounded-xl z-40 flex flex-col items-center py-4 overflow-y-auto shadow-2xl space-y-6 custom-scrollbar hidden md:flex">
-            <h3 className="text-[10px] uppercase tracking-widest text-[#666] font-bold mb-2">History</h3>
+          <div className="absolute left-6 top-6 bottom-6 w-24 bg-[#02050c]/80 backdrop-blur-md border border-blue-900/35 rounded-xl z-40 flex flex-col items-center py-4 overflow-y-auto shadow-2xl space-y-6 custom-scrollbar hidden md:flex glass-card">
+            <h3 className="text-[10px] uppercase tracking-widest text-blue-400/50 font-bold mb-2">History</h3>
             {floorPlanHistory.map((historyBase64, idx) => {
               const isCurrent = historyBase64 === currentFloorPlan;
               return (
@@ -663,7 +663,7 @@ export default function CanvasPanel() {
                     updateParameters({ isPlotBurned: false });
                     resetZoom();
                   }}
-                  className={`relative w-16 h-16 rounded-lg cursor-pointer transition-all duration-300 border-2 flex-shrink-0 ${isCurrent ? 'border-[#FFB000] scale-110 shadow-[0_0_15px_rgba(255,176,0,0.4)]' : 'border-transparent opacity-50 hover:opacity-100 hover:border-[#444]'}`}
+                  className={`relative w-16 h-16 rounded-lg cursor-pointer transition-all duration-300 border-2 flex-shrink-0 ${isCurrent ? 'border-blue-500 scale-110 shadow-[0_0_15px_rgba(56,189,248,0.4)]' : 'border-transparent opacity-50 hover:opacity-100 hover:border-blue-900/40'}`}
                   title={`Version ${idx + 1}`}
                 >
                   <img src={historyBase64.startsWith('data:') ? historyBase64 : `data:image/jpeg;base64,${historyBase64}`} alt={`v${idx+1}`} className="w-full h-full object-cover rounded bg-white" />
@@ -708,10 +708,10 @@ export default function CanvasPanel() {
 
         {/* Zoom Controls */}
         {currentFloorPlan && (
-          <div className="absolute bottom-6 right-6 z-30 flex flex-col gap-1 bg-[#0A0E1A]/90 backdrop-blur-md rounded-xl border border-gray-700/50 shadow-2xl p-1.5">
+          <div className="absolute bottom-6 right-6 z-30 flex flex-col gap-1 bg-[#02050c]/85 backdrop-blur-md rounded-xl border border-blue-900/35 shadow-2xl p-1.5 glass-panel">
             <button
               onClick={zoomIn}
-              className="w-9 h-9 flex items-center justify-center rounded-lg text-gray-300 hover:text-[#FFB000] hover:bg-[#FFB000]/10 transition-all duration-200"
+              className="w-9 h-9 flex items-center justify-center rounded-lg text-gray-300 hover:text-blue-300 hover:bg-blue-500/10 transition-all duration-200"
               title="Zoom In"
             >
               <ZoomIn size={18} />
@@ -721,15 +721,15 @@ export default function CanvasPanel() {
             </div>
             <button
               onClick={zoomOut}
-              className="w-9 h-9 flex items-center justify-center rounded-lg text-gray-300 hover:text-[#FFB000] hover:bg-[#FFB000]/10 transition-all duration-200"
+              className="w-9 h-9 flex items-center justify-center rounded-lg text-gray-300 hover:text-blue-300 hover:bg-blue-500/10 transition-all duration-200"
               title="Zoom Out"
             >
               <ZoomOut size={18} />
             </button>
-            <div className="w-full h-px bg-gray-700/50 my-0.5" />
+            <div className="w-full h-px bg-blue-900/20 my-0.5" />
             <button
               onClick={resetZoom}
-              className="w-9 h-9 flex items-center justify-center rounded-lg text-gray-300 hover:text-[#FFB000] hover:bg-[#FFB000]/10 transition-all duration-200"
+              className="w-9 h-9 flex items-center justify-center rounded-lg text-gray-300 hover:text-blue-300 hover:bg-blue-500/10 transition-all duration-200"
               title="Reset Zoom"
             >
               <Maximize size={16} />
@@ -749,7 +749,7 @@ export default function CanvasPanel() {
         )}
 
         <div className="flex justify-between items-center mb-6">
-          <h2 className="text-2xl text-[#FFB000] font-semibold">Final Layout & Rendering</h2>
+          <h2 className="text-2xl text-blue-300 font-semibold text-glow-blue">Final Layout & Rendering</h2>
           
           <div className="flex gap-4">
             <input 
@@ -761,13 +761,13 @@ export default function CanvasPanel() {
             />
             <button 
               onClick={() => setIsEditingVectors(true)}
-              className="flex items-center gap-2 bg-[#FFB000] hover:bg-[#e09c00] text-black font-bold px-4 py-2 rounded-lg transition-all shadow-[0_0_15px_rgba(255,176,0,0.15)] hover:shadow-[0_0_20px_rgba(255,176,0,0.3)]"
+              className="flex items-center gap-2 bg-blue-600 hover:bg-blue-500 text-white font-bold px-4 py-2 rounded-lg transition-all shadow-[0_0_15px_rgba(14,165,233,0.25)] hover:shadow-[0_0_20px_rgba(14,165,233,0.45)] border border-blue-400/30 cursor-pointer"
             >
               <Palette size={16} /> Start CAD Vector Editor
             </button>
             <button 
               onClick={() => fileInputRef.current?.click()}
-              className="flex items-center gap-2 bg-[#1F2937] hover:bg-[#374151] text-white px-4 py-2 rounded-lg transition-colors border border-gray-700"
+              className="flex items-center gap-2 bg-black/35 hover:bg-blue-900/15 text-white px-4 py-2 rounded-lg transition-all border border-blue-900/35 glass-card cursor-pointer"
             >
               <Upload size={16} /> Upload Refined Drawing
             </button>
@@ -776,21 +776,21 @@ export default function CanvasPanel() {
 
         {isLoading && (
           <div className="w-full py-12 flex flex-col items-center justify-center">
-            <div className="w-12 h-12 border-4 border-[#FFB000] border-t-transparent rounded-full animate-spin mb-4" />
-            <p className="text-[#FFB000]">{loadingMessage}</p>
+            <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mb-4" />
+            <p className="text-blue-300 text-glow-blue">{loadingMessage}</p>
           </div>
         )}
 
         {phase === 'reimport' && !isLoading && (
           <div className="grid grid-cols-2 gap-8 mb-8">
-            <div className="bg-[#0A0E1A] p-4 rounded-xl border border-gray-800">
+            <div className="bg-black/45 backdrop-blur-md p-4 rounded-xl border border-blue-900/35 glass-card">
               <h3 className="text-gray-400 mb-3 text-sm">Your AutoCAD Upload</h3>
               {reimportedPlan && (
                 <img src={`data:image/jpeg;base64,${reimportedPlan}`} alt="Uploaded" className="w-full bg-white rounded-lg" />
               )}
             </div>
-            <div className="bg-[#0A0E1A] p-4 rounded-xl border border-[#FFB000]/50 shadow-[0_0_15px_rgba(196,168,130,0.1)]">
-              <h3 className="text-[#FFB000] mb-3 text-sm">AI Styled Version</h3>
+            <div className="bg-black/45 backdrop-blur-md p-4 rounded-xl border border-blue-500/50 shadow-[0_0_15px_rgba(14,165,233,0.15)] glass-card">
+              <h3 className="text-blue-300 mb-3 text-sm text-glow-blue">AI Styled Version</h3>
               {styledFloorPlan && (
                 <img src={`data:image/jpeg;base64,${styledFloorPlan}`} alt="Styled" className="w-full bg-white rounded-lg" />
               )}
@@ -799,7 +799,7 @@ export default function CanvasPanel() {
         )}
 
         {(phase === 'export' || (phase === 'reimport' && styledFloorPlan)) && !isLoading && (
-          <div className="bg-[#0A0E1A] p-6 rounded-xl border border-gray-800 flex flex-col gap-6">
+          <div className="bg-black/45 border border-blue-900/30 rounded-xl p-6 flex flex-col gap-6 glass-panel">
             
             {/* BIG VIEWPORT: 2D Blueprint View is always visible */}
             <div className="flex flex-col gap-6 border-b border-gray-800 pb-6">
@@ -810,7 +810,7 @@ export default function CanvasPanel() {
                       value={selectedStyle}
                       onChange={(e) => setSelectedStyle(e.target.value)}
                       disabled={isRenderLoading}
-                      className="bg-[#1F2937] text-white text-xs border border-gray-700 rounded-lg px-3 py-2 focus:outline-none focus:border-[#FFB000] uppercase font-mono h-[38px] cursor-pointer"
+                      className="bg-black/45 text-white text-xs border border-blue-900/35 rounded-lg px-3 py-2 focus:outline-none focus:border-blue-500 uppercase font-mono h-[38px] cursor-pointer glass-card"
                     >
                       <option value="Normal">Style: Normal / Default</option>
                       <optgroup label="Minimalist">
@@ -862,7 +862,7 @@ export default function CanvasPanel() {
                         playSound('click');
                         downloadImage(styledFloorPlan || currentFloorPlan || '', 'floorplan.png');
                       }}
-                      className="flex items-center gap-2 bg-[#1F2937] hover:bg-[#374151] px-4 py-2 rounded-lg transition-colors h-[38px] text-white"
+                      className="flex items-center gap-2 bg-black/35 hover:bg-blue-900/15 px-4 py-2 rounded-lg border border-blue-900/35 transition-all h-[38px] text-white glass-card"
                       title="Download raw image"
                     >
                       <Download size={16} /> PNG
@@ -872,7 +872,7 @@ export default function CanvasPanel() {
                         playSound('click');
                         exportProfessionalBlueprint();
                       }}
-                      className="flex items-center gap-2 border-2 border-[#FFB000] text-[#FFB000] hover:bg-[#FFB000] hover:text-black font-semibold px-4 py-2 rounded-lg transition-colors h-[38px] cursor-pointer"
+                      className="flex items-center gap-2 border border-blue-500/50 text-blue-300 hover:bg-blue-500/10 font-semibold px-4 py-2 rounded-lg transition-all h-[38px] cursor-pointer glass-card text-glow-blue shadow-[0_0_10px_rgba(14,165,233,0.15)]"
                     >
                       <Download size={16} /> Export Blueprint
                     </button>
@@ -882,10 +882,10 @@ export default function CanvasPanel() {
                         handleGenerateRender();
                       }}
                       disabled={isRenderLoading}
-                      className="flex items-center gap-2 bg-[#FFB000] hover:bg-[#D8B78D] text-black font-semibold px-4 py-2 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed h-[38px] cursor-pointer"
+                      className="flex items-center gap-2 bg-blue-600 hover:bg-blue-500 text-white font-semibold px-4 py-2 rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed h-[38px] cursor-pointer shadow-[0_0_15px_rgba(14,165,233,0.35)] border border-blue-400/30"
                     >
                       {isRenderLoading ? (
-                        <div className="w-4 h-4 border-2 border-black border-t-transparent rounded-full animate-spin" />
+                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
                       ) : (
                         <Palette size={16} />
                       )}
@@ -910,9 +910,9 @@ export default function CanvasPanel() {
                 </div>
 
                 {/* Sunpath controls on the drawing panel */}
-                <div className="p-4 border border-[#FFB000]/30 bg-[#FFB000]/5 rounded-xl flex flex-col gap-3">
-                  <span className="text-[11px] font-bold tracking-[2px] uppercase text-[#FFB000]">Configure Shadows (Sunpath)</span>
-                  <p className="text-[9px] text-[#FFB000]/60 uppercase tracking-wider leading-relaxed">
+                <div className="p-4 border border-blue-900/35 bg-blue-950/10 rounded-xl flex flex-col gap-3 glass-card">
+                  <span className="text-[11px] font-bold tracking-[2px] uppercase text-blue-300 text-glow-blue">Configure Shadows (Sunpath)</span>
+                  <p className="text-[9px] text-blue-400/60 uppercase tracking-wider leading-relaxed">
                     Set the position of the sun. Diffuse, soft shadows will be projected opposite to this direction during generation.
                   </p>
                   
@@ -925,7 +925,7 @@ export default function CanvasPanel() {
                           setSunpath(e.target.value);
                           if (e.target.value !== 'custom') setCustomSunpath('');
                         }}
-                        className="w-full bg-black text-xs border border-gray-700 text-white rounded px-3 py-2.5 focus:outline-none focus:border-[#FFB000] uppercase font-mono"
+                        className="w-full bg-black text-xs border border-blue-900/35 text-white rounded px-3 py-2.5 focus:outline-none focus:border-blue-500 uppercase font-mono glass-card"
                       >
                         <option value="North">North (Shadows South)</option>
                         <option value="South">South (Shadows North)</option>
@@ -947,7 +947,7 @@ export default function CanvasPanel() {
                           value={customSunpath}
                           onChange={(e) => setCustomSunpath(e.target.value)}
                           placeholder="E.G. LOW ON THE WESTERN HORIZON"
-                          className="w-full bg-black text-xs border border-gray-700 text-white rounded px-3 py-2.5 focus:outline-none focus:border-[#FFB000] uppercase font-mono tracking-wider"
+                          className="w-full bg-black text-xs border border-blue-900/35 text-white rounded px-3 py-2.5 focus:outline-none focus:border-blue-500 uppercase font-mono tracking-wider glass-card"
                         />
                       </div>
                     )}
@@ -961,20 +961,20 @@ export default function CanvasPanel() {
               
               <div className="grid grid-cols-2 md:grid-cols-3 gap-6">
                 {renderHistory.map((item) => (
-                  <div key={item.id} className="bg-[#07070d] border border-gray-800 rounded-xl overflow-hidden hover:border-[#FFB000]/50 transition-all flex flex-col shadow-lg">
+                  <div key={item.id} className="bg-black/35 border border-blue-900/20 rounded-xl overflow-hidden hover:border-blue-500/50 transition-all flex flex-col shadow-lg glass-card">
                     <div className="aspect-video relative overflow-hidden bg-black/40">
                       <img src={`data:image/jpeg;base64,${item.base64}`} alt="Render Thumb" className="w-full h-full object-cover" />
                     </div>
                     <div className="p-3 flex-1 flex flex-col justify-between gap-3">
                       <div>
-                        <div className="text-[10px] font-bold text-[#FFB000] uppercase truncate">{item.style}</div>
+                        <div className="text-[10px] font-bold text-blue-300 uppercase truncate text-glow-blue">{item.style}</div>
                         <div className="text-[9px] text-zinc-500 uppercase tracking-widest mt-1">Sun: {item.sunpath}</div>
                       </div>
                       
                       <div className="flex gap-1.5 mt-2">
                         <button
                           onClick={() => setViewingHistoryId(item.id)}
-                          className="flex-1 py-1.5 bg-[#FFB000]/10 border border-[#FFB000]/30 hover:border-[#FFB000] text-[#FFB000] hover:text-[#0a0a0f] hover:bg-[#FFB000] font-bold uppercase tracking-widest text-[8px] rounded transition-all cursor-pointer"
+                          className="flex-1 py-1.5 bg-blue-500/10 border border-blue-500/30 hover:border-blue-500 text-blue-300 hover:text-white hover:bg-blue-600 font-bold uppercase tracking-widest text-[8px] rounded transition-all cursor-pointer"
                         >
                           Inspect / Edit
                         </button>
@@ -1002,9 +1002,9 @@ export default function CanvasPanel() {
 
                 {/* GENERATING LOADING CARD */}
                 {isRenderLoading && (
-                  <div className="bg-[#07070d] border border-[#FFB000]/40 rounded-xl overflow-hidden animate-pulse flex flex-col justify-center items-center p-6 min-h-[160px]">
-                    <div className="w-8 h-8 border-3 border-[#FFB000] border-t-transparent rounded-full animate-spin mb-3" />
-                    <span className="text-[9px] text-[#FFB000] tracking-widest uppercase text-center font-bold">Generating Render...</span>
+                  <div className="bg-black/35 border border-blue-500/30 rounded-xl overflow-hidden animate-pulse flex flex-col justify-center items-center p-6 min-h-[160px] glass-card">
+                    <div className="w-8 h-8 border-3 border-blue-500 border-t-transparent rounded-full animate-spin mb-3" />
+                    <span className="text-[9px] text-blue-300 tracking-widest uppercase text-center font-bold text-glow-blue">Generating Render...</span>
                   </div>
                 )}
 
@@ -1026,11 +1026,11 @@ export default function CanvasPanel() {
           if (!activeItem) return null;
           return (
             <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-md p-4 md:p-8 animate-fadeIn">
-              <div className="bg-[#0A0E1A] border border-[#FFB000]/30 rounded-xl w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden shadow-2xl">
+              <div className="bg-black/85 backdrop-blur-md border border-blue-900/35 rounded-xl w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden shadow-2xl glass-panel">
                 {/* Modal Header */}
                 <div className="flex justify-between items-center p-4 border-b border-gray-800 bg-[#07070d]">
                   <div>
-                    <h3 className="text-[#FFB000] text-sm font-semibold uppercase tracking-wider">Viewing Rendered Concept</h3>
+                    <h3 className="text-blue-300 text-sm font-semibold uppercase tracking-wider text-glow-blue">Viewing Rendered Concept</h3>
                     <span className="text-[10px] text-zinc-400 uppercase tracking-widest block mt-0.5">
                       Style: {activeItem.style} | Shadows: {activeItem.sunpath}
                     </span>
@@ -1044,7 +1044,7 @@ export default function CanvasPanel() {
                     </button>
                     <button 
                       onClick={() => setViewingHistoryId(null)}
-                      className="flex items-center gap-2 bg-[#FFB000] hover:bg-[#e09c00] text-black font-bold px-4 py-2 rounded-lg text-xs transition-colors cursor-pointer font-mono"
+                      className="flex items-center gap-2 bg-blue-600 hover:bg-blue-500 text-white font-bold px-4 py-2 rounded-lg text-xs transition-colors cursor-pointer font-mono shadow-[0_0_10px_rgba(14,165,233,0.25)] border border-blue-400/30"
                     >
                       Close
                     </button>
@@ -1054,21 +1054,21 @@ export default function CanvasPanel() {
                 {/* Modal Body */}
                 <div className="flex-1 overflow-y-auto p-6 bg-black/40 flex items-center justify-center min-h-0 relative">
                   {inpaintRenderActive && (
-                    <div className="absolute top-6 left-1/2 -translate-x-1/2 z-40 flex items-center gap-4 bg-[#0A0E1A]/95 backdrop-blur-md px-5 py-3 rounded-2xl border border-[#FFB000]/30 shadow-[0_0_20px_rgba(255,176,0,0.15)] text-xs font-mono text-gray-200">
-                      <span className="text-[#FFB000] font-bold tracking-wider uppercase mr-2">✏️ Inpaint Render</span>
+                    <div className="absolute top-6 left-1/2 -translate-x-1/2 z-40 flex items-center gap-4 bg-black/85 backdrop-blur-md px-5 py-3 rounded-2xl border border-blue-900/35 shadow-[0_0_20px_rgba(14,165,233,0.25)] text-xs font-mono text-gray-200 glass-panel">
+                      <span className="text-blue-300 font-bold tracking-wider uppercase mr-2 text-glow-blue">✏️ Inpaint Render</span>
                       
                       <div className="h-4 w-px bg-gray-700" />
                       
                       <div className="flex items-center gap-1.5">
                         <button
                           onClick={() => setPaintTool('brush')}
-                          className={`px-3 py-1 rounded-md transition-all ${paintTool === 'brush' ? 'bg-[#FFB000] text-black font-bold' : 'hover:bg-white/5 text-gray-400'}`}
+                          className={`px-3 py-1 rounded-md transition-all ${paintTool === 'brush' ? 'bg-blue-600 text-white font-bold shadow-[0_0_8px_rgba(14,165,233,0.35)]' : 'hover:bg-white/5 text-gray-400'}`}
                         >
                           Brush
                         </button>
                         <button
                           onClick={() => setPaintTool('eraser')}
-                          className={`px-3 py-1 rounded-md transition-all ${paintTool === 'eraser' ? 'bg-[#FFB000] text-black font-bold' : 'hover:bg-white/5 text-gray-400'}`}
+                          className={`px-3 py-1 rounded-md transition-all ${paintTool === 'eraser' ? 'bg-blue-600 text-white font-bold shadow-[0_0_8px_rgba(14,165,233,0.35)]' : 'hover:bg-white/5 text-gray-400'}`}
                         >
                           Eraser
                         </button>
@@ -1084,7 +1084,7 @@ export default function CanvasPanel() {
                           max="80"
                           value={brushSize}
                           onChange={(e) => setBrushSize(Number(e.target.value))}
-                          className="w-20 accent-[#FFB000] cursor-pointer"
+                          className="w-20 accent-blue-500 cursor-pointer"
                         />
                         <span className="w-6 text-[10px] text-right">{brushSize}px</span>
                       </div>

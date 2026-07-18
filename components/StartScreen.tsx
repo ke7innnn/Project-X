@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useArchitectStore } from '@/store/useArchitectStore';
 import { useRouter } from 'next/navigation';
-import { Mic, Search, Loader2 } from 'lucide-react';
+import { Mic, Search, Loader2, Volume2, VolumeX } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 const API_URL = "https://api.groq.com/openai/v1/chat/completions";
@@ -58,6 +58,87 @@ function formatUptime(ms: number): string {
   return `${pad(hours)}:${pad(minutes)}:${pad(seconds)}`;
 }
 
+const lastToolLabelMap: Record<string, string> = {
+  'concept-generator': 'CONCEPT GENERATOR',
+  'edit': 'EDIT',
+  '3d-render': '3D RENDER',
+  'enhancement': 'ENHANCEMENT',
+  'png-to-dxf': 'PNG TO DXF',
+  'flythrough': 'FLYTHROUGH'
+};
+
+function getBatmanGreeting(hour: number): string {
+  if (hour >= 0 && hour < 5) {
+    const lines = [
+      "Working late again, Umesh?",
+      "Gotham never sleeps. Neither do we, Umesh.",
+      "The shadows are long. Let's make this count, Umesh."
+    ];
+    return lines[Math.floor(Math.random() * lines.length)];
+  } else if (hour >= 5 && hour < 9) {
+    const lines = [
+      "Up before Gotham. Let's move, Umesh.",
+      "The sun is rising, but our work isn't done. Let's start, Umesh.",
+      "No rest for the vigilant, Umesh. What's the plan?"
+    ];
+    return lines[Math.floor(Math.random() * lines.length)];
+  } else if (hour >= 9 && hour < 17) {
+    const lines = [
+      "Systems nominal. What do you need, Umesh?",
+      "Mainframe active. State your objective, Umesh.",
+      "The day is half gone, Umesh. Let's get to work."
+    ];
+    return lines[Math.floor(Math.random() * lines.length)];
+  } else if (hour >= 17 && hour < 21) {
+    const lines = [
+      "Evening patrol's about to start, Umesh.",
+      "Sun's setting. The city is changing, Umesh.",
+      "We're running out of daylight, Umesh. Focus."
+    ];
+    return lines[Math.floor(Math.random() * lines.length)];
+  } else {
+    const lines = [
+      "The city's quiet. For now, Umesh.",
+      "Night watch initialized, Umesh. Speak.",
+      "The darkness suits us, Umesh. What's next?"
+    ];
+    return lines[Math.floor(Math.random() * lines.length)];
+  }
+}
+
+function playSonarPing() {
+  try {
+    const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
+    if (!AudioContext) return;
+    const ctx = new AudioContext();
+    const osc = ctx.createOscillator();
+    const osc2 = ctx.createOscillator();
+    const gain = ctx.createGain();
+    
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(120, ctx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(40, ctx.currentTime + 0.6);
+    
+    osc2.type = 'triangle';
+    osc2.frequency.setValueAtTime(60, ctx.currentTime);
+    osc2.frequency.exponentialRampToValueAtTime(20, ctx.currentTime + 0.6);
+    
+    gain.gain.setValueAtTime(0.2, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.6);
+    
+    osc.connect(gain);
+    osc2.connect(gain);
+    gain.connect(ctx.destination);
+    
+    osc.start();
+    osc2.start();
+    osc.stop(ctx.currentTime + 0.6);
+    osc2.stop(ctx.currentTime + 0.6);
+  } catch (e) {
+    console.error('Audio synthesis failed:', e);
+  }
+}
+
 export default function StartScreen() {
   const setIsAppStarted = useArchitectStore((state) => state.setIsAppStarted);
   const storePhase = useArchitectStore((state) => state.phase);
@@ -84,8 +165,12 @@ export default function StartScreen() {
   const [activeMenuTab, setActiveMenuTab] = useState(() => getInitialStage(storePhase));
   const [isSystemOnline, setIsSystemOnline] = useState(true);
   const [statusState, setStatusState] = useState<'idle' | 'listening' | 'thinking' | 'speaking'>('idle');
-  const [transcript, setTranscript] = useState('System ready. Click COMM LINK on the left to start.');
+  const [transcript, setTranscript] = useState('Initializing bat-computer link...');
   const [responseHtml, setResponseHtml] = useState<string | null>(null);
+  const [sessionCount, setSessionCount] = useState<string>('');
+  const [isSoundMuted, setIsSoundMuted] = useState(true);
+  const [showStatusBlock, setShowStatusBlock] = useState(false);
+  const isFirstMountRef = useRef(true);
   const chatHistoryRef = useRef<{ role: string, content: string }[]>([]);
   const [marketData, setMarketData] = useState<Record<string, number> | null>(null);
   const bgMusicRef = useRef<HTMLAudioElement | null>(null);
@@ -130,6 +215,63 @@ export default function StartScreen() {
     }, 1000);
     return () => clearInterval(timer);
   }, [mountTime]);
+
+  const toggleSoundMute = () => {
+    const newMuted = !isSoundMuted;
+    setIsSoundMuted(newMuted);
+    localStorage.setItem('home_sound_muted', newMuted ? 'true' : 'false');
+    if (!newMuted) {
+      playSonarPing();
+    }
+  };
+
+  useEffect(() => {
+    const mutedPref = localStorage.getItem('home_sound_muted');
+    const isMuted = mutedPref === null ? true : mutedPref === 'true';
+    setIsSoundMuted(isMuted);
+
+    const countStr = localStorage.getItem('batman_session_count');
+    const currentCount = countStr ? parseInt(countStr, 10) + 1 : 1;
+    localStorage.setItem('batman_session_count', currentCount.toString());
+    
+    const getOrdinal = (n: number) => {
+      const s = ["th", "st", "nd", "rd"];
+      const v = n % 100;
+      return n + (s[(v - 20) % 10] || s[v] || s[0]);
+    };
+    setSessionCount(`${getOrdinal(currentCount)} watch`);
+
+    const lastUsed = localStorage.getItem('last_used_tool');
+    if (lastUsed) {
+      setActiveMenuTab(lastUsed);
+    }
+
+    const now = new Date();
+    const hour = now.getHours();
+    const greetingText = getBatmanGreeting(hour);
+
+    const greetingTimer = setTimeout(() => {
+      setTranscript(greetingText);
+    }, 100);
+
+    const audioTimer = setTimeout(() => {
+      const alreadyPlayed = sessionStorage.getItem('boot_sound_played');
+      if (!alreadyPlayed && !isMuted) {
+        playSonarPing();
+        sessionStorage.setItem('boot_sound_played', 'true');
+      }
+    }, 450);
+
+    const statusTimer = setTimeout(() => {
+      setShowStatusBlock(true);
+    }, 850);
+
+    return () => {
+      clearTimeout(greetingTimer);
+      clearTimeout(audioTimer);
+      clearTimeout(statusTimer);
+    };
+  }, []);
 
   // Background music
   useEffect(() => {
@@ -1078,12 +1220,21 @@ NOTE: Each time Master Umesh asks for the brief, these stories are shuffled rand
   processCommandRef.current = processCommand;
 
   useEffect(() => {
+    if (isFirstMountRef.current) {
+      isFirstMountRef.current = false;
+      const lastUsed = localStorage.getItem('last_used_tool');
+      if (lastUsed) {
+        setActiveMenuTab(lastUsed);
+        return;
+      }
+    }
     setActiveMenuTab(getInitialStage(storePhase));
   }, [storePhase]);
 
   const handleMenuClick = (stageId: string) => {
     if (statusState === 'speaking' || statusState === 'thinking') return; // Prevent double trigger
     setActiveMenuTab(stageId);
+    localStorage.setItem('last_used_tool', stageId);
 
     if (stageId === 'render-zone') {
       speak("Accessing Project Archive, Master Umesh.", () => {
@@ -1188,6 +1339,28 @@ NOTE: Each time Master Umesh asks for the brief, these stories are shuffled rand
           </span>
         </div>
       </div>
+
+      {/* Cohesive Boot Sequence Status Block */}
+      {showStatusBlock && (
+        <div className="fixed top-[110px] left-1/2 -translate-x-1/2 z-20 flex items-center gap-3 bg-black/60 backdrop-blur border border-cyan-500/20 rounded-full px-4 py-1.5 pointer-events-auto select-none font-sans text-[10.5px] shadow-[0_0_15px_rgba(0,240,255,0.15)] animate-fadeIn">
+          <span className="text-cyan-400 font-bold tracking-[1.5px] uppercase">
+            {sessionCount || 'INITIAL WATCH'}
+          </span>
+          <span className="h-3 w-px bg-cyan-500/30" />
+          <span className="text-cyan-500/70 tracking-[1px] uppercase">
+            Resuming: {lastToolLabelMap[activeMenuTab] || 'CONCEPT GENERATOR'}
+          </span>
+          <span className="h-3 w-px bg-cyan-500/30" />
+          {/* Speaker Mute/Unmute Toggle */}
+          <button
+            onClick={toggleSoundMute}
+            className="text-cyan-400 hover:text-white transition-colors flex items-center justify-center cursor-pointer pointer-events-auto"
+            title={isSoundMuted ? 'Unmute boot audio' : 'Mute boot audio'}
+          >
+            {isSoundMuted ? <VolumeX size={12} /> : <Volume2 size={12} />}
+          </button>
+        </div>
+      )}
 
       {/* Tactical Weather Metrics Panel */}
       <div className="fixed top-10 left-6 z-[10] w-76 select-none pointer-events-none bg-[#0a0a0f]/80 backdrop-blur border border-cyan-500/20 rounded-lg p-4">
