@@ -1599,17 +1599,19 @@ NOTE: Each time Master Umesh asks for the brief, these stories are shuffled rand
           </div>
         </div>
 
+        {/* Welcome Greeting Display */}
+        <div className="w-full text-center mb-8 animate-fadeIn">
+          <h2 className="font-serif font-semibold text-white text-2xl md:text-3xl tracking-normal leading-snug drop-shadow-[0_2px_10px_rgba(0,0,0,0.5)]">
+            {transcript}
+          </h2>
+        </div>
+
         {/* Status Label */}
         <div className={`text-[10px] tracking-[3px] uppercase mb-4 h-4 transition-colors ${statusState === 'listening' ? 'text-[#c8a84b]' : statusState === 'thinking' ? 'text-[#c8a84b]' : statusState === 'speaking' ? 'text-[#5bc8af]' : 'text-[#3a2c10]'}`}>
           {statusState === 'listening' ? 'listening...' :
             statusState === 'thinking' ? 'processing...' :
               statusState === 'speaking' ? 'speaking...' :
                 'voice interface offline'}
-        </div>
-
-        <div className="w-full bg-[#0f0f18]/90 backdrop-blur border border-[#1e1810] rounded-xl p-4 mb-4 min-h-[52px]">
-          <div className="text-[9px] tracking-widest text-[#3a2c10] uppercase mb-1">you said</div>
-          <div className="text-[13px] text-[#c8a84b]">{transcript}</div>
         </div>
 
         {/* Response is now shown in the fixed bottom HUD strip, not here */}
