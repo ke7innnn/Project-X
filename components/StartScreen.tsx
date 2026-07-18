@@ -166,6 +166,7 @@ export default function StartScreen() {
   const [isSystemOnline, setIsSystemOnline] = useState(true);
   const [statusState, setStatusState] = useState<'idle' | 'listening' | 'thinking' | 'speaking'>('idle');
   const [transcript, setTranscript] = useState('Initializing bat-computer link...');
+  const [welcomeGreeting, setWelcomeGreeting] = useState('Initializing bat-computer...');
   const [responseHtml, setResponseHtml] = useState<string | null>(null);
   const [sessionCount, setSessionCount] = useState<string>('');
   const [isSoundMuted, setIsSoundMuted] = useState(true);
@@ -251,7 +252,8 @@ export default function StartScreen() {
     const greetingText = getBatmanGreeting(hour);
 
     const greetingTimer = setTimeout(() => {
-      setTranscript(greetingText);
+      setWelcomeGreeting(greetingText);
+      setTranscript("System ready. Click COMM LINK on the left to start.");
     }, 100);
 
     const audioTimer = setTimeout(() => {
@@ -1567,6 +1569,14 @@ NOTE: Each time Master Umesh asks for the brief, these stories are shuffled rand
 
       {/* Main UI Container - Pushed to the bottom */}
       <div className="relative z-10 flex flex-col items-center w-full max-w-md p-6 mt-auto pb-12">
+        {/* Welcome Greeting Display */}
+        {welcomeGreeting && (
+          <div className="w-full text-center mb-6 animate-fadeIn">
+            <h2 className="font-serif font-bold text-white text-2xl md:text-3xl tracking-normal leading-snug drop-shadow-[0_2px_10px_rgba(0,0,0,0.5)]">
+              {welcomeGreeting}
+            </h2>
+          </div>
+        )}
 
 
         {/* Mic Button & Waveform Container - Mobile Only */}
