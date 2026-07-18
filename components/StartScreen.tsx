@@ -250,6 +250,7 @@ export default function StartScreen() {
     const now = new Date();
     const hour = now.getHours();
     const greetingText = getBatmanGreeting(hour);
+    pendingGreetingRef.current = greetingText;
 
     const greetingTimer = setTimeout(() => {
       setWelcomeGreeting(greetingText);
