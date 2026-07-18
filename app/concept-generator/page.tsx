@@ -191,7 +191,8 @@ function exportBlackWhiteRedTraceForAI(
   dividerLines: Point[][] = [],
   coreMarker: Point | null = null
 ): { base64: string, numRegions: number } {
-  const outSize = FAL_OUTPUT_SIZES[falSize] || { w: canvasW, h: canvasH };
+  // Use exact canvas resolution
+  const outSize = { w: canvasW, h: canvasH };
   const offscreen = document.createElement('canvas');
   offscreen.width = outSize.w;
   offscreen.height = outSize.h;
@@ -211,7 +212,7 @@ function exportBlackWhiteRedTraceForAI(
     });
     const ptsW = maxX - minX;
     const ptsH = maxY - minY;
-    const padding = 24;
+    const padding = 8; // 8px margin
     const targetW = Math.max(1, outSize.w - padding * 2);
     const targetH = Math.max(1, outSize.h - padding * 2);
 
@@ -527,14 +528,14 @@ export default function SmartPlannerPage() {
   const [buildingType, setBuildingType] = useState<string>('multi-residential');
   const [roomConfig, setRoomConfig] = useState<string>('auto');
   const [aiModel, setAiModel] = useState<string>('grok');
-  const [workflow, setWorkflow] = useState<string>('grok-gpt');
+  const workflow = 'grok-gpt';
   const [flatCount, setFlatCount] = useState<string>('auto');
   const [stage1ImageUrl, setStage1ImageUrl] = useState<string | null>(null);
   const [pipelineStage, setPipelineStage] = useState<'idle' | 'stage1' | 'stage2'>('idle');
 
   // Zoom/Pan/Save/Accordion/Stepper states
-  const [zoom, setZoom] = useState(1);
-  const [panOffset, setPanOffset] = useState({ x: 0, y: 0 });
+  const zoom = 1;
+  const panOffset = { x: 0, y: 0 };
   const [isPanning, setIsPanning] = useState(false);
   const [isSpacePressed, setIsSpacePressed] = useState(false);
   const [saveStatus, setSaveStatus] = useState<'saved' | 'saving'>('saved');
@@ -542,6 +543,7 @@ export default function SmartPlannerPage() {
   const [saveStatusText, setSaveStatusText] = useState('Saved just now');
   const [isCanvasPopupOpen, setIsCanvasPopupOpen] = useState(false);
   const [isHowItWorksOpen, setIsHowItWorksOpen] = useState(true);
+  const [showLogs, setShowLogs] = useState(false);
   const [pipelineActive, setPipelineActive] = useState(false);
   const [currentStageIndex, setCurrentStageIndex] = useState(-1);
   const [stageStates, setStageStates] = useState<('pending' | 'running' | 'complete' | 'failed')[]>([
@@ -711,33 +713,8 @@ export default function SmartPlannerPage() {
   }, [CANVAS_W, CANVAS_H, plotPoints, sitePoints, plotClosed, siteClosed, pushUndo, dividerLines, coreMarker]);
 
   const fitToPlot = useCallback(() => {
-    const pts = plotPoints.length > 0 ? plotPoints : sitePoints;
-    if (pts.length === 0) {
-      setZoom(1);
-      setPanOffset({ x: 0, y: 0 });
-      return;
-    }
-    const bb = polygonBoundingBox(pts);
-    const w = bb.maxX - bb.minX;
-    const h = bb.maxY - bb.minY;
-    
-    const drawW = CANVAS_W - 24;
-    const drawH = CANVAS_H - 24;
-    const padding = 32;
-    
-    const zoomX = (drawW - padding * 2) / Math.max(1, w);
-    const zoomY = (drawH - padding * 2) / Math.max(1, h);
-    const nextZoom = Math.max(0.1, Math.min(5, Math.min(zoomX, zoomY)));
-    
-    const midX = (bb.minX + bb.maxX) / 2;
-    const midY = (bb.minY + bb.maxY) / 2;
-    
-    const panX = (drawW / 2) - midX * nextZoom;
-    const panY = (drawH / 2) - midY * nextZoom;
-    
-    setZoom(nextZoom);
-    setPanOffset({ x: panX, y: panY });
-  }, [plotPoints, sitePoints, CANVAS_W, CANVAS_H]);
+    // zoom is now locked at 1, so fitToPlot is a no-op
+  }, []);
 
   const generateCurvePoints = (p1: Point, p2: Point, c: number, numSegments: number = 16) => {
     if (c === 0) return [];
@@ -855,7 +832,6 @@ export default function SmartPlannerPage() {
       setCoreMarker(s.coreMarker || null);
       setBuildingType(s.buildingType || 'multi-residential');
       setRoomConfig(s.roomConfig || 'auto');
-      setWorkflow(s.workflow || 'grok-gpt');
       setFlatCount(s.flatCount || 'auto');
       setGeneratedImageUrls(s.generatedImageUrls || []);
       setStage1ImageUrl(s.stage1ImageUrl || null);
@@ -1170,6 +1146,17 @@ export default function SmartPlannerPage() {
         ctx.strokeStyle = '#f97316aa'; ctx.lineWidth = 1.5; ctx.stroke();
       }
 
+      // Vertex dots on plot polygon lines
+      if (plotClosed) {
+        plotPoints.forEach((p, i) => {
+          ctx.beginPath(); ctx.arc(p.x, p.y, 5, 0, Math.PI * 2);
+          ctx.fillStyle = '#0A0F0A';
+          ctx.strokeStyle = '#f97316';
+          ctx.lineWidth = 2;
+          ctx.fill(); ctx.stroke();
+        });
+      }
+
       // Midpoint Handles
       if (plotClosed && !drawMode) {
         for (let i = 0; i < plotPoints.length; i++) {
@@ -1230,6 +1217,17 @@ export default function SmartPlannerPage() {
       } else {
         if (drawMode === 'site' && hoverPoint) ctx.lineTo(hoverPoint.x, hoverPoint.y);
         ctx.strokeStyle = '#00f0ffaa'; ctx.lineWidth = 1.5; ctx.stroke();
+      }
+
+      // Vertex dots on site polygon lines
+      if (siteClosed) {
+        sitePoints.forEach((p) => {
+          ctx.beginPath(); ctx.arc(p.x, p.y, 5, 0, Math.PI * 2);
+          ctx.fillStyle = '#0A0F0A';
+          ctx.strokeStyle = '#00f0ff';
+          ctx.lineWidth = 2;
+          ctx.fill(); ctx.stroke();
+        });
       }
 
       // Midpoint Handles for Site Exterior
@@ -1602,9 +1600,7 @@ export default function SmartPlannerPage() {
 
   const handleCanvasMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
     if (isPanning && lastMousePos.current) {
-      const dx = e.clientX - lastMousePos.current.x;
-      const dy = e.clientY - lastMousePos.current.y;
-      setPanOffset(prev => ({ x: prev.x + dx, y: prev.y + dy }));
+      // Panning is locked
       lastMousePos.current = { x: e.clientX, y: e.clientY };
       return;
     }
@@ -1657,27 +1653,8 @@ export default function SmartPlannerPage() {
   };
 
   const handleWheel = (e: React.WheelEvent<HTMLCanvasElement>) => {
+    // Zoom is locked — do nothing
     e.preventDefault();
-    const zoomFactor = 1.1;
-    const nextZoom = e.deltaY < 0 ? zoom * zoomFactor : zoom / zoomFactor;
-    const boundedZoom = Math.max(0.1, Math.min(5, nextZoom));
-    
-    const rect = canvasRef.current!.getBoundingClientRect();
-    const displayScale = Math.min(rect.width / CANVAS_W, rect.height / CANVAS_H);
-    const offsetX = (rect.width - CANVAS_W * displayScale) / 2;
-    const offsetY = (rect.height - CANVAS_H * displayScale) / 2;
-    
-    const clientX = (e.clientX - rect.left - offsetX) / displayScale;
-    const clientY = (e.clientY - rect.top - offsetY) / displayScale;
-    
-    const worldX = (clientX - 24 - panOffset.x) / zoom;
-    const worldY = (clientY - 24 - panOffset.y) / zoom;
-    
-    const nextPanX = clientX - 24 - worldX * boundedZoom;
-    const nextPanY = clientY - 24 - worldY * boundedZoom;
-    
-    setZoom(boundedZoom);
-    setPanOffset({ x: nextPanX, y: nextPanY });
   };
 
   const getPlotContext = () => {
@@ -2076,36 +2053,16 @@ export default function SmartPlannerPage() {
         <div className="flex items-center gap-2 pr-4 border-r border-[var(--blue-700)]/45">
           <span className="text-[9px] tracking-[2px] uppercase text-[var(--blue-500)] mr-1 font-bold font-sans">Draw:</span>
           
-          {/* PLOT */}
-          <button
-            onClick={() => { if (plotClosed) return; setDrawMode(d => d === 'plot' ? null : 'plot'); setSitePoints([]); setSiteClosed(false); }}
-            disabled={plotClosed}
-            className={`flex items-center gap-1.5 px-2.5 py-1.5 text-[10px] uppercase tracking-wider rounded border transition-all font-bold cursor-pointer font-sans ${
-              drawMode === 'plot' 
-                ? 'bg-orange-500/25 border-orange-400 text-orange-300 shadow-[0_0_10px_rgba(249,115,22,0.25)]' 
-                : plotClosed 
-                  ? 'border-[var(--blue-700)]/30 text-[var(--blue-500)]/35 cursor-not-allowed opacity-45' 
-                  : 'border-[var(--blue-700)] text-[var(--blue-500)] hover:bg-[var(--blue-500)]/10 hover:text-[var(--blue-300)]'
-            }`}
-            title="Shortcut: P"
-          >
-            <span className={`w-2 h-2 rounded-full inline-block ${plotClosed ? 'bg-[var(--blue-500)]' : 'bg-orange-400'}`} />
-            <span>Plot {plotClosed ? '✓' : ''}</span>
-            <kbd className="text-[8px] bg-black/40 px-1 rounded text-orange-400/80 font-sans">P</kbd>
-          </button>
-
           {/* SITE EXTERIOR */}
           <button
             onClick={() => setDrawMode(d => d === 'site' ? null : 'site')}
-            disabled={!plotClosed || siteClosed}
+            disabled={siteClosed}
             className={`flex items-center gap-1.5 px-2.5 py-1.5 text-[10px] uppercase tracking-wider rounded border transition-all font-bold cursor-pointer font-sans ${
               drawMode === 'site' 
                 ? 'bg-cyan-500/25 border-cyan-400 text-cyan-300 shadow-[0_0_10px_rgba(6,182,212,0.25)]' 
                 : siteClosed 
                   ? 'border-[var(--blue-700)]/30 text-[var(--blue-500)]/35 cursor-not-allowed opacity-45' 
-                  : !plotClosed 
-                    ? 'border-[var(--blue-700)]/20 text-[var(--blue-500)]/25 cursor-not-allowed'
-                    : 'border-[var(--blue-700)] text-[var(--blue-500)] hover:bg-[var(--blue-500)]/10 hover:text-[var(--blue-300)]'
+                  : 'border-[var(--blue-700)] text-[var(--blue-500)] hover:bg-[var(--blue-500)]/10 hover:text-[var(--blue-300)]'
             }`}
             title="Shortcut: S"
           >
@@ -2117,11 +2074,11 @@ export default function SmartPlannerPage() {
           {/* DIVIDERS */}
           <button
             onClick={() => setDrawMode(d => d === 'divider' ? null : 'divider')}
-            disabled={!plotClosed}
+            disabled={!siteClosed}
             className={`flex items-center gap-1.5 px-2.5 py-1.5 text-[10px] uppercase tracking-wider rounded border transition-all font-bold cursor-pointer font-sans ${
               drawMode === 'divider' 
                 ? 'bg-blue-500/25 border-blue-400 text-blue-300 shadow-[0_0_10px_rgba(59,130,246,0.25)]' 
-                : !plotClosed 
+                : !siteClosed 
                   ? 'border-[var(--blue-700)]/20 text-[var(--blue-500)]/25 cursor-not-allowed font-sans'
                   : 'border-[var(--blue-700)] text-[var(--blue-500)] hover:bg-[var(--blue-500)]/10 hover:text-[var(--blue-300)]'
             }`}
@@ -2135,11 +2092,11 @@ export default function SmartPlannerPage() {
           {/* STAIRS-LIFT */}
           <button
             onClick={() => setDrawMode(d => d === 'core' ? null : 'core')}
-            disabled={!plotClosed}
+            disabled={!siteClosed}
             className={`flex items-center gap-1.5 px-2.5 py-1.5 text-[10px] uppercase tracking-wider rounded border transition-all font-bold cursor-pointer font-sans ${
               drawMode === 'core' 
                 ? 'bg-cyan-500/25 border-cyan-400 text-cyan-300 shadow-[0_0_10px_rgba(6,182,212,0.25)]' 
-                : !plotClosed 
+                : !siteClosed 
                   ? 'border-[var(--blue-700)]/20 text-[var(--blue-500)]/25 cursor-not-allowed font-sans'
                   : 'border-[var(--blue-700)] text-[var(--blue-500)] hover:bg-[var(--blue-500)]/10 hover:text-[var(--blue-300)]'
             }`}
@@ -2316,29 +2273,13 @@ export default function SmartPlannerPage() {
             </button>
           )}
 
-          {/* Zoom Slider Grid Minimizer/Maximizer */}
-          <div className="flex items-center gap-2 bg-white/5 px-2.5 py-1.5 rounded border border-[var(--blue-700)]/30 font-sans">
-            <span className="text-[8px] text-[var(--blue-500)]/80 uppercase font-bold tracking-wider">Zoom:</span>
-            <input 
-              type="range" 
-              min="0.2" 
-              max="4.0" 
-              step="0.05" 
-              value={zoom} 
-              onChange={(e) => setZoom(Number(e.target.value))}
-              className="w-20 accent-[var(--blue-500)] cursor-pointer h-1 bg-blue-950/40 rounded-lg appearance-none"
-              title="Drag to zoom in or out of the grid layout"
-            />
-            <span className="text-[8.5px] text-[var(--blue-300)] font-mono font-bold min-w-[28px] text-right">
-              {Math.round(zoom * 100)}%
-            </span>
-          </div>
+          {/* Zoom Slider Grid Minimizer/Maximizer removed as per user request to lock zoom */}
 
           {/* Reset */}
           <button
             onClick={() => {
               setPlotPoints([]); setSitePoints([]); setPlotClosed(false); setSiteClosed(false); setDrawMode(null); setRoomSchedule(null); setGeneratedImageUrls([]); setActiveImageIndex(0); setShowGeneratedImage(false); setCompareMode(false); setGenerationError(null); setActivePreset(null); undoStack.current = []; redoStack.current = [];
-              setZoom(1); setPanOffset({ x: 0, y: 0 });
+              // Reset other states
             }}
             className="flex items-center gap-1.5 px-2.5 py-1.5 text-[10px] uppercase tracking-wider rounded border border-red-900/60 text-red-400 hover:bg-red-950/20 hover:text-red-300 transition-all font-bold cursor-pointer font-sans"
           >
@@ -2502,25 +2443,25 @@ export default function SmartPlannerPage() {
 
         {/* Chat / Parameter Sidebar Panel */}
         <div className="w-[380px] border-l border-blue-900/35 bg-[#040805]/75 backdrop-blur-xl flex flex-col shrink-0">
-          <div className="px-5 py-3 border-b border-blue-900/25 bg-transparent shrink-0 font-sans">
-            <h2 className="text-[11px] font-bold tracking-[3px] uppercase text-blue-300 text-glow-blue">Concept Generator Panel</h2>
-            <p className="text-[9px] text-blue-500/60 uppercase tracking-wider mt-0.5 font-bold">AI Floor Plan Generation Pipeline</p>
-            
-            <div className="flex items-center gap-1.5 mt-2.5 bg-white/5 px-2.5 py-1.5 rounded-lg border border-blue-900/20 font-sans backdrop-blur-md">
-              {isPipeline ? (
-                <>
-                  <span className="px-1.5 py-0.5 rounded text-[7px] font-bold bg-purple-950/40 text-purple-300 border border-purple-900/40">PIPELINE</span>
-                  <span className="text-[8.5px] text-[var(--blue-300)] font-bold">{activeWf.stage1}</span>
-                  <span className="text-[8px] text-[var(--blue-700)]">&rarr;</span>
-                  <span className="text-[8.5px] text-[var(--blue-300)] font-bold">{activeWf.stage2}</span>
-                </>
-              ) : (
-                <>
-                  <span className="px-1.5 py-0.5 rounded text-[7px] font-bold bg-blue-900/30 text-[var(--blue-300)] border border-blue-800/30 font-bold">SINGLE</span>
-                  <span className="text-[8.5px] text-[var(--blue-300)] font-bold">{activeWf.stage1}</span>
-                </>
-              )}
+          <div className="px-5 py-3 border-b border-blue-900/25 bg-transparent shrink-0 font-sans flex justify-between items-start">
+            <div>
+              <h2 className="text-[11px] font-bold tracking-[3px] uppercase text-blue-300 text-glow-blue">Concept Generator Panel</h2>
+              <p className="text-[9px] text-blue-500/60 uppercase tracking-wider mt-0.5 font-bold">AI Floor Plan Generation Pipeline</p>
+              
+              <div className="flex items-center gap-1.5 mt-2.5 bg-white/5 px-2.5 py-1.5 rounded-lg border border-blue-900/20 font-sans backdrop-blur-md">
+                <span className="px-1.5 py-0.5 rounded text-[7px] font-bold bg-purple-950/40 text-purple-300 border border-purple-900/40">PIPELINE</span>
+                <span className="text-[8.5px] text-[var(--blue-300)] font-bold">Grok</span>
+                <span className="text-[8px] text-[var(--blue-700)]">&rarr;</span>
+                <span className="text-[8.5px] text-[var(--blue-300)] font-bold">GPT Image 2 Edit</span>
+              </div>
             </div>
+            <button 
+              onClick={() => setShowLogs(!showLogs)}
+              className={`px-2.5 py-1.5 text-[9px] font-bold uppercase tracking-widest border rounded transition-all cursor-pointer shadow-lg ${showLogs ? 'bg-amber-500/20 border-amber-400 text-amber-300' : 'bg-black/50 border-blue-900/40 text-blue-400 hover:bg-blue-900/20'}`}
+              title="View Generation Logs & Debug Data"
+            >
+              <Terminal size={11} className="inline mr-1" /> Logs
+            </button>
           </div>
 
           <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4 font-sans">
@@ -2594,30 +2535,8 @@ export default function SmartPlannerPage() {
                     Configure Layout Parameters:
                   </h3>
 
-                  <div className="space-y-1.5">
+                  <div className="space-y-1.5 hidden">
                     <label className="text-[9px] uppercase text-blue-500/60 tracking-wider font-bold">Select AI Workflow</label>
-                    <select
-                      value={workflow}
-                      onChange={(e) => setWorkflow(e.target.value)}
-                      className="w-full bg-black/40 hover:bg-white/5 border border-blue-900/25 focus:border-blue-500 rounded-lg px-3 py-2 text-[11px] text-blue-300 focus:outline-none transition-all cursor-pointer font-sans backdrop-blur-md"
-                    >
-                      <optgroup label="2-Stage Pipelines (Refined Quality)" className="bg-[#040805] text-purple-300 font-bold">
-                        <option value="grok-gpt">Grok + GPT Image 2 Edit (Best Details)</option>
-                        <option value="grok-nano">Grok + Nano Banana Pro (Experimental)</option>
-                        <option value="grok-kontext">Grok + FLUX Kontext (Creative)</option>
-                        <option value="flux-klein-gpt">FLUX Klein + GPT Image 2 Edit</option>
-                        <option value="flux-klein-nano">FLUX Klein + Nano Banana Pro</option>
-                        <option value="flux-kontext-gpt">FLUX Kontext + GPT Image 2 Edit</option>
-                      </optgroup>
-                      <optgroup label="1-Stage Generative (Fast Concepts)" className="bg-[#040805] text-blue-400 font-bold">
-                        <option value="grok-solo">Grok only</option>
-                        <option value="flux-klein-solo">FLUX Klein only</option>
-                        <option value="flux-kontext-solo">FLUX Kontext only</option>
-                        <option value="gpt-solo">GPT Image 2 Edit only</option>
-                        <option value="gemini-solo">Gemini only</option>
-                        <option value="flux-canny-solo">FLUX Canny ControlNet only</option>
-                      </optgroup>
-                    </select>
                   </div>
 
                   <div className="space-y-1.5">
@@ -2785,6 +2704,64 @@ export default function SmartPlannerPage() {
                 onMouseUp={handleMouseUp}
                 onMouseLeave={(e) => { setHoverPoint(null); handleMouseUp(); }}
               />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Logs Floating Window */}
+      {showLogs && (
+        <div className="fixed bottom-6 right-[400px] w-[500px] bg-[#02050c]/95 border border-amber-500/40 rounded-xl shadow-[0_0_40px_rgba(245,158,11,0.15)] z-[60] flex flex-col font-sans backdrop-blur-2xl overflow-hidden max-h-[85vh]">
+          <div className="flex justify-between items-center px-4 py-2 bg-amber-950/30 border-b border-amber-900/50 shrink-0">
+            <div className="flex items-center gap-2">
+              <Terminal size={12} className="text-amber-400" />
+              <h3 className="text-[10px] font-bold text-amber-300 uppercase tracking-widest">Generation Logs</h3>
+            </div>
+            <button onClick={() => setShowLogs(false)} className="text-amber-500/60 hover:text-amber-300 cursor-pointer p-1">
+              <X size={12} />
+            </button>
+          </div>
+          <div className="p-4 overflow-y-auto space-y-6 text-[10px] text-blue-300">
+            {/* Stage 1 Trace */}
+            <div className="space-y-2">
+              <h4 className="text-[9px] font-bold text-amber-500/80 uppercase tracking-widest border-b border-amber-900/30 pb-1">1. Exported Trace (Site Shape)</h4>
+              {debugStep2TraceImage ? (
+                <img src={debugStep2TraceImage} alt="Trace Mask" className="w-full max-w-[200px] border border-blue-900/40 rounded-lg mx-auto bg-black" />
+              ) : (
+                <div className="text-blue-500/50 text-center py-4 bg-black/40 rounded border border-blue-900/30">Waiting for trace generation...</div>
+              )}
+            </div>
+            
+            {/* Stage 1 Grok Output */}
+            <div className="space-y-2">
+              <h4 className="text-[9px] font-bold text-amber-500/80 uppercase tracking-widest border-b border-amber-900/30 pb-1">2. Stage 1 (Grok) Base Image</h4>
+              {stage1ImageUrl ? (
+                <img src={stage1ImageUrl} alt="Grok Output" className="w-full border border-blue-900/40 rounded-lg shadow-lg" />
+              ) : (
+                <div className="text-blue-500/50 text-center py-4 bg-black/40 rounded border border-blue-900/30">Waiting for Grok generation...</div>
+              )}
+            </div>
+
+            {/* Prompts to GPT */}
+            <div className="space-y-2">
+              <h4 className="text-[9px] font-bold text-amber-500/80 uppercase tracking-widest border-b border-amber-900/30 pb-1">3. Stage 2 (GPT) Prompting</h4>
+              <div className="bg-black/60 rounded p-3 font-mono text-[9px] whitespace-pre-wrap overflow-x-auto text-blue-400 border border-blue-900/30">
+                <span className="text-purple-400 font-bold block mb-1">SYSTEM PROMPT:</span>
+                {debugStep2SystemPrompt || 'Waiting...'}
+                <br/><br/>
+                <span className="text-green-400 font-bold block mb-1">USER PROMPT:</span>
+                {debugStep2UserPrompt || 'Waiting...'}
+              </div>
+            </div>
+
+            {/* Final Stage 2 GPT Output */}
+            <div className="space-y-2">
+              <h4 className="text-[9px] font-bold text-amber-500/80 uppercase tracking-widest border-b border-amber-900/30 pb-1">4. Final Stage 2 (GPT) Image</h4>
+              {generatedImageUrl && pipelineStage !== 'stage2' ? (
+                <img src={generatedImageUrl} alt="GPT Final Output" className="w-full border border-blue-900/40 rounded-lg shadow-lg" />
+              ) : (
+                <div className="text-blue-500/50 text-center py-4 bg-black/40 rounded border border-blue-900/30">Waiting for GPT generation...</div>
+              )}
             </div>
           </div>
         </div>
