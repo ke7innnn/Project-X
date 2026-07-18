@@ -1451,14 +1451,14 @@ NOTE: Each time Master Umesh asks for the brief, these stories are shuffled rand
       {/* Left HUD Voice Assistant Panel */}
       <div className="fixed left-16 top-[74%] -translate-y-1/2 z-10 w-64 select-none text-left hidden md:block">
         <div className="relative pl-6 py-2">
-          {/* Gold Glow Vertical Line */}
-          <div className="absolute left-0 top-0 bottom-0 w-[2px] bg-gradient-to-b from-[#c8a84b]/10 via-[#c8a84b] to-[#c8a84b]/10 shadow-[0_0_8px_#c8a84b]" />
+          {/* Cyan Glow Vertical Line */}
+          <div className="absolute left-0 top-0 bottom-0 w-[2px] bg-gradient-to-b from-cyan-500/10 via-cyan-400 to-cyan-500/10 shadow-[0_0_8px_#00f0ff]" />
 
           <div className="flex flex-col gap-1 mb-6">
-            <span className="text-[10px] tracking-[4px] text-[#c8a84b] uppercase font-mono font-bold block">
+            <span className="text-[10px] tracking-[4px] text-cyan-500/60 uppercase font-mono font-bold block">
               BAT-ASSISTANT
             </span>
-            <h2 className="font-rajdhani text-2xl font-bold tracking-[2px] text-white uppercase drop-shadow-[0_0_6px_rgba(200,168,75,0.2)]">
+            <h2 className="font-rajdhani text-2xl font-bold tracking-[2px] text-white uppercase drop-shadow-[0_0_6px_rgba(0,240,255,0.3)]">
               TALK TO BATMAN
             </h2>
           </div>
@@ -1470,7 +1470,7 @@ NOTE: Each time Master Umesh asks for the brief, these stories are shuffled rand
                   ? 'border-[#00f0ff] bg-[#00f0ff]/10 text-[#00f0ff] shadow-[0_0_12px_#00f0ff]'
                   : statusState === 'speaking'
                     ? 'border-[#5bc8af] bg-[#5bc8af]/10 text-[#5bc8af] shadow-[0_0_12px_#5bc8af]'
-                    : 'border-[#3a2c10] bg-[#1a1408] text-[#c8a84b] hover:border-[#c8a84b] hover:bg-[#251d0c]'
+                    : 'border-blue-500/30 bg-blue-950/10 text-cyan-400 hover:border-cyan-400 hover:bg-cyan-500/10'
                 }`}
             >
               <Mic size={14} className={statusState === 'listening' ? 'animate-bounce' : ''} />
@@ -1497,7 +1497,7 @@ NOTE: Each time Master Umesh asks for the brief, these stories are shuffled rand
                   key={`hud-wave-${i}`}
                   className={`w-[3px] rounded transition-all duration-100 ${statusState === 'listening' ? 'bg-[#00f0ff] animate-pulse' :
                       statusState === 'speaking' ? 'bg-[#5bc8af] animate-pulse' :
-                        'bg-[#3a2c10] h-1'
+                        'bg-blue-900/30 h-1'
                     }`}
                   style={{
                     animationDelay: `${i * 0.06}s`,
@@ -1598,20 +1598,17 @@ NOTE: Each time Master Umesh asks for the brief, these stories are shuffled rand
             ))}
           </div>
         </div>
-
-        {/* Welcome Greeting Display */}
-        <div className="w-full text-center mb-8 animate-fadeIn">
-          <h2 className="font-serif font-semibold text-white text-2xl md:text-3xl tracking-normal leading-snug drop-shadow-[0_2px_10px_rgba(0,0,0,0.5)]">
-            {transcript}
-          </h2>
-        </div>
-
         {/* Status Label */}
-        <div className={`text-[10px] tracking-[3px] uppercase mb-4 h-4 transition-colors ${statusState === 'listening' ? 'text-[#c8a84b]' : statusState === 'thinking' ? 'text-[#c8a84b]' : statusState === 'speaking' ? 'text-[#5bc8af]' : 'text-[#3a2c10]'}`}>
+        <div className={`text-[10px] tracking-[3px] uppercase mb-4 h-4 transition-colors ${statusState === 'listening' ? 'text-cyan-400' : statusState === 'thinking' ? 'text-cyan-400' : statusState === 'speaking' ? 'text-[#5bc8af]' : 'text-blue-900/50'}`}>
           {statusState === 'listening' ? 'listening...' :
             statusState === 'thinking' ? 'processing...' :
               statusState === 'speaking' ? 'speaking...' :
                 'voice interface offline'}
+        </div>
+
+        <div className="w-full bg-[#02050c]/35 backdrop-blur-md border border-blue-500/20 rounded-xl p-4 mb-4 min-h-[52px] shadow-[0_0_15px_rgba(0,240,255,0.08)] glass-card animate-fadeIn">
+          <div className="text-[9px] tracking-widest text-blue-400/50 uppercase mb-1 font-mono">you said</div>
+          <div className="text-[13px] text-blue-300 font-sans">{transcript}</div>
         </div>
 
         {/* Response is now shown in the fixed bottom HUD strip, not here */}
@@ -1629,23 +1626,23 @@ NOTE: Each time Master Umesh asks for the brief, these stories are shuffled rand
           <div className="
             relative
             bg-black/75 backdrop-blur-md
-            border border-[#c8a84b]/30
+            border border-blue-500/25
             rounded-xl
             px-5 py-3
-            shadow-[0_0_24px_rgba(200,168,75,0.12)]
+            shadow-[0_0_24px_rgba(0,240,255,0.12)]
           ">
             {/* Corner accents */}
-            <div className="absolute top-0 left-0 w-3 h-3 border-t border-l border-[#c8a84b]/60 rounded-tl-xl" />
-            <div className="absolute top-0 right-0 w-3 h-3 border-t border-r border-[#c8a84b]/60 rounded-tr-xl" />
-            <div className="absolute bottom-0 left-0 w-3 h-3 border-b border-l border-[#c8a84b]/60 rounded-bl-xl" />
-            <div className="absolute bottom-0 right-0 w-3 h-3 border-b border-r border-[#c8a84b]/60 rounded-br-xl" />
+            <div className="absolute top-0 left-0 w-3 h-3 border-t border-l border-blue-500/40 rounded-tl-xl" />
+            <div className="absolute top-0 right-0 w-3 h-3 border-t border-r border-blue-500/40 rounded-tr-xl" />
+            <div className="absolute bottom-0 left-0 w-3 h-3 border-b border-l border-blue-500/40 rounded-bl-xl" />
+            <div className="absolute bottom-0 right-0 w-3 h-3 border-b border-r border-blue-500/40 rounded-br-xl" />
 
             {/* Label */}
-            <div className="text-[8px] tracking-[3px] text-[#c8a84b]/40 uppercase font-mono mb-1.5">BAT-ASSISTANT</div>
+            <div className="text-[8px] tracking-[3px] text-blue-400/50 uppercase font-mono mb-1.5">BAT-ASSISTANT</div>
 
             {/* Response text — max 5 lines, scrollable */}
             <div
-              className="text-[13px] leading-relaxed text-[#e8c96b] font-mono overflow-y-auto"
+              className="text-[13px] leading-relaxed text-blue-200 font-mono overflow-y-auto"
               style={{ maxHeight: '6.5rem' }}
             >
               {responseHtml}
