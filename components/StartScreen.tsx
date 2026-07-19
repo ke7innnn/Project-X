@@ -1395,9 +1395,9 @@ NOTE: Each time Master Umesh asks for the brief, these stories are shuffled rand
       )}
 
       {/* Tactical Weather Metrics Panel */}
-      <div className="fixed top-10 left-6 z-[10] w-76 select-none pointer-events-none bg-[#0a0a0f]/80 backdrop-blur border border-cyan-500/20 rounded-lg p-4">
+      <div className="fixed top-10 left-6 z-[10] w-76 select-none pointer-events-none bg-slate-900/30 backdrop-blur-md border border-white/10 rounded-xl p-4 shadow-[0_8px_32px_rgba(0,0,0,0.5)]">
         <div className="flex flex-col gap-3">
-          <div className="border-b border-cyan-500/20 pb-2">
+          <div className="border-b border-white/10 pb-2">
             <span className="text-[10px] tracking-[3px] text-cyan-500/60 uppercase block text-left">TACTICAL METRICS</span>
             <h3 className="font-rajdhani text-[15px] font-bold text-cyan-400 tracking-[1px] uppercase truncate text-left">
               {weatherLoading ? "FETCHING DATA..." : weatherError ? "SERVICE OFFLINE" : weatherData?.location}
@@ -1424,7 +1424,7 @@ NOTE: Each time Master Umesh asks for the brief, these stories are shuffled rand
                   <span className="text-[9px] text-cyan-500/60 uppercase block">Feels Like: {weatherData.feelsLike}°C</span>
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 border-t border-b border-cyan-500/10 py-2.5 my-0.5 text-[10px]">
+              <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 border-t border-b border-white/10 py-2.5 my-0.5 text-[10px]">
                 <div className="flex justify-between"><span className="text-cyan-500/50 uppercase">Humidity:</span><span className="text-cyan-400 font-bold">{weatherData.humidity}%</span></div>
                 <div className="flex justify-between"><span className="text-cyan-500/50 uppercase">Wind:</span><span className="text-cyan-400 font-bold truncate max-w-[55px]">{weatherData.windSpeed} km/h {weatherData.windDir}</span></div>
                 <div className="flex justify-between"><span className="text-cyan-500/50 uppercase">Pressure:</span><span className="text-cyan-400 font-bold">{weatherData.pressure} mb</span></div>
@@ -1433,7 +1433,7 @@ NOTE: Each time Master Umesh asks for the brief, these stories are shuffled rand
               <div className="flex flex-col gap-1.5 pt-0.5 text-left">
                 <span className="text-[9px] tracking-[2px] text-cyan-500/60 uppercase mb-1 font-bold">3-DAY FORECAST</span>
                 {weatherData.forecast.map((day, idx) => (
-                  <div key={idx} className="flex justify-between items-center text-[10px] bg-cyan-950/20 px-2 py-1 rounded border border-cyan-500/10">
+                  <div key={idx} className="flex justify-between items-center text-[10px] bg-white/[0.03] px-2.5 py-1.5 rounded-lg border border-white/5">
                     <span className="text-cyan-400 font-bold uppercase text-[9px]">{day.day}</span>
                     <span className="text-cyan-500/60 uppercase truncate max-w-[90px] text-right text-[9px]">{day.condition}</span>
                     <span className="text-cyan-400 font-bold font-mono text-[10px] text-right">{day.tempMax}° / {day.tempMin}°</span>
