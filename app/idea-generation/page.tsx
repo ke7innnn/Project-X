@@ -27,7 +27,8 @@ const FOOTPRINT_PRESETS = [
   { id: 'curved-x', name: 'CURVED X-SHAPE (HIGH-RISE)', desc: 'Four symmetrical curved wings with a centralized circulation core.' },
   { id: 'tri-foil', name: 'TRI-FOIL Y-SHAPE', desc: 'Three-pronged radiating wings optimized for wind deflection.' },
   { id: 'monolithic-rect', name: 'MONOLITHIC RECTANGULAR', desc: 'Classic double-loaded slab footprint with central core.' },
-  { id: 'circular-atrium', name: 'CIRCULAR ATRIUM TOWER', desc: 'Concentric core layout with circular exterior gallery walls.' }
+  { id: 'circular-atrium', name: 'CIRCULAR ATRIUM TOWER', desc: 'Concentric core layout with circular exterior gallery walls.' },
+  { id: 'custom', name: 'CUSTOM FOOTPRINT...', desc: 'Define your own tower footprint shape dynamically.' }
 ];
 
 export default function IdeaGenerationPage() {
@@ -36,6 +37,7 @@ export default function IdeaGenerationPage() {
   // Floor Plan Specification States
   const [customPrompt, setCustomPrompt] = useState('');
   const [footprintShape, setFootprintShape] = useState('curved-x');
+  const [customFootprintText, setCustomFootprintText] = useState('CURVED S-SHAPE');
   const [overallWidth, setOverallWidth] = useState('100.00');
   const [overallLength, setOverallLength] = useState('100.00');
   const [floorHeight, setFloorHeight] = useState('3.30');
@@ -109,6 +111,10 @@ export default function IdeaGenerationPage() {
     }, 550);
 
     try {
+      const styleName = footprintShape === 'custom'
+        ? customFootprintText.trim().toUpperCase()
+        : (FOOTPRINT_PRESETS.find(f => f.id === footprintShape)?.name || 'X-SHAPE');
+
       if (useDemoMode) {
         // Wait for all steps to print sequentially
         for (let i = 0; i < loadingSteps.length; i++) {
@@ -117,14 +123,13 @@ export default function IdeaGenerationPage() {
         clearInterval(logInterval);
         setLogs((prev) => [...prev, '[SYS] CORE CALCULATIONS VERIFIED. DESIGN SCHEMATIC PIPELINE ONLINE.']);
         setResultImage('/x-shape-floorplan.jpg');
-        setResultTitle('CURVED X SHAPE HIGH RISE TYPICAL PLAN');
+        setResultTitle(`${styleName} TYPICAL PLAN`);
         setResultDesc(
-          `High-rise Floor Plan Core Synthesis: Monolithic X-Shape tower floor plan featuring 16 balanced units per floor (4x 2BHK, 8x 3BHK, 4x 3BHK Premium). ${customPrompt ? `Custom Notes Integrated: "${customPrompt}". ` : ''}Integrates a central 24.00m x 24.00m lift lobby containing 8 passenger lifts, 2 fire lifts, 2 fire staircases, and dual 2.40m wide branching corridors.`
+          `High-rise Floor Plan Core Synthesis: Monolithic ${styleName} tower floor plan featuring 16 balanced units per floor (4x 2BHK, 8x 3BHK, 4x 3BHK Premium). ${customPrompt ? `Custom Notes Integrated: "${customPrompt}". ` : ''}Integrates a central 24.00m x 24.00m lift lobby containing 8 passenger lifts, 2 fire lifts, 2 fire staircases, and dual 2.40m wide branching corridors.`
         );
         setIsGenerating(false);
       } else {
         // Call Fal AI route
-        const styleName = FOOTPRINT_PRESETS.find(f => f.id === footprintShape)?.name || 'X-Shape';
         const promptText = `High-rise tower typical floor plan drawing, architectural design plan layout blueprint, ${styleName} footprint, central core with elevator lobby and staircases, apartments divided in the wings, CAD blueprint aesthetic, white paper background, professional clean annotations. Custom guidelines: ${customPrompt}`;
 
         const apiPromise = fetch('/api/generate-idea-image', {
@@ -322,6 +327,21 @@ export default function IdeaGenerationPage() {
                 ))}
               </select>
             </div>
+
+            {/* Custom Footprint Text Input */}
+            {footprintShape === 'custom' && (
+              <div className="flex flex-col gap-1.5 animate-fadeIn">
+                <label className="text-[9px] tracking-[2px] text-cyan-500/60 uppercase font-mono block">ENTER CUSTOM FOOTPRINT SHAPE</label>
+                <input 
+                  type="text" 
+                  value={customFootprintText} 
+                  onChange={(e) => setCustomFootprintText(e.target.value)}
+                  disabled={isGenerating}
+                  placeholder="E.g. S-Shape, Hexagonal Core, L-Shape, etc..."
+                  className="w-full bg-black/40 border border-white/10 focus:border-cyan-400 focus:outline-none rounded-lg p-2 text-[11px] text-cyan-400 placeholder-cyan-500/20 font-mono"
+                />
+              </div>
+            )}
 
             {/* Footprint Dimensions */}
             <div className="grid grid-cols-2 gap-3 border-t border-white/5 pt-2.5">
