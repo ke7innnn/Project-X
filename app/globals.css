@@ -292,7 +292,7 @@
 /* Core Batman eye shape styling */
 .bat-eye {
   position: absolute;
-  background: #e8fbff; /* near-white core */
+  background: #29A8FF; /* blue core */
   clip-path: polygon(0% 0%, 100% 50%, 0% 100%);
   filter: blur(0.5px) 
           drop-shadow(0 0 5px rgba(41, 168, 255, 0.95)) 
@@ -321,9 +321,9 @@
 
 /* Active eye glow state when voice assistant is active */
 .eyes--active {
-  background: #ffffff !important; /* pure white core */
+  background: #00d2ff !important; /* cyan/blue core */
   filter: blur(0.5px) 
-          drop-shadow(0 0 6px #ffffff)
+          drop-shadow(0 0 6px #00d2ff)
           drop-shadow(0 0 18px rgba(0, 240, 255, 1.0)) 
           drop-shadow(0 0 35px rgba(0, 240, 255, 0.75)) 
           drop-shadow(0 0 70px rgba(0, 240, 255, 0.45)) !important;

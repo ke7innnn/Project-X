@@ -1285,7 +1285,7 @@ NOTE: Each time Master Umesh asks for the brief, these stories are shuffled rand
       <div 
         className="bat-stage-container z-0 opacity-80 pointer-events-none"
         style={{
-          ['--eye-top' as any]: '30.6%',
+          ['--eye-top' as any]: '31.0%',
           ['--eye-left-x' as any]: '46.6%',
           ['--eye-right-x' as any]: '51.6%',
           ['--eye-w' as any]: '4.5%',
