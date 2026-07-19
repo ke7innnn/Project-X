@@ -1281,35 +1281,25 @@ NOTE: Each time Master Umesh asks for the brief, these stories are shuffled rand
       <div className="vignette-overlay pointer-events-none absolute inset-0 z-0" />
       <div className="tech-grid pointer-events-none absolute inset-0 z-0 opacity-20" />
 
-      {/* Video Background Stage */}
-      <div className="absolute inset-0 w-full h-full z-0 opacity-80 pointer-events-none flex items-center justify-center">
-        <div className="bat-stage w-full max-w-[1200px] relative">
-          <video
-            autoPlay
-            loop
-            muted
-            playsInline
-            src="/start video/start.mp4"
-          />
+      {/* Video Background */}
+      <video
+        autoPlay
+        loop
+        muted
+        playsInline
+        src="/start video/start.mp4"
+        className="absolute inset-0 w-full h-full object-cover z-0 opacity-80"
+      />
 
-          {/* Fullscreen Radial Gradient overlay directly on video */}
-          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_50%_30%,_transparent_0%,_#0a0a0f_90%)] z-0 pointer-events-none" />
+      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_50%_30%,_transparent_0%,_#0a0a0f_90%)] z-0 pointer-events-none" />
 
-          {/* Eyes Overlay - Scaled and aligned within the video container */}
-          <div 
-            className={`eye eye--l transition-all duration-500 z-10 ${
-              statusState !== 'idle' 
-                ? 'scale-110 brightness-125' 
-                : 'opacity-85 scale-100'
-            }`} 
-          />
-          <div 
-            className={`eye eye--r transition-all duration-500 z-10 ${
-              statusState !== 'idle' 
-                ? 'scale-110 brightness-125' 
-                : 'opacity-85 scale-100'
-            }`} 
-          />
+      {/* Eyes Overlay - Fixed absolute positioning relative to screen to align with video */}
+      <div className="fixed inset-0 z-0 pointer-events-none flex justify-center">
+        <div className="relative w-full max-w-[1200px] h-full">
+          <div className={`absolute rounded-full transition-all duration-400 ${statusState !== 'idle' ? 'bg-[#00f0ff] shadow-[0_0_8px_4px_#00d2ff,0_0_20px_10px_#0088ff,0_0_40px_16px_#0044ff66]' : 'bg-transparent'}`}
+            style={{ top: '30.6%', left: '48.4%', width: '1.5%', height: '0.8%' }} />
+          <div className={`absolute rounded-full transition-all duration-400 ${statusState !== 'idle' ? 'bg-[#00f0ff] shadow-[0_0_8px_4px_#00d2ff,0_0_20px_10px_#0088ff,0_0_40px_16px_#0044ff66]' : 'bg-transparent'}`}
+            style={{ top: '30.6%', left: '54.4%', width: '1.5%', height: '0.8%' }} />
         </div>
       </div>
 
