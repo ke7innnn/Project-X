@@ -266,13 +266,69 @@
   animation: trace-plot-march 1.5s linear infinite;
 }
 
-/* Comic book style Batman eye shapes */
-.bat-eye-l {
-  clip-path: polygon(0% 70%, 85% 15%, 100% 35%, 25% 95%);
+/* Responsive container that mimics object-fit: cover for aspect-ratio: 16/9 */
+.bat-stage-container {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 100vw;
+  height: 56.25vw;
+  min-height: 100vh;
+  min-width: 177.78vh;
+  aspect-ratio: 16 / 9;
+  overflow: hidden;
 }
 
-.bat-eye-r {
-  clip-path: polygon(100% 70%, 15% 15%, 0% 35%, 75% 95%);
+.bat-stage-container video {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: fill;
+}
+
+/* Core Batman eye shape styling */
+.bat-eye {
+  position: absolute;
+  background: #e8fbff; /* near-white core */
+  clip-path: polygon(0% 0%, 100% 50%, 0% 100%);
+  filter: blur(0.5px) 
+          drop-shadow(0 0 5px rgba(41, 168, 255, 0.95)) 
+          drop-shadow(0 0 15px rgba(41, 168, 255, 0.65)) 
+          drop-shadow(0 0 30px rgba(41, 168, 255, 0.35));
+  transform-origin: center center;
+  will-change: opacity, filter;
+}
+
+/* Idle animation keyframes: breathing flicker */
+@keyframes bat-eye-flicker {
+  0%, 100% { opacity: 0.85; }
+  50% { opacity: 1.0; }
+}
+
+.bat-eye-idle-anim {
+  animation: bat-eye-flicker 3s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bat-eye-idle-anim {
+    animation: none !important;
+    opacity: 0.95 !important;
+  }
+}
+
+/* Active eye glow state when voice assistant is active */
+.eyes--active {
+  background: #ffffff !important; /* pure white core */
+  filter: blur(0.5px) 
+          drop-shadow(0 0 6px #ffffff)
+          drop-shadow(0 0 18px rgba(0, 240, 255, 1.0)) 
+          drop-shadow(0 0 35px rgba(0, 240, 255, 0.75)) 
+          drop-shadow(0 0 70px rgba(0, 240, 255, 0.45)) !important;
+  opacity: 1.0 !important;
+  animation: none !important; /* Disable idle flicker when active */
 }
 
 

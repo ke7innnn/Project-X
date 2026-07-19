@@ -1281,53 +1281,51 @@ NOTE: Each time Master Umesh asks for the brief, these stories are shuffled rand
       <div className="vignette-overlay pointer-events-none absolute inset-0 z-0" />
       <div className="tech-grid pointer-events-none absolute inset-0 z-0 opacity-20" />
 
-      {/* Video Background */}
-      <video
-        autoPlay
-        loop
-        muted
-        playsInline
-        src="/start video/start.mp4"
-        className="absolute inset-0 w-full h-full object-cover z-0 opacity-80"
-      />
+      {/* Video Background Stage (mimics object-fit: cover for 16:9 video) */}
+      <div 
+        className="bat-stage-container z-0 opacity-80 pointer-events-none"
+        style={{
+          ['--eye-top' as any]: '30.6%',
+          ['--eye-left-x' as any]: '46.6%',
+          ['--eye-right-x' as any]: '51.6%',
+          ['--eye-w' as any]: '4.5%',
+          ['--eye-h' as any]: '0.9%',
+          ['--eye-tilt' as any]: '6deg',
+        }}
+      >
+        <video
+          autoPlay
+          loop
+          muted
+          playsInline
+          src="/start video/start.mp4"
+        />
 
-      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_50%_30%,_transparent_0%,_#0a0a0f_90%)] z-0 pointer-events-none" />
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_50%_30%,_transparent_0%,_#0a0a0f_90%)] z-0 pointer-events-none" />
 
-      {/* Eyes Overlay - Fixed absolute positioning relative to screen to align with video */}
-      <div className="fixed inset-0 z-0 pointer-events-none flex justify-center">
-        <div className="relative w-full max-w-[1200px] h-full">
-          {/* Left eye wrapper to cast drop-shadow around clip-path */}
-          <div 
-            className="absolute transition-all duration-400"
-            style={{ 
-              top: '30.4%', 
-              left: '48.1%', 
-              width: '1.9%', 
-              height: '1.0%',
-              filter: statusState !== 'idle' 
-                ? 'drop-shadow(0 0 3px #ffffff) drop-shadow(0 0 8px #00d2ff) drop-shadow(0 0 16px rgba(0, 210, 255, 0.6))' 
-                : 'drop-shadow(0 0 2px rgba(255, 255, 255, 0.4))'
-            }}
-          >
-            <div className={`w-full h-full bat-eye-l transition-all duration-400 ${statusState !== 'idle' ? 'bg-white' : 'bg-white/70'}`} />
-          </div>
+        {/* Left Eye */}
+        <div 
+          className={`bat-eye bat-eye-idle-anim ${statusState !== 'idle' ? 'eyes--active' : ''}`}
+          style={{
+            top: 'var(--eye-top)',
+            left: 'var(--eye-left-x)',
+            width: 'var(--eye-w)',
+            height: 'var(--eye-h)',
+            transform: 'rotate(calc(-1 * var(--eye-tilt)))',
+          }}
+        />
 
-          {/* Right eye wrapper to cast drop-shadow around clip-path */}
-          <div 
-            className="absolute transition-all duration-400"
-            style={{ 
-              top: '30.4%', 
-              left: '54.1%', 
-              width: '1.9%', 
-              height: '1.0%',
-              filter: statusState !== 'idle' 
-                ? 'drop-shadow(0 0 3px #ffffff) drop-shadow(0 0 8px #00d2ff) drop-shadow(0 0 16px rgba(0, 210, 255, 0.6))' 
-                : 'drop-shadow(0 0 2px rgba(255, 255, 255, 0.4))'
-            }}
-          >
-            <div className={`w-full h-full bat-eye-r transition-all duration-400 ${statusState !== 'idle' ? 'bg-white' : 'bg-white/70'}`} />
-          </div>
-        </div>
+        {/* Right Eye */}
+        <div 
+          className={`bat-eye bat-eye-idle-anim ${statusState !== 'idle' ? 'eyes--active' : ''}`}
+          style={{
+            top: 'var(--eye-top)',
+            left: 'var(--eye-right-x)',
+            width: 'var(--eye-w)',
+            height: 'var(--eye-h)',
+            transform: 'rotate(var(--eye-tilt)) scaleX(-1)',
+          }}
+        />
       </div>
 
       {/* Central Bat-Signal Ring */}
