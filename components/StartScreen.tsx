@@ -1296,10 +1296,37 @@ NOTE: Each time Master Umesh asks for the brief, these stories are shuffled rand
       {/* Eyes Overlay - Fixed absolute positioning relative to screen to align with video */}
       <div className="fixed inset-0 z-0 pointer-events-none flex justify-center">
         <div className="relative w-full max-w-[1200px] h-full">
-          <div className={`absolute rounded-full transition-all duration-400 ${statusState !== 'idle' ? 'bg-[#00f0ff] shadow-[0_0_8px_4px_#00d2ff,0_0_20px_10px_#0088ff,0_0_40px_16px_#0044ff66]' : 'bg-transparent'}`}
-            style={{ top: '30.6%', left: '48.4%', width: '1.5%', height: '0.8%' }} />
-          <div className={`absolute rounded-full transition-all duration-400 ${statusState !== 'idle' ? 'bg-[#00f0ff] shadow-[0_0_8px_4px_#00d2ff,0_0_20px_10px_#0088ff,0_0_40px_16px_#0044ff66]' : 'bg-transparent'}`}
-            style={{ top: '30.6%', left: '54.4%', width: '1.5%', height: '0.8%' }} />
+          {/* Left eye wrapper to cast drop-shadow around clip-path */}
+          <div 
+            className="absolute transition-all duration-400"
+            style={{ 
+              top: '30.4%', 
+              left: '48.1%', 
+              width: '1.9%', 
+              height: '1.0%',
+              filter: statusState !== 'idle' 
+                ? 'drop-shadow(0 0 3px #ffffff) drop-shadow(0 0 8px #00d2ff) drop-shadow(0 0 16px rgba(0, 210, 255, 0.6))' 
+                : 'drop-shadow(0 0 2px rgba(255, 255, 255, 0.4))'
+            }}
+          >
+            <div className={`w-full h-full bat-eye-l transition-all duration-400 ${statusState !== 'idle' ? 'bg-white' : 'bg-white/70'}`} />
+          </div>
+
+          {/* Right eye wrapper to cast drop-shadow around clip-path */}
+          <div 
+            className="absolute transition-all duration-400"
+            style={{ 
+              top: '30.4%', 
+              left: '54.1%', 
+              width: '1.9%', 
+              height: '1.0%',
+              filter: statusState !== 'idle' 
+                ? 'drop-shadow(0 0 3px #ffffff) drop-shadow(0 0 8px #00d2ff) drop-shadow(0 0 16px rgba(0, 210, 255, 0.6))' 
+                : 'drop-shadow(0 0 2px rgba(255, 255, 255, 0.4))'
+            }}
+          >
+            <div className={`w-full h-full bat-eye-r transition-all duration-400 ${statusState !== 'idle' ? 'bg-white' : 'bg-white/70'}`} />
+          </div>
         </div>
       </div>
 

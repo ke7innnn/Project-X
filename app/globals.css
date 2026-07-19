@@ -266,5 +266,14 @@
   animation: trace-plot-march 1.5s linear infinite;
 }
 
+/* Comic book style Batman eye shapes */
+.bat-eye-l {
+  clip-path: polygon(0% 70%, 85% 15%, 100% 35%, 25% 95%);
+}
+
+.bat-eye-r {
+  clip-path: polygon(100% 70%, 15% 15%, 0% 35%, 75% 95%);
+}
+
 
 
