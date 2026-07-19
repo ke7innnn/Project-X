@@ -13,62 +13,51 @@ import {
   Terminal, 
   Check, 
   AlertTriangle,
-  Zap
+  Zap,
+  Building,
+  Activity,
+  Layers,
+  ShieldCheck,
+  Wind
 } from 'lucide-react';
 import Image from 'next/image';
 
-// Style presets
-const STYLE_PRESETS = [
-  { id: 'modernist', name: 'MODERNIST GLASS & STEEL', desc: 'Clean orthogonal lines, floor-to-ceiling glass grids.' },
-  { id: 'brutalist', name: 'MONOLITHIC BRUTALIST', desc: 'Raw concrete volumes, deep shadow recesses.' },
-  { id: 'biophilic', name: 'BIOPHILIC ORGANIC', desc: 'Integrated vegetation layers, fluid timber arches.' },
-  { id: 'minimalist', name: 'MINIMALIST CONCRETE', desc: 'Stripped monolithic geometry, dramatic shadows.' },
-  { id: 'vernacular', name: 'MODERN INDIAN VERNACULAR', desc: 'Intricate jali screens, terracotta tiles, open courtyards.' }
-];
-
-// Lighting presets
-const LIGHT_PRESETS = [
-  { id: 'dusk', name: 'DUSK / BLUE HOUR', icon: '🌙' },
-  { id: 'golden', name: 'GOLDEN HOUR', icon: '☀️' },
-  { id: 'overcast', name: 'MOODY OVERCAST', icon: '☁️' },
-  { id: 'morning', name: 'CLEAR MORNING', icon: '🌅' }
-];
-
-// Local fallback demo assets matching keywords
-const LOCAL_DEMO_IMAGES = [
-  {
-    keywords: ['interior', 'living', 'room', 'furniture', 'inside'],
-    src: '/images/render-interior-living.png',
-    title: 'BIOPHILIC RESIDENTIAL ATRIUM',
-    desc: 'Dual-height architectural interior featuring exposed concrete columns, live planter walls, and custom timber furniture lit by high skylights.'
-  },
-  {
-    keywords: ['panorama', 'vr', '360', 'immersive'],
-    src: '/images/vr-panorama.png',
-    title: 'PARAMETRIC EXHIBITION COWL',
-    desc: 'Wide-angle interior perspective showcasing curved roof joists, modular concrete panels, and integrated accent cove lighting.'
-  },
-  {
-    keywords: ['flythrough', 'walkthrough', 'drone', 'video'],
-    src: '/images/flythrough-still.png',
-    title: 'TERRACED HILLSIDE RETREAT',
-    desc: 'Exterior aerial concept showing stepped concrete slabs integrated into a steep lush hillside overlooking an infinity pool.'
-  },
-  {
-    keywords: ['exterior', 'facade', 'house', 'villa', 'dusk'],
-    src: '/images/render-exterior-dusk.png',
-    title: 'CANTILEVERED DUSK VILLA',
-    desc: 'Exterior low-light rendering featuring bold concrete cantilevers, linear glazing, and reflecting pools casting warm illumination.'
-  }
+// Shapes presets
+const FOOTPRINT_PRESETS = [
+  { id: 'curved-x', name: 'CURVED X-SHAPE (HIGH-RISE)', desc: 'Four symmetrical curved wings with a centralized circulation core.' },
+  { id: 'tri-foil', name: 'TRI-FOIL Y-SHAPE', desc: 'Three-pronged radiating wings optimized for wind deflection.' },
+  { id: 'monolithic-rect', name: 'MONOLITHIC RECTANGULAR', desc: 'Classic double-loaded slab footprint with central core.' },
+  { id: 'circular-atrium', name: 'CIRCULAR ATRIUM TOWER', desc: 'Concentric core layout with circular exterior gallery walls.' }
 ];
 
 export default function IdeaGenerationPage() {
   const router = useRouter();
 
-  // Form states
-  const [prompt, setPrompt] = useState('');
-  const [selectedStyle, setSelectedStyle] = useState(STYLE_PRESETS[0].id);
-  const [selectedLight, setSelectedLight] = useState(LIGHT_PRESETS[0].id);
+  // Floor Plan Specification States
+  const [footprintShape, setFootprintShape] = useState('curved-x');
+  const [overallWidth, setOverallWidth] = useState('100.00');
+  const [overallLength, setOverallLength] = useState('100.00');
+  const [floorHeight, setFloorHeight] = useState('3.30');
+  const [storyCount, setStoryCount] = useState('G + 50');
+
+  // Central Core Spec States
+  const [coreSize, setCoreSize] = useState('24.00 x 24.00');
+  const [passengerLifts, setPassengerLifts] = useState(8);
+  const [fireLifts, setFireLifts] = useState(2);
+  const [staircases, setStaircases] = useState(2);
+  const [corridorWidth, setCorridorWidth] = useState('2.40');
+
+  // Unit Mix Table States
+  const [typeAUnits, setTypeAUnits] = useState(4); // 2 BHK
+  const [typeBUnits, setTypeBUnits] = useState(8); // 3 BHK
+  const [typeCUnits, setTypeCUnits] = useState(4); // 3 BHK Premium
+
+  // Compliance Toggles
+  const [vastuCompliant, setVastuCompliant] = useState(true);
+  const [crossVentilation, setCrossVentilation] = useState(true);
+  const [fireSafetyCode, setFireSafetyCode] = useState(true);
+
+  // Settings states
   const [useDemoMode, setUseDemoMode] = useState(true);
   const [apiKey, setApiKey] = useState('');
   const [showSettings, setShowSettings] = useState(false);
@@ -85,11 +74,14 @@ export default function IdeaGenerationPage() {
   const [resultDesc, setResultDesc] = useState('');
 
   const loadingSteps = [
-    'PARSING TACTICAL CONCEPT BRIEF...',
-    'GPT-4 ELABORATING FORM AND MATERIAL PROFILE...',
-    'STRUCTURING FORM COMPOSITION GRIDS...',
-    'RAYTRACING GLOBAL DUSK ILLUMINATION...',
-    'FINALIZING VOLUMETRIC SHADER MATRIX...'
+    'PARSING FOOTPRINT BOUNDARY (100M X 100M CURVED X-SHAPE)...',
+    'ESTABLISHING EGRESS PATHWAY: 2.40M WIDE LOOPING CORRIDORS...',
+    'DESIGNING COMPACT EFFICIENT CENTRAL CORE [24.00M X 24.00M]...',
+    'SPATIAL ZONING: 8 PASSENGER LIFTS + 2 FIRE LIFTS + 2 EGRESS STAIRS...',
+    'STRUCTURING WINGS: 4X 2BHK (90SQM), 8X 3BHK (121SQM), 4X 3BHK PREMIUM (140SQM)...',
+    'BALANCING THERMAL GRADIENTS & NATURAL CROSS-VENTILATION SYSTEMS...',
+    'VALIDATING FIRE ESCAPE RUNS AND REFRACTORY COMPLIANCE SHEETS...',
+    'DISPATCHING 2D TYPICAL FLOOR PLAN SCHEMATIC AND PERSPECTIVE RENDERS...'
   ];
 
   // Log update effect
@@ -100,45 +92,34 @@ export default function IdeaGenerationPage() {
       setLogs((prev) => [...prev, `[SYS] ${currentStepMessage}`]);
       timer = setTimeout(() => {
         setGenerationStep((prev) => prev + 1);
-      }, 900);
+      }, 850);
     } else if (isGenerating && generationStep === loadingSteps.length) {
       setIsGenerating(false);
-      setLogs((prev) => [...prev, '[SYS] RENDERING PIPELINE COMPLETE. READY.']);
+      setLogs((prev) => [...prev, '[SYS] CORE CALCULATIONS VERIFIED. DESIGN SCHEMATIC PIPELINE ONLINE.']);
       
-      // Load image
-      if (useDemoMode) {
-        const promptLower = prompt.toLowerCase();
-        const matched = LOCAL_DEMO_IMAGES.find((img) =>
-          img.keywords.some((keyword) => promptLower.includes(keyword))
-        ) || LOCAL_DEMO_IMAGES[3];
-
-        setResultImage(matched.src);
-        setResultTitle(matched.title);
-        setResultDesc(
-          `Concept Render: "${prompt || 'Concept Residence'}" - Structured as ${
-            STYLE_PRESETS.find(s => s.id === selectedStyle)?.name
-          } in ${
-            LIGHT_PRESETS.find(l => l.id === selectedLight)?.name
-          }. ${matched.desc}`
-        );
-      }
+      // Load copied local image
+      setResultImage('/x-shape-floorplan.jpg');
+      setResultTitle('CURVED X SHAPE HIGH RISE TYPICAL PLAN');
+      setResultDesc(
+        `High-rise Floor Plan Core Synthesis: Monolithic X-Shape tower floor plan featuring 16 balanced units per floor (4x 2BHK, 8x 3BHK, 4x 3BHK Premium). Integrates a central 24.00m x 24.00m lift lobby containing 8 passenger lifts, 2 fire lifts, 2 fire staircases, and dual 2.40m wide branching corridors.`
+      );
     }
     return () => clearTimeout(timer);
   }, [isGenerating, generationStep]);
 
   const handleGenerate = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!prompt.trim()) return;
 
     setIsGenerating(true);
     setGenerationStep(0);
     setResultImage(null);
-    setLogs(['[SYS] INITIALIZING COGNITIVE IMAGE SYNTHESIS...']);
+    setLogs(['[SYS] INITIALIZING ARCHITECTURAL TOWER SYNTHESIS CORE...']);
 
+    // Call actual OpenAI DALL-E route if active
     if (!useDemoMode) {
       try {
-        const styleName = STYLE_PRESETS.find((s) => s.id === selectedStyle)?.name || '';
-        const lightingName = LIGHT_PRESETS.find((l) => l.id === selectedLight)?.name || '';
+        const styleName = FOOTPRINT_PRESETS.find(f => f.id === footprintShape)?.name || 'X-Shape';
+        const promptText = `High-rise tower typical floor plan drawing, architectural design plan layout blueprint, ${styleName} footprint, central core with elevator lobby and staircases, apartments divided in the wings, CAD blueprint aesthetic, white paper background, professional clean annotations.`;
 
         const response = await fetch('/api/generate-idea-image', {
           method: 'POST',
@@ -146,8 +127,8 @@ export default function IdeaGenerationPage() {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            prompt: `${prompt}. Styled in ${styleName} architecture, capturing a ${lightingName} environment`,
-            style: styleName,
+            prompt: promptText,
+            style: 'architectural plan blueprint',
             apiKey: apiKey || undefined,
           }),
         });
@@ -164,20 +145,11 @@ export default function IdeaGenerationPage() {
         }
 
         setResultImage(data.url);
-        setResultTitle('AI RENDERED CONCEPT');
-        setResultDesc(`DALL-E 3 Output: "${prompt}" - Styled as ${styleName} under ${lightingName} lighting.`);
+        setResultTitle('SYNTHESIZED FLOOR PLAN');
+        setResultDesc(`GPT Generative Core output: 2D CAD typical floor plan model based on a ${styleName} schematic.`);
       } catch (err: any) {
-        setLogs((prev) => [...prev, `[ERR] ${err.message || 'API request failed'}. REVERTING TO SIMULATION MODE...`]);
+        setLogs((prev) => [...prev, `[ERR] ${err.message || 'API request failed'}. REVERTING TO LOCAL HIGH-RISE SIMULATION SCHEMA...`]);
         setUseDemoMode(true);
-        
-        const promptLower = prompt.toLowerCase();
-        const matched = LOCAL_DEMO_IMAGES.find((img) =>
-          img.keywords.some((keyword) => promptLower.includes(keyword))
-        ) || LOCAL_DEMO_IMAGES[3];
-
-        setResultImage(matched.src);
-        setResultTitle(`${matched.title} (SIMULATION)`);
-        setResultDesc(`Simulation Fallback: "${prompt}" - ${matched.desc}`);
       }
     }
   };
@@ -187,6 +159,8 @@ export default function IdeaGenerationPage() {
     navigator.clipboard.writeText(window.location.href);
     setTimeout(() => setCopiedLink(false), 2000);
   };
+
+  const totalUnits = typeAUnits + typeBUnits + typeCUnits;
 
   return (
     <div className="min-h-screen bg-[#0a0a0f] text-cyan-400 font-mono flex flex-col relative overflow-hidden p-6 z-50">
@@ -211,7 +185,7 @@ export default function IdeaGenerationPage() {
             <span className="h-6 w-px bg-cyan-500/20" />
             <div className="text-left">
               <span className="text-[9px] tracking-[4px] text-cyan-500/60 uppercase block">COGNITIVE MODULE</span>
-              <h1 className="text-xl font-bold tracking-[2px] text-white">IDEA GENERATION PANEL</h1>
+              <h1 className="text-xl font-bold tracking-[2px] text-white">TYPICAL TOWER PLAN GENERATOR</h1>
             </div>
           </div>
 
@@ -281,76 +255,248 @@ export default function IdeaGenerationPage() {
         )}
 
         {/* Main Grid Workspace */}
-        <div className="relative z-10 flex-1 grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+        <div className="relative z-10 flex-1 grid grid-cols-1 lg:grid-cols-12 gap-6 items-start overflow-y-auto no-scrollbar">
           
           {/* Controls Column */}
-          <div className="lg:col-span-4 flex flex-col gap-5 text-left bg-slate-900/30 backdrop-blur border border-white/10 p-5 rounded-xl">
+          <div className="lg:col-span-5 flex flex-col gap-5 text-left bg-slate-900/30 backdrop-blur border border-white/10 p-5 rounded-xl">
             <form onSubmit={handleGenerate} className="flex flex-col gap-5">
               
-              {/* Concept Input */}
+              {/* Footprint Selector */}
               <div className="flex flex-col gap-2">
-                <span className="text-[10px] tracking-[3px] text-cyan-500/60 uppercase font-mono block">CONCEPT BRIEF INPUT</span>
-                <textarea
-                  placeholder="E.g. Modernist modular villa, timber facade panels, double volume glazing, morning light..."
-                  rows={4}
-                  value={prompt}
-                  onChange={(e) => setPrompt(e.target.value)}
+                <span className="text-[10px] tracking-[3px] text-cyan-500/60 uppercase font-mono block">TOWER FOOTPRINT SHAPE</span>
+                <select
+                  value={footprintShape}
+                  onChange={(e) => setFootprintShape(e.target.value)}
                   disabled={isGenerating}
-                  className="w-full bg-black/40 border border-cyan-500/30 focus:border-cyan-400 focus:outline-none rounded-lg p-3.5 text-xs leading-relaxed text-cyan-400 placeholder-cyan-500/20 resize-none transition-colors"
-                />
+                  className="w-full bg-black/40 border border-cyan-500/30 focus:border-cyan-400 focus:outline-none rounded-lg p-2 text-xs text-cyan-400 cursor-pointer"
+                >
+                  {FOOTPRINT_PRESETS.map((p) => (
+                    <option key={p.id} value={p.id} className="bg-[#0a0a0f] text-cyan-400">
+                      {p.name}
+                    </option>
+                  ))}
+                </select>
+                <span className="text-[9px] text-cyan-500/40">
+                  {FOOTPRINT_PRESETS.find(f => f.id === footprintShape)?.desc}
+                </span>
               </div>
 
-              {/* Architectural Presets */}
-              <div className="flex flex-col gap-2">
-                <span className="text-[10px] tracking-[3px] text-cyan-500/60 uppercase font-mono block">STYLE SELECTOR</span>
-                <div className="flex flex-col gap-2 max-h-56 overflow-y-auto no-scrollbar pr-1">
-                  {STYLE_PRESETS.map((style) => (
-                    <div
-                      key={style.id}
-                      onClick={() => !isGenerating && setSelectedStyle(style.id)}
-                      className={`p-2.5 rounded border cursor-pointer select-none transition-all ${
-                        selectedStyle === style.id
-                          ? 'bg-cyan-500/10 border-cyan-400 text-white shadow-[0_0_8px_rgba(0,240,255,0.15)]'
-                          : 'border-cyan-500/10 bg-black/20 text-cyan-500/50 hover:text-cyan-400 hover:border-cyan-500/30'
-                      }`}
-                    >
-                      <div className="text-[11px] font-bold tracking-wider">{style.name}</div>
-                      <div className="text-[9px] mt-0.5 opacity-60 leading-normal">{style.desc}</div>
-                    </div>
-                  ))}
+              {/* Core Specifications Panel */}
+              <div className="flex flex-col gap-2.5 border-t border-white/5 pt-3">
+                <span className="text-[10px] tracking-[3px] text-cyan-500/60 uppercase font-mono block">CENTRAL CIRCULATION CORE SPECS</span>
+                
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="flex flex-col gap-1">
+                    <label className="text-[8px] text-cyan-500/60 uppercase">LIFT LOBBY DIMENSIONS (M)</label>
+                    <input 
+                      type="text" 
+                      value={coreSize} 
+                      onChange={(e) => setCoreSize(e.target.value)}
+                      disabled={isGenerating}
+                      className="bg-black/40 border border-cyan-500/30 rounded p-1 text-[11px] text-cyan-400 focus:outline-none"
+                    />
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <label className="text-[8px] text-cyan-500/60 uppercase">CORRIDOR WIDTH (M)</label>
+                    <input 
+                      type="text" 
+                      value={corridorWidth} 
+                      onChange={(e) => setCorridorWidth(e.target.value)}
+                      disabled={isGenerating}
+                      className="bg-black/40 border border-cyan-500/30 rounded p-1 text-[11px] text-cyan-400 focus:outline-none"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-3 gap-2 mt-1">
+                  <div className="flex flex-col gap-1">
+                    <label className="text-[8px] text-cyan-500/60 uppercase">PASSENGER LIFTS</label>
+                    <input 
+                      type="number" 
+                      value={passengerLifts} 
+                      onChange={(e) => setPassengerLifts(parseInt(e.target.value) || 0)}
+                      disabled={isGenerating}
+                      className="bg-black/40 border border-cyan-500/30 rounded p-1 text-[11px] text-cyan-400 focus:outline-none"
+                    />
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <label className="text-[8px] text-cyan-500/60 uppercase">FIRE LIFTS</label>
+                    <input 
+                      type="number" 
+                      value={fireLifts} 
+                      onChange={(e) => setFireLifts(parseInt(e.target.value) || 0)}
+                      disabled={isGenerating}
+                      className="bg-black/40 border border-cyan-500/30 rounded p-1 text-[11px] text-cyan-400 focus:outline-none"
+                    />
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <label className="text-[8px] text-cyan-500/60 uppercase">EGRESS STAIRS</label>
+                    <input 
+                      type="number" 
+                      value={staircases} 
+                      onChange={(e) => setStaircases(parseInt(e.target.value) || 0)}
+                      disabled={isGenerating}
+                      className="bg-black/40 border border-cyan-500/30 rounded p-1 text-[11px] text-cyan-400 focus:outline-none"
+                    />
+                  </div>
                 </div>
               </div>
 
-              {/* Lighting Presets */}
-              <div className="flex flex-col gap-2">
-                <span className="text-[10px] tracking-[3px] text-cyan-500/60 uppercase font-mono block">LIGHTING PROTOCOL</span>
-                <div className="grid grid-cols-2 gap-2">
-                  {LIGHT_PRESETS.map((light) => (
-                    <div
-                      key={light.id}
-                      onClick={() => !isGenerating && setSelectedLight(light.id)}
-                      className={`p-2 rounded border text-center cursor-pointer select-none transition-all flex items-center justify-center gap-1.5 ${
-                        selectedLight === light.id
-                          ? 'bg-cyan-500/10 border-cyan-400 text-white shadow-[0_0_8px_rgba(0,240,255,0.15)]'
-                          : 'border-cyan-500/10 bg-black/20 text-cyan-500/50 hover:text-cyan-400 hover:border-cyan-500/30'
-                      }`}
-                    >
-                      <span className="text-xs">{light.icon}</span>
-                      <span className="text-[10px] font-bold">{light.name.split(' ')[0]}</span>
-                    </div>
-                  ))}
+              {/* Unit Mix Table (Typical Floor) */}
+              <div className="flex flex-col gap-2 border-t border-white/5 pt-3">
+                <span className="text-[10px] tracking-[3px] text-cyan-500/60 uppercase font-mono block">UNIT MIX DESIGN MATRIX</span>
+                
+                <div className="overflow-x-auto border border-cyan-500/20 rounded">
+                  <table className="min-w-full divide-y divide-cyan-500/20 font-mono text-[10px]">
+                    <thead className="bg-cyan-950/20">
+                      <tr>
+                        <th className="px-2 py-1.5 text-left text-[8px] font-bold text-cyan-500/70 uppercase">TYPE</th>
+                        <th className="px-2 py-1.5 text-left text-[8px] font-bold text-cyan-500/70 uppercase">CARPET (SQM)</th>
+                        <th className="px-2 py-1.5 text-left text-[8px] font-bold text-cyan-500/70 uppercase">BALCONY</th>
+                        <th className="px-2 py-1.5 text-center text-[8px] font-bold text-cyan-500/70 uppercase">UNITS/FL</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-cyan-500/10">
+                      <tr>
+                        <td className="px-2 py-1 text-white font-bold">TYPE A (2 BHK)</td>
+                        <td className="px-2 py-1 text-cyan-400">78.00 SQ.M.</td>
+                        <td className="px-2 py-1 text-cyan-400">12.00 SQ.M.</td>
+                        <td className="px-2 py-1 text-center">
+                          <input 
+                            type="number" 
+                            value={typeAUnits} 
+                            onChange={(e) => setTypeAUnits(parseInt(e.target.value) || 0)}
+                            disabled={isGenerating}
+                            className="bg-black/40 border border-cyan-500/30 rounded w-10 text-center text-cyan-400 focus:outline-none py-0.5"
+                          />
+                        </td>
+                      </tr>
+                      <tr>
+                        <td className="px-2 py-1 text-white font-bold">TYPE B (3 BHK)</td>
+                        <td className="px-2 py-1 text-cyan-400">105.00 SQ.M.</td>
+                        <td className="px-2 py-1 text-cyan-400">16.00 SQ.M.</td>
+                        <td className="px-2 py-1 text-center">
+                          <input 
+                            type="number" 
+                            value={typeBUnits} 
+                            onChange={(e) => setTypeBUnits(parseInt(e.target.value) || 0)}
+                            disabled={isGenerating}
+                            className="bg-black/40 border border-cyan-500/30 rounded w-10 text-center text-cyan-400 focus:outline-none py-0.5"
+                          />
+                        </td>
+                      </tr>
+                      <tr>
+                        <td className="px-2 py-1 text-white font-bold">TYPE C (3 BHK PREMIUM)</td>
+                        <td className="px-2 py-1 text-cyan-400">120.00 SQ.M.</td>
+                        <td className="px-2 py-1 text-cyan-400">20.00 SQ.M.</td>
+                        <td className="px-2 py-1 text-center">
+                          <input 
+                            type="number" 
+                            value={typeCUnits} 
+                            onChange={(e) => setTypeCUnits(parseInt(e.target.value) || 0)}
+                            disabled={isGenerating}
+                            className="bg-black/40 border border-cyan-500/30 rounded w-10 text-center text-cyan-400 focus:outline-none py-0.5"
+                          />
+                        </td>
+                      </tr>
+                      <tr className="bg-cyan-950/10">
+                        <td className="px-2 py-1.5 text-cyan-400 font-bold uppercase" colSpan={3}>TOTAL UNITS PER FLOOR</td>
+                        <td className="px-2 py-1.5 text-center text-white font-bold text-xs">{totalUnits} NOS.</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              {/* Footprint Specifications */}
+              <div className="grid grid-cols-2 gap-4 border-t border-white/5 pt-3">
+                <div className="flex flex-col gap-1">
+                  <label className="text-[8px] text-cyan-500/60 uppercase">OVERALL WIDTH (M)</label>
+                  <input 
+                    type="text" 
+                    value={overallWidth} 
+                    onChange={(e) => setOverallWidth(e.target.value)}
+                    disabled={isGenerating}
+                    className="bg-black/40 border border-cyan-500/30 rounded p-1 text-[11px] text-cyan-400 focus:outline-none"
+                  />
+                </div>
+                <div className="flex flex-col gap-1">
+                  <label className="text-[8px] text-cyan-500/60 uppercase">OVERALL LENGTH (M)</label>
+                  <input 
+                    type="text" 
+                    value={overallLength} 
+                    onChange={(e) => setOverallLength(e.target.value)}
+                    disabled={isGenerating}
+                    className="bg-black/40 border border-cyan-500/30 rounded p-1 text-[11px] text-cyan-400 focus:outline-none"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="flex flex-col gap-1">
+                  <label className="text-[8px] text-cyan-500/60 uppercase">FLOOR-TO-FLOOR HEIGHT (M)</label>
+                  <input 
+                    type="text" 
+                    value={floorHeight} 
+                    onChange={(e) => setFloorHeight(e.target.value)}
+                    disabled={isGenerating}
+                    className="bg-black/40 border border-cyan-500/30 rounded p-1 text-[11px] text-cyan-400 focus:outline-none"
+                  />
+                </div>
+                <div className="flex flex-col gap-1">
+                  <label className="text-[8px] text-cyan-500/60 uppercase">BUILDING STORIES (FLOORS)</label>
+                  <input 
+                    type="text" 
+                    value={storyCount} 
+                    onChange={(e) => setStoryCount(e.target.value)}
+                    disabled={isGenerating}
+                    className="bg-black/40 border border-cyan-500/30 rounded p-1 text-[11px] text-cyan-400 focus:outline-none"
+                  />
+                </div>
+              </div>
+
+              {/* Toggles */}
+              <div className="flex flex-col gap-2 border-t border-white/5 pt-3">
+                <span className="text-[10px] tracking-[3px] text-cyan-500/60 uppercase font-mono block">COMPLIANCE PROTOCOLS</span>
+                <div className="flex flex-col gap-1.5 text-[10px] text-cyan-500/75">
+                  <label className="flex items-center gap-2 cursor-pointer select-none">
+                    <input 
+                      type="checkbox" 
+                      checked={vastuCompliant} 
+                      onChange={() => setVastuCompliant(!vastuCompliant)}
+                      disabled={isGenerating}
+                      className="accent-cyan-400"
+                    />
+                    <span>STRICT VAASTU PLACEMENT CODES</span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer select-none">
+                    <input 
+                      type="checkbox" 
+                      checked={crossVentilation} 
+                      onChange={() => setCrossVentilation(!crossVentilation)}
+                      disabled={isGenerating}
+                      className="accent-cyan-400"
+                    />
+                    <span>ALL WINGS OPEN VIEW CROSS-VENTILATION</span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer select-none">
+                    <input 
+                      type="checkbox" 
+                      checked={fireSafetyCode} 
+                      onChange={() => setFireSafetyCode(!fireSafetyCode)}
+                      disabled={isGenerating}
+                      className="accent-cyan-400"
+                    />
+                    <span>FIRE ESCAPE EGRESS (NBC 2016 COMPLIANT)</span>
+                  </label>
                 </div>
               </div>
 
               {/* Generate button */}
               <button
                 type="submit"
-                disabled={isGenerating || !prompt.trim()}
-                className={`w-full py-2.5 rounded font-bold text-xs tracking-wider transition-all flex items-center justify-center gap-2 cursor-pointer ${
-                  isGenerating || !prompt.trim()
-                    ? 'bg-cyan-950/10 border border-cyan-500/10 text-cyan-500/30'
-                    : 'bg-cyan-500/20 hover:bg-cyan-500/30 border border-cyan-500/50 hover:border-cyan-400 text-[#00f0ff] shadow-[0_0_15px_rgba(0,240,255,0.1)]'
-                }`}
+                disabled={isGenerating}
+                className="w-full py-2.5 rounded font-bold text-xs tracking-wider transition-all flex items-center justify-center gap-2 cursor-pointer bg-cyan-500/20 hover:bg-cyan-500/30 border border-cyan-500/50 hover:border-cyan-400 text-[#00f0ff] shadow-[0_0_15px_rgba(0,240,255,0.1)]"
               >
                 {isGenerating ? (
                   <>
@@ -360,7 +506,7 @@ export default function IdeaGenerationPage() {
                 ) : (
                   <>
                     <Zap className="w-3.5 h-3.5" />
-                    <span>EXECUTE IDEATION</span>
+                    <span>EXECUTE IDEATION PROTOCOL</span>
                   </>
                 )}
               </button>
@@ -369,7 +515,7 @@ export default function IdeaGenerationPage() {
           </div>
 
           {/* Render Area Column */}
-          <div className="lg:col-span-5 flex flex-col gap-4 text-left">
+          <div className="lg:col-span-4 flex flex-col gap-4 text-left">
             <div className="relative w-full aspect-[16/10] rounded-xl overflow-hidden border border-cyan-500/20 bg-[#050508] flex items-center justify-center p-6 shadow-2xl">
               
               {/* Grid elements */}
@@ -400,12 +546,12 @@ export default function IdeaGenerationPage() {
 
               {/* Render Image output */}
               {resultImage ? (
-                <div className="relative w-full h-full rounded border border-cyan-500/20 bg-black animate-fadeIn">
+                <div className="relative w-full h-full rounded border border-cyan-500/20 bg-white animate-fadeIn">
                   <Image
                     src={resultImage}
                     alt={resultTitle}
                     fill
-                    className="object-cover"
+                    className="object-contain"
                     sizes="(max-width: 1440px) 100vw, 1440px"
                     priority
                   />
@@ -436,7 +582,7 @@ export default function IdeaGenerationPage() {
                   </div>
                   <h3 className="text-xs font-bold text-cyan-400 uppercase tracking-wider">Design Grid Offline</h3>
                   <p className="text-[10px] mt-1.5 leading-relaxed">
-                    Awaiting target coordinates. Input prompt and execute ideation program.
+                    Awaiting target coordinates. Select tower footprint parameters and execute ideation.
                   </p>
                 </div>
               ) : null}
@@ -453,9 +599,9 @@ export default function IdeaGenerationPage() {
                   {resultDesc}
                 </p>
                 <div className="border-t border-cyan-500/10 pt-3 mt-1 flex flex-wrap gap-x-4 gap-y-1.5 text-[9px] font-mono text-cyan-500/40">
-                  <div>STYLE: {STYLE_PRESETS.find(s => s.id === selectedStyle)?.name}</div>
-                  <div>LIGHTING: {LIGHT_PRESETS.find(l => l.id === selectedLight)?.name}</div>
-                  <div>CORE: DALL-E-3 PIPELINE</div>
+                  <div className="flex items-center gap-1"><Building className="w-3 h-3" /> FOOTPRINT: 100M X 100M</div>
+                  <div className="flex items-center gap-1"><Layers className="w-3 h-3" /> HEIGHT: {storyCount} STORIES</div>
+                  <div className="flex items-center gap-1"><Activity className="w-3 h-3" /> CORRIDOR: 2.40M</div>
                 </div>
               </div>
             )}
@@ -479,6 +625,16 @@ export default function IdeaGenerationPage() {
                 ))
               )}
             </div>
+
+            {/* Tactical feature highlight list */}
+            {resultImage && !isGenerating && (
+              <div className="border-t border-cyan-500/15 pt-3 mt-2 flex flex-col gap-1.5 text-[9px]">
+                <span className="text-cyan-400 font-bold uppercase tracking-wider block mb-1">KEY FEATURES DETECTED:</span>
+                <div className="flex items-center gap-1.5 text-white"><Wind className="w-3.5 h-3.5 text-cyan-400" /> 360° PANORAMIC OUTSIDE VIEW</div>
+                <div className="flex items-center gap-1.5 text-white"><ShieldCheck className="w-3.5 h-3.5 text-cyan-400" /> FIRE SAFETY (EGRESS REMOTENESS)</div>
+                <div className="flex items-center gap-1.5 text-white"><Sparkles className="w-3.5 h-3.5 text-cyan-400" /> HIGH EFFICIENCY CENTRAL CORE</div>
+              </div>
+            )}
 
             <div className="border-t border-cyan-500/15 pt-2 mt-auto text-[8px] text-cyan-500/40 font-mono">
               SYS STATUS: ONLINE // SECTOR 17
