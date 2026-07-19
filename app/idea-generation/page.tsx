@@ -486,13 +486,10 @@ export default function IdeaGenerationPage() {
               {/* Generated Image container */}
               {resultImage ? (
                 <div className="relative w-full h-full rounded border border-cyan-500/20 bg-white animate-fadeIn">
-                  <Image
+                  <img
                     src={resultImage}
                     alt={resultTitle}
-                    fill
-                    className="object-contain"
-                    sizes="(max-width: 1440px) 100vw, 1440px"
-                    priority
+                    className="w-full h-full object-contain"
                   />
                   <div className="absolute top-3 right-3 flex items-center gap-2 pointer-events-auto">
                     <button 
