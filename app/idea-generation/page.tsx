@@ -59,7 +59,7 @@ export default function IdeaGenerationPage() {
   const [fireSafetyCode, setFireSafetyCode] = useState(true);
 
   // Settings states
-  const [useDemoMode, setUseDemoMode] = useState(true);
+  const [useDemoMode, setUseDemoMode] = useState(false);
   const [apiKey, setApiKey] = useState('');
   const [showSettings, setShowSettings] = useState(false);
 
@@ -99,8 +99,11 @@ export default function IdeaGenerationPage() {
     let currentStep = 0;
     const logInterval = setInterval(() => {
       if (currentStep < loadingSteps.length) {
-        setLogs((prev) => [...prev, `[SYS] ${loadingSteps[currentStep]}`]);
-        setGenerationStep(currentStep + 1);
+        const stepMessage = loadingSteps[currentStep];
+        if (stepMessage) {
+          setLogs((prev) => [...prev, `[SYS] ${stepMessage}`]);
+          setGenerationStep(currentStep + 1);
+        }
         currentStep++;
       }
     }, 550);
@@ -152,7 +155,10 @@ export default function IdeaGenerationPage() {
         
         // Push remaining steps quickly to log feed
         for (let i = currentStep; i < loadingSteps.length; i++) {
-          setLogs((prev) => [...prev, `[SYS] ${loadingSteps[i]}`]);
+          const stepMessage = loadingSteps[i];
+          if (stepMessage) {
+            setLogs((prev) => [...prev, `[SYS] ${stepMessage}`]);
+          }
         }
         setGenerationStep(loadingSteps.length);
 
