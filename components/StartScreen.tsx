@@ -1292,16 +1292,19 @@ NOTE: Each time Master Umesh asks for the brief, these stories are shuffled rand
             src="/start video/start.mp4"
           />
 
+          {/* Fullscreen Radial Gradient overlay directly on video */}
+          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_50%_30%,_transparent_0%,_#0a0a0f_90%)] z-0 pointer-events-none" />
+
           {/* Eyes Overlay - Scaled and aligned within the video container */}
           <div 
-            className={`eye eye--l transition-all duration-500 ${
+            className={`eye eye--l transition-all duration-500 z-10 ${
               statusState !== 'idle' 
                 ? 'scale-110 brightness-125' 
                 : 'opacity-85 scale-100'
             }`} 
           />
           <div 
-            className={`eye eye--r transition-all duration-500 ${
+            className={`eye eye--r transition-all duration-500 z-10 ${
               statusState !== 'idle' 
                 ? 'scale-110 brightness-125' 
                 : 'opacity-85 scale-100'
@@ -1309,8 +1312,6 @@ NOTE: Each time Master Umesh asks for the brief, these stories are shuffled rand
           />
         </div>
       </div>
-
-      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_50%_30%,_transparent_0%,_#0a0a0f_90%)] z-0 pointer-events-none" />
 
       {/* Central Bat-Signal Ring */}
       <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-0 w-[420px] h-[420px] flex items-center justify-center pointer-events-none select-none opacity-40">
