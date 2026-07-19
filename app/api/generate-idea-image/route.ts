@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { fal } from '@fal-ai/client';
 
 export async function POST(req: Request) {
   try {
@@ -8,44 +9,37 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Prompt is required' }, { status: 400 });
     }
 
-    // Determine the API key to use (user-provided or server-side env)
-    const activeApiKey = apiKey || process.env.OPENAI_API_KEY;
+    const activeApiKey = apiKey || process.env.FAL_KEY;
 
     if (!activeApiKey) {
       return NextResponse.json(
-        { error: 'OpenAI API Key is missing. Switch to simulation mode or configure it in settings.' },
+        { error: 'Fal AI API Key (FAL_KEY) is missing. Switch to simulation mode or configure it in settings.' },
         { status: 400 }
       );
     }
 
-    const enhancedPrompt = `Premium architectural rendering, ${style ? `${style} style,` : ''} ${prompt}. High resolution, dramatic shadows, photorealistic, professional concept design.`;
+    // Configure client with key for this request execution context
+    fal.config({ credentials: activeApiKey });
 
-    const response = await fetch('https://api.openai.com/v1/images/generations', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${activeApiKey}`,
-      },
-      body: JSON.stringify({
-        model: 'dall-e-3',
+    const enhancedPrompt = `High-rise tower typical floor plan drawing, 2D architectural CAD plan layout blueprint, ${style ? `${style} footprint style,` : ''} ${prompt}. Clean elevator lobby and staircase center core, corridor loop, clear lines, high resolution, professional blueprint sheet presentation on white paper background.`;
+
+    console.log('[IdeaGenerator] Calling Fal AI model fal-ai/flux/schnell...');
+    
+    const result: any = await fal.subscribe('fal-ai/flux/schnell', {
+      input: {
         prompt: enhancedPrompt,
-        n: 1,
-        size: '1024x1024',
-        quality: 'standard',
-      }),
+        image_size: 'square_hd',
+      }
     });
 
-    const data = await response.json();
-
-    if (!response.ok) {
-      return NextResponse.json(
-        { error: data.error?.message || 'OpenAI generation request failed' },
-        { status: response.status }
-      );
+    const images = result?.images || result?.data?.images;
+    if (!images || images.length === 0) {
+      return NextResponse.json({ error: 'Fal AI model returned no images' }, { status: 500 });
     }
 
-    return NextResponse.json({ url: data.data[0].url });
+    return NextResponse.json({ url: images[0].url });
   } catch (error: any) {
+    console.error('[IdeaGenerator] Fal AI Error:', error.message || error);
     return NextResponse.json(
       { error: error.message || 'Internal Server Error' },
       { status: 500 }

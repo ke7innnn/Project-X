@@ -117,7 +117,7 @@ export default function IdeaGenerationPage() {
     setResultImage(null);
     setLogs(['[SYS] INITIALIZING ARCHITECTURAL TOWER SYNTHESIS CORE...']);
 
-    // Call actual OpenAI DALL-E route if active
+    // Call actual Fal AI route if active
     if (!useDemoMode) {
       try {
         const styleName = FOOTPRINT_PRESETS.find(f => f.id === footprintShape)?.name || 'X-Shape';
@@ -130,7 +130,7 @@ export default function IdeaGenerationPage() {
           },
           body: JSON.stringify({
             prompt: promptText,
-            style: 'architectural plan blueprint',
+            style: styleName,
             apiKey: apiKey || undefined,
           }),
         });
@@ -208,7 +208,7 @@ export default function IdeaGenerationPage() {
                   !useDemoMode ? 'bg-cyan-500/30 text-white font-bold' : 'text-cyan-500/50 hover:text-cyan-400'
                 }`}
               >
-                OPENAI API
+                FAL AI API
               </button>
             </div>
             
@@ -217,7 +217,7 @@ export default function IdeaGenerationPage() {
               className={`p-2 rounded border transition-colors cursor-pointer ${
                 showSettings ? 'bg-cyan-500/30 border-cyan-400 text-white' : 'border-cyan-500/30 bg-cyan-950/20 hover:border-cyan-400'
               }`}
-              title="OpenAI API Keys"
+              title="Fal AI API Keys"
             >
               <Settings className="w-4 h-4" />
             </button>
@@ -227,15 +227,15 @@ export default function IdeaGenerationPage() {
         {/* Floating Settings Panel */}
         {showSettings && (
           <div className="relative z-20 max-w-lg mb-6 p-4 rounded border border-cyan-500/30 bg-[#0c0c14]/90 backdrop-blur-md text-left text-xs text-cyan-500/80 leading-relaxed">
-            <h4 className="font-bold text-white mb-1.5 uppercase tracking-wider">OpenAI API Connection</h4>
+            <h4 className="font-bold text-white mb-1.5 uppercase tracking-wider">Fal AI API Connection</h4>
             <p className="mb-3">
-              Provide an OpenAI secret key to generate live high-quality DALL-E 3 images directly inside the Command center. If not configured, simulation mode uses local high-resolution assets.
+              Provide a Fal AI secret key (FAL_KEY) to generate live high-quality floor plan images using Flux Schnell directly inside the Command center. If not configured, simulation mode uses local high-resolution assets.
             </p>
             <div className="flex flex-col gap-2">
-              <label className="text-[9px] tracking-widest text-cyan-500/50 uppercase">API Secret Key</label>
+              <label className="text-[9px] tracking-widest text-cyan-500/50 uppercase">Fal AI API Key (FAL_KEY)</label>
               <input 
                 type="password"
-                placeholder="sk-proj-..."
+                placeholder="FAL_KEY value..."
                 value={apiKey}
                 onChange={(e) => setApiKey(e.target.value)}
                 className="w-full bg-[#050508] border border-cyan-500/30 focus:border-cyan-400 focus:outline-none rounded px-3 py-1.5 text-xs text-cyan-400 placeholder-cyan-500/20 font-mono"
