@@ -18,17 +18,18 @@ export async function POST(req: Request) {
       );
     }
 
-    // Configure client with key for this request execution context
-    fal.config({ credentials: activeApiKey });
+    // Clean and validate the API key format (removing copy-paste spaces)
+    const cleanApiKey = activeApiKey.replace(/\s+/g, '');
+    fal.config({ credentials: cleanApiKey });
 
     const enhancedPrompt = `High-rise tower typical floor plan drawing, 2D architectural CAD plan layout blueprint, ${style ? `${style} footprint style,` : ''} ${prompt}. Clean elevator lobby and staircase center core, corridor loop, clear lines, high resolution, professional blueprint sheet presentation on white paper background.`;
 
-    console.log('[IdeaGenerator] Calling Fal AI model fal-ai/flux/schnell...');
+    console.log('[IdeaGenerator] Calling Fal AI model openai/gpt-image-2 with quality medium...');
     
-    const result: any = await fal.subscribe('fal-ai/flux/schnell', {
+    const result: any = await fal.subscribe('openai/gpt-image-2', {
       input: {
         prompt: enhancedPrompt,
-        image_size: 'square_hd',
+        quality: 'medium'
       }
     });
 
