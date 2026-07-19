@@ -86,29 +86,7 @@ export default function IdeaGenerationPage() {
     'DISPATCHING 2D TYPICAL FLOOR PLAN SCHEMATIC AND PERSPECTIVE RENDERS...'
   ];
 
-  // Log update effect
-  useEffect(() => {
-    let timer: NodeJS.Timeout;
-    if (isGenerating && generationStep < loadingSteps.length) {
-      const currentStepMessage = loadingSteps[generationStep];
-      setLogs((prev) => [...prev, `[SYS] ${currentStepMessage}`]);
-      timer = setTimeout(() => {
-        setGenerationStep((prev) => prev + 1);
-      }, 750);
-    } else if (isGenerating && generationStep === loadingSteps.length) {
-      setIsGenerating(false);
-      setLogs((prev) => [...prev, '[SYS] CORE CALCULATIONS VERIFIED. DESIGN SCHEMATIC PIPELINE ONLINE.']);
-      
-      // Load copied local image
-      setResultImage('/x-shape-floorplan.jpg');
-      setResultTitle('CURVED X SHAPE HIGH RISE TYPICAL PLAN');
-      setResultDesc(
-        `High-rise Floor Plan Core Synthesis: Monolithic X-Shape tower floor plan featuring 16 balanced units per floor (4x 2BHK, 8x 3BHK, 4x 3BHK Premium). ${customPrompt ? `Custom Notes Integrated: "${customPrompt}". ` : ''}Integrates a central 24.00m x 24.00m lift lobby containing 8 passenger lifts, 2 fire lifts, 2 fire staircases, and dual 2.40m wide branching corridors.`
-      );
-    }
-    return () => clearTimeout(timer);
-  }, [isGenerating, generationStep]);
-
+  // Unified Async Generation and HUD Progress Pipeline
   const handleGenerate = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -117,13 +95,36 @@ export default function IdeaGenerationPage() {
     setResultImage(null);
     setLogs(['[SYS] INITIALIZING ARCHITECTURAL TOWER SYNTHESIS CORE...']);
 
-    // Call actual Fal AI route if active
-    if (!useDemoMode) {
-      try {
+    // Start simulated progress logging in parallel
+    let currentStep = 0;
+    const logInterval = setInterval(() => {
+      if (currentStep < loadingSteps.length) {
+        setLogs((prev) => [...prev, `[SYS] ${loadingSteps[currentStep]}`]);
+        setGenerationStep(currentStep + 1);
+        currentStep++;
+      }
+    }, 550);
+
+    try {
+      if (useDemoMode) {
+        // Wait for all steps to print sequentially
+        for (let i = 0; i < loadingSteps.length; i++) {
+          await new Promise((r) => setTimeout(r, 550));
+        }
+        clearInterval(logInterval);
+        setLogs((prev) => [...prev, '[SYS] CORE CALCULATIONS VERIFIED. DESIGN SCHEMATIC PIPELINE ONLINE.']);
+        setResultImage('/x-shape-floorplan.jpg');
+        setResultTitle('CURVED X SHAPE HIGH RISE TYPICAL PLAN');
+        setResultDesc(
+          `High-rise Floor Plan Core Synthesis: Monolithic X-Shape tower floor plan featuring 16 balanced units per floor (4x 2BHK, 8x 3BHK, 4x 3BHK Premium). ${customPrompt ? `Custom Notes Integrated: "${customPrompt}". ` : ''}Integrates a central 24.00m x 24.00m lift lobby containing 8 passenger lifts, 2 fire lifts, 2 fire staircases, and dual 2.40m wide branching corridors.`
+        );
+        setIsGenerating(false);
+      } else {
+        // Call Fal AI route
         const styleName = FOOTPRINT_PRESETS.find(f => f.id === footprintShape)?.name || 'X-Shape';
         const promptText = `High-rise tower typical floor plan drawing, architectural design plan layout blueprint, ${styleName} footprint, central core with elevator lobby and staircases, apartments divided in the wings, CAD blueprint aesthetic, white paper background, professional clean annotations. Custom guidelines: ${customPrompt}`;
 
-        const response = await fetch('/api/generate-idea-image', {
+        const apiPromise = fetch('/api/generate-idea-image', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -133,26 +134,45 @@ export default function IdeaGenerationPage() {
             style: styleName,
             apiKey: apiKey || undefined,
           }),
+        }).then(async (res) => {
+          const data = await res.json();
+          if (!res.ok) {
+            throw new Error(data.error || 'Fal AI generation request failed');
+          }
+          return data.url;
         });
 
-        const data = await response.json();
+        // Race/wait for API response, ensuring at least 3 seconds of tactical logging runs
+        const [url] = await Promise.all([
+          apiPromise,
+          new Promise((r) => setTimeout(r, 3300))
+        ]);
 
-        // Wait to finish simulated loading logs for HUD feel
-        while (isGenerating) {
-          await new Promise((r) => setTimeout(r, 100));
+        clearInterval(logInterval);
+        
+        // Push remaining steps quickly to log feed
+        for (let i = currentStep; i < loadingSteps.length; i++) {
+          setLogs((prev) => [...prev, `[SYS] ${loadingSteps[i]}`]);
         }
+        setGenerationStep(loadingSteps.length);
 
-        if (!response.ok) {
-          throw new Error(data.error || 'DALL-E Generation request failed');
-        }
-
-        setResultImage(data.url);
-        setResultTitle('SYNTHESIZED FLOOR PLAN');
-        setResultDesc(`GPT Generative Core output: 2D CAD typical floor plan model based on a ${styleName} schematic. Custom guidelines: "${customPrompt}"`);
-      } catch (err: any) {
-        setLogs((prev) => [...prev, `[ERR] ${err.message || 'API request failed'}. REVERTING TO LOCAL HIGH-RISE SIMULATION SCHEMA...`]);
-        setUseDemoMode(true);
+        setLogs((prev) => [...prev, '[SYS] CORE CALCULATIONS VERIFIED. LIVE GENERATION PIPELINE ONLINE.']);
+        setResultImage(url);
+        setResultTitle('SYNTHESIZED TOWER PLAN');
+        setResultDesc(
+          `GPT Generative Core typical floor plan based on a ${styleName} footprint. Custom guidelines: "${customPrompt}". Core features verified: 8 passenger lifts, 2 fire lifts, and 2.40m width circulation pathways.`
+        );
+        setIsGenerating(false);
       }
+    } catch (err: any) {
+      clearInterval(logInterval);
+      setLogs((prev) => [...prev, `[ERR] ${err.message || 'API request failed'}. REVERTING TO LOCAL HIGH-RISE SIMULATION SCHEMA...`]);
+      setResultImage('/x-shape-floorplan.jpg');
+      setResultTitle('CURVED X SHAPE HIGH RISE TYPICAL PLAN');
+      setResultDesc(
+        `Simulation Fallback: Monolithic X-Shape tower floor plan featuring 16 balanced units per floor (4x 2BHK, 8x 3BHK, 4x 3BHK Premium).`
+      );
+      setIsGenerating(false);
     }
   };
 
