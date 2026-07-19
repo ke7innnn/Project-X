@@ -1305,7 +1305,7 @@ NOTE: Each time Master Umesh asks for the brief, these stories are shuffled rand
 
         {/* Left Eye */}
         <div 
-          className={`bat-eye bat-eye-idle-anim ${statusState !== 'idle' ? 'eyes--active' : ''}`}
+          className={`absolute transition-all duration-500 ${statusState !== 'idle' ? 'eyes--active' : 'bat-eye-idle-anim'}`}
           style={{
             top: 'var(--eye-top)',
             left: 'var(--eye-left-x)',
@@ -1313,11 +1313,13 @@ NOTE: Each time Master Umesh asks for the brief, these stories are shuffled rand
             height: 'var(--eye-h)',
             transform: 'rotate(calc(-1 * var(--eye-tilt)))',
           }}
-        />
+        >
+          <div className="bat-eye" />
+        </div>
 
         {/* Right Eye */}
         <div 
-          className={`bat-eye bat-eye-idle-anim ${statusState !== 'idle' ? 'eyes--active' : ''}`}
+          className={`absolute transition-all duration-500 ${statusState !== 'idle' ? 'eyes--active' : 'bat-eye-idle-anim'}`}
           style={{
             top: 'var(--eye-top)',
             left: 'var(--eye-right-x)',
@@ -1325,7 +1327,9 @@ NOTE: Each time Master Umesh asks for the brief, these stories are shuffled rand
             height: 'var(--eye-h)',
             transform: 'rotate(var(--eye-tilt)) scaleX(-1)',
           }}
-        />
+        >
+          <div className="bat-eye" />
+        </div>
       </div>
 
       {/* Central Bat-Signal Ring */}
