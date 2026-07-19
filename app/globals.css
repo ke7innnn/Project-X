@@ -289,29 +289,28 @@
   object-fit: fill;
 }
 
-/* Core Batman eye shape styling */
+/* Core Batman eye shape styling (clipped) */
 .bat-eye {
-  position: absolute;
+  width: 100%;
+  height: 100%;
   background: #29A8FF; /* blue core */
   clip-path: polygon(0% 0%, 100% 50%, 0% 100%);
-  transform-origin: center center;
-  will-change: opacity, filter;
+  filter: blur(0.5px); /* Soften the edges */
+  will-change: background-color;
 }
 
-/* Real-time blue glow pulsing for idle state */
+/* Parent wrapper glow pulsing for idle state (avoids clip-path shadow cutoff) */
 @keyframes bat-eye-glow-pulse {
   0%, 100% {
-    filter: blur(0.5px) 
-            drop-shadow(0 0 4px rgba(41, 168, 255, 0.95)) 
-            drop-shadow(0 0 12px rgba(41, 168, 255, 0.65)) 
-            drop-shadow(0 0 25px rgba(41, 168, 255, 0.35));
+    filter: drop-shadow(0 0 3px rgba(41, 168, 255, 0.95)) 
+            drop-shadow(0 0 9px rgba(41, 168, 255, 0.7)) 
+            drop-shadow(0 0 20px rgba(41, 168, 255, 0.45));
     opacity: 0.85;
   }
   50% {
-    filter: blur(0.5px) 
-            drop-shadow(0 0 8px rgba(41, 168, 255, 1.0)) 
-            drop-shadow(0 0 20px rgba(41, 168, 255, 0.85)) 
-            drop-shadow(0 0 45px rgba(41, 168, 255, 0.55));
+    filter: drop-shadow(0 0 6px rgba(41, 168, 255, 1.0)) 
+            drop-shadow(0 0 16px rgba(41, 168, 255, 0.85)) 
+            drop-shadow(0 0 35px rgba(41, 168, 255, 0.6));
     opacity: 1.0;
   }
 }
@@ -324,34 +323,43 @@
   .bat-eye-idle-anim {
     animation: none !important;
     opacity: 0.95 !important;
-    filter: blur(0.5px) 
-            drop-shadow(0 0 6px rgba(41, 168, 255, 0.95)) 
-            drop-shadow(0 0 16px rgba(41, 168, 255, 0.65)) !important;
+    filter: drop-shadow(0 0 5px rgba(41, 168, 255, 0.9)) 
+            drop-shadow(0 0 14px rgba(41, 168, 255, 0.6)) !important;
   }
 }
 
-/* Real-time active energy pulse when voice link is communicating */
-@keyframes bat-eye-active-pulse {
+/* Parent active glow pulse */
+@keyframes bat-eye-active-glow-pulse {
   0%, 100% {
-    filter: blur(0.5px) 
-            drop-shadow(0 0 5px rgba(0, 240, 255, 1.0)) 
+    filter: drop-shadow(0 0 5px rgba(0, 240, 255, 1.0)) 
             drop-shadow(0 0 15px rgba(0, 240, 255, 0.85)) 
-            drop-shadow(0 0 35px rgba(0, 240, 255, 0.55));
+            drop-shadow(0 0 30px rgba(0, 240, 255, 0.55));
+  }
+  50% {
+    filter: drop-shadow(0 0 9px rgba(0, 240, 255, 1.0)) 
+            drop-shadow(0 0 25px rgba(0, 240, 255, 1.0)) 
+            drop-shadow(0 0 55px rgba(0, 240, 255, 0.85));
+  }
+}
+
+/* Child active color flare */
+@keyframes bat-eye-active-core-pulse {
+  0%, 100% {
     background: #29A8FF;
   }
   50% {
-    filter: blur(0.5px) 
-            drop-shadow(0 0 10px rgba(0, 240, 255, 1.0)) 
-            drop-shadow(0 0 28px rgba(0, 240, 255, 1.0)) 
-            drop-shadow(0 0 60px rgba(0, 240, 255, 0.85));
-    background: #ffffff; /* core flares white in full transmission */
+    background: #ffffff; /* core flares white at peak link transmission */
   }
 }
 
-/* Active eye glow state when voice assistant is active */
+/* Active eye glow states */
 .eyes--active {
   opacity: 1.0 !important;
-  animation: bat-eye-active-pulse 1.2s ease-in-out infinite !important;
+  animation: bat-eye-active-glow-pulse 1.2s ease-in-out infinite !important;
+}
+
+.eyes--active .bat-eye {
+  animation: bat-eye-active-core-pulse 1.2s ease-in-out infinite !important;
 }
 
 
