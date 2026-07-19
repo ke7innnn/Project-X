@@ -18,8 +18,8 @@ export async function POST(req: Request) {
       );
     }
 
-    // Clean and validate the API key format (removing copy-paste spaces)
-    const cleanApiKey = activeApiKey.replace(/\s+/g, '');
+    // Clean and validate the API key format (removing copy-paste spaces, trailing periods or punctuation)
+    const cleanApiKey = activeApiKey.replace(/\s+/g, '').replace(/[^a-zA-Z0-9:-]/g, '');
     fal.config({ credentials: cleanApiKey });
 
     const enhancedPrompt = `High-rise tower typical floor plan drawing, 2D architectural CAD plan layout blueprint, ${style ? `${style} footprint style,` : ''} ${prompt}. Clean elevator lobby and staircase center core, corridor loop, clear lines, high resolution, professional blueprint sheet presentation on white paper background.`;
