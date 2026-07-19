@@ -1296,15 +1296,15 @@ NOTE: Each time Master Umesh asks for the brief, these stories are shuffled rand
           <div 
             className={`eye eye--l transition-all duration-500 ${
               statusState !== 'idle' 
-                ? 'opacity-100 scale-100' 
-                : 'opacity-0 scale-75'
+                ? 'scale-110 brightness-125' 
+                : 'opacity-85 scale-100'
             }`} 
           />
           <div 
             className={`eye eye--r transition-all duration-500 ${
               statusState !== 'idle' 
-                ? 'opacity-100 scale-100' 
-                : 'opacity-0 scale-75'
+                ? 'scale-110 brightness-125' 
+                : 'opacity-85 scale-100'
             }`} 
           />
         </div>
