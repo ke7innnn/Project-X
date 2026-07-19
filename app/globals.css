@@ -294,41 +294,64 @@
   position: absolute;
   background: #29A8FF; /* blue core */
   clip-path: polygon(0% 0%, 100% 50%, 0% 100%);
-  filter: blur(0.5px) 
-          drop-shadow(0 0 5px rgba(41, 168, 255, 0.95)) 
-          drop-shadow(0 0 15px rgba(41, 168, 255, 0.65)) 
-          drop-shadow(0 0 30px rgba(41, 168, 255, 0.35));
   transform-origin: center center;
   will-change: opacity, filter;
 }
 
-/* Idle animation keyframes: breathing flicker */
-@keyframes bat-eye-flicker {
-  0%, 100% { opacity: 0.85; }
-  50% { opacity: 1.0; }
+/* Real-time blue glow pulsing for idle state */
+@keyframes bat-eye-glow-pulse {
+  0%, 100% {
+    filter: blur(0.5px) 
+            drop-shadow(0 0 4px rgba(41, 168, 255, 0.95)) 
+            drop-shadow(0 0 12px rgba(41, 168, 255, 0.65)) 
+            drop-shadow(0 0 25px rgba(41, 168, 255, 0.35));
+    opacity: 0.85;
+  }
+  50% {
+    filter: blur(0.5px) 
+            drop-shadow(0 0 8px rgba(41, 168, 255, 1.0)) 
+            drop-shadow(0 0 20px rgba(41, 168, 255, 0.85)) 
+            drop-shadow(0 0 45px rgba(41, 168, 255, 0.55));
+    opacity: 1.0;
+  }
 }
 
 .bat-eye-idle-anim {
-  animation: bat-eye-flicker 3s ease-in-out infinite;
+  animation: bat-eye-glow-pulse 3s ease-in-out infinite;
 }
 
 @media (prefers-reduced-motion: reduce) {
   .bat-eye-idle-anim {
     animation: none !important;
     opacity: 0.95 !important;
+    filter: blur(0.5px) 
+            drop-shadow(0 0 6px rgba(41, 168, 255, 0.95)) 
+            drop-shadow(0 0 16px rgba(41, 168, 255, 0.65)) !important;
+  }
+}
+
+/* Real-time active energy pulse when voice link is communicating */
+@keyframes bat-eye-active-pulse {
+  0%, 100% {
+    filter: blur(0.5px) 
+            drop-shadow(0 0 5px rgba(0, 240, 255, 1.0)) 
+            drop-shadow(0 0 15px rgba(0, 240, 255, 0.85)) 
+            drop-shadow(0 0 35px rgba(0, 240, 255, 0.55));
+    background: #29A8FF;
+  }
+  50% {
+    filter: blur(0.5px) 
+            drop-shadow(0 0 10px rgba(0, 240, 255, 1.0)) 
+            drop-shadow(0 0 28px rgba(0, 240, 255, 1.0)) 
+            drop-shadow(0 0 60px rgba(0, 240, 255, 0.85));
+    background: #ffffff; /* core flares white in full transmission */
   }
 }
 
 /* Active eye glow state when voice assistant is active */
 .eyes--active {
-  background: #00d2ff !important; /* cyan/blue core */
-  filter: blur(0.5px) 
-          drop-shadow(0 0 6px #00d2ff)
-          drop-shadow(0 0 18px rgba(0, 240, 255, 1.0)) 
-          drop-shadow(0 0 35px rgba(0, 240, 255, 0.75)) 
-          drop-shadow(0 0 70px rgba(0, 240, 255, 0.45)) !important;
   opacity: 1.0 !important;
-  animation: none !important; /* Disable idle flicker when active */
+  animation: bat-eye-active-pulse 1.2s ease-in-out infinite !important;
 }
 
 
