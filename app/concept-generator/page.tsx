@@ -212,7 +212,7 @@ function exportBlackWhiteRedTraceForAI(
     });
     const ptsW = maxX - minX;
     const ptsH = maxY - minY;
-    const padding = 8; // 8px margin
+    const padding = 14; // 14px margin
     const targetW = Math.max(1, outSize.w - padding * 2);
     const targetH = Math.max(1, outSize.h - padding * 2);
 
