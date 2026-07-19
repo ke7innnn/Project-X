@@ -266,5 +266,40 @@
   animation: trace-plot-march 1.5s linear infinite;
 }
 
+/* Glowing eyes and responsive stage styles */
+.bat-stage {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 9;        /* must match your source video exactly */
+  overflow: hidden;
+}
+
+.bat-stage video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center 30%;  /* keeps the face in frame when cropped */
+}
+
+.eye {
+  position: absolute;
+  width: 3.2%;                  /* % of stage width, so it scales with the face */
+  aspect-ratio: 2.4 / 1;
+  border-radius: 999px;
+  background: #29A8FF;
+  filter: blur(0.5px);
+  box-shadow:
+    0 0 6px 2px #29A8FF,
+    0 0 18px 6px rgba(41,168,255,.75),
+    0 0 46px 16px rgba(41,168,255,.35),
+    0 0 90px 30px rgba(41,168,255,.15);
+  mix-blend-mode: screen;       /* this is the big one — see below */
+}
+
+.eye--l { left: 42.1%; top: 47.6%; }
+.eye--r { left: 51.4%; top: 47.6%; }
+
 
 
