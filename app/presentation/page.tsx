@@ -46,6 +46,33 @@ export default function PresentationPage() {
   const [smartActiveSlideIndex, setSmartActiveSlideIndex] = useState(0);
   const [isGeneratingSmartDeck, setIsGeneratingSmartDeck] = useState(false);
 
+  // Mock architectural sample asset kit for immediate trial preview
+  const DEMO_SAMPLE_ASSETS = {
+    topic: 'Modern Minimalist Pavilion Villa — Goa',
+    floorPlan: 'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=1600&q=80',
+    hero: 'https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?auto=format&fit=crop&w=1600&q=80',
+    angles: [
+      { label: '3/4 PERSPECTIVE VIEW', url: 'https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?auto=format&fit=crop&w=1600&q=80' },
+      { label: 'POOL & COURTYARD', url: 'https://images.unsplash.com/photo-1600566753190-17f0baa2a6c3?auto=format&fit=crop&w=1600&q=80' },
+      { label: 'DAYLIGHT PAVILION', url: 'https://images.unsplash.com/photo-1600210492486-724fe5c67fb0?auto=format&fit=crop&w=1600&q=80' }
+    ]
+  };
+
+  const handleLoadDemoAssets = () => {
+    addProjectAsset('floorPlans', { url: DEMO_SAMPLE_ASSETS.floorPlan, source: 'generated', isPrimary: true });
+    addProjectAsset('hero', DEMO_SAMPLE_ASSETS.hero);
+    DEMO_SAMPLE_ASSETS.angles.forEach(ang => {
+      addProjectAsset('angles', ang);
+    });
+
+    setSmartTopic(DEMO_SAMPLE_ASSETS.topic);
+    setSmartImages([
+      DEMO_SAMPLE_ASSETS.floorPlan,
+      DEMO_SAMPLE_ASSETS.hero,
+      ...DEMO_SAMPLE_ASSETS.angles.map(a => a.url)
+    ]);
+  };
+
 
   const handleGetAISuggestion = async () => {
     const activeSlide = customSlides[activeSlideIndex];
@@ -680,6 +707,14 @@ export default function PresentationPage() {
               {projectName || 'Presentation Generator'}
             </span>
           </div>
+          <button
+            onClick={handleLoadDemoAssets}
+            className="px-3 py-1.5 bg-cyan-950/50 border border-cyan-500/40 text-cyan-300 hover:bg-cyan-900/60 hover:text-white rounded text-[10px] font-mono font-bold uppercase tracking-wider transition-all cursor-pointer flex items-center gap-1.5 shadow-[0_0_10px_rgba(0,240,255,0.15)]"
+            title="Load sample architectural assets into project for trial preview"
+          >
+            <Sparkles size={12} className="text-cyan-400" />
+            Try Sample Deck
+          </button>
         </div>
 
         <div className="flex items-center gap-3">
@@ -822,16 +857,23 @@ export default function PresentationPage() {
                 <p className="text-xs text-zinc-400 leading-relaxed">
                   Auto Presentation mode requires at least <strong className="text-white">one Floor Plan</strong> and <strong className="text-white">one Hero Render</strong> inside the project vault to synthesize slides.
                 </p>
-                <div className="flex justify-center gap-3 font-mono text-[9px]">
+                <div className="flex flex-wrap justify-center gap-3 font-mono text-[9px]">
+                  <button 
+                    onClick={handleLoadDemoAssets} 
+                    className="px-4 py-2 bg-gradient-to-r from-cyan-600 to-blue-600 text-white border border-cyan-400/50 hover:from-cyan-500 hover:to-blue-500 rounded font-bold uppercase tracking-wider transition-all shadow-[0_0_15px_rgba(0,240,255,0.3)] cursor-pointer flex items-center gap-1.5"
+                  >
+                    <Sparkles size={12} />
+                    Load Sample Demo Deck
+                  </button>
                   <button 
                     onClick={() => router.push('/concept-generator')} 
-                    className="px-4 py-2 bg-blue-950/60 border border-blue-900 text-blue-400 hover:text-white rounded"
+                    className="px-4 py-2 bg-blue-950/60 border border-blue-900 text-blue-400 hover:text-white rounded cursor-pointer"
                   >
                     Generate Floor Plan
                   </button>
                   <button 
                     onClick={() => router.push('/idea-generation')} 
-                    className="px-4 py-2 bg-blue-950/60 border border-blue-900 text-blue-400 hover:text-white rounded"
+                    className="px-4 py-2 bg-blue-950/60 border border-blue-900 text-blue-400 hover:text-white rounded cursor-pointer"
                   >
                     Generate Hero Render
                   </button>
@@ -1035,7 +1077,16 @@ export default function PresentationPage() {
                 </div>
 
                 <div className="flex flex-col gap-2">
-                  <label className="text-[9px] text-cyan-500/60 uppercase font-mono">Deck Topic / Focus</label>
+                  <div className="flex justify-between items-center">
+                    <label className="text-[9px] text-cyan-500/60 uppercase font-mono">Deck Topic / Focus</label>
+                    <button
+                      type="button"
+                      onClick={handleLoadDemoAssets}
+                      className="text-[9px] text-cyan-400 hover:text-cyan-200 font-mono underline uppercase tracking-wider cursor-pointer flex items-center gap-1"
+                    >
+                      <Sparkles size={10} /> Load Sample Images & Topic
+                    </button>
+                  </div>
                   <input
                     type="text"
                     value={smartTopic}
