@@ -22,12 +22,12 @@ export async function POST(req: Request) {
     const cleanApiKey = activeApiKey.replace(/\s+/g, '').replace(/[^a-zA-Z0-9:-]/g, '');
     fal.config({ credentials: cleanApiKey });
 
-    console.log('[IdeaGenerator] Calling Fal AI model openai/gpt-image-2 with quality hd...');
+    console.log('[IdeaGenerator] Calling Fal AI model openai/gpt-image-2...');
     
     const result: any = await fal.subscribe('openai/gpt-image-2', {
       input: {
         prompt: prompt,
-        quality: 'hd'
+        quality: 'high'
       }
     });
 
