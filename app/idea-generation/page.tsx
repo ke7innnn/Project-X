@@ -350,25 +350,12 @@ Style: Basic CAD line drawing. The absolute only metric of success is fitting ex
       }
     } catch (err: any) {
       clearInterval(logInterval);
+      const errMsg = err.message || 'API request failed';
       setLogs((prev) => [
         ...prev, 
-        `[ERR] ${err.message || 'API request failed'}.`,
-        `[SYS] AUTOMATIC RESILIENCE ACTIVATED: REVERTING TO LOCAL HIGH-RISE SIMULATION SCHEMA...`
+        `[ERR] ${errMsg}.`,
       ]);
-      
-      const fallbackUrl = '/x-shape-floorplan.jpg';
-      setResultImage(fallbackUrl);
-      setResultTitle('CURVED X SHAPE HIGH RISE TYPICAL PLAN (SIMULATED)');
-      setResultDesc(
-        `Resilience Fallback: Monolithic X-Shape tower floor plan featuring 16 balanced units per floor (4x 2BHK, 8x 3BHK, 4x 3BHK Premium).`
-      );
-
-      // Save to variants history
-      setVariantsHistory(prev => {
-        const list = [fallbackUrl, ...prev.filter(url => url !== fallbackUrl)];
-        return list.slice(0, 5);
-      });
-
+      setValidationError(`API Generation Error: ${errMsg}`);
       setIsGenerating(false);
     }
   };
