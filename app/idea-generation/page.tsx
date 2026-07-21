@@ -271,7 +271,29 @@ export default function IdeaGenerationPage() {
         setIsGenerating(false);
       } else {
         // Call Fal AI route
-        const promptText = `High-rise tower typical floor plan drawing, architectural design plan layout blueprint, ${styleName} footprint, central core with elevator lobby and staircases, apartments divided in the wings, CAD blueprint aesthetic, white paper background, professional clean annotations. Custom guidelines: ${customPrompt}`;
+        const totalUnits = typeAUnits + typeBUnits + typeCUnits;
+        const [coreW, coreL] = coreSize.split('x').map(s => s.trim());
+        const vaastuStr = vastuCompliant ? 'Position the kitchen in the south-east zone and orient the main entrance per Vaastu Shastra principles. ' : '';
+        const ventStr = crossVentilation ? 'Every bedroom, living room, and kitchen must open directly onto an external wall or balcony for natural cross-ventilation and daylight — no internal, windowless rooms. ' : '';
+        
+        const promptText = `Top-down 2D architectural floor plan, orthographic CAD drawing, of a ${styleName} high-rise residential tower with an overall footprint of ${overallWidth}m x ${overallLength}m and a floor-to-floor height of ${floorHeight}m. CRITICAL OBJECTIVE: You must fit exactly ${totalUnits} distinct flats into this footprint. This is a high-density utility drawing.
+
+CORE, LIFTS, STAIRS, ENTRANCE — draw this first and lock it before placing units:
+A rectangular central core containing ${passengerLifts} passenger lifts in one row, 2 additional passenger lifts and ${fireLifts} fire lift in a second row, and ${staircases} enclosed staircases (one on each side of the core) each with its own fire-rated door. Adjacent to the lifts: one electrical room and one service shaft. Wrap a single continuous corridor, ${corridorWidth}m wide, around the outside of this core, forming one uninterrupted loop that every unit's front door opens onto. The corridor must visibly connect the lift lobby to the main building entrance at the base of the ${styleName} footprint — draw the entrance as a clear break in the outer wall with a path leading from the lift lobby straight out through it. Do not draw dead-end corridors, and do not draw any unit that does not have direct corridor access to its front door.
+
+UNITS:
+HIGH DENSITY COMPACT LAYOUT: Exactly ${totalUnits} distinct micro-apartment residential units, packed tightly and symmetrically around the core following the ${styleName} footprint: ${typeAUnits} × 2BHK, ${typeBUnits} × 3BHK, ${typeCUnits} × 3BHK Premium. Each unit must be drawn very small and tightly packed to ensure all ${totalUnits} units fit perfectly on this single floor. Every unit's front door opens directly onto the loop corridor — no unit is accessed through another unit.
+
+ROOM LAYOUT AND VENTILATION — apply this inside every single unit without exception:
+Each unit is divided into fully enclosed rooms by internal partition walls of the same line weight as external walls — never open-plan. From the entrance foyer of each unit, a short internal hallway or the living room itself provides direct access to every other room in that unit (bedrooms, kitchen, toilets) — no bedroom should be reachable only by passing through another bedroom. The living room, dining area, kitchen, and every bedroom must each have their own window or balcony directly on an external wall — only toilets and the entrance foyer may lack direct external access. CRITICAL: Do not draw any furniture silhouettes. Leave all rooms completely empty. The sole focus is maximizing the number of flats to hit exactly ${totalUnits} units. ${ventStr}${vaastuStr}${customPrompt ? `Custom notes: ${customPrompt}. ` : ''}
+
+COLOR AND RENDERING STYLE:
+Use a single warm tan/beige fill for all residential room interiors — do not vary the shade or hue between 2BHK, 3BHK, and Premium units; unit type should be distinguishable only by size and layout, not by color. Use light blue fill only for toilets/bathrooms, and light green fill only for balconies. Render the core and corridor in flat light grey. Walls are bold black lines; structural columns are solid black squares. This is a strictly utilitarian high-density diagram.
+
+EXCLUSIONS:
+Do not include any legend, key, title block, north arrow, scale bar, dimension callouts, area statement, unit-mix table, key-plan inset, or tower elevation image. Do not include any text, numbers, or labels anywhere in the image. Do not draw open-plan or wall-less rooms. Do not draw dead-end or disconnected corridors. Do not draw any furniture (no beds, no sofas, no tables). Output must be ONLY the clean floor plan drawing on a plain white background, tightly cropped to the building outline.
+
+Style: Basic CAD line drawing. The absolute only metric of success is fitting exactly ${totalUnits} fully enclosed flats into the building.`;
 
         const apiPromise = fetch('/api/generate-idea-image', {
           method: 'POST',
