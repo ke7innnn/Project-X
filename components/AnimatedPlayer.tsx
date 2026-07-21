@@ -45,20 +45,35 @@ export default function AnimatedPlayer({ storyboard, images, onClose, isShared =
   const scenes = storyboard.scenes || [];
   const currentScene = scenes[currentSceneIndex];
 
-  // Resolve active image url for current scene
-  const getSceneImageUrl = (scene: Scene) => {
-    if (!scene || !scene.imageIds || scene.imageIds.length === 0) return null;
-    const targetId = scene.imageIds[0];
-    // Match either complete URL or id mapping
-    const match = images.find(img => img.id === targetId || img.url === targetId);
-    return match ? match.url : null;
+  // Resolve active image url for current scene (with ultra-resilient fallbacks)
+  const getSceneImageUrl = (scene: Scene, index: number) => {
+    if (!scene) return null;
+    
+    // 1. Check if imageIds contains a direct URL or matching ID
+    if (scene.imageIds && scene.imageIds.length > 0) {
+      const targetId = scene.imageIds[0];
+      if (typeof targetId === 'string' && (targetId.startsWith('http') || targetId.startsWith('data:') || targetId.startsWith('blob:') || targetId.startsWith('/'))) {
+        return targetId;
+      }
+      const match = images.find(img => img.id === targetId || img.url === targetId);
+      if (match?.url) return match.url;
+    }
+
+    // 2. Fallback to image index in provided images array
+    if (images && images.length > 0) {
+      const fallbackImg = images[index % images.length];
+      if (fallbackImg?.url) return fallbackImg.url;
+    }
+
+    // 3. Guaranteed reliable architectural photo fallback (never black)
+    return 'https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?auto=format&fit=crop&w=1600&q=80';
   };
 
   // Preload all slides images to guarantee smooth transitions
   useEffect(() => {
     let loadedCount = 0;
     const urlsToLoad = scenes
-      .map(s => getSceneImageUrl(s))
+      .map((s, i) => getSceneImageUrl(s, i))
       .filter((url): url is string => !!url);
 
     if (urlsToLoad.length === 0) {
@@ -290,7 +305,7 @@ export default function AnimatedPlayer({ storyboard, images, onClose, isShared =
     }
   };
 
-  const imageUrl = getSceneImageUrl(currentScene);
+  const imageUrl = getSceneImageUrl(currentScene, currentSceneIndex);
 
   return (
     <div className="fixed inset-0 bg-[#060608] z-50 flex flex-col justify-between overflow-hidden select-none">

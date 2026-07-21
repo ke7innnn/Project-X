@@ -678,12 +678,16 @@ export default function PresentationPage() {
 
   const activeSlide = customSlides[activeSlideIndex];
 
-  // Helper list of all available images (vault + uploads)
+  // Helper list of all available images (vault + uploads + smart + demo)
   const allImages = [
     ...(primaryFp ? [{ id: primaryFp.id, type: 'floor_plan', label: 'Primary Floor Plan', url: primaryFp.url }] : []),
     ...(heroRender ? [{ id: 'hero', type: 'hero_render', label: 'Locked Hero Render', url: heroRender }] : []),
     ...angles.map(a => ({ id: a.id, type: 'angle', label: `Angle: ${a.label}`, url: a.url })),
-    ...uploads.map(u => ({ id: u.id, type: 'upload', label: 'User Upload', url: u.url }))
+    ...uploads.map(u => ({ id: u.id, type: 'upload', label: 'User Upload', url: u.url })),
+    ...smartImages.map((url, i) => ({ id: `smart_${i}`, type: i === 0 ? 'hero' : 'angle', label: `Smart Image ${i+1}`, url })),
+    { id: 'demo_fp', type: 'floor_plan', label: 'Demo Floor Plan', url: DEMO_SAMPLE_ASSETS.floorPlan },
+    { id: 'demo_hero', type: 'hero_render', label: 'Demo Hero Render', url: DEMO_SAMPLE_ASSETS.hero },
+    ...DEMO_SAMPLE_ASSETS.angles.map((ang, i) => ({ id: `demo_ang_${i}`, type: 'angle', label: ang.label, url: ang.url }))
   ];
 
   return (
@@ -709,11 +713,11 @@ export default function PresentationPage() {
           </div>
           <button
             onClick={handleLoadDemoAssets}
-            className="px-3 py-1.5 bg-cyan-950/50 border border-cyan-500/40 text-cyan-300 hover:bg-cyan-900/60 hover:text-white rounded text-[10px] font-mono font-bold uppercase tracking-wider transition-all cursor-pointer flex items-center gap-1.5 shadow-[0_0_10px_rgba(0,240,255,0.15)]"
-            title="Load sample architectural assets into project for trial preview"
+            className="px-3.5 py-1.5 bg-gradient-to-r from-cyan-950/80 to-blue-950/80 border border-cyan-400/60 text-cyan-300 hover:text-white rounded text-[10px] font-mono font-bold uppercase tracking-wider transition-all cursor-pointer flex items-center gap-1.5 shadow-[0_0_15px_rgba(0,240,255,0.25)] animate-pulse"
+            title="Preview two examples of how the PPT looks (Minimal Editorial & Animated Cinematic)"
           >
             <Sparkles size={12} className="text-cyan-400" />
-            Try Sample Deck
+            ✨ DEMO PPT EXAMPLES
           </button>
         </div>
 
@@ -860,10 +864,10 @@ export default function PresentationPage() {
                 <div className="flex flex-wrap justify-center gap-3 font-mono text-[9px]">
                   <button 
                     onClick={handleLoadDemoAssets} 
-                    className="px-4 py-2 bg-gradient-to-r from-cyan-600 to-blue-600 text-white border border-cyan-400/50 hover:from-cyan-500 hover:to-blue-500 rounded font-bold uppercase tracking-wider transition-all shadow-[0_0_15px_rgba(0,240,255,0.3)] cursor-pointer flex items-center gap-1.5"
+                    className="px-5 py-2.5 bg-gradient-to-r from-cyan-600 to-blue-600 text-white border border-cyan-400/50 hover:from-cyan-500 hover:to-blue-500 rounded font-bold uppercase tracking-wider transition-all shadow-[0_0_20px_rgba(0,240,255,0.35)] cursor-pointer flex items-center gap-2 text-xs"
                   >
-                    <Sparkles size={12} />
-                    Load Sample Demo Deck
+                    <Sparkles size={14} />
+                    ✨ DEMO PPT EXAMPLES (PREVIEW BOTH)
                   </button>
                   <button 
                     onClick={() => router.push('/concept-generator')} 
