@@ -10,13 +10,13 @@
  */
 export const FLAGS = {
   /** Animated / cinematic deck template (PLAY / SHARE LINK controls) */
-  ANIMATED_DECK: false,
+  ANIMATED_DECK: true,
 
   /** AI Smart Deck mode (user drops their own images, no vault required) */
-  AI_SMART_DECK: false,
+  AI_SMART_DECK: true,
 
   /** Custom Deck mode (manual slide builder) */
-  CUSTOM_DECK: false,
+  CUSTOM_DECK: true,
 
   /**
    * DXF export — hidden until output has been verified to open at correct
