@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { 
   ArrowLeft, 
+  ArrowRight,
   Sparkles, 
   Settings, 
   Download, 
@@ -18,7 +19,8 @@ import {
   Activity,
   Layers,
   ShieldCheck,
-  Wind
+  Wind,
+  Camera
 } from 'lucide-react';
 import Image from 'next/image';
 
@@ -528,6 +530,32 @@ export default function IdeaGenerationPage() {
                       <Download className="w-3.5 h-3.5" />
                     </a>
                   </div>
+                  {/* Entry point to Multi-Angle View Synthesis */}
+                  {!isGenerating && (
+                    <div className="absolute bottom-3 left-3 right-3 pointer-events-auto">
+                      <button
+                        onClick={() => {
+                          const styleName = footprintShape === 'custom'
+                            ? customFootprintText.trim().toUpperCase()
+                            : (FOOTPRINT_PRESETS.find(f => f.id === footprintShape)?.name || 'X-SHAPE');
+                          const params = new URLSearchParams({
+                            floorPlanImageUrl: resultImage || '',
+                            footprintShape: styleName,
+                            overallWidth,
+                            overallLength,
+                            storyCount,
+                            designNotes: customPrompt,
+                          });
+                          router.push(`/idea-generation/view-synthesis?${params.toString()}`);
+                        }}
+                        className="w-full py-2.5 rounded font-bold text-[11px] tracking-wider transition-all flex items-center justify-center gap-2 cursor-pointer bg-gradient-to-r from-cyan-500/25 to-purple-500/25 hover:from-cyan-500/40 hover:to-purple-500/40 border border-cyan-400/40 hover:border-cyan-300 text-white shadow-[0_0_20px_rgba(0,240,255,0.15)] backdrop-blur-sm"
+                      >
+                        <Camera className="w-3.5 h-3.5" />
+                        <span>GENERATE 3D VIEWS</span>
+                        <ArrowRight className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  )}
                 </div>
               ) : !isGenerating ? (
                 <div className="flex flex-col items-center justify-center text-center p-6 max-w-xs text-cyan-500/60">
