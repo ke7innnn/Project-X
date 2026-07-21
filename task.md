@@ -1,0 +1,6 @@
+- `[x]` Restyle slide previews inside presentation page using custom display serifs and asymmetrical layouts.
+- `[x]` Implement premium editorial color systems (Cream/Dark background hex values, unified accents, thin hairline borders).
+- `[x]` Include slide furniture: kicker/eyebrow labels, thin separating lines, and tabular footer page numbers.
+- `[x]` Configure full-bleed image cover layouts with transparent-to-solid linear legibility scrim overlays.
+- `[x]` Synchronize exported PowerPoint (PPTX) slide generators with identical layout proportions, colors, and margins.
+- `[x]` Verify that compilation and type checking pass cleanly.

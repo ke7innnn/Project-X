@@ -3,11 +3,10 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useArchitectStore } from '@/store/useArchitectStore';
 import { useRouter } from 'next/navigation';
-import { Mic, Search, Loader2, Volume2, VolumeX } from 'lucide-react';
+import { Mic, Search, Loader2, Volume2, VolumeX, WifiOff, HandMetal } from 'lucide-react';
 import { motion } from 'framer-motion';
 
-const API_URL = "https://api.groq.com/openai/v1/chat/completions";
-const GROQ_API_KEY = process.env.NEXT_PUBLIC_GROQ_API_KEY || "";
+// ⚠️ No client-side API keys — all API calls go through server routes.
 
 // WMO weather code to condition string and icon
 function getWeatherCondition(code: number): { text: string; icon: string } {
@@ -152,7 +151,9 @@ export default function StartScreen() {
     { id: '3d-render', label: '3D RENDER' },
     { id: 'enhancement', label: 'ENHANCEMENT', badge: 'NEW' },
     { id: 'png-to-dxf', label: 'PNG TO DXF' },
-    { id: 'flythrough', label: 'FLYTHROUGH' }
+    { id: 'flythrough', label: 'FLYTHROUGH' },
+    { id: 'vault', label: 'PROJECT VAULT', badge: 'NEW' },
+    { id: 'presentation', label: 'DECK GENERATOR', badge: 'NEW' }
   ];
 
   const getInitialStage = (phase: string) => {
@@ -172,7 +173,20 @@ export default function StartScreen() {
   const [responseHtml, setResponseHtml] = useState<string | null>(null);
   const [sessionCount, setSessionCount] = useState<string>('');
   const [isSoundMuted, setIsSoundMuted] = useState(true);
+  const isSoundMutedRef = useRef(true); // Mirror of isSoundMuted for use inside async closures
   const [showStatusBlock, setShowStatusBlock] = useState(false);
+  const [micDenied, setMicDenied] = useState(false); // mic permission denied
+  const [isOffline, setIsOffline] = useState(false); // network offline
+  const [isTabVisible, setIsTabVisible] = useState(true); // for animation pausing
+  const [isClapEnabled, setIsClapEnabled] = useState(false); // clap-to-activate
+  const [ttsUsingFallback, setTtsUsingFallback] = useState(false); // browser TTS fallback active
+  const [marketMeta, setMarketMeta] = useState<{
+    fetchedAt: string | null;
+    marketOpen: boolean;
+    marketNote: string;
+    error?: string;
+  }>({ fetchedAt: null, marketOpen: false, marketNote: '' });
+  const [weatherFetchedAt, setWeatherFetchedAt] = useState<Date | null>(null);
   const isFirstMountRef = useRef(true);
   const chatHistoryRef = useRef<{ role: string, content: string }[]>([]);
   const [marketData, setMarketData] = useState<Record<string, number> | null>(null);
@@ -222,9 +236,21 @@ export default function StartScreen() {
   const toggleSoundMute = () => {
     const newMuted = !isSoundMuted;
     setIsSoundMuted(newMuted);
+    isSoundMutedRef.current = newMuted; // Keep ref in sync
     localStorage.setItem('home_sound_muted', newMuted ? 'true' : 'false');
     if (!newMuted) {
       playSonarPing();
+    } else {
+      // Instantly silence any playing audio
+      if (currentAudioRef.current) {
+        try { currentAudioRef.current.pause(); } catch (e) {}
+        currentAudioRef.current = null;
+      }
+      if (window.speechSynthesis) {
+        try { window.speechSynthesis.cancel(); } catch (e) {}
+      }
+      audioQueueRef.current = [];
+      isPlayingAudioRef.current = false;
     }
   };
 
@@ -232,6 +258,11 @@ export default function StartScreen() {
     const mutedPref = localStorage.getItem('home_sound_muted');
     const isMuted = mutedPref === null ? true : mutedPref === 'true';
     setIsSoundMuted(isMuted);
+    isSoundMutedRef.current = isMuted; // Sync ref on mount
+
+    // Restore clap preference
+    const clapPref = localStorage.getItem('batman_clap_enabled');
+    if (clapPref === 'true') setIsClapEnabled(true);
 
     const countStr = localStorage.getItem('batman_session_count');
     const currentCount = countStr ? parseInt(countStr, 10) + 1 : 1;
@@ -309,16 +340,52 @@ export default function StartScreen() {
     };
   }, []);
 
+  // ── Offline & Visibility detection ─────────────────────────────────────────────────────
+  useEffect(() => {
+    const goOffline = () => setIsOffline(true);
+    const goOnline = () => setIsOffline(false);
+    setIsOffline(!navigator.onLine);
+    window.addEventListener('offline', goOffline);
+    window.addEventListener('online', goOnline);
+    
+    const handleVisibility = () => {
+      setIsTabVisible(!document.hidden);
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
+    
+    return () => {
+      window.removeEventListener('offline', goOffline);
+      window.removeEventListener('online', goOnline);
+      document.removeEventListener('visibilitychange', handleVisibility);
+    };
+  }, []);
+
   useEffect(() => {
     const fetchMarket = async () => {
       try {
         const res = await fetch('/api/stocks');
-        if (res.ok) {
-          const data = await res.json();
-          setMarketData(data);
-          marketDataRef.current = data;
+        const data = await res.json();
+        if (res.ok && data.prices) {
+          setMarketData(data.prices);
+          marketDataRef.current = data.prices;
+          setMarketMeta({
+            fetchedAt: data.fetchedAt,
+            marketOpen: data.marketOpen,
+            marketNote: data.marketNote,
+            error: undefined,
+          });
+        } else {
+          // API returned error shape
+          setMarketMeta(prev => ({
+            ...prev,
+            marketOpen: data.marketOpen ?? false,
+            marketNote: data.marketNote ?? '',
+            error: data.error || 'Market data unavailable.',
+          }));
         }
-      } catch (e) { }
+      } catch (e) {
+        setMarketMeta(prev => ({ ...prev, error: 'Market data unavailable.' }));
+      }
     };
     fetchMarket();
     const interval = setInterval(fetchMarket, 60000); // Refresh every minute
@@ -399,7 +466,7 @@ export default function StartScreen() {
           });
         }
 
-        setWeatherData({
+        const finalWeatherData = {
           location: locationName,
           temp: Math.round(current.temperature_2m),
           feelsLike: Math.round(current.apparent_temperature),
@@ -412,11 +479,31 @@ export default function StartScreen() {
           sunset: formatTimeStr(daily.sunset[0]),
           moonPhase: getMoonPhase(new Date()),
           forecast: forecastList
-        });
+        };
+
+        setWeatherData(finalWeatherData);
+        setWeatherFetchedAt(new Date());
+        localStorage.setItem('batman_weather_cache', JSON.stringify({
+          data: finalWeatherData,
+          timestamp: new Date().getTime()
+        }));
         setWeatherLoading(false);
       } catch (err: any) {
         if (isMounted) {
-          setWeatherError(err.message || "Weather Service Offline");
+          // Fall back to cache on error
+          const cachedRaw = localStorage.getItem('batman_weather_cache');
+          if (cachedRaw) {
+            try {
+              const cached = JSON.parse(cachedRaw);
+              setWeatherData(cached.data);
+              setWeatherFetchedAt(new Date(cached.timestamp));
+              setWeatherError("Using cached data");
+            } catch (e) {
+              setWeatherError(err.message || "Weather Service Offline");
+            }
+          } else {
+            setWeatherError(err.message || "Weather Service Offline");
+          }
           setWeatherLoading(false);
         }
       }
@@ -470,7 +557,7 @@ export default function StartScreen() {
   const currentAudioRef = useRef<HTMLAudioElement | null>(null);
   const shouldListenRef = useRef(false); // Start ASLEEP
   const statusStateRef = useRef<'idle' | 'listening' | 'thinking' | 'speaking'>('idle');
-  const audioQueueRef = useRef<HTMLAudioElement[]>([]);
+  const audioQueueRef = useRef<{audio: HTMLAudioElement, text: string}[]>([]);
   const isPlayingAudioRef = useRef(false);
   const audioSessionIdRef = useRef(0); // Tracks current queue session to prevent zombies
   const sleepTimerRef = useRef<NodeJS.Timeout | null>(null);
@@ -495,6 +582,80 @@ export default function StartScreen() {
   useEffect(() => {
     statusStateRef.current = statusState;
   }, [statusState]);
+
+  // ── Clap Detection ────────────────────────────────────────────────────────
+  useEffect(() => {
+    if (!isClapEnabled) return;
+    let audioContext: AudioContext;
+    let analyser: AnalyserNode;
+    let microphone: MediaStreamAudioSourceNode;
+    let dataArray: Uint8Array;
+    let animationFrameId: number;
+    let lastClapTime = 0;
+    
+    // Threshold tuning: requires a sharp volume spike.
+    const CLAP_THRESHOLD = 200; // out of 255
+    const DEBOUNCE_TIME = 800;  // ms between claps
+    
+    const initClapDetection = async () => {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+        analyser = audioContext.createAnalyser();
+        analyser.fftSize = 512;
+        analyser.smoothingTimeConstant = 0.2; // low smoothing for sharp transients
+        
+        microphone = audioContext.createMediaStreamSource(stream);
+        microphone.connect(analyser);
+        
+        dataArray = new Uint8Array(analyser.frequencyBinCount);
+        
+        const detectClap = () => {
+          analyser.getByteTimeDomainData(dataArray as any);
+          
+          let maxVal = 0;
+          for (let i = 0; i < dataArray.length; i++) {
+            const val = Math.abs(dataArray[i] - 128);
+            if (val > maxVal) maxVal = val;
+          }
+          
+          const now = Date.now();
+          // Transform peak into a 0-255 amplitude roughly
+          const amplitude = maxVal * 2;
+          
+          if (amplitude > CLAP_THRESHOLD && (now - lastClapTime > DEBOUNCE_TIME)) {
+            lastClapTime = now;
+            console.log('[ClapDetector] Clap detected! Amplitude:', amplitude);
+            
+            // Only trigger if system is idle (not currently listening/speaking)
+            if (statusStateRef.current === 'idle') {
+               // Simulate handleMicClick using the toggleSystem logic
+               shouldListenRef.current = true;
+               resetSleepTimer();
+               startListening();
+               setTranscript("Voice link active via CLAP. Start speaking...");
+            } else if (statusStateRef.current === 'listening') {
+               // A clap while listening could be used to STOP listening, or we just ignore.
+               // Let's just ignore so it doesn't accidentally cancel a command in a noisy room.
+            }
+          }
+          
+          animationFrameId = requestAnimationFrame(detectClap);
+        };
+        
+        detectClap();
+      } catch (err) {
+        console.warn('[ClapDetector] Failed to access mic for clap detection:', err);
+      }
+    };
+    
+    initClapDetection();
+    
+    return () => {
+      if (animationFrameId) cancelAnimationFrame(animationFrameId);
+      if (audioContext) audioContext.close();
+    };
+  }, [isClapEnabled]); // re-run if toggled
 
   useEffect(() => {
     // Initialize speech recognition
@@ -553,6 +714,16 @@ export default function StartScreen() {
       if (event.error !== 'no-speech') {
         console.warn('[Batman STT] error:', event.error);
       }
+      
+      if (event.error === 'not-allowed') {
+        setMicDenied(true);
+        setStatusState('idle');
+        setTranscript('Mic access denied. Please enable microphone permissions in your browser.');
+        isRunning = false;
+        shouldListenRef.current = false;
+        return;
+      }
+
       // aborted = we stopped it intentionally, don't restart
       if (event.error === 'aborted') {
         isRunning = false;
@@ -712,10 +883,15 @@ export default function StartScreen() {
       if (isBriefRequest) {
         try {
           const freshStocksRes = await fetch(`/api/stocks?_t=${Date.now()}`);
-          if (freshStocksRes.ok) {
-            const freshStocks = await freshStocksRes.json();
-            currentMarketData = freshStocks;
-            marketDataRef.current = freshStocks;
+          const data = await freshStocksRes.json();
+          if (freshStocksRes.ok && data.prices) {
+            currentMarketData = data.prices;
+            marketDataRef.current = data.prices;
+            setMarketMeta({
+              fetchedAt: data.fetchedAt,
+              marketOpen: data.marketOpen,
+              marketNote: data.marketNote,
+            });
           }
         } catch (e) {
           // Fall back to cached
@@ -738,9 +914,19 @@ export default function StartScreen() {
           { name: "AMD", sym: "AMD" },
           { name: "Intel", sym: "INTC" }
         ];
-        marketStr = stocksList
+        
+        let metaNotice = "";
+        if (!marketMeta.marketOpen) {
+           metaNotice = `[MARKET CLOSED - ${marketMeta.marketNote}] `;
+        }
+        if (marketMeta.fetchedAt && (Date.now() - new Date(marketMeta.fetchedAt).getTime() > 300000)) {
+           metaNotice += `[STALE DATA - Fetched at: ${new Date(marketMeta.fetchedAt).toLocaleTimeString()}] `;
+        }
+        
+        marketStr = (metaNotice ? `NOTE: ${metaNotice}\n` : `NOTE: [LIVE DATA - Fetched at: ${new Date(marketMeta.fetchedAt || Date.now()).toLocaleTimeString()}]\n`) + 
+          stocksList
           .map(s => {
-            const val = currentMarketData[s.sym];
+            const val = currentMarketData![s.sym];
             if (val === undefined) return `- ${s.name}: N/A`;
             // If it's an Indian stock, show ₹, else show $
             const currency = s.sym.endsWith('.NS') ? '₹' : '$';
@@ -952,7 +1138,7 @@ NOTE: Each time Master Umesh asks for the brief, these stories are shuffled rand
     isPlayingAudioRef.current = true;
     const currentSessionId = audioSessionIdRef.current;
 
-    const audio = audioQueueRef.current.shift()!;
+    const { audio, text } = audioQueueRef.current.shift()!;
 
     setStatusState('speaking');
     isAgentSpeakingRef.current = true;
@@ -980,23 +1166,37 @@ NOTE: Each time Master Umesh asks for the brief, these stories are shuffled rand
           resolve();
         };
 
-        // Duck background music while Batman speaks
-        if (bgMusicRef.current) bgMusicRef.current.volume = 0.01;
-        audio.onended = cleanup;
-        audio.onerror = () => { console.warn('[Batman Audio] onerror fired'); cleanup(); };
+          const fallbackBrowserTTS = () => {
+            console.warn('[Batman Audio] Falling back to browser TTS for:', text);
+            setTtsUsingFallback(true);
+            if (!window.speechSynthesis) return cleanup();
+            
+            const utterance = new SpeechSynthesisUtterance(text);
+            utterance.onend = cleanup;
+            utterance.onerror = cleanup;
+            window.speechSynthesis.speak(utterance);
+          };
 
-        // DO NOT call cleanup() on onstalled! 
-        // Stalled just means buffering. If we cleanup() here, it advances the queue,
-        // but this audio will suddenly resume playing when it finishes buffering, causing overlapping voices!
-        audio.onstalled = () => { console.warn('[Batman Audio] onstalled - buffering...'); };
+          // Duck background music while Batman speaks
+          if (bgMusicRef.current) bgMusicRef.current.volume = 0.01;
+          audio.onended = cleanup;
+          audio.onerror = () => { 
+            console.warn('[Batman Audio] onerror fired'); 
+            fallbackBrowserTTS(); 
+          };
 
-        try {
-          const playPromise = audio.play();
-          if (playPromise !== undefined) {
-            playPromise.catch((err) => {
-              console.warn('[Batman Audio] play() rejected:', err.name, err.message);
-              cleanup();
-            });
+          // DO NOT call cleanup() on onstalled! 
+          // Stalled just means buffering. If we cleanup() here, it advances the queue,
+          // but this audio will suddenly resume playing when it finishes buffering, causing overlapping voices!
+          audio.onstalled = () => { console.warn('[Batman Audio] onstalled - buffering...'); };
+
+          try {
+            const playPromise = audio.play();
+            if (playPromise !== undefined) {
+              playPromise.catch((err) => {
+                console.warn('[Batman Audio] play() rejected:', err.name, err.message);
+                fallbackBrowserTTS();
+              });
           }
         } catch (syncErr) {
           console.warn('[Batman Audio] play() threw synchronously:', syncErr);
@@ -1036,6 +1236,11 @@ NOTE: Each time Master Umesh asks for the brief, these stories are shuffled rand
   const speakStreamedSentence = (text: string, onComplete?: () => void) => {
     if (!text) return;
 
+    if (isSoundMutedRef.current) {
+      if (onComplete) onComplete();
+      return;
+    }
+
     // Create the Audio object immediately! The browser will start fetching the stream in the background
     // right now, so by the time the current audio finishes, this one is already fully buffered!
     const audioUrl = `/api/openai-tts?text=${encodeURIComponent(text)}`;
@@ -1043,7 +1248,7 @@ NOTE: Each time Master Umesh asks for the brief, these stories are shuffled rand
     audio.preload = "auto";
     audio.volume = 1.0; // Batman's voice at full volume
 
-    audioQueueRef.current.push(audio);
+    audioQueueRef.current.push({ audio, text });
 
     processAudioQueue().then(() => {
       if (onComplete) onComplete();
@@ -1278,11 +1483,37 @@ NOTE: Each time Master Umesh asks for the brief, these stories are shuffled rand
     } else if (stageId === 'flythrough') {
       setStorePhase('edit');
       speak("Flightpath parameters loaded, Master Umesh.");
+    } else if (stageId === 'vault') {
+      speak("Accessing project vault, Master Umesh.", () => {
+        router.push('/vault');
+      });
+    } else if (stageId === 'presentation') {
+      speak("Opening deck generator, Master Umesh.", () => {
+        router.push('/presentation');
+      });
     }
   };
 
   return (
     <div className="fixed inset-0 w-full h-full bg-[#0a0a0f] flex flex-col items-center justify-center font-mono overflow-hidden z-50 text-batman-white">
+      
+      {/* --- HARDENING ALERTS --- */}
+      {isOffline && (
+        <div className="fixed bottom-0 left-0 right-0 z-[100] bg-amber-500 text-black font-bold text-center py-1 text-xs uppercase tracking-widest pointer-events-none shadow-[0_0_15px_rgba(245,158,11,0.5)]">
+          ⚡ OFFLINE — showing last known data
+        </div>
+      )}
+      {micDenied && (
+        <div className="fixed top-0 left-0 right-0 z-[100] bg-red-600 text-white font-bold text-center py-1.5 text-xs uppercase tracking-widest shadow-[0_0_15px_rgba(220,38,38,0.5)] pointer-events-auto cursor-pointer"
+             onClick={() => { setMicDenied(false); alert("Please allow microphone access in your browser settings (usually the lock icon next to the URL), then reload."); }}>
+          ⚠️ MIC ACCESS DENIED — CLICK TO ENABLE
+        </div>
+      )}
+      {ttsUsingFallback && (
+        <div className="fixed top-[150px] left-1/2 -translate-x-1/2 z-20 flex items-center bg-amber-500/20 text-amber-400 border border-amber-500/50 rounded px-2 py-1 text-[9px] pointer-events-none">
+          BROWSER TTS ACTIVE
+        </div>
+      )}
 
       <div className="vignette-overlay pointer-events-none absolute inset-0 z-0" />
       <div className="tech-grid pointer-events-none absolute inset-0 z-0 opacity-20" />
@@ -1341,8 +1572,8 @@ NOTE: Each time Master Umesh asks for the brief, these stories are shuffled rand
       {/* Central Bat-Signal Ring */}
       <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-0 w-[420px] h-[420px] flex items-center justify-center pointer-events-none select-none opacity-40">
         <svg className="w-full h-full absolute" viewBox="0 0 400 400">
-          <circle cx="200" cy="200" r="170" fill="none" stroke="rgba(0, 240, 255, 0.25)" strokeWidth="3.5" strokeDasharray="3, 10" className="animate-[spin_20s_linear_infinite]" style={{ transformOrigin: '200px 200px' }} />
-          <circle cx="200" cy="200" r="150" fill="none" stroke="rgba(0, 240, 255, 0.15)" strokeWidth="2" strokeDasharray="6, 16" className="animate-[spin_15s_linear_infinite_reverse]" style={{ transformOrigin: '200px 200px' }} />
+          <circle cx="200" cy="200" r="170" fill="none" stroke="rgba(0, 240, 255, 0.25)" strokeWidth="3.5" strokeDasharray="3, 10" className="animate-[spin_20s_linear_infinite]" style={{ transformOrigin: '200px 200px', animationPlayState: isTabVisible ? 'running' : 'paused' }} />
+          <circle cx="200" cy="200" r="150" fill="none" stroke="rgba(0, 240, 255, 0.15)" strokeWidth="2" strokeDasharray="6, 16" className="animate-[spin_15s_linear_infinite_reverse]" style={{ transformOrigin: '200px 200px', animationPlayState: isTabVisible ? 'running' : 'paused' }} />
           <circle cx="200" cy="200" r="135" fill="none" stroke="rgba(0, 240, 255, 0.08)" strokeWidth="1" />
         </svg>
       </div>
@@ -1354,6 +1585,7 @@ NOTE: Each time Master Umesh asks for the brief, these stories are shuffled rand
             <circle cx="28" cy="28" r="22" fill="none" stroke="rgba(0, 240, 255, 0.08)" strokeWidth="3" />
             <motion.circle
               cx="28" cy="28" r="22" fill="none" stroke="#00f0ff" strokeWidth="3" strokeDasharray="138.2"
+              initial={{ strokeDashoffset: 138.2 }}
               animate={{ strokeDashoffset: 138.2 - (currentDate.getSeconds() / 60) * 138.2 }}
               transition={{ ease: "linear", duration: 0.2 }}
               className="drop-shadow-[0_0_4px_#00f0ff]"
@@ -1397,6 +1629,19 @@ NOTE: Each time Master Umesh asks for the brief, these stories are shuffled rand
           >
             {isSoundMuted ? <VolumeX size={12} /> : <Volume2 size={12} />}
           </button>
+          <span className="h-3 w-px bg-cyan-500/30" />
+          {/* Clap Toggle */}
+          <button
+            onClick={() => {
+              const newVal = !isClapEnabled;
+              setIsClapEnabled(newVal);
+              localStorage.setItem('batman_clap_enabled', newVal ? 'true' : 'false');
+            }}
+            className={`transition-colors flex items-center justify-center cursor-pointer pointer-events-auto ${isClapEnabled ? 'text-green-400' : 'text-cyan-400/50 hover:text-cyan-400'}`}
+            title={isClapEnabled ? 'Clap Detection: ON' : 'Clap Detection: OFF'}
+          >
+            <HandMetal size={12} />
+          </button>
         </div>
       )}
 
@@ -1405,9 +1650,14 @@ NOTE: Each time Master Umesh asks for the brief, these stories are shuffled rand
         <div className="flex flex-col gap-3">
           <div className="border-b border-white/10 pb-2">
             <span className="text-[10px] tracking-[3px] text-cyan-500/60 uppercase block text-left">TACTICAL METRICS</span>
-            <h3 className="font-rajdhani text-[15px] font-bold text-cyan-400 tracking-[1px] uppercase truncate text-left">
-              {weatherLoading ? "FETCHING DATA..." : weatherError ? "SERVICE OFFLINE" : weatherData?.location}
-            </h3>
+            <div className="flex justify-between items-center">
+              <h3 className="font-rajdhani text-[15px] font-bold text-cyan-400 tracking-[1px] uppercase truncate text-left">
+                {weatherLoading ? "FETCHING DATA..." : weatherError ? "SERVICE OFFLINE" : weatherData?.location}
+              </h3>
+              {weatherFetchedAt && (Date.now() - weatherFetchedAt.getTime() > 1800000) && (
+                <span className="text-[8px] bg-amber-500/20 text-amber-400 border border-amber-500/30 px-1.5 py-0.5 rounded tracking-widest font-bold">STALE</span>
+              )}
+            </div>
           </div>
           {weatherLoading ? (
             <div className="py-6 flex flex-col items-center justify-center gap-2">

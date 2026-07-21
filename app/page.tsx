@@ -1,7 +1,12 @@
 'use client';
 
-import StartScreen from '@/components/StartScreen';
+import { useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 
 export default function Home() {
-  return <StartScreen />;
+  const router = useRouter();
+  useEffect(() => {
+    router.replace('/projects');
+  }, [router]);
+  return null;
 }

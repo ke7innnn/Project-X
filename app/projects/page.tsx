@@ -135,7 +135,7 @@ export default function ProjectsDashboard() {
       console.warn('Supabase insert timed out or failed, proceeding locally', err);
     }
 
-    router.push('/workspace/' + newSessionId);
+    router.push('/idea-generation');
   };
   
   const handleOpenProject = (project: ProjectRow) => {
@@ -143,7 +143,7 @@ export default function ProjectsDashboard() {
     const pPlace = (project as any).placeName || project.state?.placeName || 'Unknown Location';
     
     switchSession(project.session_id, pName, pPlace);
-    router.push('/workspace/' + project.session_id);
+    router.push('/idea-generation');
   };
 
   const confirmDeleteProject = async () => {
@@ -200,7 +200,7 @@ export default function ProjectsDashboard() {
       <header className="relative z-10 max-w-7xl mx-auto flex items-center justify-between mb-12 border-b border-[#FFB000]/20 pb-6">
         <div className="flex items-center gap-6">
           <button 
-            onClick={() => router.push('/')}
+            onClick={() => router.push('/jarvis')}
             className="flex items-center justify-center w-10 h-10 rounded-full border border-[#FFB000]/30 hover:border-[#FFB000] hover:bg-[#FFB000]/10 transition-all group"
           >
             <ArrowLeft className="text-[#FFB000]/70 group-hover:text-[#FFB000]" size={18} />

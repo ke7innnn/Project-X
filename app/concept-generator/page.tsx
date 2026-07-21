@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { ArrowLeft, Send, Loader2, Download, RotateCcw, ImageIcon, Sparkles, RefreshCw, Undo2, Redo2, Maximize2, ImagePlus, X, Move, Terminal, Pentagon, Folder, Plus, Clock, MapPin, Trash2, Map, ChevronDown } from 'lucide-react';
 import { useArchitectStore } from '@/store/useArchitectStore';
 import { v4 as uuidv4 } from 'uuid';
+import { useActiveProjectGuard } from '@/lib/useActiveProjectGuard';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface Point { x: number; y: number; }
@@ -467,8 +468,9 @@ type Snapshot = { plotPts: Point[]; sitePts: Point[]; plotClosed: boolean; siteC
 export default function SmartPlannerPage() {
   const router = useRouter();
   const canvasRef = useRef<HTMLCanvasElement>(null);
-
-  // --- 1. STATE & REF DECLARATIONS ---
+  
+  // Guard the active project spine
+  const { activeProject } = useActiveProjectGuard();
 
   // Project management states
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
@@ -2641,6 +2643,23 @@ export default function SmartPlannerPage() {
                           🏢 3D Render
                         </button>
                       </div>
+                      <button 
+                        onClick={() => {
+                          if (generatedImageUrl) {
+                            useArchitectStore.getState().addProjectAsset('floorPlans', { url: generatedImageUrl, source: 'generated' });
+                          }
+                        }}
+                        className={`w-full mt-2 text-[9px] font-bold uppercase tracking-wider rounded-lg py-2 transition-all cursor-pointer flex items-center justify-center gap-2 ${
+                          activeProject?.assets.floorPlans.some(fp => fp.url === generatedImageUrl)
+                            ? 'text-emerald-400 bg-emerald-950/45 border border-emerald-900/40 hover:bg-emerald-900/30'
+                            : 'text-green-400 bg-green-950/45 border border-green-900/40 hover:bg-green-900/30 hover:border-green-500/50'
+                        }`}
+                      >
+                        <span className="text-xl">★</span> 
+                        {activeProject?.assets.floorPlans.some(fp => fp.url === generatedImageUrl)
+                          ? '✓ FINALIZED / ADDED TO PROJECT'
+                          : '★ FINALIZE / ADD TO PROJECT'}
+                      </button>
                     </div>
                   </div>
                 )}

@@ -13,22 +13,83 @@ class LocalStorageSupabaseBuilder {
     this.tableName = tableName;
   }
 
-  private getItems(): any[] {
+  private openDB(): Promise<IDBDatabase> {
+    return new Promise((resolve, reject) => {
+      if (typeof window === 'undefined') {
+        reject(new Error('IndexedDB is only available in the browser'));
+        return;
+      }
+      const request = indexedDB.open('SupabaseMockDB', 1);
+      request.onupgradeneeded = (e) => {
+        const db = request.result;
+        if (!db.objectStoreNames.contains('tables')) {
+          db.createObjectStore('tables');
+        }
+      };
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+  }
+
+  private async getItems(): Promise<any[]> {
     if (typeof window === 'undefined') return [];
     try {
-      const data = localStorage.getItem(`sb_mock_${this.tableName}`);
-      return data ? JSON.parse(data) : [];
-    } catch {
-      return [];
+      const db = await this.openDB();
+      const items = await new Promise<any[]>((resolve) => {
+        const tx = db.transaction('tables', 'readonly');
+        const store = tx.objectStore('tables');
+        const req = store.get(this.tableName);
+        req.onsuccess = () => resolve(req.result || []);
+        req.onerror = () => resolve([]);
+      });
+
+      // Legacy fallback and migration:
+      // If IndexedDB has no items, check localStorage for legacy records
+      if (items.length === 0) {
+        const legacyData = localStorage.getItem(`sb_mock_${this.tableName}`);
+        if (legacyData) {
+          try {
+            const legacyItems = JSON.parse(legacyData);
+            if (Array.isArray(legacyItems) && legacyItems.length > 0) {
+              console.log(`[SupabaseMock] Migrating ${legacyItems.length} legacy items from localStorage to IndexedDB for table: ${this.tableName}`);
+              await this.saveItems(legacyItems);
+              return legacyItems;
+            }
+          } catch (e) {
+            console.error('[SupabaseMock] Failed to parse legacy data:', e);
+          }
+        }
+      }
+      return items;
+    } catch (err) {
+      console.warn('[SupabaseMock] IndexedDB Read error, falling back to LocalStorage:', err);
+      try {
+        const data = localStorage.getItem(`sb_mock_${this.tableName}`);
+        return data ? JSON.parse(data) : [];
+      } catch {
+        return [];
+      }
     }
   }
 
-  private saveItems(items: any[]) {
+  private async saveItems(items: any[]) {
     if (typeof window === 'undefined') return;
     try {
-      localStorage.setItem(`sb_mock_${this.tableName}`, JSON.stringify(items));
-    } catch (e) {
-      console.error("Local Storage Save Error:", e);
+      const db = await this.openDB();
+      await new Promise<void>((resolve, reject) => {
+        const tx = db.transaction('tables', 'readwrite');
+        const store = tx.objectStore('tables');
+        const req = store.put(items, this.tableName);
+        req.onsuccess = () => resolve();
+        req.onerror = () => reject(req.error);
+      });
+    } catch (err) {
+      console.warn('[SupabaseMock] IndexedDB Write error, falling back to LocalStorage:', err);
+      try {
+        localStorage.setItem(`sb_mock_${this.tableName}`, JSON.stringify(items));
+      } catch (e) {
+        console.error('[SupabaseMock] LocalStorage save fallback failed:', e);
+      }
     }
   }
 
@@ -95,7 +156,7 @@ class LocalStorageSupabaseBuilder {
   }
 
   private async execute() {
-    let items = this.getItems();
+    let items = await this.getItems();
 
     // 1. Process Actions
     if (this.action === 'insert') {
@@ -106,7 +167,7 @@ class LocalStorageSupabaseBuilder {
         updated_at: r.updated_at || new Date().toISOString()
       }));
       items.push(...newRows);
-      this.saveItems(items);
+      await this.saveItems(items);
       return { data: Array.isArray(this.actionData) ? newRows : newRows[0], error: null };
     }
 
@@ -133,7 +194,7 @@ class LocalStorageSupabaseBuilder {
         updatedRows.push(updatedRow);
       }
 
-      this.saveItems(newItems);
+      await this.saveItems(newItems);
       return { data: Array.isArray(this.actionData) ? updatedRows : updatedRows[0], error: null };
     }
 
@@ -151,7 +212,7 @@ class LocalStorageSupabaseBuilder {
         }
         return item;
       });
-      this.saveItems(newItems);
+      await this.saveItems(newItems);
       return { data: null, error: null };
     }
 
@@ -159,7 +220,7 @@ class LocalStorageSupabaseBuilder {
       const filteredItems = items.filter(item => {
         return !this.filters.every(f => item[f.col] === f.val);
       });
-      this.saveItems(filteredItems);
+      await this.saveItems(filteredItems);
       return { data: null, error: null };
     }
 

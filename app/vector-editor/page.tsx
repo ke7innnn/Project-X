@@ -146,7 +146,7 @@ function applyIntent(schema: VectorSchema, intent: any, lockFootprint: boolean):
         imageWidth: newImageWidth,
         imageHeight: newImageHeight
       }, 
-      message: `✅ Resized **${room.label}** to ${intent.width}×${intent.height} ${intent.unit}. ${
+      message: `✅ Resized "${room.label}" to ${intent.width}×${intent.height} ${intent.unit}. ${
         lockFootprint 
           ? 'The adjacent spaces were scaled to lock the outer footprint.' 
           : 'The entire floor plan dynamically stretched to fit.'
@@ -160,7 +160,7 @@ function applyIntent(schema: VectorSchema, intent: any, lockFootprint: boolean):
     room.label = intent.new_label;
     const idx = rooms.findIndex(r => r.id === room.id);
     rooms[idx] = room;
-    return { schema: { ...schema, rooms }, message: `✅ Renamed to **${intent.new_label}**.` };
+    return { schema: { ...schema, rooms }, message: `✅ Renamed to "${intent.new_label}".` };
   }
 
   if (intent.action === 'clarify') {

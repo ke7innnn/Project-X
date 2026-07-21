@@ -21,6 +21,8 @@ import {
   Box,
   Settings,
 } from 'lucide-react';
+import { useArchitectStore } from '@/store/useArchitectStore';
+import { useActiveProjectGuard } from '@/lib/useActiveProjectGuard';
 
 // ── Angle Presets ──────────────────────────────────────────────────────────────
 const ANGLE_PRESETS = [
@@ -93,6 +95,9 @@ Photorealistic architectural visualization, consistent daytime lighting, clean s
 export default function ViewSynthesisPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  
+  // Guard the active project spine
+  const { activeProject } = useActiveProjectGuard();
 
   // Read config from URL params
   const floorPlanImageUrl = searchParams.get('floorPlanImageUrl') || '';
@@ -121,12 +126,29 @@ export default function ViewSynthesisPage() {
   const [apiKey, setApiKey] = useState('');
   const [showSettings, setShowSettings] = useState(false);
 
-  // Console feed
+  // Auto-scroll console
   const [logs, setLogs] = useState<string[]>([]);
   const [copiedLink, setCopiedLink] = useState<string | null>(null);
   const logsEndRef = useRef<HTMLDivElement>(null);
 
-  // Auto-scroll console
+  // Sync state with active project
+  useEffect(() => {
+    if (activeProject) {
+      if (activeProject.assets.hero) {
+        setHeroImageUrl(activeProject.assets.hero);
+        setModuleState('heroLocked');
+      }
+      if (activeProject.assets.angles.length > 0) {
+        setAngleResults(prev => prev.map(a => {
+          const match = activeProject.assets.angles.find(
+            pa => pa.label === a.id || 
+                  pa.label === ANGLE_PRESETS.find(ap => ap.id === a.id)?.title
+          );
+          return match ? { ...a, url: match.url, error: null } : a;
+        }));
+      }
+    }
+  }, [activeProject?.id]);
   useEffect(() => {
     logsEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [logs]);
@@ -201,6 +223,8 @@ export default function ViewSynthesisPage() {
 
     setModuleState('heroLocked');
     addLog('DESIGN LOCKED. ANGLE GENERATION PIPELINE ONLINE.');
+    // Lock hero writes to assets.hero
+    useArchitectStore.getState().addProjectAsset('hero', heroImageUrl);
   };
 
   // ── Unlock Hero (re-enter editing) ─────────────────────────────────────────
@@ -246,6 +270,12 @@ export default function ViewSynthesisPage() {
       );
       setAnglesGenerated((prev) => prev + 1);
       addLog(`${preset.title} COMPLETE.`);
+      
+      // Auto-save generated angle to active project
+      useArchitectStore.getState().addProjectAsset('angles', {
+        label: preset.title,
+        url: data.url
+      });
     } catch (err: any) {
       setAngleResults((prev) =>
         prev.map((a, i) =>
@@ -623,6 +653,21 @@ export default function ViewSynthesisPage() {
                             title="Generate this angle"
                           >
                             <Zap className="w-3 h-3" />
+                          </button>
+                        )}
+                        {result.url && (
+                          <button
+                            onClick={() => {
+                              useArchitectStore.getState().addProjectAsset('angles', { label: preset.title, url: result.url! });
+                            }}
+                            className={`px-2 py-1.5 rounded text-[8px] font-bold tracking-wider border transition-colors cursor-pointer flex items-center gap-1 ${
+                              activeProject?.assets.angles.some(a => a.url === result.url)
+                                ? 'text-emerald-400 bg-emerald-950/45 border-emerald-900/40 hover:bg-emerald-900/30'
+                                : 'text-green-400 bg-green-950/45 border-green-900/40 hover:bg-green-900/30'
+                            }`}
+                            title="Finalize Angle"
+                          >
+                            ★ {activeProject?.assets.angles.some(a => a.url === result.url) ? '✓ FINALIZED' : '★ FINALIZE'}
                           </button>
                         )}
                       </div>

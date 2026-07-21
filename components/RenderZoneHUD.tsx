@@ -44,9 +44,14 @@ export default function RenderZoneHUD() {
 
   const currentIndex = getStageIndex(phase);
 
-  const handleExit = () => {
+  const handleExit = async () => {
     playSound('click');
-    const ok = window.confirm("Save and exit this project to the main menu?");
+    const showHUDModal = useArchitectStore.getState().showHUDModal;
+    const ok = await showHUDModal({
+      type: 'confirm',
+      title: 'EXIT SESSION PROPOSAL',
+      message: 'Save and exit this project to the main menu?'
+    });
     if (!ok) return;
 
     const store = useArchitectStore.getState();
@@ -66,9 +71,14 @@ export default function RenderZoneHUD() {
     router.push('/');
   };
 
-  const handleRestart = () => {
+  const handleRestart = async () => {
     playSound('click');
-    const ok = window.confirm("Are you sure you want to completely restart this project? All current edits will be cleared.");
+    const showHUDModal = useArchitectStore.getState().showHUDModal;
+    const ok = await showHUDModal({
+      type: 'confirm',
+      title: 'WARNING: RESET MATRIX',
+      message: 'Are you sure you want to completely restart this project? All current edits will be cleared.'
+    });
     if (ok) {
       restartProject();
     }

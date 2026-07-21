@@ -44,6 +44,8 @@ function buildLeanState(state: any): any {
     currentFloorPlan, previousFloorPlan, finalRender,
     generatedOptions, lastUploadedImage,
     renderHistory,
+    // Functions / non-serializable — NEVER persist (DataCloneError root cause)
+    hudModal,
     // Keep everything else
     ...rest
   } = state;

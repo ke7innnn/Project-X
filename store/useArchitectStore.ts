@@ -1,6 +1,30 @@
 import { create } from 'zustand';
 import { ArchitectStore, Phase, ConversationMessage, NatureImage, CollectedParameters } from '@/types';
 
+/** Single source of truth for deriving the flat vault[] list from a project's assets. */
+function computeVault(project: any): any[] {
+  if (!project?.assets) return [];
+  const vault: any[] = [];
+  const { floorPlans = [], hero, angles = [], dxf, flythrough, uploads = [] } = project.assets;
+  const ts = project.updatedAt;
+
+  floorPlans.forEach((fp: any) => {
+    if (fp.url) vault.push({ id: fp.id, type: 'floor_plan', url: fp.url, addedAt: ts });
+  });
+  if (hero) vault.push({ id: 'hero', type: 'hero_render', url: hero, addedAt: ts });
+  angles.forEach((ang: any) => {
+    if (ang.url) vault.push({ id: ang.id, type: 'angle', url: ang.url, addedAt: ts });
+  });
+  if (dxf) vault.push({ id: 'dxf', type: 'dxf', url: dxf, addedAt: ts });
+  if (flythrough) {
+    const url = flythrough.videoUrl || flythrough.stillUrl;
+    if (url) vault.push({ id: 'flythrough', type: 'flythrough', url, addedAt: ts });
+  }
+  uploads.forEach((up: any) => {
+    if (up.url) vault.push({ id: up.id, type: 'hero_render', url: up.url, addedAt: up.addedAt });
+  });
+  return vault;
+}
 
 
 const defaultParameters: CollectedParameters = {
@@ -61,6 +85,120 @@ export const useArchitectStore = create<ArchitectStore>((set) => ({
   inpaintMask: null,
   inpaintRenderActive: false,
   paintedRender: null,
+  activeProjectId: null,
+  activeProject: null,
+  vault: [],
+  hudModal: null,
+
+  setActiveProjectId: (id) => set({ activeProjectId: id, sessionId: id }),
+  setActiveProject: (project) => set((state) => {
+    if (!project) return { activeProject: null, vault: [] };
+    return { activeProject: project, vault: computeVault(project), projectName: project.name };
+  }),
+
+  updateActiveProjectConfig: (configUpdates) => set((state) => {
+    if (!state.activeProject) return {};
+    const updatedProject = {
+      ...state.activeProject,
+      updatedAt: Date.now(),
+      config: {
+        ...state.activeProject.config,
+        ...configUpdates
+      }
+    };
+    return { activeProject: updatedProject };
+  }),
+
+  addProjectAsset: (type, assetData) => set((state) => {
+    if (!state.activeProject) return {};
+    const assets = { ...state.activeProject.assets };
+    
+    if (type === 'floorPlans') {
+      const isPrimary = assets.floorPlans.length === 0 || assetData.isPrimary;
+      if (isPrimary) {
+        assets.floorPlans = assets.floorPlans.map(fp => ({ ...fp, isPrimary: false }));
+      }
+      assets.floorPlans.push({
+        id: assetData.id || crypto.randomUUID(),
+        url: assetData.url,
+        isPrimary,
+        source: assetData.source || 'generated'
+      });
+    } else if (type === 'hero') {
+      assets.hero = assetData;
+    } else if (type === 'angles') {
+      // Avoid duplicate angles by label/url
+      if (!assets.angles.some(a => a.url === assetData.url)) {
+        assets.angles.push({
+          id: assetData.id || crypto.randomUUID(),
+          label: assetData.label || 'ANGLE',
+          url: assetData.url
+        });
+      }
+    } else if (type === 'dxf') {
+      assets.dxf = assetData;
+    } else if (type === 'flythrough') {
+      assets.flythrough = {
+        ...assets.flythrough,
+        ...assetData
+      };
+    } else if (type === 'uploads') {
+      assets.uploads.push({
+        id: assetData.id || crypto.randomUUID(),
+        url: assetData.url,
+        source: 'uploaded',
+        addedAt: Date.now()
+      });
+    }
+
+    const updatedProject = {
+      ...state.activeProject,
+      updatedAt: Date.now(),
+      assets
+    };
+    return { activeProject: updatedProject, vault: computeVault(updatedProject) };
+  }),
+
+  removeProjectAsset: (type, assetId) => set((state) => {
+    if (!state.activeProject) return {};
+    const assets = { ...state.activeProject.assets };
+
+    if (type === 'floorPlans') {
+      assets.floorPlans = assets.floorPlans.filter(fp => fp.id !== assetId);
+      // Ensure one is primary if left
+      if (assets.floorPlans.length > 0 && !assets.floorPlans.some(fp => fp.isPrimary)) {
+        assets.floorPlans[0].isPrimary = true;
+      }
+    } else if (type === 'angles') {
+      assets.angles = assets.angles.filter(ang => ang.id !== assetId);
+    } else if (type === 'uploads') {
+      assets.uploads = assets.uploads.filter(up => up.id !== assetId);
+    }
+
+    const updatedProject = {
+      ...state.activeProject,
+      updatedAt: Date.now(),
+      assets
+    };
+    return { activeProject: updatedProject, vault: computeVault(updatedProject) };
+  }),
+
+  setPrimaryFloorPlan: (assetId) => set((state) => {
+    if (!state.activeProject) return {};
+    const floorPlans = state.activeProject.assets.floorPlans.map(fp => ({
+      ...fp,
+      isPrimary: fp.id === assetId
+    }));
+    const updatedProject = {
+      ...state.activeProject,
+      updatedAt: Date.now(),
+      assets: {
+        ...state.activeProject.assets,
+        floorPlans
+      }
+    };
+    return { activeProject: updatedProject };
+  }),
 
   setOnboardingMode: (mode) => set({ onboardingMode: mode }),
 
@@ -115,6 +253,9 @@ export const useArchitectStore = create<ArchitectStore>((set) => ({
     paintedFloorPlan: null,
     inpaintRenderActive: false,
     paintedRender: null,
+    activeProjectId: null,
+    activeProject: null,
+    vault: [],
   })),
   
   setSelectedNatureImage: (image) => set((state) => {
@@ -208,9 +349,86 @@ Let's begin the **Concept** phase. Could you please tell me about:
   setInpaintRenderActive: (active) => set({ inpaintRenderActive: active }),
   setPaintedRender: (paintedRender) => set({ paintedRender }),
   
-  replaceState: (newState) => set((state) => ({ ...state, ...newState })),
+  replaceState: (newState) => set((state) => {
+    const updatedState = { ...state, ...newState } as any;
+    
+    // If activeProjectId is set but activeProject is missing or needs self-healing
+    if (updatedState.activeProjectId && !updatedState.activeProject) {
+      updatedState.activeProject = {
+        id: updatedState.activeProjectId,
+        name: updatedState.projectName || `Untitled Project — ${new Date().toLocaleString()}`,
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+        config: {
+          footprintShape: updatedState.collectedParameters?.buildingShape || '',
+          width: updatedState.collectedParameters?.plotWidth?.toString() || '',
+          length: updatedState.collectedParameters?.plotHeight?.toString() || '',
+          stories: updatedState.collectedParameters?.floors?.toString() || '',
+          unitMix: '',
+          designNotes: updatedState.collectedParameters?.additionalNotes?.join(', ') || ''
+        },
+        assets: {
+          floorPlans: updatedState.currentFloorPlan ? [{
+            id: crypto.randomUUID(),
+            url: updatedState.currentFloorPlan,
+            isPrimary: true,
+            source: 'generated'
+          }] : [],
+          hero: updatedState.finalRender || null,
+          angles: [],
+          dxf: null,
+          flythrough: null,
+          uploads: []
+        },
+        status: 'active'
+      };
+    }
+    
+    // Sync vault helper array from activeProject
+    if (updatedState.activeProject) {
+      const project = updatedState.activeProject;
+      // Defensive normalization for partially-migrated data
+      if (!project.assets) {
+        project.assets = { floorPlans: [], hero: null, angles: [], dxf: null, flythrough: null, uploads: [] };
+      }
+      if (!project.assets.floorPlans) project.assets.floorPlans = [];
+      if (!project.assets.angles) project.assets.angles = [];
+      if (!project.assets.uploads) project.assets.uploads = [];
+      // Ensure IDs exist (self-heal old data)
+      project.assets.floorPlans.forEach((fp: any) => { if (!fp.id) fp.id = crypto.randomUUID(); });
+      project.assets.angles.forEach((ang: any) => { if (!ang.id) ang.id = crypto.randomUUID(); });
+      project.assets.uploads.forEach((up: any) => { if (!up.id) up.id = crypto.randomUUID(); });
+      updatedState.vault = computeVault(project);
+    }
+
+    return updatedState;
+  }),
 
   switchSession: (sessionId, projectName, placeName) => {
+    const defaultProj = {
+      id: sessionId,
+      name: projectName || `Untitled Project — ${new Date().toLocaleString()}`,
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+      config: {
+        footprintShape: '',
+        width: '',
+        length: '',
+        stories: '',
+        unitMix: '',
+        designNotes: ''
+      },
+      assets: {
+        floorPlans: [],
+        hero: null,
+        angles: [],
+        dxf: null,
+        flythrough: null,
+        uploads: []
+      },
+      status: 'active'
+    };
+
     set({
       projectName,
       placeName,
@@ -235,6 +453,8 @@ Let's begin the **Concept** phase. Could you please tell me about:
       loadingMessage: '',
       isAppStarted: true,
       sessionId,
+      activeProjectId: sessionId,
+      activeProject: defaultProj,
       isRestored: false,
       selectedStyle: 'Normal',
       sunpath: 'North',
@@ -243,6 +463,7 @@ Let's begin the **Concept** phase. Could you please tell me about:
       viewingHistoryId: null,
       inpaintActive: false,
       paintedFloorPlan: null,
+      vault: [],
     });
   },
 
@@ -279,5 +500,29 @@ Let's begin the **Concept** phase. Could you please tell me about:
     inpaintMask: null,
     inpaintRenderActive: false,
     paintedRender: null,
-  })
+    activeProjectId: null,
+    activeProject: null,
+    vault: [],
+    hudModal: null,
+  }),
+
+  showHUDModal: (modal) => new Promise((resolve) => {
+    set({
+      hudModal: {
+        ...modal,
+        isOpen: true,
+        onResolve: (res) => {
+          resolve(res);
+          set({ hudModal: null });
+        }
+      }
+    });
+  }),
+
+  closeHUDModal: (result) => set((state) => {
+    if (state.hudModal) {
+      state.hudModal.onResolve(result);
+    }
+    return { hudModal: null };
+  }),
 }));

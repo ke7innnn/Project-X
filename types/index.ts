@@ -16,6 +16,52 @@ export interface RenderHistoryItem {
   sunpath: string;
 }
 
+export interface ProjectAssetFloorPlan {
+  id: string;
+  url: string;
+  isPrimary: boolean;
+  source: 'generated' | 'uploaded';
+}
+
+export interface ProjectAssetAngle {
+  id: string;
+  label: string;
+  url: string;
+}
+
+export interface ProjectAssetUpload {
+  id: string;
+  url: string;
+  source: 'uploaded';
+  addedAt: number;
+}
+
+export interface ProjectConfig {
+  footprintShape: string;
+  width: string;
+  length: string;
+  stories: string;
+  unitMix: string;
+  designNotes: string;
+}
+
+export interface Project {
+  id: string;
+  name: string;
+  createdAt: number;
+  updatedAt: number;
+  config: ProjectConfig;
+  assets: {
+    floorPlans: ProjectAssetFloorPlan[];
+    hero: string | null;
+    angles: ProjectAssetAngle[];
+    dxf: string | null;
+    flythrough: { stillUrl?: string; videoUrl?: string } | null;
+    uploads: ProjectAssetUpload[];
+  };
+  status: string;
+}
+
 export interface NatureImage {
   id: string;
   url: string;
@@ -88,6 +134,18 @@ export interface ArchitectStore {
   inpaintMask: string | null;
   inpaintRenderActive: boolean;
   paintedRender: string | null;
+  vault: { id: string; type: string; url: string; addedAt: number }[];
+  
+  // Project Spine
+  activeProjectId: string | null;
+  activeProject: Project | null;
+  setActiveProjectId: (id: string | null) => void;
+  setActiveProject: (project: Project | null) => void;
+  updateActiveProjectConfig: (config: Partial<ProjectConfig>) => void;
+  addProjectAsset: (type: 'floorPlans' | 'hero' | 'angles' | 'dxf' | 'flythrough' | 'uploads', assetData: any) => void;
+  removeProjectAsset: (type: 'floorPlans' | 'angles' | 'uploads', assetId: string) => void;
+  setPrimaryFloorPlan: (assetId: string) => void;
+
   setPhase: (phase: Phase) => void;
   setOnboardingMode: (mode: OnboardingMode) => void;
   addMessage: (message: ConversationMessage) => void;
@@ -121,8 +179,23 @@ export interface ArchitectStore {
   setInpaintMask: (base64: string | null) => void;
   setInpaintRenderActive: (active: boolean) => void;
   setPaintedRender: (base64: string | null) => void;
+  
+  hudModal: HUDModal | null;
+  showHUDModal: (modal: Omit<HUDModal, 'isOpen' | 'onResolve'>) => Promise<any>;
+  closeHUDModal: (result: any) => void;
+
   replaceState: (state: Partial<ArchitectStore>) => void;
   resetStore: () => void;
   restartProject: () => void;
   switchSession: (sessionId: string, projectName: string, placeName: string) => void;
 }
+
+export interface HUDModal {
+  isOpen: boolean;
+  type: 'alert' | 'confirm' | 'prompt';
+  title: string;
+  message: string;
+  defaultValue?: string;
+  onResolve: (result: any) => void;
+}
+

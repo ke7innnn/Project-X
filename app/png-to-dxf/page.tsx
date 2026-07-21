@@ -2,14 +2,41 @@
 
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Upload, Download, RotateCcw, ChevronLeft, Loader2, CheckCircle2, AlertCircle, ZoomIn, ZoomOut, Wand2 } from 'lucide-react';
+import { Upload, Download, RotateCcw, ChevronLeft, Loader2, CheckCircle2, AlertCircle, ZoomIn, ZoomOut, Wand2, AlertTriangle } from 'lucide-react';
 import { useArchitectStore } from '@/store/useArchitectStore';
 import { convertSvgToDxf } from '@/lib/svgToDxf';
+import { useActiveProjectGuard } from '@/lib/useActiveProjectGuard';
+import { FLAGS } from '@/lib/featureFlags';
 
 type Step = 'upload' | 'processing' | 'done' | 'error';
 
 export default function PngToDxfPage() {
   const router = useRouter();
+
+  // Guard the active project spine
+  const { activeProject } = useActiveProjectGuard();
+
+  // DXF export is hidden until verified in real AutoCAD / GstarCAD at correct scale.
+  if (!FLAGS.DXF_EXPORT) {
+    return (
+      <div className="min-h-screen bg-[#02050c] text-white flex flex-col items-center justify-center gap-6 p-8 font-mono">
+        <AlertTriangle size={48} className="text-amber-500" />
+        <div className="text-center space-y-2 max-w-md">
+          <h1 className="text-lg font-bold tracking-[4px] uppercase">DXF Export — Pending CAD Verification</h1>
+          <p className="text-xs text-zinc-400 leading-relaxed tracking-wider uppercase">
+            DXF output has not yet been verified to open at correct scale in AutoCAD or GstarCAD.
+            A broken DXF is worse than no DXF — this tool will be re-enabled once the output is confirmed.
+          </p>
+        </div>
+        <button
+          onClick={() => router.back()}
+          className="flex items-center gap-2 px-5 py-2.5 border border-blue-900/50 hover:border-cyan-400 text-zinc-400 hover:text-white rounded-lg text-xs uppercase tracking-widest transition-all cursor-pointer"
+        >
+          <ChevronLeft size={14} /> Back to Project
+        </button>
+      </div>
+    );
+  }
 
   const [step, setStep] = useState<Step>('upload');
   const [dragOver, setDragOver] = useState(false);
@@ -359,6 +386,25 @@ export default function PngToDxfPage() {
                 >
                   <RotateCcw size={14} />
                   New Image
+                </button>
+                 <button
+                  onClick={() => {
+                    if (dxfBlob) {
+                      const reader = new FileReader();
+                      reader.onloadend = () => {
+                        useArchitectStore.getState().addProjectAsset('dxf', reader.result as string);
+                      };
+                      reader.readAsDataURL(dxfBlob);
+                    }
+                  }}
+                  className={`w-full mt-1 py-3 font-bold text-xs uppercase tracking-[3px] rounded-lg transition-all flex items-center justify-center gap-2 cursor-pointer ${
+                    activeProject?.assets.dxf
+                      ? 'text-emerald-400 bg-emerald-950/45 border border-emerald-900/40 hover:bg-emerald-900/30'
+                      : 'text-green-400 bg-green-950/45 border border-green-900/40 hover:bg-green-900/30 hover:border-green-500/50'
+                  }`}
+                >
+                  <span className="text-sm">★</span>
+                  {activeProject?.assets.dxf ? '✓ FINALIZED / ADDED TO PROJECT' : '★ FINALIZE / ADD TO PROJECT'}
                 </button>
               </>
             )}

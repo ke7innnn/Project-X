@@ -9,9 +9,13 @@ import { RenderHistoryItem } from '@/types';
 import SaveToProjectModal from '@/components/SaveToProjectModal';
 import { supabase } from '@/lib/supabase';
 import { v4 as uuidv4 } from 'uuid';
+import { useActiveProjectGuard } from '@/lib/useActiveProjectGuard';
 
 export default function Render3DPage() {
   const router = useRouter();
+  
+  // Guard the active project spine
+  const { activeProject } = useActiveProjectGuard();
   const { currentFloorPlan, setCurrentFloorPlan, finalRender, setFinalRender, collectedParameters, projectName, placeName } = useArchitectStore();
   const switchSession = useArchitectStore(state => state.switchSession);
   const { replaceState, sessionId } = useArchitectStore();
@@ -560,6 +564,22 @@ export default function Render3DPage() {
                     className="flex items-center gap-2 bg-black/35 hover:bg-blue-900/15 px-4 py-2 rounded-lg text-xs transition-all cursor-pointer text-white border border-blue-900/35 font-sans glass-card"
                   >
                     <Download size={14} /> Download PNG
+                  </button>
+                  <button
+                    onClick={() => {
+                      const base64Url = activeItem.base64.startsWith('data:image/') ? activeItem.base64 : `data:image/jpeg;base64,${activeItem.base64}`;
+                      useArchitectStore.getState().addProjectAsset('flythrough', { stillUrl: base64Url });
+                    }}
+                    className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs transition-all cursor-pointer font-sans glass-card font-bold tracking-wider ${
+                      activeProject?.assets.flythrough?.stillUrl === (activeItem.base64.startsWith('data:image/') ? activeItem.base64 : `data:image/jpeg;base64,${activeItem.base64}`)
+                        ? 'text-emerald-400 bg-emerald-950/45 border border-emerald-900/40 hover:bg-emerald-900/30'
+                        : 'text-green-400 bg-green-950/45 border border-green-900/40 hover:bg-green-900/30 hover:border-green-500/50'
+                    }`}
+                  >
+                    <span className="text-sm">★</span>
+                    {activeProject?.assets.flythrough?.stillUrl === (activeItem.base64.startsWith('data:image/') ? activeItem.base64 : `data:image/jpeg;base64,${activeItem.base64}`)
+                      ? '✓ FINALIZED'
+                      : '★ FINALIZE / ADD TO PROJECT'}
                   </button>
                   <button 
                     onClick={() => setViewingHistoryId(null)}

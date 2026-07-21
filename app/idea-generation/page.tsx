@@ -23,6 +23,10 @@ import {
   Camera
 } from 'lucide-react';
 import Image from 'next/image';
+import ClientExportModal from '@/components/ClientExportModal';
+import { useArchitectStore } from '@/store/useArchitectStore';
+import { useActiveProjectGuard } from '@/lib/useActiveProjectGuard';
+import { useDebounce } from '@/lib/useDebounce';
 
 // Shapes presets
 const FOOTPRINT_PRESETS = [
@@ -35,6 +39,9 @@ const FOOTPRINT_PRESETS = [
 
 export default function IdeaGenerationPage() {
   const router = useRouter();
+  
+  // Guard the active project spine
+  const { activeProject } = useActiveProjectGuard();
 
   // Floor Plan Specification States
   const [customPrompt, setCustomPrompt] = useState('');
@@ -78,6 +85,36 @@ export default function IdeaGenerationPage() {
   const [resultTitle, setResultTitle] = useState('');
   const [resultDesc, setResultDesc] = useState('');
 
+  // QA Hardening states
+  const [validationError, setValidationError] = useState<string | null>(null);
+  const [variantsHistory, setVariantsHistory] = useState<string[]>([]);
+  const [isExportModalOpen, setIsExportModalOpen] = useState(false);
+  const [isClientMode, setIsClientMode] = useState(false);
+
+  // Load project configuration from activeProject config on mount or project switch
+  useEffect(() => {
+    if (activeProject) {
+      if (activeProject.config.designNotes) setCustomPrompt(activeProject.config.designNotes);
+      if (activeProject.config.footprintShape) setFootprintShape(activeProject.config.footprintShape);
+      if (activeProject.config.width) setOverallWidth(activeProject.config.width);
+      if (activeProject.config.length) setOverallLength(activeProject.config.length);
+      if (activeProject.config.stories) setStoryCount(activeProject.config.stories);
+      if (activeProject.assets.hero) setResultImage(activeProject.assets.hero);
+    }
+  }, [activeProject?.id]);
+
+  // Warn user when trying to close/refresh tab during active generation
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (isGenerating) {
+        e.preventDefault();
+        e.returnValue = 'Architectural synthesis is currently active. Leaving now will cancel the generation. Are you sure?';
+      }
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [isGenerating]);
+
   const loadingSteps = [
     'PARSING FOOTPRINT BOUNDARY (100M X 100M CURVED X-SHAPE)...',
     'PROCESSING DESIGN NOTES & MATERIAL SPECS...',
@@ -93,6 +130,99 @@ export default function IdeaGenerationPage() {
   // Unified Async Generation and HUD Progress Pipeline
   const handleGenerate = async (e: React.FormEvent) => {
     e.preventDefault();
+    setValidationError(null);
+
+    // 1. Validations & Sanity Checks
+    const trimmedPrompt = customPrompt.trim();
+    if (!trimmedPrompt) {
+      setValidationError("Design notes / prompt cannot be empty. Please describe the building layout details.");
+      return;
+    }
+
+    // Footprint shape select check
+    if (footprintShape === 'custom' && !customFootprintText.trim()) {
+      setValidationError("Please specify the custom footprint shape name.");
+      return;
+    }
+
+    // Parse float bounds
+    const w = parseFloat(overallWidth);
+    if (isNaN(w) || w < 5 || w > 500) {
+      setValidationError("Overall width must be a valid number between 5 and 500 meters.");
+      return;
+    }
+
+    const l = parseFloat(overallLength);
+    if (isNaN(l) || l < 5 || l > 500) {
+      setValidationError("Overall length must be a valid number between 5 and 500 meters.");
+      return;
+    }
+
+    const h = parseFloat(floorHeight);
+    if (isNaN(h) || h < 2 || h > 10) {
+      setValidationError("Typical floor height must be a valid number between 2 and 10 meters.");
+      return;
+    }
+
+    // Story count validation
+    const floorMatch = storyCount.match(/\d+/);
+    const floors = floorMatch ? parseInt(floorMatch[0], 10) : 0;
+    if (isNaN(floors) || floors < 1 || floors > 200) {
+      setValidationError("Stories count must contain a valid number of floors between 1 and 200 (e.g. G + 50 or 50).");
+      return;
+    }
+
+    // Corridor Width
+    const corr = parseFloat(corridorWidth);
+    if (isNaN(corr) || corr < 0.1 || corr > 10) {
+      setValidationError("Corridor width must be a valid number between 0.1 and 10 meters.");
+      return;
+    }
+
+    // Unit mix validations
+    if (typeAUnits < 0 || typeBUnits < 0 || typeCUnits < 0) {
+      setValidationError("Unit mix quantities cannot be negative.");
+      return;
+    }
+
+    const totalUnitsCount = typeAUnits + typeBUnits + typeCUnits;
+    if (totalUnitsCount < 1) {
+      setValidationError("Unit Mix Design Matrix must have at least 1 total unit quantity.");
+      return;
+    }
+
+    // Core validation
+    const coreParts = coreSize.toLowerCase().replace('m', '').split(/x|×|\*/);
+    const coreW = coreParts[0] ? parseFloat(coreParts[0].trim()) : 0;
+    const coreH = coreParts[1] ? parseFloat(coreParts[1].trim()) : 0;
+    if (isNaN(coreW) || isNaN(coreH) || coreW <= 0 || coreH <= 0) {
+      setValidationError("Core size dimensions must be valid positive numbers (e.g. 24.00 x 24.00).");
+      return;
+    }
+
+    if (passengerLifts < 0 || fireLifts < 0 || staircases < 0) {
+      setValidationError("Lifts and staircases quantities cannot be negative.");
+      return;
+    }
+
+    // Absurd combo check (area allocation)
+    const efficiency = footprintShape === 'curved-x' ? 0.6 
+                     : footprintShape === 'tri-foil' ? 0.55 
+                     : footprintShape === 'monolithic-rect' ? 0.85 
+                     : footprintShape === 'circular-atrium' ? 0.7 
+                     : 0.7; // default custom
+    const plateArea = w * l;
+    const estimatedFootprintArea = plateArea * efficiency;
+    const unitsCarpetArea = (typeAUnits * 78) + (typeBUnits * 105) + (typeCUnits * 120);
+    const unitsBuiltupArea = unitsCarpetArea * 1.25; // Loading factor for walls/balconies
+    const coreArea = coreW * coreH;
+    const circulationArea = plateArea * 0.15; // 15% corridor/circulation
+    const totalRequiredArea = unitsBuiltupArea + coreArea + circulationArea;
+
+    if (totalRequiredArea > estimatedFootprintArea * 1.5) {
+      setValidationError(`Over-allocated floor plate. The requested unit mix and core require approximately ${Math.round(totalRequiredArea)} SQM, which exceeds 150% of the estimated floor plate area (${Math.round(estimatedFootprintArea)} SQM). Please increase overall dimensions or reduce unit mix counts.`);
+      return;
+    }
 
     setIsGenerating(true);
     setGenerationStep(0);
@@ -123,12 +253,21 @@ export default function IdeaGenerationPage() {
           await new Promise((r) => setTimeout(r, 550));
         }
         clearInterval(logInterval);
+        
+        const fallbackUrl = '/x-shape-floorplan.jpg';
         setLogs((prev) => [...prev, '[SYS] CORE CALCULATIONS VERIFIED. DESIGN SCHEMATIC PIPELINE ONLINE.']);
-        setResultImage('/x-shape-floorplan.jpg');
+        setResultImage(fallbackUrl);
         setResultTitle(`${styleName} TYPICAL PLAN`);
         setResultDesc(
           `High-rise Floor Plan Core Synthesis: Monolithic ${styleName} tower floor plan featuring 16 balanced units per floor (4x 2BHK, 8x 3BHK, 4x 3BHK Premium). ${customPrompt ? `Custom Notes Integrated: "${customPrompt}". ` : ''}Integrates a central 24.00m x 24.00m lift lobby containing 8 passenger lifts, 2 fire lifts, 2 fire staircases, and dual 2.40m wide branching corridors.`
         );
+        
+        // Save to variants history
+        setVariantsHistory(prev => {
+          const list = [fallbackUrl, ...prev.filter(url => url !== fallbackUrl)];
+          return list.slice(0, 5);
+        });
+
         setIsGenerating(false);
       } else {
         // Call Fal AI route
@@ -148,6 +287,9 @@ export default function IdeaGenerationPage() {
           const data = await res.json();
           if (!res.ok) {
             throw new Error(data.error || 'Fal AI generation request failed');
+          }
+          if (!data.url || !data.url.startsWith('http')) {
+            throw new Error('Fal AI returned an empty or invalid image path.');
           }
           return data.url;
         });
@@ -175,19 +317,42 @@ export default function IdeaGenerationPage() {
         setResultDesc(
           `GPT Generative Core typical floor plan based on a ${styleName} footprint. Custom guidelines: "${customPrompt}". Core features verified: 8 passenger lifts, 2 fire lifts, and 2.40m width circulation pathways.`
         );
+
+        // Save to variants history
+        setVariantsHistory(prev => {
+          const list = [url, ...prev.filter(item => item !== url)];
+          return list.slice(0, 5);
+        });
+
         setIsGenerating(false);
       }
     } catch (err: any) {
       clearInterval(logInterval);
-      setLogs((prev) => [...prev, `[ERR] ${err.message || 'API request failed'}. REVERTING TO LOCAL HIGH-RISE SIMULATION SCHEMA...`]);
-      setResultImage('/x-shape-floorplan.jpg');
-      setResultTitle('CURVED X SHAPE HIGH RISE TYPICAL PLAN');
+      setLogs((prev) => [
+        ...prev, 
+        `[ERR] ${err.message || 'API request failed'}.`,
+        `[SYS] AUTOMATIC RESILIENCE ACTIVATED: REVERTING TO LOCAL HIGH-RISE SIMULATION SCHEMA...`
+      ]);
+      
+      const fallbackUrl = '/x-shape-floorplan.jpg';
+      setResultImage(fallbackUrl);
+      setResultTitle('CURVED X SHAPE HIGH RISE TYPICAL PLAN (SIMULATED)');
       setResultDesc(
-        `Simulation Fallback: Monolithic X-Shape tower floor plan featuring 16 balanced units per floor (4x 2BHK, 8x 3BHK, 4x 3BHK Premium).`
+        `Resilience Fallback: Monolithic X-Shape tower floor plan featuring 16 balanced units per floor (4x 2BHK, 8x 3BHK, 4x 3BHK Premium).`
       );
+
+      // Save to variants history
+      setVariantsHistory(prev => {
+        const list = [fallbackUrl, ...prev.filter(url => url !== fallbackUrl)];
+        return list.slice(0, 5);
+      });
+
       setIsGenerating(false);
     }
   };
+
+  // Debounced wrapper — prevents double-fire on rapid clicks before loading state activates
+  const debouncedGenerate = useDebounce(handleGenerate, 600);
 
   const handleShare = () => {
     setCopiedLink(true);
@@ -198,39 +363,66 @@ export default function IdeaGenerationPage() {
   const totalUnits = typeAUnits + typeBUnits + typeCUnits;
 
   return (
-    <div className="min-h-screen bg-[#0a0a0f] text-cyan-400 font-mono flex flex-col relative overflow-hidden p-6 z-50">
+    <div className={`min-h-screen font-mono flex flex-col relative overflow-hidden p-6 z-50 transition-colors duration-300 ${
+      isClientMode ? 'bg-[#FDFCF7] text-[#0B4F30]' : 'bg-[#0a0a0f] text-cyan-400'
+    }`}>
         
         {/* Background Grid & Vignette overlays */}
-        <div className="absolute inset-0 bg-[linear-gradient(rgba(0,240,255,0.02)_1px,transparent_1px),linear-gradient(90deg,rgba(0,240,255,0.02)_1px,transparent_1px)] bg-[size:32px_32px] pointer-events-none z-0" />
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,transparent_20%,#0a0a0f_95%)] pointer-events-none z-0" />
+        {!isClientMode && (
+          <>
+            <div className="absolute inset-0 bg-[linear-gradient(rgba(0,240,255,0.02)_1px,transparent_1px),linear-gradient(90deg,rgba(0,240,255,0.02)_1px,transparent_1px)] bg-[size:32px_32px] pointer-events-none z-0" />
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,transparent_20%,#0a0a0f_95%)] pointer-events-none z-0" />
+          </>
+        )}
 
         {/* Top Header Navigation HUD */}
-        <div className="relative z-10 flex items-center justify-between border-b border-cyan-500/20 pb-4 mb-6 select-none">
+        <div className={`relative z-10 flex items-center justify-between border-b pb-4 mb-6 select-none ${
+          isClientMode ? 'border-[#0B4F30]/20' : 'border-cyan-500/20'
+        }`}>
           <div className="flex items-center gap-4">
             <button 
               onClick={() => {
                 if (window.speechSynthesis) window.speechSynthesis.cancel();
                 router.push('/');
               }}
-              className="p-2 border border-cyan-500/30 hover:border-cyan-400 hover:text-white rounded bg-cyan-950/20 text-cyan-500/80 transition-all cursor-pointer flex items-center gap-1.5 text-xs tracking-wider"
+              className={`p-2 border rounded bg-cyan-950/20 transition-all cursor-pointer flex items-center gap-1.5 text-xs tracking-wider ${
+                isClientMode 
+                  ? 'border-[#0B4F30]/30 text-[#0B4F30]/80 hover:border-[#0B4F30] hover:text-[#0B4F30]' 
+                  : 'border-cyan-500/30 text-cyan-500/80 hover:border-cyan-400 hover:text-white'
+              }`}
             >
               <ArrowLeft className="w-3.5 h-3.5" />
               <span>RETURN TO MAIN COMMAND</span>
             </button>
-            <span className="h-6 w-px bg-cyan-500/20" />
+            <span className={`h-6 w-px ${isClientMode ? 'bg-[#0B4F30]/20' : 'bg-cyan-500/20'}`} />
             <div className="text-left">
-              <span className="text-[9px] tracking-[4px] text-cyan-500/60 uppercase block">COGNITIVE MODULE</span>
-              <h1 className="text-xl font-bold tracking-[2px] text-white">TYPICAL TOWER PLAN GENERATOR</h1>
+              <span className={`text-[9px] tracking-[4px] uppercase block ${isClientMode ? 'text-[#0B4F30]/60' : 'text-cyan-500/60'}`}>COGNITIVE MODULE</span>
+              <h1 className={`text-xl font-bold tracking-[2px] ${isClientMode ? 'text-[#0B4F30]' : 'text-white'}`}>TYPICAL TOWER PLAN GENERATOR</h1>
             </div>
           </div>
 
           {/* Mode Selector and API Configuration */}
           <div className="flex items-center gap-3">
-            <div className="bg-cyan-950/20 border border-cyan-500/30 rounded p-1 flex items-center gap-1">
+            <button
+              onClick={() => setIsClientMode(!isClientMode)}
+              className={`px-3 py-1.5 rounded border text-[10px] font-bold tracking-wider uppercase transition-all cursor-pointer ${
+                isClientMode
+                  ? 'bg-[#0B4F30] text-[#FDFCF7] border-[#0B4F30] shadow-md'
+                  : 'bg-cyan-950/20 border-cyan-500/30 text-cyan-400 hover:border-cyan-400 hover:bg-cyan-500/10'
+              }`}
+            >
+              {isClientMode ? 'Client Mode: Active' : 'Client Mode: Off'}
+            </button>
+
+            <div className={`border rounded p-1 flex items-center gap-1 ${
+              isClientMode ? 'bg-[#0B4F30]/5 border-[#0B4F30]/20' : 'bg-cyan-950/20 border-cyan-500/30'
+            }`}>
               <button 
                 onClick={() => setUseDemoMode(true)}
                 className={`px-3 py-1 text-[10px] tracking-wider rounded transition-colors ${
-                  useDemoMode ? 'bg-cyan-500/30 text-white font-bold' : 'text-cyan-500/50 hover:text-cyan-400'
+                  useDemoMode 
+                    ? (isClientMode ? 'bg-[#0B4F30] text-white font-bold' : 'bg-cyan-500/30 text-white font-bold') 
+                    : (isClientMode ? 'text-[#0B4F30]/60 hover:text-[#0B4F30]' : 'text-cyan-500/50 hover:text-cyan-400')
                 }`}
               >
                 SIMULATION MODE
@@ -238,7 +430,9 @@ export default function IdeaGenerationPage() {
               <button 
                 onClick={() => setUseDemoMode(false)}
                 className={`px-3 py-1 text-[10px] tracking-wider rounded transition-colors ${
-                  !useDemoMode ? 'bg-cyan-500/30 text-white font-bold' : 'text-cyan-500/50 hover:text-cyan-400'
+                  !useDemoMode 
+                    ? (isClientMode ? 'bg-[#0B4F30] text-white font-bold' : 'bg-cyan-500/30 text-white font-bold') 
+                    : (isClientMode ? 'text-[#0B4F30]/60 hover:text-[#0B4F30]' : 'text-cyan-500/50 hover:text-cyan-400')
                 }`}
               >
                 FAL AI API
@@ -248,7 +442,9 @@ export default function IdeaGenerationPage() {
             <button 
               onClick={() => setShowSettings(!showSettings)}
               className={`p-2 rounded border transition-colors cursor-pointer ${
-                showSettings ? 'bg-cyan-500/30 border-cyan-400 text-white' : 'border-cyan-500/30 bg-cyan-950/20 hover:border-cyan-400'
+                showSettings 
+                  ? (isClientMode ? 'bg-[#0B4F30] border-[#0B4F30] text-white' : 'bg-cyan-500/30 border-cyan-400 text-white') 
+                  : (isClientMode ? 'border-[#0B4F30]/30 bg-[#0B4F30]/5 hover:border-[#0B4F30] text-[#0B4F30]/80' : 'border-cyan-500/30 bg-cyan-950/20 hover:border-cyan-400')
               }`}
               title="Fal AI API Keys"
             >
@@ -454,9 +650,9 @@ export default function IdeaGenerationPage() {
               </div>
             </div>
 
-            {/* Execute Button */}
+            {/* Execute Button — debounced to prevent double-fire */}
             <button
-              onClick={handleGenerate}
+              onClick={debouncedGenerate}
               type="button"
               disabled={isGenerating}
               className="w-full mt-auto py-2.5 rounded font-bold text-xs tracking-wider transition-all flex items-center justify-center gap-2 cursor-pointer bg-cyan-500/20 hover:bg-cyan-500/30 border border-cyan-500/50 hover:border-cyan-400 text-[#00f0ff] shadow-[0_0_15px_rgba(0,240,255,0.1)] shrink-0"
@@ -553,6 +749,34 @@ export default function IdeaGenerationPage() {
                         <Camera className="w-3.5 h-3.5" />
                         <span>GENERATE 3D VIEWS</span>
                         <ArrowRight className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        onClick={() => {
+                          if (resultImage) {
+                            const store = useArchitectStore.getState();
+                            store.updateActiveProjectConfig({
+                              footprintShape,
+                              width: overallWidth,
+                              length: overallLength,
+                              stories: storyCount,
+                              unitMix: `2BHK: ${typeAUnits} | 3BHK: ${typeBUnits} | 3BHK Premium: ${typeCUnits}`,
+                              designNotes: customPrompt
+                            });
+                            store.addProjectAsset('hero', resultImage);
+                          }
+                        }}
+                        className={`w-full mt-2 py-2.5 rounded font-bold text-[11px] tracking-wider transition-all flex items-center justify-center gap-2 cursor-pointer backdrop-blur-sm ${
+                          activeProject?.assets.hero === resultImage
+                            ? 'text-emerald-400 bg-emerald-950/45 border border-emerald-900/40 hover:bg-emerald-900/30'
+                            : 'text-green-400 bg-green-950/45 border border-green-900/40 hover:bg-green-900/30 hover:border-green-500/50'
+                        }`}
+                      >
+                        <span className="text-sm">★</span>
+                        <span>
+                          {activeProject?.assets.hero === resultImage
+                            ? '✓ FINALIZED / ADDED TO PROJECT'
+                            : '★ FINALIZE / ADD TO PROJECT'}
+                        </span>
                       </button>
                     </div>
                   )}

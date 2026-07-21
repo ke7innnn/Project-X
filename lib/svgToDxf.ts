@@ -28,21 +28,24 @@ function drawBezier(
 export function convertSvgToDxf(rawSvg: string, rooms: any[], scalePpm: number): string {
   const dxf = new DxfWriter();
   
-  // Set DXF units to Millimeters.
-  // 1 meter in real world = 1000 DXF units.
+  // Set DXF units to Meters.
+  // 1 unit in DXF = 1 meter.
   // Pixel to meter scale: px / scalePpm
-  // Final scale factor to mm: 1000 / scalePpm.
-  const scale = 1000 / (scalePpm || 20); 
+  // Final scale factor to meters: 1 / scalePpm.
+  const scale = 1 / (scalePpm || 20); 
   
-  dxf.setUnits('Millimeters');
+  dxf.setUnits('Meters');
 
-  // Draw vectorized walls
+  // Draw vectorized walls on the WALLS layer
   dxf.addLayer('WALLS', DxfWriter.ACI.WHITE, 'CONTINUOUS');
   dxf.setActiveLayer('WALLS');
 
   const pathRegex = /d="([^"]+)"/g;
   let match;
+  let pathCount = 0;
+  
   while ((match = pathRegex.exec(rawSvg)) !== null) {
+    pathCount++;
     const d = match[1];
     const tokens = d.match(/[a-zA-Z]+|[-+]?[0-9]*\.?[0-9]+(?:[eE][-+]?[0-9]+)?/g) || [];
     
@@ -121,7 +124,12 @@ export function convertSvgToDxf(rawSvg: string, rooms: any[], scalePpm: number):
     }
   }
 
-  // Draw room labels and boundaries
+  // Fail loudly if potrace failed to trace any vectors or rawSvg is empty
+  if (pathCount === 0) {
+    throw new Error("No vector path details found in the input image. Please upload a clear floor plan layout with visible dark lines.");
+  }
+
+  // Draw room labels and boundaries on the ROOMS layer
   dxf.addLayer('ROOMS', DxfWriter.ACI.CYAN, 'CONTINUOUS');
   dxf.setActiveLayer('ROOMS');
 
@@ -139,8 +147,8 @@ export function convertSvgToDxf(rawSvg: string, rooms: any[], scalePpm: number):
     dxf.drawLine(rx + rw, ry + rh, rx, ry + rh);
     dxf.drawLine(rx, ry + rh, rx, ry);
 
-    // Place label text in center
-    dxf.drawText(cx, cy, 150, 0, r.label || 'Room');
+    // Place label text in center (text height is 0.25 meters)
+    dxf.drawText(cx, cy, 0.25, 0, r.label || 'Room');
   });
 
   return dxf.toDxfString();

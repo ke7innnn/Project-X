@@ -9,9 +9,13 @@ import SaveToProjectModal from '@/components/SaveToProjectModal';
 import { supabase } from '@/lib/supabase';
 import { v4 as uuidv4 } from 'uuid';
 import { convertSvgToDxf } from '@/lib/svgToDxf';
+import { useActiveProjectGuard } from '@/lib/useActiveProjectGuard';
 
 export default function EditPage() {
   const router = useRouter();
+  
+  // Guard the active project spine
+  const { activeProject } = useActiveProjectGuard();
   const { currentFloorPlan, floorPlanHistory, setCurrentFloorPlan, collectedParameters, roomDimensions, sessionId, projectName, placeName, replaceState } = useArchitectStore();
   const switchSession = useArchitectStore(state => state.switchSession);
 
@@ -766,10 +770,21 @@ const blendImagesWithMask = (
 
             {currentFloorPlan && (
               <button 
-                onClick={() => setIsSaveModalOpen(true)}
-                className="flex items-center gap-1.5 px-3 py-1.5 text-[9px] uppercase tracking-wider text-blue-400 hover:bg-white/5 font-bold rounded-md transition-colors cursor-pointer"
+                onClick={() => {
+                  if (currentFloorPlan) {
+                    useArchitectStore.getState().addProjectAsset('floorPlans', { url: currentFloorPlan, source: 'generated' });
+                  }
+                }}
+                className={`flex items-center gap-1.5 px-3 py-1.5 text-[9px] uppercase tracking-wider font-bold rounded-md transition-colors cursor-pointer ${
+                  activeProject?.assets.floorPlans.some(fp => fp.url === currentFloorPlan)
+                    ? 'text-emerald-400 hover:text-emerald-300'
+                    : 'text-green-400 hover:text-green-300'
+                }`}
               >
-                <Folder size={12} /> Save to Project
+                <span className="text-sm">★</span>
+                {activeProject?.assets.floorPlans.some(fp => fp.url === currentFloorPlan)
+                  ? '✓ FINALIZED / ADDED'
+                  : '★ FINALIZE / ADD TO PROJECT'}
               </button>
             )}
           </div>
