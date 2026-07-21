@@ -1,4 +1,4 @@
-import { useCallback, useRef } from 'react';
+import { useCallback, useRef, useEffect } from 'react';
 
 /**
  * Returns a debounced version of `fn` that will not fire until
@@ -12,17 +12,20 @@ export function useDebounce<T extends (...args: any[]) => any>(
   delayMs = 500
 ): (...args: Parameters<T>) => void {
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const fnRef = useRef(fn);
+
+  useEffect(() => {
+    fnRef.current = fn;
+  }, [fn]);
 
   return useCallback(
     (...args: Parameters<T>) => {
       if (timerRef.current) clearTimeout(timerRef.current);
       timerRef.current = setTimeout(() => {
         timerRef.current = null;
-        fn(...args);
+        fnRef.current(...args);
       }, delayMs);
     },
-    // fn changes identity every render in most components — include delayMs only
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     [delayMs]
   );
 }

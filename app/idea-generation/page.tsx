@@ -673,6 +673,14 @@ Style: Basic CAD line drawing. The absolute only metric of success is fitting ex
             </div>
 
             {/* Execute Button — debounced to prevent double-fire */}
+            {validationError && (
+              <div className="w-full mt-2 bg-red-950/40 border border-red-500/30 rounded p-2.5 flex items-start gap-2 animate-fadeIn">
+                <span className="text-red-400 font-bold text-[10px] mt-0.5">⚠️</span>
+                <p className="text-[10px] text-red-200/90 leading-tight">
+                  {validationError}
+                </p>
+              </div>
+            )}
             <button
               onClick={debouncedGenerate}
               type="button"
