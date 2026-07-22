@@ -68,17 +68,15 @@ export default function IdeaGenerationPage() {
   const [floorHeight, setFloorHeight] = useState('3.30');
   const [storyCount, setStoryCount] = useState('G + 50');
 
-  // Central Core Spec States
-  const [coreSize, setCoreSize] = useState('24.00 x 24.00');
-  const [passengerLifts, setPassengerLifts] = useState(8);
-  const [fireLifts, setFireLifts] = useState(2);
-  const [staircases, setStaircases] = useState(2);
-  const [corridorWidth, setCorridorWidth] = useState('2.40');
+  // Unit Mix Table States (1BHK, 2BHK, 3BHK, 4BHK)
+  const [units1BHK, setUnits1BHK] = useState(2);
+  const [units2BHK, setUnits2BHK] = useState(4);
+  const [units3BHK, setUnits3BHK] = useState(4);
+  const [units4BHK, setUnits4BHK] = useState(2);
 
-  // Unit Mix Table States
-  const [typeAUnits, setTypeAUnits] = useState(4); // 2 BHK
-  const [typeBUnits, setTypeBUnits] = useState(8); // 3 BHK
-  const [typeCUnits, setTypeCUnits] = useState(4); // 3 BHK Premium
+  // Central Core Spec States (Simplified to Lifts & Stairs)
+  const [passengerLifts, setPassengerLifts] = useState(8);
+  const [staircases, setStaircases] = useState(2);
 
   // Compliance Toggles
   const [vastuCompliant, setVastuCompliant] = useState(true);
@@ -176,49 +174,19 @@ export default function IdeaGenerationPage() {
       return;
     }
 
-    const h = parseFloat(floorHeight);
-    if (isNaN(h) || h < 2 || h > 10) {
-      setValidationError("Typical floor height must be a valid number between 2 and 10 meters.");
-      return;
-    }
-
-    // Story count validation
-    const floorMatch = storyCount.match(/\d+/);
-    const floors = floorMatch ? parseInt(floorMatch[0], 10) : 0;
-    if (isNaN(floors) || floors < 1 || floors > 200) {
-      setValidationError("Stories count must contain a valid number of floors between 1 and 200 (e.g. G + 50 or 50).");
-      return;
-    }
-
-    // Corridor Width
-    const corr = parseFloat(corridorWidth);
-    if (isNaN(corr) || corr < 0.1 || corr > 10) {
-      setValidationError("Corridor width must be a valid number between 0.1 and 10 meters.");
-      return;
-    }
-
     // Unit mix validations
-    if (typeAUnits < 0 || typeBUnits < 0 || typeCUnits < 0) {
+    if (units1BHK < 0 || units2BHK < 0 || units3BHK < 0 || units4BHK < 0) {
       setValidationError("Unit mix quantities cannot be negative.");
       return;
     }
 
-    const totalUnitsCount = typeAUnits + typeBUnits + typeCUnits;
+    const totalUnitsCount = units1BHK + units2BHK + units3BHK + units4BHK;
     if (totalUnitsCount < 1) {
       setValidationError("Unit Mix Design Matrix must have at least 1 total unit quantity.");
       return;
     }
 
-    // Core validation
-    const coreParts = coreSize.toLowerCase().replace('m', '').split(/x|×|\*/);
-    const coreW = coreParts[0] ? parseFloat(coreParts[0].trim()) : 0;
-    const coreH = coreParts[1] ? parseFloat(coreParts[1].trim()) : 0;
-    if (isNaN(coreW) || isNaN(coreH) || coreW <= 0 || coreH <= 0) {
-      setValidationError("Core size dimensions must be valid positive numbers (e.g. 24.00 x 24.00).");
-      return;
-    }
-
-    if (passengerLifts < 0 || fireLifts < 0 || staircases < 0) {
+    if (passengerLifts < 0 || staircases < 0) {
       setValidationError("Lifts and staircases quantities cannot be negative.");
       return;
     }
@@ -231,14 +199,14 @@ export default function IdeaGenerationPage() {
                      : 0.7; // default custom
     const plateArea = w * l;
     const estimatedFootprintArea = plateArea * efficiency;
-    const unitsCarpetArea = (typeAUnits * 78) + (typeBUnits * 105) + (typeCUnits * 120);
+    const unitsCarpetArea = (units1BHK * 50) + (units2BHK * 78) + (units3BHK * 105) + (units4BHK * 140);
     const unitsBuiltupArea = unitsCarpetArea * 1.25; // Loading factor for walls/balconies
-    const coreArea = coreW * coreH;
+    const estimatedCoreArea = 150; // estimated core area
     const circulationArea = plateArea * 0.15; // 15% corridor/circulation
-    const totalRequiredArea = unitsBuiltupArea + coreArea + circulationArea;
+    const totalRequiredArea = unitsBuiltupArea + estimatedCoreArea + circulationArea;
 
     if (totalRequiredArea > estimatedFootprintArea * 1.5) {
-      setValidationError(`Over-allocated floor plate. The requested unit mix and core require approximately ${Math.round(totalRequiredArea)} SQM, which exceeds 150% of the estimated floor plate area (${Math.round(estimatedFootprintArea)} SQM). Please increase overall dimensions or reduce unit mix counts.`);
+      setValidationError(`Over-allocated floor plate. The requested unit mix requires approximately ${Math.round(totalRequiredArea)} SQM, which exceeds 150% of the estimated floor plate area (${Math.round(estimatedFootprintArea)} SQM). Please increase overall dimensions or reduce unit mix counts.`);
       return;
     }
 
@@ -282,6 +250,14 @@ export default function IdeaGenerationPage() {
         setIsGenerating(false);
       } else {
         // Call Fal AI route
+        const totalUnits = units1BHK + units2BHK + units3BHK + units4BHK;
+        const mixBreakdownParts = [
+          units1BHK > 0 ? `${units1BHK} × 1BHK` : null,
+          units2BHK > 0 ? `${units2BHK} × 2BHK` : null,
+          units3BHK > 0 ? `${units3BHK} × 3BHK` : null,
+          units4BHK > 0 ? `${units4BHK} × 4BHK` : null,
+        ].filter(Boolean).join(', ');
+
         const vaastuStr = vastuCompliant ? 'VAASTU RULES: Orient kitchens toward the South-East (SE) zone, Master Bedrooms toward South-West (SW), main entrances toward North-East (NE), and avoid toilets in the North-East corner. ' : '';
         const ventStr = crossVentilation ? 'SOLAR & DUCT RULES: All living rooms and bedrooms must face the outer building façade for maximum solar exposure and natural daylighting. Internal bathrooms and service areas must connect to dedicated vertical ventilation shafts/ducts. ' : '';
         const fireSafetyStr = fireSafetyCode ? 'Ensure compliance with fire egress codes. ' : '';
@@ -292,7 +268,7 @@ export default function IdeaGenerationPage() {
         const promptText = `Create a high-quality top-down 2D architectural CAD floor plan of a compact ${styleName} high-rise tower (${overallWidth}m x ${overallLength}m) with one central core.
 
 PRIMARY OBJECTIVE:
-Create EXACTLY ${totalUnits} complete, independent apartments (${typeAUnits} × 1BHK, ${typeBUnits} × 2BHK, ${typeCUnits} × 3BHK): ${labelList}.
+Create EXACTLY ${totalUnits} complete, independent apartments (${mixBreakdownParts}): ${labelList}.
 
 FIRST establish ${totalUnits} clearly separated apartment boundaries, then design rooms inside them. Every apartment must have a complete continuous wall boundary and one independent entrance opening directly onto the common corridor.
 
@@ -307,7 +283,7 @@ COMMON CORRIDOR → APARTMENT ENTRANCE → LIVING ROOM → INTERNAL DISTRIBUTION
 Every living room, bedroom, and kitchen MUST directly touch an external façade, balcony edge, or ventilation court with clearly visible external windows. No windowless living rooms, bedrooms, or kitchens allowed. ${ventStr}${vaastuStr}${fireSafetyStr}${customPrompt ? `Notes: ${customPrompt}.` : ''}
 
 CENTRAL CORE & CORRIDOR:
-Compact central core containing ${passengerLifts} passenger lifts, ${fireLifts} fire lifts, and 2 fire stairs. One continuous corridor connecting all ${totalUnits} entrances to the core.
+Compact central core containing ${passengerLifts} lifts and ${staircases} fire stairs. One continuous corridor connecting all ${totalUnits} entrances to the core.
 
 GRAPHICAL STYLE:
 Professional 2D architectural CAD floor plan. Bold black walls, light beige for room interiors, light grey for corridor/core, light blue for bathrooms, light green for balconies on clean white background. No furniture, no room names, no dimensions.
@@ -399,7 +375,7 @@ Output only the clean, tightly cropped 2D architectural floor plan.`;
     setTimeout(() => setCopiedLink(false), 2000);
   };
 
-  const totalUnits = typeAUnits + typeBUnits + typeCUnits;
+  const totalUnits = units1BHK + units2BHK + units3BHK + units4BHK;
 
   return (
     <div className={`min-h-screen font-mono flex flex-col relative overflow-hidden p-6 z-50 transition-colors duration-300 ${
@@ -615,29 +591,6 @@ Output only the clean, tightly cropped 2D architectural floor plan.`;
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
-              <div className="flex flex-col gap-1">
-                <label className="text-[8px] text-cyan-500/60 uppercase">TYPICAL HEIGHT (M)</label>
-                <input 
-                  type="text" 
-                  value={floorHeight} 
-                  onChange={(e) => setFloorHeight(e.target.value)}
-                  disabled={isGenerating}
-                  className="bg-black/40 border border-white/10 focus:border-cyan-400 focus:outline-none rounded p-1.5 text-[11px] text-cyan-400"
-                />
-              </div>
-              <div className="flex flex-col gap-1">
-                <label className="text-[8px] text-cyan-500/60 uppercase">HEIGHT (STORIES)</label>
-                <input 
-                  type="text" 
-                  value={storyCount} 
-                  onChange={(e) => setStoryCount(e.target.value)}
-                  disabled={isGenerating}
-                  className="bg-black/40 border border-white/10 focus:border-cyan-400 focus:outline-none rounded p-1.5 text-[11px] text-cyan-400"
-                />
-              </div>
-            </div>
-
             {/* Unit Mix Table (Typical Floor) */}
             <div className="flex flex-col gap-2 border-t border-white/5 pt-2.5">
               <span className="text-[9px] tracking-[2px] text-cyan-500/60 uppercase font-mono block">UNIT MIX DESIGN MATRIX</span>
@@ -646,54 +599,67 @@ Output only the clean, tightly cropped 2D architectural floor plan.`;
                 <table className="min-w-full divide-y divide-white/10 font-mono text-[10px]">
                   <thead className="bg-white/[0.02]">
                     <tr>
-                      <th className="px-2 py-1.5 text-left text-[8px] font-bold text-cyan-500/70 uppercase">TYPE</th>
-                      <th className="px-2 py-1.5 text-left text-[8px] font-bold text-cyan-500/70 uppercase">CARPET</th>
+                      <th className="px-2 py-1.5 text-left text-[8px] font-bold text-cyan-500/70 uppercase">UNIT TYPE</th>
+                      <th className="px-2 py-1.5 text-left text-[8px] font-bold text-cyan-500/70 uppercase">AVG CARPET</th>
                       <th className="px-2 py-1.5 text-center text-[8px] font-bold text-cyan-500/70 uppercase">QTY/FL</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-white/5 bg-black/10">
                     <tr>
-                      <td className="px-2 py-1 text-white font-bold">TYPE A (2BHK)</td>
+                      <td className="px-2 py-1 text-white font-bold">1BHK APARTMENT</td>
+                      <td className="px-2 py-1 text-cyan-400/80">50 SQ.M.</td>
+                      <td className="px-2 py-1 text-center">
+                        <input 
+                          type="number" 
+                          value={units1BHK} 
+                          onChange={(e) => setUnits1BHK(Math.max(0, parseInt(e.target.value) || 0))}
+                          disabled={isGenerating}
+                          className="bg-black/50 border border-white/10 focus:border-cyan-400 focus:outline-none rounded w-12 text-center text-cyan-400 py-0.5"
+                        />
+                      </td>
+                    </tr>
+                    <tr>
+                      <td className="px-2 py-1 text-white font-bold">2BHK APARTMENT</td>
                       <td className="px-2 py-1 text-cyan-400/80">78 SQ.M.</td>
                       <td className="px-2 py-1 text-center">
                         <input 
                           type="number" 
-                          value={typeAUnits} 
-                          onChange={(e) => setTypeAUnits(parseInt(e.target.value) || 0)}
+                          value={units2BHK} 
+                          onChange={(e) => setUnits2BHK(Math.max(0, parseInt(e.target.value) || 0))}
                           disabled={isGenerating}
-                          className="bg-black/50 border border-white/10 focus:border-cyan-400 focus:outline-none rounded w-10 text-center text-cyan-400 py-0.5"
+                          className="bg-black/50 border border-white/10 focus:border-cyan-400 focus:outline-none rounded w-12 text-center text-cyan-400 py-0.5"
                         />
                       </td>
                     </tr>
                     <tr>
-                      <td className="px-2 py-1 text-white font-bold">TYPE B (3BHK)</td>
+                      <td className="px-2 py-1 text-white font-bold">3BHK APARTMENT</td>
                       <td className="px-2 py-1 text-cyan-400/80">105 SQ.M.</td>
                       <td className="px-2 py-1 text-center">
                         <input 
                           type="number" 
-                          value={typeBUnits} 
-                          onChange={(e) => setTypeBUnits(parseInt(e.target.value) || 0)}
+                          value={units3BHK} 
+                          onChange={(e) => setUnits3BHK(Math.max(0, parseInt(e.target.value) || 0))}
                           disabled={isGenerating}
-                          className="bg-black/50 border border-white/10 focus:border-cyan-400 focus:outline-none rounded w-10 text-center text-cyan-400 py-0.5"
+                          className="bg-black/50 border border-white/10 focus:border-cyan-400 focus:outline-none rounded w-12 text-center text-cyan-400 py-0.5"
                         />
                       </td>
                     </tr>
                     <tr>
-                      <td className="px-2 py-1 text-white font-bold">TYPE C (3BHK P)</td>
-                      <td className="px-2 py-1 text-cyan-400/80">120 SQ.M.</td>
+                      <td className="px-2 py-1 text-white font-bold">4BHK APARTMENT</td>
+                      <td className="px-2 py-1 text-cyan-400/80">140 SQ.M.</td>
                       <td className="px-2 py-1 text-center">
                         <input 
                           type="number" 
-                          value={typeCUnits} 
-                          onChange={(e) => setTypeCUnits(parseInt(e.target.value) || 0)}
+                          value={units4BHK} 
+                          onChange={(e) => setUnits4BHK(Math.max(0, parseInt(e.target.value) || 0))}
                           disabled={isGenerating}
-                          className="bg-black/50 border border-white/10 focus:border-cyan-400 focus:outline-none rounded w-10 text-center text-cyan-400 py-0.5"
+                          className="bg-black/50 border border-white/10 focus:border-cyan-400 focus:outline-none rounded w-12 text-center text-cyan-400 py-0.5"
                         />
                       </td>
                     </tr>
                     <tr className="bg-white/[0.04]">
                       <td className="px-2 py-1.5 text-cyan-400 font-bold uppercase" colSpan={2}>TOTAL MIX COUNT</td>
-                      <td className="px-2 py-1.5 text-center text-white font-bold text-xs">{totalUnits} NOS</td>
+                      <td className="px-2 py-1.5 text-center text-white font-bold text-xs">{units1BHK + units2BHK + units3BHK + units4BHK} NOS</td>
                     </tr>
                   </tbody>
                 </table>
@@ -890,56 +856,23 @@ Output only the clean, tightly cropped 2D architectural floor plan.`;
 
               <div className="grid grid-cols-2 gap-3.5">
                 <div className="flex flex-col gap-1">
-                  <label className="text-[8px] text-cyan-500/60 uppercase">LIFT LOBBY DIMENSIONS (M)</label>
-                  <input 
-                    type="text" 
-                    value={coreSize} 
-                    onChange={(e) => setCoreSize(e.target.value)}
-                    disabled={isGenerating}
-                    className="bg-black/40 border border-white/10 focus:border-cyan-400 focus:outline-none rounded p-1.5 text-[11px] text-cyan-400"
-                  />
-                </div>
-                <div className="flex flex-col gap-1">
-                  <label className="text-[8px] text-cyan-500/60 uppercase">CORRIDOR LOOP WIDTH (M)</label>
-                  <input 
-                    type="text" 
-                    value={corridorWidth} 
-                    onChange={(e) => setCorridorWidth(e.target.value)}
-                    disabled={isGenerating}
-                    className="bg-black/40 border border-white/10 focus:border-cyan-400 focus:outline-none rounded p-1.5 text-[11px] text-cyan-400"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-3 gap-2.5">
-                <div className="flex flex-col gap-1">
-                  <label className="text-[8px] text-cyan-500/60 uppercase">PASS LIFTS QTY</label>
+                  <label className="text-[8px] text-cyan-500/60 uppercase">LIFTS QUANTITY</label>
                   <input 
                     type="number" 
                     value={passengerLifts} 
-                    onChange={(e) => setPassengerLifts(parseInt(e.target.value) || 0)}
+                    onChange={(e) => setPassengerLifts(Math.max(1, parseInt(e.target.value) || 1))}
                     disabled={isGenerating}
-                    className="bg-black/40 border border-white/10 focus:border-cyan-400 focus:outline-none rounded p-1.5 text-[11px] text-cyan-400"
+                    className="bg-black/40 border border-white/10 focus:border-cyan-400 focus:outline-none rounded p-1.5 text-[11px] text-cyan-400 font-mono"
                   />
                 </div>
                 <div className="flex flex-col gap-1">
-                  <label className="text-[8px] text-cyan-500/60 uppercase">FIRE LIFTS QTY</label>
-                  <input 
-                    type="number" 
-                    value={fireLifts} 
-                    onChange={(e) => setFireLifts(parseInt(e.target.value) || 0)}
-                    disabled={isGenerating}
-                    className="bg-black/40 border border-white/10 focus:border-cyan-400 focus:outline-none rounded p-1.5 text-[11px] text-cyan-400"
-                  />
-                </div>
-                <div className="flex flex-col gap-1">
-                  <label className="text-[8px] text-cyan-500/60 uppercase">EGRESS STAIRS</label>
+                  <label className="text-[8px] text-cyan-500/60 uppercase">STAIRS QUANTITY</label>
                   <input 
                     type="number" 
                     value={staircases} 
-                    onChange={(e) => setStaircases(parseInt(e.target.value) || 0)}
+                    onChange={(e) => setStaircases(Math.max(1, parseInt(e.target.value) || 1))}
                     disabled={isGenerating}
-                    className="bg-black/40 border border-white/10 focus:border-cyan-400 focus:outline-none rounded p-1.5 text-[11px] text-cyan-400"
+                    className="bg-black/40 border border-white/10 focus:border-cyan-400 focus:outline-none rounded p-1.5 text-[11px] text-cyan-400 font-mono"
                   />
                 </div>
               </div>
