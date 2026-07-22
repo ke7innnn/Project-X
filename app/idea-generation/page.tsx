@@ -276,10 +276,12 @@ export default function IdeaGenerationPage() {
         const vaastuStr = vastuCompliant ? 'Position the kitchen in the south-east zone and orient the main entrance per Vaastu Shastra principles. ' : '';
         const ventStr = crossVentilation ? 'Every bedroom, living room, and kitchen must open directly onto an external wall or balcony for natural cross-ventilation and daylight — no internal, windowless rooms. ' : '';
         
+        const fireSafetyStr = fireSafetyCode ? 'Ensure strict compliance with international fire safety codes, including dual egress staircases with fire-rated doors. ' : '';
+        
         // Dynamically build unit labels list e.g. F01, F02, ... F10 based on user UI totalUnits
         const labelList = Array.from({ length: totalUnits }, (_, i) => `F${String(i + 1).padStart(2, '0')}`).join(', ');
         
-        const promptText = `Create a high-quality top-down 2D architectural CAD floor plan of a compact, architecturally interesting ${styleName} high-rise residential tower with an overall footprint of ${overallWidth}m x ${overallLength}m and a floor-to-floor height of ${floorHeight}m, featuring one compact central circulation core.
+        const promptText = `Create a high-quality top-down 2D architectural CAD floor plan of a compact, architecturally interesting ${styleName} (${storyCount} stories) high-rise residential tower with an overall footprint of ${overallWidth}m x ${overallLength}m and a floor-to-floor height of ${floorHeight}m, featuring one compact central circulation core.
 
 PRIMARY OBJECTIVE:
 Create EXACTLY ${totalUnits} complete, independent apartments:
@@ -320,10 +322,10 @@ Every apartment's living room MUST directly touch an external building façade, 
 BEDROOM AND KITCHEN VENTILATION — CRITICAL:
 Every bedroom must have direct natural daylight and ventilation through an external window, balcony, or external opening.
 Every kitchen must have an external window/opening or a clearly visible ventilation shaft. Internal bathrooms must connect to a ventilation shaft or duct.
-Do not create windowless living rooms, bedrooms, or kitchens. ${ventStr}${vaastuStr}${customPrompt ? `Custom notes: ${customPrompt}.` : ''}
+Do not create windowless living rooms, bedrooms, or kitchens. ${ventStr}${vaastuStr}${fireSafetyStr}${customPrompt ? `Custom notes: ${customPrompt}.` : ''}
 
 CENTRAL CORE:
-Use one compact central core containing ${passengerLifts} passenger lifts, ${fireLifts} fire lift, ${staircases} enclosed fire stairs, and small service/electrical shafts. Keep the core and lift lobby compact to maximize residential carpet area.
+Use one compact central core of dimensions ${coreSize}m containing ${passengerLifts} passenger lifts, ${fireLifts} fire lift, ${staircases} enclosed fire stairs, and small service/electrical shafts. Keep the core and lift lobby compact to maximize residential carpet area.
 
 CORRIDOR:
 Create one clear and efficient ${corridorWidth}m wide common corridor connecting all ${totalUnits} apartment entrances to the central core. Every apartment entrance must open directly onto this corridor.
