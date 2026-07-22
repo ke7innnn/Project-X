@@ -139,6 +139,31 @@ function playSonarPing() {
   }
 }
 
+function playMenuHoverSound() {
+  try {
+    const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
+    if (!AudioContext) return;
+    const ctx = new AudioContext();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(750, ctx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(1500, ctx.currentTime + 0.035);
+    
+    gain.gain.setValueAtTime(0.035, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.035);
+    
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    
+    osc.start();
+    osc.stop(ctx.currentTime + 0.035);
+  } catch (e) {
+    // Ignore audio restrictions
+  }
+}
+
 export default function StartScreen() {
   const setIsAppStarted = useArchitectStore((state) => state.setIsAppStarted);
   const storePhase = useArchitectStore((state) => state.phase);
@@ -166,6 +191,7 @@ export default function StartScreen() {
 
   // States
   const [activeMenuTab, setActiveMenuTab] = useState(() => getInitialStage(storePhase));
+  const [hoveredStage, setHoveredStage] = useState<string | null>(null);
   const [isSystemOnline, setIsSystemOnline] = useState(true);
   const [statusState, setStatusState] = useState<'idle' | 'listening' | 'thinking' | 'speaking'>('idle');
   const [transcript, setTranscript] = useState('Initializing bat-computer link...');
@@ -1798,50 +1824,122 @@ NOTE: Each time Master Umesh asks for the brief, these stories are shuffled rand
         </div>
       </div>
 
-      {/* Right HUD Menu Panel */}
-      <div className="fixed right-16 top-1/2 -translate-y-1/2 z-10 w-64 select-none text-left hidden md:block">
-        <div className="relative pl-6 py-2">
-          {/* Cyan Glow Vertical Line */}
-          <div className="absolute left-0 top-0 bottom-0 w-[2px] bg-gradient-to-b from-cyan-500/10 via-cyan-400 to-cyan-500/10 shadow-[0_0_8px_#00f0ff]" />
+      {/* Right HUD Menu Panel — AAA Video Game Arcade Style */}
+      <div className="fixed right-10 top-1/2 -translate-y-1/2 z-20 w-80 select-none text-left hidden md:block">
+        <div className="relative p-5 backdrop-blur-xl bg-[#040814]/85 border border-cyan-500/30 rounded-2xl shadow-[0_0_40px_rgba(0,240,255,0.15)] overflow-hidden">
+          
+          {/* Futuristic Corner Tech Accents */}
+          <span className="absolute top-0 left-0 w-3 h-3 border-t-2 border-l-2 border-cyan-400 pointer-events-none" />
+          <span className="absolute top-0 right-0 w-3 h-3 border-t-2 border-r-2 border-cyan-400 pointer-events-none" />
+          <span className="absolute bottom-0 left-0 w-3 h-3 border-b-2 border-l-2 border-cyan-400 pointer-events-none" />
+          <span className="absolute bottom-0 right-0 w-3 h-3 border-b-2 border-r-2 border-cyan-400 pointer-events-none" />
 
-          <div className="flex flex-col gap-1 mb-6">
-            <span className="text-[10px] tracking-[4px] text-cyan-500/60 uppercase font-mono font-bold block">
-              SYSTEM INTERFACE
-            </span>
-            <h2 className="text-2xl font-bold tracking-[2px] text-white uppercase drop-shadow-[0_0_6px_rgba(255,255,255,0.2)]" style={{ fontFamily: 'Givonic, Syncopate, sans-serif' }}>
+          {/* Subtly animated scanlines background overlay */}
+          <div className="absolute inset-0 bg-[linear-gradient(to_bottom,transparent_50%,rgba(0,240,255,0.025)_50%)] bg-[length:100%_4px] pointer-events-none" />
+          
+          {/* Pulsing HUD laser beam on the left edge */}
+          <div className="absolute left-0 top-0 bottom-0 w-[3px] bg-gradient-to-b from-cyan-500/20 via-[#00f0ff] to-cyan-500/20 shadow-[0_0_12px_#00f0ff] pointer-events-none" />
+
+          {/* Header section */}
+          <div className="flex flex-col gap-1.5 mb-5 pb-3 border-b border-cyan-500/20 relative z-10">
+            <div className="flex items-center justify-between">
+              <span className="text-[9px] tracking-[3px] text-cyan-400/70 font-mono font-bold flex items-center gap-1.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-[#00f0ff] animate-ping" />
+                SYSTEM INTERFACE
+              </span>
+              <span className="text-[9px] font-mono text-cyan-500/50 tracking-wider">SYS.09</span>
+            </div>
+            <h2 
+              className="text-2xl font-black tracking-[3px] text-white uppercase drop-shadow-[0_0_10px_rgba(0,240,255,0.5)] flex items-center justify-between" 
+              style={{ fontFamily: 'Givonic, Syncopate, sans-serif' }}
+            >
               MAIN MENU
+              <span className="text-[10px] text-cyan-400/40 font-mono font-normal">v2.4</span>
             </h2>
           </div>
 
-          <div className="flex flex-col gap-4 font-mono text-sm tracking-[2px] uppercase">
-            {startScreenStages.map((stage) => {
+          {/* Stage list */}
+          <div className="flex flex-col gap-1.5 relative z-10 font-mono">
+            {startScreenStages.map((stage, idx) => {
               const isActive = activeMenuTab === stage.id;
+              const isHovered = hoveredStage === stage.id;
+              const indexStr = (idx + 1).toString().padStart(2, '0');
+
               return (
                 <button
                   key={stage.id}
-                  onClick={() => handleMenuClick(stage.id)}
-                  className={`flex items-center justify-between w-full group transition-all duration-300 ${isActive
-                      ? 'text-[#00f0ff] font-bold drop-shadow-[0_0_8px_rgba(0,240,255,0.6)] translate-x-1'
-                      : 'text-cyan-500/50 hover:text-cyan-400/80 hover:translate-x-0.5'
-                    }`}
+                  onClick={() => {
+                    playSonarPing();
+                    handleMenuClick(stage.id);
+                  }}
+                  onMouseEnter={() => {
+                    setHoveredStage(stage.id);
+                    playMenuHoverSound();
+                  }}
+                  onMouseLeave={() => setHoveredStage(null)}
+                  className={`relative flex items-center justify-between w-full px-3 py-2 rounded-lg transition-all duration-200 group text-left cursor-pointer overflow-hidden border ${
+                    isActive
+                      ? 'bg-gradient-to-r from-cyan-500/30 via-cyan-500/15 to-transparent border-cyan-400/80 shadow-[0_0_15px_rgba(0,240,255,0.35)] translate-x-1.5'
+                      : isHovered
+                      ? 'bg-gradient-to-r from-cyan-500/20 via-cyan-500/10 to-transparent border-cyan-400/50 shadow-[0_0_12px_rgba(0,240,255,0.2)] translate-x-1'
+                      : 'bg-transparent border-transparent hover:border-cyan-500/20'
+                  }`}
                 >
-                  <div className="flex items-center gap-3">
-                    <span
-                      className={`text-[10px] transition-all duration-300 ${isActive
-                          ? 'opacity-100 scale-110 text-[#00f0ff]'
-                          : 'opacity-0 scale-75 text-transparent group-hover:opacity-50 group-hover:text-cyan-400 group-hover:scale-95'
-                        }`}
+                  {/* Glowing left edge indicator on hover / active */}
+                  <div 
+                    className={`absolute left-0 top-0 bottom-0 w-[3px] transition-all duration-200 ${
+                      isActive 
+                        ? 'bg-[#00f0ff] shadow-[0_0_10px_#00f0ff]' 
+                        : isHovered 
+                        ? 'bg-cyan-400/80 shadow-[0_0_6px_#00f0ff]' 
+                        : 'bg-transparent'
+                    }`} 
+                  />
+
+                  {/* Left part: Cursor + Number + Label */}
+                  <div className="flex items-center gap-2.5 z-10">
+                    <span 
+                      className={`text-xs font-bold transition-all duration-200 ${
+                        isActive
+                          ? 'text-[#00f0ff] scale-110 drop-shadow-[0_0_6px_#00f0ff]'
+                          : isHovered
+                          ? 'text-cyan-400 translate-x-0.5'
+                          : 'text-cyan-600/40 opacity-0 group-hover:opacity-100'
+                      }`}
                     >
                       ▶
                     </span>
-                    <span className="font-semibold" style={{ fontFamily: 'Givonic, Syncopate, sans-serif' }}>{stage.label}</span>
+                    
+                    <span className={`text-[10px] font-mono tracking-tighter ${isActive || isHovered ? 'text-cyan-400 font-bold' : 'text-cyan-500/40'}`}>
+                      {indexStr}
+                    </span>
+
+                    <span 
+                      className={`text-xs font-bold tracking-[1.5px] uppercase transition-all duration-200 ${
+                        isActive
+                          ? 'text-white drop-shadow-[0_0_8px_rgba(0,240,255,0.8)]'
+                          : isHovered
+                          ? 'text-cyan-100 drop-shadow-[0_0_4px_rgba(0,240,255,0.4)]'
+                          : 'text-cyan-400/70 group-hover:text-white'
+                      }`}
+                      style={{ fontFamily: 'Givonic, Syncopate, sans-serif' }}
+                    >
+                      {stage.label}
+                    </span>
                   </div>
+
+                  {/* Right part: Badge */}
                   {stage.badge && (
                     <span
-                      className={`text-[8px] px-1.5 py-0.5 rounded font-bold tracking-normal transition-colors duration-300 ${isActive
-                          ? 'bg-[#00f0ff] text-black shadow-[0_0_6px_rgba(0,240,255,0.4)]'
-                          : 'bg-cyan-950/40 text-cyan-500/60 border border-cyan-500/20 group-hover:border-cyan-400/40 group-hover:text-cyan-400/80'
-                        }`}
+                      className={`text-[8.5px] px-1.5 py-0.5 rounded font-mono font-bold tracking-wider uppercase transition-all duration-200 z-10 ${
+                        stage.badge === 'NEW'
+                          ? isActive || isHovered
+                            ? 'bg-[#00f0ff] text-black shadow-[0_0_8px_rgba(0,240,255,0.8)] border border-cyan-300'
+                            : 'bg-cyan-950/80 text-[#00f0ff] border border-cyan-400/50 shadow-[0_0_6px_rgba(0,240,255,0.3)] animate-pulse'
+                          : isActive || isHovered
+                          ? 'bg-purple-500 text-white shadow-[0_0_8px_rgba(168,85,247,0.8)] border border-purple-300'
+                          : 'bg-purple-950/80 text-purple-300 border border-purple-500/40'
+                      }`}
                     >
                       {stage.badge}
                     </span>
@@ -1850,6 +1948,13 @@ NOTE: Each time Master Umesh asks for the brief, these stories are shuffled rand
               );
             })}
           </div>
+
+          {/* Footer status bar in menu box */}
+          <div className="mt-4 pt-3 border-t border-cyan-500/20 flex items-center justify-between text-[8px] font-mono text-cyan-500/50 uppercase tracking-widest relative z-10">
+            <span>COMMAND MATRIX</span>
+            <span className="text-cyan-400 font-bold animate-pulse">● ACTIVE</span>
+          </div>
+
         </div>
       </div>
 
