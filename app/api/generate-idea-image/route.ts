@@ -22,21 +22,45 @@ export async function POST(req: Request) {
     const cleanApiKey = activeApiKey.replace(/\s+/g, '').replace(/[^a-zA-Z0-9:-]/g, '');
     fal.config({ credentials: cleanApiKey });
 
-    console.log('[IdeaGenerator] Calling Fal AI model openai/gpt-image-2 with quality medium...');
+    console.log(`[IdeaGenerator] Executing dual parallel generation: GPT-Image-2 (medium) + Nano Banana 2 (${imageSize || 'square_hd'})...`);
     
-    const result: any = await fal.subscribe('openai/gpt-image-2', {
+    const gptPromise = fal.subscribe('openai/gpt-image-2', {
       input: {
         prompt: prompt,
         quality: 'medium'
       }
+    }).catch(err => {
+      console.error('[IdeaGenerator] GPT-Image-2 failed:', err.message || err);
+      return null;
     });
 
-    const images = result?.images || result?.data?.images;
-    if (!images || images.length === 0) {
-      return NextResponse.json({ error: 'Fal AI model returned no images' }, { status: 500 });
+    const nanoPromise = fal.subscribe('fal-ai/nano-banana-2', {
+      input: {
+        prompt: prompt,
+        image_size: imageSize || 'square_hd'
+      }
+    }).catch(err => {
+      console.error('[IdeaGenerator] Nano Banana 2 failed:', err.message || err);
+      return null;
+    });
+
+    const [gptRes, nanoRes] = await Promise.all([gptPromise, nanoPromise]);
+
+    const gptImages = (gptRes as any)?.images || (gptRes as any)?.data?.images;
+    const nanoImages = (nanoRes as any)?.images || (nanoRes as any)?.data?.images;
+
+    const gptUrl = gptImages?.[0]?.url || null;
+    const nanoUrl = nanoImages?.[0]?.url || null;
+
+    if (!gptUrl && !nanoUrl) {
+      return NextResponse.json({ error: 'Both Fal AI models (GPT-Image-2 & Nano Banana 2) failed to generate images.' }, { status: 500 });
     }
 
-    return NextResponse.json({ url: images[0].url });
+    return NextResponse.json({
+      gptImageUrl: gptUrl,
+      nanoImageUrl: nanoUrl,
+      url: gptUrl || nanoUrl
+    });
   } catch (error: any) {
     console.error('[IdeaGenerator] Fal AI Error:', error.message || error);
     return NextResponse.json(

@@ -28,13 +28,29 @@ import { useArchitectStore } from '@/store/useArchitectStore';
 import { useActiveProjectGuard } from '@/lib/useActiveProjectGuard';
 import { useDebounce } from '@/lib/useDebounce';
 
-// Shapes presets
-const FOOTPRINT_PRESETS = [
-  { id: 'curved-x', name: 'CURVED X-SHAPE (HIGH-RISE)', desc: 'Four symmetrical curved wings with a centralized circulation core.' },
-  { id: 'tri-foil', name: 'TRI-FOIL Y-SHAPE', desc: 'Three-pronged radiating wings optimized for wind deflection.' },
-  { id: 'monolithic-rect', name: 'MONOLITHIC RECTANGULAR', desc: 'Classic double-loaded slab footprint with central core.' },
-  { id: 'circular-atrium', name: 'CIRCULAR ATRIUM TOWER', desc: 'Concentric core layout with circular exterior gallery walls.' },
-  { id: 'custom', name: 'CUSTOM FOOTPRINT...', desc: 'Define your own tower footprint shape dynamically.' }
+// Architectural Shapes Presets
+export interface FootprintPreset {
+  id: string;
+  name: string;
+  desc: string;
+  recommendedAspect: string;
+  recommendedImageSize: string;
+}
+
+export const FOOTPRINT_PRESETS: FootprintPreset[] = [
+  { id: 'curved-x', name: 'CURVED X-SHAPE (HIGH-RISE)', desc: 'Symmetrical 4-wing curvilinear tower with central circulation core.', recommendedAspect: '1:1 (Square HD)', recommendedImageSize: 'square_hd' },
+  { id: 'curved-s', name: 'CURVED S-SHAPE / SERPENTINE', desc: 'Flowing double-curve residential footprint for maximum perimeter daylight.', recommendedAspect: '2:1 (Landscape)', recommendedImageSize: 'landscape_16_9' },
+  { id: 'crescent-arc', name: 'CRESCENT / ARC-SHAPE TOWER', desc: 'Sweeping arc wing oriented to capture panoramic views.', recommendedAspect: '16:9 (Landscape)', recommendedImageSize: 'landscape_16_9' },
+  { id: 'tri-foil', name: 'TRI-FOIL / Y-SHAPE TOWER', desc: '3-wing radiating footprint with 120° corner units around a compact core.', recommendedAspect: '1:1 (Square HD)', recommendedImageSize: 'square_hd' },
+  { id: 'h-shape', name: 'H-SHAPE DUAL WING TOWER', desc: 'High-density twin parallel wings connected by a central lobby bridge.', recommendedAspect: '3:2 (Landscape)', recommendedImageSize: 'landscape_4_3' },
+  { id: 'pinwheel', name: 'PINWHEEL / SWIRL 4-WING', desc: 'Dynamic staggered 4-arm pinwheel ensuring zero wing-to-wing overlap.', recommendedAspect: '1:1 (Square HD)', recommendedImageSize: 'square_hd' },
+  { id: 'elliptical', name: 'ELLIPTICAL / OVAL TOWER', desc: 'Aerodynamic smooth oval footprint for ultra-high wind resistance.', recommendedAspect: '16:9 (Landscape)', recommendedImageSize: 'landscape_16_9' },
+  { id: 'courtyard-ring', name: 'COURTYARD / O-SHAPE SLAB', desc: 'Enclosed perimeter ring layout with a central open-to-sky atrium.', recommendedAspect: '1:1 (Square HD)', recommendedImageSize: 'square_hd' },
+  { id: 'hexagonal', name: 'HEXAGONAL HONEYCOMB TOWER', desc: '6-sided geometric honeycomb plate offering 60° corner balconies.', recommendedAspect: '1:1 (Square HD)', recommendedImageSize: 'square_hd' },
+  { id: 'stepped-l', name: 'STEP-TERRACED L-SHAPE', desc: 'Dual-wing corner urban infill tower with cascading sky terraces.', recommendedAspect: '3:2 (Landscape)', recommendedImageSize: 'landscape_4_3' },
+  { id: 'monolithic-rect', name: 'MONOLITHIC RECTANGULAR SLAB', desc: 'Classic double-loaded linear slab footprint with central core.', recommendedAspect: '3:2 (Landscape)', recommendedImageSize: 'landscape_4_3' },
+  { id: 'circular-atrium', name: 'CIRCULAR ATRIUM TOWER', desc: 'Concentric core layout with circular exterior gallery walls.', recommendedAspect: '1:1 (Square HD)', recommendedImageSize: 'square_hd' },
+  { id: 'custom', name: 'CUSTOM FOOTPRINT...', desc: 'Define your own tower footprint shape dynamically.', recommendedAspect: '1:1 (Square HD)', recommendedImageSize: 'square_hd' }
 ];
 
 export default function IdeaGenerationPage() {
@@ -80,7 +96,9 @@ export default function IdeaGenerationPage() {
   const [logs, setLogs] = useState<string[]>([]);
   const [copiedLink, setCopiedLink] = useState(false);
 
-  // Output states
+  // Dual Model Output states
+  const [gptResultImage, setGptResultImage] = useState<string | null>(null);
+  const [nanoResultImage, setNanoResultImage] = useState<string | null>(null);
   const [resultImage, setResultImage] = useState<string | null>(null);
   const [resultTitle, setResultTitle] = useState('');
   const [resultDesc, setResultDesc] = useState('');
@@ -256,23 +274,15 @@ export default function IdeaGenerationPage() {
         
         const fallbackUrl = '/x-shape-floorplan.jpg';
         setLogs((prev) => [...prev, '[SYS] CORE CALCULATIONS VERIFIED. DESIGN SCHEMATIC PIPELINE ONLINE.']);
+        setGptResultImage(fallbackUrl);
+        setNanoResultImage(fallbackUrl);
         setResultImage(fallbackUrl);
         setResultTitle(`${styleName} TYPICAL PLAN`);
-        setResultDesc(
-          `High-rise Floor Plan Core Synthesis: Monolithic ${styleName} tower floor plan featuring 16 balanced units per floor (4x 2BHK, 8x 3BHK, 4x 3BHK Premium). ${customPrompt ? `Custom Notes Integrated: "${customPrompt}". ` : ''}Integrates a central 24.00m x 24.00m lift lobby containing 8 passenger lifts, 2 fire lifts, 2 fire staircases, and dual 2.40m wide branching corridors.`
-        );
-        
-        // Save to variants history
-        setVariantsHistory(prev => {
-          const list = [fallbackUrl, ...prev.filter(url => url !== fallbackUrl)];
-          return list.slice(0, 5);
-        });
-
+        setResultDesc(`High-rise Floor Plan Core Synthesis: Monolithic ${styleName} tower floor plan.`);
         setIsGenerating(false);
       } else {
         // Call Fal AI route
         const totalUnits = typeAUnits + typeBUnits + typeCUnits;
-        const [coreW, coreL] = coreSize.split('x').map(s => s.trim());
         const fireSafetyStr = fireSafetyCode ? 'Ensure compliance with fire egress codes. ' : '';
         
         // Dynamically build unit labels list e.g. F01, F02, ... F10 based on user UI totalUnits
@@ -292,7 +302,7 @@ Place exactly one clearly visible label inside each apartment near the entrance:
 
 APARTMENT COMPOSITION & VENTILATION:
 Hierarchy: COMMON CORRIDOR → ENTRANCE → LIVING ROOM → BEDROOMS, KITCHEN, BATHROOMS.
-Living rooms, bedrooms, and kitchens MUST touch an external wall with visible window/balcony openings. No windowless rooms. ${vaastuStr}${fireSafetyStr}${customPrompt ? `Notes: ${customPrompt}.` : ''}
+Living rooms, bedrooms, and kitchens MUST touch an external wall with visible window/balcony openings. No windowless rooms. ${fireSafetyStr}${customPrompt ? `Notes: ${customPrompt}.` : ''}
 
 CENTRAL CORE & CORRIDOR:
 Compact central core containing ${passengerLifts} passenger lifts, ${fireLifts} fire lifts, and 2 fire stairs. One continuous corridor connecting all ${totalUnits} entrances to the core.
@@ -302,6 +312,13 @@ Professional 2D architectural CAD floor plan. Bold black walls, light beige for 
 
 Output only the clean, tightly cropped 2D architectural floor plan.`;
 
+        const activePreset = FOOTPRINT_PRESETS.find(f => f.id === footprintShape);
+        const imageSize = activePreset?.recommendedImageSize || 'square_hd';
+
+        setGptResultImage(null);
+        setNanoResultImage(null);
+        setResultImage(null);
+
         const apiPromise = fetch('/api/generate-idea-image', {
           method: 'POST',
           headers: {
@@ -310,6 +327,7 @@ Output only the clean, tightly cropped 2D architectural floor plan.`;
           body: JSON.stringify({
             prompt: promptText,
             style: styleName,
+            imageSize,
             apiKey: apiKey || undefined,
           }),
         }).then(async (res) => {
@@ -317,14 +335,11 @@ Output only the clean, tightly cropped 2D architectural floor plan.`;
           if (!res.ok) {
             throw new Error(data.error || 'Fal AI generation request failed');
           }
-          if (!data.url || !data.url.startsWith('http')) {
-            throw new Error('Fal AI returned an empty or invalid image path.');
-          }
-          return data.url;
+          return data;
         });
 
-        // Race/wait for API response, ensuring at least 3 seconds of tactical logging runs
-        const [url] = await Promise.all([
+        // Race/wait for API response, ensuring at least 3.3 seconds of tactical logging runs
+        const [resData] = await Promise.all([
           apiPromise,
           new Promise((r) => setTimeout(r, 3300))
         ]);
@@ -340,17 +355,23 @@ Output only the clean, tightly cropped 2D architectural floor plan.`;
         }
         setGenerationStep(loadingSteps.length);
 
-        setLogs((prev) => [...prev, '[SYS] CORE CALCULATIONS VERIFIED. LIVE GENERATION PIPELINE ONLINE.']);
-        setResultImage(url);
-        setResultTitle('SYNTHESIZED TOWER PLAN');
-        setResultDesc(
-          `GPT Generative Core typical floor plan based on a ${styleName} footprint. Custom guidelines: "${customPrompt}". Core features verified: 8 passenger lifts, 2 fire lifts, and 2.40m width circulation pathways.`
-        );
+        setLogs((prev) => [...prev, '[SYS] DUAL MODEL CALCULATIONS VERIFIED (GPT-IMAGE-2 + NANO BANANA 2). ONLINE.']);
+        
+        const gptUrl = resData.gptImageUrl || resData.url || null;
+        const nanoUrl = resData.nanoImageUrl || resData.url || null;
+
+        setGptResultImage(gptUrl);
+        setNanoResultImage(nanoUrl);
+        setResultImage(gptUrl || nanoUrl);
+
+        setResultTitle(`${styleName} TOWER PLAN SCHEMATIC`);
+        setResultDesc(`Dual Generative Synthesis (GPT-Image-2 + Nano Banana 2) based on a ${styleName} footprint.`);
 
         // Save to variants history
         setVariantsHistory(prev => {
-          const list = [url, ...prev.filter(item => item !== url)];
-          return list.slice(0, 5);
+          const newItems = [gptUrl, nanoUrl].filter((u): u is string => Boolean(u));
+          const list = [...newItems, ...prev.filter(item => !newItems.includes(item))];
+          return list.slice(0, 10);
         });
 
         setIsGenerating(false);
@@ -540,6 +561,17 @@ Output only the clean, tightly cropped 2D architectural floor plan.`;
                   </option>
                 ))}
               </select>
+
+              {/* Recommended Image Size Badge */}
+              {(() => {
+                const preset = FOOTPRINT_PRESETS.find(p => p.id === footprintShape);
+                return preset ? (
+                  <div className="flex items-center justify-between text-[10px] text-cyan-400/90 bg-cyan-950/30 border border-cyan-500/20 px-2.5 py-1.5 rounded-lg mt-0.5 select-none">
+                    <span className="text-[9px] tracking-wider text-cyan-400/70 uppercase">REC. ASPECT RATIO:</span>
+                    <span className="font-mono text-cyan-300 font-bold">{preset.recommendedAspect}</span>
+                  </div>
+                ) : null;
+              })()}
             </div>
 
             {/* Custom Footprint Text Input */}
@@ -725,41 +757,42 @@ Output only the clean, tightly cropped 2D architectural floor plan.`;
                 </div>
               )}
 
-              {/* Generated Image container */}
-              {resultImage ? (
-                <div className="relative w-full h-full rounded border border-cyan-500/20 bg-white animate-fadeIn">
-                  <img
-                    src={resultImage}
-                    alt={resultTitle}
-                    className="w-full h-full object-contain"
-                  />
-                  <div className="absolute top-3 right-3 flex items-center gap-2 pointer-events-auto">
-                    <button 
-                      onClick={handleShare}
-                      className="p-2 rounded bg-black/75 border border-cyan-500/30 text-cyan-400 hover:text-white transition-colors cursor-pointer"
-                      title="Copy Link"
-                    >
-                      {copiedLink ? <Check className="w-3.5 h-3.5 text-green-400" /> : <Share2 className="w-3.5 h-3.5" />}
-                    </button>
-                    <a 
-                      href={resultImage} 
-                      download={`${resultTitle}.png`}
-                      className="p-2 rounded bg-black/75 border border-cyan-500/30 text-cyan-400 hover:text-white transition-colors flex items-center"
-                      title="Download"
-                    >
-                      <Download className="w-3.5 h-3.5" />
-                    </a>
-                  </div>
-                  {/* Entry point to Multi-Angle View Synthesis */}
-                  {!isGenerating && (
-                    <div className="absolute bottom-3 left-3 right-3 pointer-events-auto">
+              {/* Dual Generated Images Viewport */}
+              {(gptResultImage || nanoResultImage || resultImage) && !isGenerating ? (
+                <div className="w-full h-full grid grid-cols-1 md:grid-cols-2 gap-4 overflow-y-auto p-1 animate-fadeIn">
+                  
+                  {/* Model 1 Card: GPT-Image-2 (Medium) */}
+                  <div className="relative flex flex-col rounded-xl border border-cyan-500/30 bg-black/60 overflow-hidden group">
+                    <div className="px-3 py-1.5 bg-cyan-950/80 border-b border-cyan-500/20 flex items-center justify-between">
+                      <span className="text-[10px] font-bold text-cyan-400 tracking-wider uppercase">MODEL 1: GPT-IMAGE-2 (MEDIUM)</span>
+                      <span className="text-[9px] text-cyan-500/60 font-mono">DALL-E 3 ENGINE</span>
+                    </div>
+                    <div className="relative flex-1 bg-white min-h-[240px] flex items-center justify-center">
+                      <img 
+                        src={gptResultImage || resultImage || ''} 
+                        alt="GPT-Image-2 Floor Plan"
+                        className="w-full h-full object-contain"
+                      />
+                    </div>
+                    <div className="p-3 bg-[#08080c] border-t border-white/10 flex flex-col gap-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] text-cyan-300 font-semibold truncate">GPT Schematics</span>
+                        <a 
+                          href={gptResultImage || resultImage || ''}
+                          download="gpt-image-2-floorplan.png"
+                          className="px-2.5 py-1 rounded bg-cyan-950 border border-cyan-500/30 text-[10px] text-cyan-400 hover:text-white flex items-center gap-1"
+                        >
+                          <Download className="w-3 h-3" /> Download
+                        </a>
+                      </div>
                       <button
                         onClick={() => {
+                          const targetImg = gptResultImage || resultImage || '';
                           const styleName = footprintShape === 'custom'
                             ? customFootprintText.trim().toUpperCase()
                             : (FOOTPRINT_PRESETS.find(f => f.id === footprintShape)?.name || 'X-SHAPE');
                           const params = new URLSearchParams({
-                            floorPlanImageUrl: resultImage || '',
+                            floorPlanImageUrl: targetImg,
                             footprintShape: styleName,
                             overallWidth,
                             overallLength,
@@ -768,42 +801,70 @@ Output only the clean, tightly cropped 2D architectural floor plan.`;
                           });
                           router.push(`/idea-generation/view-synthesis?${params.toString()}`);
                         }}
-                        className="w-full py-2.5 rounded font-bold text-[11px] tracking-wider transition-all flex items-center justify-center gap-2 cursor-pointer bg-gradient-to-r from-cyan-500/25 to-purple-500/25 hover:from-cyan-500/40 hover:to-purple-500/40 border border-cyan-400/40 hover:border-cyan-300 text-white shadow-[0_0_20px_rgba(0,240,255,0.15)] backdrop-blur-sm"
+                        className="w-full py-2 rounded font-bold text-[10px] tracking-wider transition-all flex items-center justify-center gap-1.5 bg-gradient-to-r from-cyan-500/20 to-purple-500/20 border border-cyan-400/30 text-white hover:border-cyan-300"
                       >
-                        <Camera className="w-3.5 h-3.5" />
-                        <span>GENERATE 3D VIEWS</span>
-                        <ArrowRight className="w-3.5 h-3.5" />
-                      </button>
-                      <button
-                        onClick={() => {
-                          if (resultImage) {
-                            const store = useArchitectStore.getState();
-                            store.updateActiveProjectConfig({
-                              footprintShape,
-                              width: overallWidth,
-                              length: overallLength,
-                              stories: storyCount,
-                              unitMix: `2BHK: ${typeAUnits} | 3BHK: ${typeBUnits} | 3BHK Premium: ${typeCUnits}`,
-                              designNotes: customPrompt
-                            });
-                            store.addProjectAsset('hero', resultImage);
-                          }
-                        }}
-                        className={`w-full mt-2 py-2.5 rounded font-bold text-[11px] tracking-wider transition-all flex items-center justify-center gap-2 cursor-pointer backdrop-blur-sm ${
-                          activeProject?.assets.hero === resultImage
-                            ? 'text-emerald-400 bg-emerald-950/45 border border-emerald-900/40 hover:bg-emerald-900/30'
-                            : 'text-green-400 bg-green-950/45 border border-green-900/40 hover:bg-green-900/30 hover:border-green-500/50'
-                        }`}
-                      >
-                        <span className="text-sm">★</span>
-                        <span>
-                          {activeProject?.assets.hero === resultImage
-                            ? '✓ FINALIZED / ADDED TO PROJECT'
-                            : '★ FINALIZE / ADD TO PROJECT'}
-                        </span>
+                        <Camera className="w-3 h-3" /> 3D VIEWS
                       </button>
                     </div>
-                  )}
+                  </div>
+
+                  {/* Model 2 Card: Nano Banana 2 */}
+                  <div className="relative flex flex-col rounded-xl border border-amber-500/30 bg-black/60 overflow-hidden group">
+                    <div className="px-3 py-1.5 bg-amber-950/80 border-b border-amber-500/20 flex items-center justify-between">
+                      <span className="text-[10px] font-bold text-amber-400 tracking-wider uppercase">MODEL 2: NANO BANANA 2</span>
+                      <span className="text-[9px] text-amber-500/60 font-mono">GOOGLE FAST TTI</span>
+                    </div>
+                    <div className="relative flex-1 bg-white min-h-[240px] flex items-center justify-center">
+                      {nanoResultImage ? (
+                        <img 
+                          src={nanoResultImage} 
+                          alt="Nano Banana 2 Floor Plan"
+                          className="w-full h-full object-contain"
+                        />
+                      ) : (
+                        <div className="flex flex-col items-center justify-center text-center p-4 text-slate-400">
+                          <AlertTriangle className="w-6 h-6 text-amber-400/60 mb-2" />
+                          <span className="text-[11px] font-semibold text-amber-300">Nano Banana 2 processing...</span>
+                        </div>
+                      )}
+                    </div>
+                    <div className="p-3 bg-[#08080c] border-t border-white/10 flex flex-col gap-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] text-amber-300 font-semibold truncate">Nano Banana Schematics</span>
+                        {nanoResultImage && (
+                          <a 
+                            href={nanoResultImage}
+                            download="nano-banana-2-floorplan.png"
+                            className="px-2.5 py-1 rounded bg-amber-950 border border-amber-500/30 text-[10px] text-amber-400 hover:text-white flex items-center gap-1"
+                          >
+                            <Download className="w-3 h-3" /> Download
+                          </a>
+                        )}
+                      </div>
+                      {nanoResultImage && (
+                        <button
+                          onClick={() => {
+                            const styleName = footprintShape === 'custom'
+                              ? customFootprintText.trim().toUpperCase()
+                              : (FOOTPRINT_PRESETS.find(f => f.id === footprintShape)?.name || 'X-SHAPE');
+                            const params = new URLSearchParams({
+                              floorPlanImageUrl: nanoResultImage,
+                              footprintShape: styleName,
+                              overallWidth,
+                              overallLength,
+                              storyCount,
+                              designNotes: customPrompt,
+                            });
+                            router.push(`/idea-generation/view-synthesis?${params.toString()}`);
+                          }}
+                          className="w-full py-2 rounded font-bold text-[10px] tracking-wider transition-all flex items-center justify-center gap-1.5 bg-gradient-to-r from-amber-500/20 to-purple-500/20 border border-amber-400/30 text-white hover:border-amber-300"
+                        >
+                          <Camera className="w-3 h-3" /> 3D VIEWS
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
                 </div>
               ) : !isGenerating ? (
                 <div className="flex flex-col items-center justify-center text-center p-6 max-w-xs text-cyan-500/60">
