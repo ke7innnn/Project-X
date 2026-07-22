@@ -304,7 +304,7 @@ Place exactly one clearly visible label inside each apartment near the entrance:
 APARTMENT COMPOSITION & VENTILATION:
 Use this natural apartment flow:
 COMMON CORRIDOR → APARTMENT ENTRANCE → LIVING ROOM → INTERNAL DISTRIBUTION → BEDROOMS, SEPARATE KITCHEN, AND BATHROOMS.
-Living rooms, bedrooms, and kitchens MUST touch an external wall with visible window/balcony openings. No windowless rooms. ${ventStr}${vaastuStr}${fireSafetyStr}${customPrompt ? `Notes: ${customPrompt}.` : ''}
+Every living room, bedroom, and kitchen MUST directly touch an external façade, balcony edge, or ventilation court with clearly visible external windows. No windowless living rooms, bedrooms, or kitchens allowed. ${ventStr}${vaastuStr}${fireSafetyStr}${customPrompt ? `Notes: ${customPrompt}.` : ''}
 
 CENTRAL CORE & CORRIDOR:
 Compact central core containing ${passengerLifts} passenger lifts, ${fireLifts} fire lifts, and 2 fire stairs. One continuous corridor connecting all ${totalUnits} entrances to the core.
