@@ -1,5 +1,6 @@
 'use client';
 
+// 🦇 BATMAN COMMAND CENTER HUB - FRESH RECOMPILE
 import React, { useState, useEffect, useRef } from 'react';
 import { useArchitectStore } from '@/store/useArchitectStore';
 import { useRouter } from 'next/navigation';
