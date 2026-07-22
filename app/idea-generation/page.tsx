@@ -472,7 +472,7 @@ Output only the clean, tightly cropped 2D architectural floor plan.`;
                     : (isClientMode ? 'text-[#0B4F30]/60 hover:text-[#0B4F30]' : 'text-cyan-500/50 hover:text-cyan-400')
                 }`}
               >
-                FAL AI API
+                LIVE ENGINE
               </button>
             </div>
             
@@ -761,25 +761,25 @@ Output only the clean, tightly cropped 2D architectural floor plan.`;
               {(gptResultImage || nanoResultImage || resultImage) && !isGenerating ? (
                 <div className="w-full h-full grid grid-cols-1 md:grid-cols-2 gap-4 overflow-y-auto p-1 animate-fadeIn">
                   
-                  {/* Model 1 Card: GPT-Image-2 (Medium) */}
+                  {/* Variant Alpha Card */}
                   <div className="relative flex flex-col rounded-xl border border-cyan-500/30 bg-black/60 overflow-hidden group">
                     <div className="px-3 py-1.5 bg-cyan-950/80 border-b border-cyan-500/20 flex items-center justify-between">
-                      <span className="text-[10px] font-bold text-cyan-400 tracking-wider uppercase">MODEL 1: GPT-IMAGE-2 (MEDIUM)</span>
-                      <span className="text-[9px] text-cyan-500/60 font-mono">DALL-E 3 ENGINE</span>
+                      <span className="text-[10px] font-bold text-cyan-400 tracking-wider uppercase">SCHEMATIC VARIANT ALPHA</span>
+                      <span className="text-[9px] text-cyan-500/60 font-mono">SYNTHESIS CORE A</span>
                     </div>
                     <div className="relative flex-1 bg-white min-h-[240px] flex items-center justify-center">
                       <img 
                         src={gptResultImage || resultImage || ''} 
-                        alt="GPT-Image-2 Floor Plan"
+                        alt="Variant Alpha Floor Plan"
                         className="w-full h-full object-contain"
                       />
                     </div>
                     <div className="p-3 bg-[#08080c] border-t border-white/10 flex flex-col gap-2">
                       <div className="flex items-center justify-between">
-                        <span className="text-[10px] text-cyan-300 font-semibold truncate">GPT Schematics</span>
+                        <span className="text-[10px] text-cyan-300 font-semibold truncate">Variant Alpha Schematics</span>
                         <a 
                           href={gptResultImage || resultImage || ''}
-                          download="gpt-image-2-floorplan.png"
+                          download="variant-alpha-floorplan.png"
                           className="px-2.5 py-1 rounded bg-cyan-950 border border-cyan-500/30 text-[10px] text-cyan-400 hover:text-white flex items-center gap-1"
                         >
                           <Download className="w-3 h-3" /> Download
@@ -808,33 +808,33 @@ Output only the clean, tightly cropped 2D architectural floor plan.`;
                     </div>
                   </div>
 
-                  {/* Model 2 Card: Nano Banana 2 */}
+                  {/* Variant Beta Card */}
                   <div className="relative flex flex-col rounded-xl border border-amber-500/30 bg-black/60 overflow-hidden group">
                     <div className="px-3 py-1.5 bg-amber-950/80 border-b border-amber-500/20 flex items-center justify-between">
-                      <span className="text-[10px] font-bold text-amber-400 tracking-wider uppercase">MODEL 2: NANO BANANA 2</span>
-                      <span className="text-[9px] text-amber-500/60 font-mono">GOOGLE FAST TTI</span>
+                      <span className="text-[10px] font-bold text-amber-400 tracking-wider uppercase">SCHEMATIC VARIANT BETA</span>
+                      <span className="text-[9px] text-amber-500/60 font-mono">SYNTHESIS CORE B</span>
                     </div>
                     <div className="relative flex-1 bg-white min-h-[240px] flex items-center justify-center">
                       {nanoResultImage ? (
                         <img 
                           src={nanoResultImage} 
-                          alt="Nano Banana 2 Floor Plan"
+                          alt="Variant Beta Floor Plan"
                           className="w-full h-full object-contain"
                         />
                       ) : (
                         <div className="flex flex-col items-center justify-center text-center p-4 text-slate-400">
                           <AlertTriangle className="w-6 h-6 text-amber-400/60 mb-2" />
-                          <span className="text-[11px] font-semibold text-amber-300">Nano Banana 2 processing...</span>
+                          <span className="text-[11px] font-semibold text-amber-300">Variant Beta processing...</span>
                         </div>
                       )}
                     </div>
                     <div className="p-3 bg-[#08080c] border-t border-white/10 flex flex-col gap-2">
                       <div className="flex items-center justify-between">
-                        <span className="text-[10px] text-amber-300 font-semibold truncate">Nano Banana Schematics</span>
+                        <span className="text-[10px] text-amber-300 font-semibold truncate">Variant Beta Schematics</span>
                         {nanoResultImage && (
                           <a 
                             href={nanoResultImage}
-                            download="nano-banana-2-floorplan.png"
+                            download="variant-beta-floorplan.png"
                             className="px-2.5 py-1 rounded bg-amber-950 border border-amber-500/30 text-[10px] text-amber-400 hover:text-white flex items-center gap-1"
                           >
                             <Download className="w-3 h-3" /> Download
