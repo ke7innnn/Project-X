@@ -273,86 +273,32 @@ export default function IdeaGenerationPage() {
         // Call Fal AI route
         const totalUnits = typeAUnits + typeBUnits + typeCUnits;
         const [coreW, coreL] = coreSize.split('x').map(s => s.trim());
-        const vaastuStr = vastuCompliant ? 'Position the kitchen in the south-east zone and orient the main entrance per Vaastu Shastra principles. ' : '';
-        const ventStr = crossVentilation ? 'Every bedroom, living room, and kitchen must open directly onto an external wall or balcony for natural cross-ventilation and daylight — no internal, windowless rooms. ' : '';
-        
-        const fireSafetyStr = fireSafetyCode ? 'Ensure strict compliance with international fire safety codes, including dual egress staircases with fire-rated doors. ' : '';
+        const fireSafetyStr = fireSafetyCode ? 'Ensure compliance with fire egress codes. ' : '';
         
         // Dynamically build unit labels list e.g. F01, F02, ... F10 based on user UI totalUnits
         const labelList = Array.from({ length: totalUnits }, (_, i) => `F${String(i + 1).padStart(2, '0')}`).join(', ');
         
-        const promptText = `Create a high-quality top-down 2D architectural CAD floor plan of a compact, architecturally interesting ${styleName} (${storyCount} stories) high-rise residential tower with an overall footprint of ${overallWidth}m x ${overallLength}m and a floor-to-floor height of ${floorHeight}m, featuring one compact central circulation core.
+        const promptText = `Create a high-quality top-down 2D architectural CAD floor plan of a compact ${styleName} high-rise tower (${overallWidth}m x ${overallLength}m) with one central core.
 
 PRIMARY OBJECTIVE:
-Create EXACTLY ${totalUnits} complete, independent apartments:
-${labelList}.
+Create EXACTLY ${totalUnits} complete, independent apartments (${typeAUnits} × 1BHK, ${typeBUnits} × 2BHK, ${typeCUnits} × 3BHK): ${labelList}.
 
-FIRST establish ${totalUnits} clearly separated apartment boundaries, then design the rooms inside them. Every apartment must have a complete continuous wall boundary and one independent entrance opening directly onto the common corridor.
+FIRST establish ${totalUnits} clearly separated apartment boundaries, then design rooms inside them. Every apartment must have a complete continuous wall boundary and one independent entrance opening directly onto the common corridor.
 
-NEIGHBORING FLATS MUST ALWAYS BE SEPARATED BY SOLID CONTINUOUS WALLS. Never connect two different flats with a doorway, opening, or shared passage. Doors may only connect rooms belonging to the same apartment.
+NEIGHBORING FLATS MUST ALWAYS BE SEPARATED BY SOLID CONTINUOUS WALLS. Never connect two different flats with a doorway or shared passage. Doors may only connect rooms belonging to the same apartment.
 
 APARTMENT IDENTIFICATION:
-Place exactly one clearly visible label inside each apartment, preferably inside the living room near the entrance:
-${labelList}.
+Place exactly one clearly visible label inside each apartment near the entrance: ${labelList}. Each label must appear exactly once.
 
-Each label must appear exactly once inside its corresponding apartment. Do not duplicate, skip, or place any label outside an apartment.
+APARTMENT COMPOSITION & VENTILATION:
+Hierarchy: COMMON CORRIDOR → ENTRANCE → LIVING ROOM → BEDROOMS, KITCHEN, BATHROOMS.
+Living rooms, bedrooms, and kitchens MUST touch an external wall with visible window/balcony openings. No windowless rooms. ${vaastuStr}${fireSafetyStr}${customPrompt ? `Notes: ${customPrompt}.` : ''}
 
-APARTMENT TYPES AND MIX:
-Use a realistic mix of ${totalUnits} apartments (${typeAUnits} × 1BHK/2BHK, ${typeBUnits} × 2BHK/3BHK, ${typeCUnits} × 3BHK Premium).
-
-1BHK: 1 living room, 1 separate bedroom, 1 separate enclosed kitchen, 1 bathroom, and an entrance foyer or internal passage.
-
-2BHK: 1 living room, 2 separate bedrooms, 1 separate enclosed kitchen, 1 or 2 bathrooms, and an entrance foyer or internal passage.
-
-3BHK / Premium: 1 living room, 3 separate bedrooms, 1 separate enclosed kitchen, 2 bathrooms, and an entrance foyer or internal passage.
-
-Do not omit any required room. All rooms must be fully enclosed.
-
-APARTMENT COMPOSITION:
-Use this logical planning hierarchy:
-COMMON CORRIDOR → APARTMENT ENTRANCE → FOYER OR LIVING ROOM → INTERNAL DISTRIBUTION → BEDROOMS, KITCHEN, AND BATHROOMS.
-
-The living room should be the main welcoming and distribution space after the entrance. From the living room or a short internal passage, provide access to the bedrooms, separate kitchen, and bathrooms.
-
-Bedrooms must be independently accessible and must never require passage through another bedroom. Kitchens must be separate enclosed rooms and must never function as passageways.
-
-LIVING ROOM VENTILATION — ABSOLUTE RULE:
-Every apartment's living room MUST directly touch an external building façade, balcony edge, or open-to-sky ventilation court. Each living room MUST have at least one clearly visible external window or balcony opening on that external wall. Never place a living room completely inside the building or behind another room without its own external opening. A living room is not considered ventilated merely because an adjacent room has a window; the living room itself must have a direct external opening.
-
-BEDROOM AND KITCHEN VENTILATION — CRITICAL:
-Every bedroom must have direct natural daylight and ventilation through an external window, balcony, or external opening.
-Every kitchen must have an external window/opening or a clearly visible ventilation shaft. Internal bathrooms must connect to a ventilation shaft or duct.
-Do not create windowless living rooms, bedrooms, or kitchens. ${ventStr}${vaastuStr}${fireSafetyStr}${customPrompt ? `Custom notes: ${customPrompt}.` : ''}
-
-CENTRAL CORE:
-Use one compact central core of dimensions ${coreSize}m containing ${passengerLifts} passenger lifts, ${fireLifts} fire lift, ${staircases} enclosed fire stairs, and small service/electrical shafts. Keep the core and lift lobby compact to maximize residential carpet area.
-
-CORRIDOR:
-Create one clear and efficient ${corridorWidth}m wide common corridor connecting all ${totalUnits} apartment entrances to the central core. Every apartment entrance must open directly onto this corridor.
-
-Use repeated and mirrored apartment modules where practical to create a balanced composition. Use clean, realistic, buildable rectangular or simple angled rooms.
-
-Avoid deformed apartments, impossible triangular rooms, overlapping walls, merged flats, confusing boundaries, and unusable leftover spaces.
+CENTRAL CORE & CORRIDOR:
+Compact central core containing ${passengerLifts} passenger lifts, ${fireLifts} fire lifts, and 2 fire stairs. One continuous corridor connecting all ${totalUnits} entrances to the core.
 
 GRAPHICAL STYLE:
-Professional high-quality top-down 2D architectural CAD floor plan.
-Use bold black walls, consistent wall thickness, realistic doors and door swings, visible windows, and logical structural columns.
-Use light beige for apartment interiors, light grey for corridors and the central core, light blue for bathrooms, and light green for balconies on a clean white background.
-Do not include furniture, decorative objects, room names, dimensions, legends, title blocks, annotations, elevations, perspective views, or 3D elements.
-
-FINAL CHECK:
-Exactly ${totalUnits} independent apartments must be present and labeled exactly once as ${labelList}.
-
-Every apartment must have:
-- one complete closed boundary;
-- one independent entrance from the common corridor;
-- all required rooms for its apartment type;
-- a logically arranged living room, bedrooms, kitchen, and bathrooms;
-- a living room with its own direct external window or balcony opening;
-- bedrooms with direct natural daylight and ventilation;
-- a kitchen with direct ventilation through an external opening or ventilation shaft.
-
-Neighboring apartments must always be separated by solid continuous walls and must never be connected by doors or openings.
+Professional 2D architectural CAD floor plan. Bold black walls, light beige for room interiors, light grey for corridor/core, light blue for bathrooms, light green for balconies on clean white background. No furniture, no room names, no dimensions.
 
 Output only the clean, tightly cropped 2D architectural floor plan.`;
 
