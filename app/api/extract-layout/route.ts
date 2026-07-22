@@ -220,8 +220,12 @@ export async function POST(request: Request) {
     });
 
     // 8. Call Gemini 2.5 Pro via OpenRouter for relative layout extraction
-    const openRouterKey = process.env.OPENROUTER_API_KEY;
-    if (!openRouterKey) throw new Error("Missing OPENROUTER_API_KEY");
+    const openRouterKey = process.env.OPENROUTER_API_KEY || 
+                          process.env.GEMINI_API_KEY || 
+                          process.env.GROQ_API_KEY || 
+                          process.env.NEXT_PUBLIC_OPENROUTER_API_KEY || 
+                          process.env.NEXT_PUBLIC_GEMINI_API_KEY;
+    if (!openRouterKey) return NextResponse.json({ error: "No OpenRouter/Gemini API key configured in environment" }, { status: 500 });
 
     const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
       method: "POST",

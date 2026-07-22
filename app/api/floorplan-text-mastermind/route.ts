@@ -15,9 +15,13 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Missing step3ImageUrl or roomSchedule' }, { status: 400 });
     }
 
-    const openRouterKey = process.env.OPENROUTER_API_KEY;
+    const openRouterKey = process.env.OPENROUTER_API_KEY || 
+                          process.env.GEMINI_API_KEY || 
+                          process.env.GROQ_API_KEY || 
+                          process.env.NEXT_PUBLIC_OPENROUTER_API_KEY || 
+                          process.env.NEXT_PUBLIC_GEMINI_API_KEY;
     if (!openRouterKey) {
-      throw new Error("Missing OPENROUTER_API_KEY in environment variables");
+      return NextResponse.json({ error: "No OpenRouter/Gemini API key configured in environment variables." }, { status: 500 });
     }
 
     console.log('[Text Mastermind] Initializing text correction via OpenRouter...');

@@ -73,54 +73,59 @@ export async function POST(request: Request) {
     if (skipTranslation) {
       console.log(`[edit-floorplan] Skipping translation pass. Using direct prompt: "${translatedPrompt}"`);
     } else {
-      console.log(`[edit-floorplan] Translating instruction via OpenRouter (Gemini Flash Lite)...`);
-      const openRouterKey = process.env.OPENROUTER_API_KEY;
-      if (!openRouterKey) throw new Error('No OPENROUTER_API_KEY found');
+      const openRouterKey = process.env.OPENROUTER_API_KEY || 
+                            process.env.GEMINI_API_KEY || 
+                            process.env.GROQ_API_KEY || 
+                            process.env.NEXT_PUBLIC_OPENROUTER_API_KEY || 
+                            process.env.NEXT_PUBLIC_GEMINI_API_KEY;
 
-      const maxRetries = 2;
-      
-      for (let attempt = 0; attempt <= maxRetries; attempt++) {
-        try {
-          const translationRes = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-            method: 'POST',
-            headers: {
-              'Authorization': `Bearer ${openRouterKey}`,
-              'Content-Type': 'application/json',
-              'HTTP-Referer': 'https://ai-architect.vercel.app',
-              'X-Title': 'AI Architect',
-            },
-            body: JSON.stringify({
-              model: "google/gemini-2.5-flash-lite-preview",
-              messages: [
-                { role: "system", content: EDIT_TRANSLATOR_SYSTEM_PROMPT(collectedParameters, isInpaint) },
-                { role: "user", content: `Original user prompt: "${editInstruction}"` }
-              ],
-              temperature: 0.1,
-              max_tokens: 500,
-            }),
-            signal: AbortSignal.timeout(15000),
-          });
+      if (!openRouterKey) {
+        console.warn('[edit-floorplan] No LLM API key configured in environment. Using direct edit instruction.');
+      } else {
+        const maxRetries = 2;
+        for (let attempt = 0; attempt <= maxRetries; attempt++) {
+          try {
+            const translationRes = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+              method: 'POST',
+              headers: {
+                'Authorization': `Bearer ${openRouterKey}`,
+                'Content-Type': 'application/json',
+                'HTTP-Referer': 'https://ai-architect.vercel.app',
+                'X-Title': 'AI Architect',
+              },
+              body: JSON.stringify({
+                model: "google/gemini-2.5-flash-lite-preview",
+                messages: [
+                  { role: "system", content: EDIT_TRANSLATOR_SYSTEM_PROMPT(collectedParameters, isInpaint) },
+                  { role: "user", content: `Original user prompt: "${editInstruction}"` }
+                ],
+                temperature: 0.1,
+                max_tokens: 500,
+              }),
+              signal: AbortSignal.timeout(15000),
+            });
 
-          if (!translationRes.ok) {
-            throw new Error(`OpenRouter translation failed: ${translationRes.status}`);
-          }
+            if (!translationRes.ok) {
+              throw new Error(`OpenRouter translation failed: ${translationRes.status}`);
+            }
 
-          const translationData = await translationRes.json();
-          const content = translationData.choices?.[0]?.message?.content;
-          
-          if (content) {
-            translatedPrompt = content.trim();
-            console.log(`[edit-floorplan] Translated prompt: "${translatedPrompt}"`);
-            break;
-          } else {
-            throw new Error('No content in translation response');
-          }
-        } catch (error: any) {
-          console.warn(`[edit-floorplan] Translation attempt ${attempt + 1} failed: ${error.message}`);
-          if (attempt === maxRetries) {
-            console.warn(`[edit-floorplan] All translation retries failed. Falling back to original instruction.`);
-          } else {
-            await new Promise(resolve => setTimeout(resolve, 1000));
+            const translationData = await translationRes.json();
+            const content = translationData.choices?.[0]?.message?.content;
+            
+            if (content) {
+              translatedPrompt = content.trim();
+              console.log(`[edit-floorplan] Translated prompt: "${translatedPrompt}"`);
+              break;
+            } else {
+              throw new Error('No content in translation response');
+            }
+          } catch (error: any) {
+            console.warn(`[edit-floorplan] Translation attempt ${attempt + 1} failed: ${error.message}`);
+            if (attempt === maxRetries) {
+              console.warn(`[edit-floorplan] All translation retries failed. Falling back to original instruction.`);
+            } else {
+              await new Promise(resolve => setTimeout(resolve, 1000));
+            }
           }
         }
       }

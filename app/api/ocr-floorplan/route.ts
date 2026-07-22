@@ -24,9 +24,13 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Missing imageBase64' }, { status: 400 });
     }
 
-    const openRouterKey = process.env.OPENROUTER_API_KEY;
+    const openRouterKey = process.env.OPENROUTER_API_KEY || 
+                          process.env.GEMINI_API_KEY || 
+                          process.env.GROQ_API_KEY || 
+                          process.env.NEXT_PUBLIC_OPENROUTER_API_KEY || 
+                          process.env.NEXT_PUBLIC_GEMINI_API_KEY;
     if (!openRouterKey) {
-      return NextResponse.json({ error: 'Missing OPENROUTER_API_KEY' }, { status: 500 });
+      return NextResponse.json({ error: 'No OpenRouter/Gemini API key configured in environment' }, { status: 500 });
     }
 
     const rawBase64 = imageBase64.includes(',') ? imageBase64.split(',')[1] : imageBase64;

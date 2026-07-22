@@ -129,8 +129,54 @@ export async function POST(request: Request) {
       systemPrompt += "\n\nCRITICAL DIRECTIVE: The user has applied a green inpaint mask to their drawing/render and is asking you to modify it. You MUST set `isEditCommand: true` in your JSON output so their instruction is sent to the image generation backend.";
     }
 
-    const openRouterKey = process.env.OPENROUTER_API_KEY;
-    if (!openRouterKey) throw new Error('No OPENROUTER_API_KEY found in environment');
+    const openRouterKey = process.env.OPENROUTER_API_KEY || 
+                          process.env.GEMINI_API_KEY || 
+                          process.env.GROQ_API_KEY || 
+                          process.env.NEXT_PUBLIC_OPENROUTER_API_KEY || 
+                          process.env.NEXT_PUBLIC_GEMINI_API_KEY;
+
+    if (!openRouterKey) {
+      console.warn('[chat] No OpenRouter/Gemini API key found in environment variables. Using smart offline fallback.');
+      
+      // Extract parameter updates from user text via keyword rules
+      const msgLower = (message || '').toLowerCase();
+      const updatedParameters: any = {};
+      
+      // Plot dimensions detection (e.g. 30x40, 30 by 40, 30 ft by 40 ft)
+      const dimMatch = msgLower.match(/(\d+)\s*(?:ft|m|meter|feet)?\s*(?:x|by|\*)\s*(\d+)/);
+      if (dimMatch) {
+        updatedParameters.plotWidth = parseInt(dimMatch[1]);
+        updatedParameters.plotHeight = parseInt(dimMatch[2]);
+      }
+      
+      // Floors detection
+      const floorMatch = msgLower.match(/(\d+)\s*(?:story|stories|floor|floors)/);
+      if (floorMatch) {
+        updatedParameters.floors = parseInt(floorMatch[1]);
+      }
+      
+      let newPhase = detectPhaseTransition(message, phase);
+      let replyText = "I'm ready to assist with your architectural project!";
+      
+      if (updatedParameters.plotWidth && updatedParameters.plotHeight) {
+        replyText = `Understood! I've logged plot dimensions of ${updatedParameters.plotWidth}m x ${updatedParameters.plotHeight}m. What specific room layout or style parameters would you like?`;
+      } else if (newPhase === 'generate') {
+        replyText = "I'll start generating your initial floor plan options right away!";
+      } else if (message) {
+        replyText = `Noted: "${message}". Let's continue shaping your architectural concept!`;
+      }
+      
+      const updatedHistory = [...(conversationHistory || []), { role: 'model', parts: [{ text: replyText }] }];
+      
+      return NextResponse.json({
+        reply: replyText,
+        updatedHistory,
+        newPhase,
+        isEditCommand: false,
+        updatedParameters,
+        searchQuery: null
+      });
+    }
 
     const rawMessages = conversationHistory.map((msg: any) => ({
       role: msg.role === 'model' ? 'assistant' : 'user',
