@@ -282,7 +282,8 @@ export default function IdeaGenerationPage() {
         setIsGenerating(false);
       } else {
         // Call Fal AI route
-        const totalUnits = typeAUnits + typeBUnits + typeCUnits;
+        const vaastuStr = vastuCompliant ? 'VAASTU RULES: Orient kitchens toward the South-East (SE) zone, Master Bedrooms toward South-West (SW), main entrances toward North-East (NE), and avoid toilets in the North-East corner. ' : '';
+        const ventStr = crossVentilation ? 'SOLAR & DUCT RULES: All living rooms and bedrooms must face the outer building façade for maximum solar exposure and natural daylighting. Internal bathrooms and service areas must connect to dedicated vertical ventilation shafts/ducts. ' : '';
         const fireSafetyStr = fireSafetyCode ? 'Ensure compliance with fire egress codes. ' : '';
         
         // Dynamically build unit labels list e.g. F01, F02, ... F10 based on user UI totalUnits
@@ -303,7 +304,7 @@ Place exactly one clearly visible label inside each apartment near the entrance:
 APARTMENT COMPOSITION & VENTILATION:
 Use this natural apartment flow:
 COMMON CORRIDOR → APARTMENT ENTRANCE → LIVING ROOM → INTERNAL DISTRIBUTION → BEDROOMS, SEPARATE KITCHEN, AND BATHROOMS.
-Living rooms, bedrooms, and kitchens MUST touch an external wall with visible window/balcony openings. No windowless rooms. ${fireSafetyStr}${customPrompt ? `Notes: ${customPrompt}.` : ''}
+Living rooms, bedrooms, and kitchens MUST touch an external wall with visible window/balcony openings. No windowless rooms. ${ventStr}${vaastuStr}${fireSafetyStr}${customPrompt ? `Notes: ${customPrompt}.` : ''}
 
 CENTRAL CORE & CORRIDOR:
 Compact central core containing ${passengerLifts} passenger lifts, ${fireLifts} fire lifts, and 2 fire stairs. One continuous corridor connecting all ${totalUnits} entrances to the core.
