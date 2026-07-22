@@ -433,12 +433,14 @@ export default function Render3DPage() {
                       </optgroup>
                       <optgroup label="Historic/Classical">
                         <option value="Gothic">Gothic</option>
+                        <option value="Batman Wayne Manor Gothic">Batman Wayne Manor Gothic</option>
                         <option value="Renaissance">Renaissance</option>
                         <option value="Neoclassical">Neoclassical</option>
                         <option value="Victorian">Victorian</option>
                       </optgroup>
                       <optgroup label="Futuristic/Speculative">
                         <option value="Cyberpunk">Cyberpunk</option>
+                        <option value="Batman / Gotham Noir">Batman / Gotham Noir</option>
                         <option value="Sci-Fi">Sci-Fi</option>
                         <option value="Afrofuturist">Afrofuturist</option>
                         <option value="Solarpunk">Solarpunk</option>
