@@ -139,7 +139,7 @@ export async function POST(request: Request) {
       console.warn('[chat] No OpenRouter/Gemini API key found in environment variables. Using smart offline fallback.');
       
       // Extract parameter updates from user text via keyword rules
-      const msgLower = (message || '').toLowerCase();
+      const msgLower = (message || '').toLowerCase().trim();
       const updatedParameters: any = {};
       
       // Plot dimensions detection (e.g. 30x40, 30 by 40, 30 ft by 40 ft)
@@ -154,11 +154,24 @@ export async function POST(request: Request) {
       if (floorMatch) {
         updatedParameters.floors = parseInt(floorMatch[1]);
       }
+
+      // Check for nature reference search query
+      let searchQuery: string | null = null;
+      const natureKeywords = ['coral', 'leaf', 'honeycomb', 'wood', 'tree', 'bamboo', 'stone', 'marble', 'wave', 'pinecone', 'nature', 'biophilic', 'organic', 'pattern', 'texture', 'plant', 'forest', 'sun', 'water', 'feather', 'shell', 'moss', 'flower', 'leafs'];
+      const isNatureTerm = natureKeywords.some(kw => msgLower.includes(kw));
+      const lastMsgText = conversationHistory && conversationHistory.length > 0 ? (conversationHistory[conversationHistory.length - 1]?.parts?.[0]?.text?.toLowerCase() || '') : '';
+      const wasAskedForNature = lastMsgText.includes('nature reference') || lastMsgText.includes('looking for');
+
+      if (isNatureTerm || wasAskedForNature || (phase === 'concept' && msgLower.length > 0 && msgLower.length < 50)) {
+        searchQuery = message.trim();
+      }
       
       let newPhase = detectPhaseTransition(message, phase);
       let replyText = "I'm ready to assist with your architectural project!";
       
-      if (updatedParameters.plotWidth && updatedParameters.plotHeight) {
+      if (searchQuery) {
+        replyText = `Searching nature library for "${searchQuery}" concept references... Select your preferred reference from the moodboard below!`;
+      } else if (updatedParameters.plotWidth && updatedParameters.plotHeight) {
         replyText = `Understood! I've logged plot dimensions of ${updatedParameters.plotWidth}m x ${updatedParameters.plotHeight}m. What specific room layout or style parameters would you like?`;
       } else if (newPhase === 'generate') {
         replyText = "I'll start generating your initial floor plan options right away!";
@@ -174,7 +187,7 @@ export async function POST(request: Request) {
         newPhase,
         isEditCommand: false,
         updatedParameters,
-        searchQuery: null
+        searchQuery
       });
     }
 
@@ -275,7 +288,18 @@ export async function POST(request: Request) {
     const updatedParameters = parsed.updatedParameters || {};
     let newPhase = parsed.newPhase || detectPhaseTransition(message, phase);
     const isEditCommand = parsed.isEditCommand !== undefined ? !!parsed.isEditCommand : false;
-    const searchQuery = parsed.searchQuery || null;
+    let searchQuery = parsed.searchQuery || null;
+    if (!searchQuery) {
+      const msgLower = (message || '').toLowerCase().trim();
+      const natureKeywords = ['coral', 'leaf', 'honeycomb', 'wood', 'tree', 'bamboo', 'stone', 'marble', 'wave', 'pinecone', 'nature', 'biophilic', 'organic', 'pattern', 'texture', 'plant', 'forest', 'sun', 'water', 'feather', 'shell', 'moss', 'flower', 'leafs'];
+      const isNatureTerm = natureKeywords.some(kw => msgLower.includes(kw));
+      const lastMsgText = conversationHistory && conversationHistory.length > 0 ? (conversationHistory[conversationHistory.length - 1]?.parts?.[0]?.text?.toLowerCase() || '') : '';
+      const wasAskedForNature = lastMsgText.includes('nature reference') || lastMsgText.includes('looking for');
+
+      if (isNatureTerm || wasAskedForNature || (phase === 'concept' && msgLower.length > 0 && msgLower.length < 50)) {
+        searchQuery = message.trim();
+      }
+    }
     let customMessage = null;
 
     // Prevent accidental phase regression from edit/measure back to generate
