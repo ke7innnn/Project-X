@@ -3,7 +3,7 @@ import { fal } from '@fal-ai/client';
 
 export async function POST(req: Request) {
   try {
-    const { prompt, style, apiKey } = await req.json();
+    const { prompt, style, imageSize, apiKey } = await req.json();
 
     if (!prompt) {
       return NextResponse.json({ error: 'Prompt is required' }, { status: 400 });
@@ -38,7 +38,7 @@ export async function POST(req: Request) {
       input: {
         prompt: prompt,
         image_size: imageSize || 'square_hd'
-      }
+      } as any
     }).catch(err => {
       console.error('[IdeaGenerator] Nano Banana 2 failed:', err.message || err);
       return null;
