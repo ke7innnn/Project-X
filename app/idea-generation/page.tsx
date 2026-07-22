@@ -276,24 +276,83 @@ export default function IdeaGenerationPage() {
         const vaastuStr = vastuCompliant ? 'Position the kitchen in the south-east zone and orient the main entrance per Vaastu Shastra principles. ' : '';
         const ventStr = crossVentilation ? 'Every bedroom, living room, and kitchen must open directly onto an external wall or balcony for natural cross-ventilation and daylight — no internal, windowless rooms. ' : '';
         
-        const promptText = `Top-down 2D architectural floor plan, orthographic CAD drawing, of a ${styleName} high-rise residential tower with an overall footprint of ${overallWidth}m x ${overallLength}m and a floor-to-floor height of ${floorHeight}m. CRITICAL OBJECTIVE: You must fit exactly ${totalUnits} distinct flats into this footprint. This is a high-density utility drawing.
+        // Dynamically build unit labels list e.g. F01, F02, ... F10 based on user UI totalUnits
+        const labelList = Array.from({ length: totalUnits }, (_, i) => `F${String(i + 1).padStart(2, '0')}`).join(', ');
+        
+        const promptText = `Create a high-quality top-down 2D architectural CAD floor plan of a compact, architecturally interesting ${styleName} high-rise residential tower with an overall footprint of ${overallWidth}m x ${overallLength}m and a floor-to-floor height of ${floorHeight}m, featuring one compact central circulation core.
 
-CORE, LIFTS, STAIRS, ENTRANCE — draw this first and lock it before placing units:
-A rectangular central core containing ${passengerLifts} passenger lifts in one row, 2 additional passenger lifts and ${fireLifts} fire lift in a second row, and ${staircases} enclosed staircases (one on each side of the core) each with its own fire-rated door. Adjacent to the lifts: one electrical room and one service shaft. Wrap a single continuous corridor, ${corridorWidth}m wide, around the outside of this core, forming one uninterrupted loop that every unit's front door opens onto. The corridor must visibly connect the lift lobby to the main building entrance at the base of the ${styleName} footprint — draw the entrance as a clear break in the outer wall with a path leading from the lift lobby straight out through it. Do not draw dead-end corridors, and do not draw any unit that does not have direct corridor access to its front door.
+PRIMARY OBJECTIVE:
+Create EXACTLY ${totalUnits} complete, independent apartments:
+${labelList}.
 
-UNITS:
-HIGH DENSITY COMPACT LAYOUT: Exactly ${totalUnits} distinct micro-apartment residential units, packed tightly and symmetrically around the core following the ${styleName} footprint: ${typeAUnits} × 2BHK, ${typeBUnits} × 3BHK, ${typeCUnits} × 3BHK Premium. Each unit must be drawn very small and tightly packed to ensure all ${totalUnits} units fit perfectly on this single floor. Every unit's front door opens directly onto the loop corridor — no unit is accessed through another unit.
+FIRST establish ${totalUnits} clearly separated apartment boundaries, then design the rooms inside them. Every apartment must have a complete continuous wall boundary and one independent entrance opening directly onto the common corridor.
 
-ROOM LAYOUT AND VENTILATION — apply this inside every single unit without exception:
-Each unit is divided into fully enclosed rooms by internal partition walls of the same line weight as external walls — never open-plan. From the entrance foyer of each unit, a short internal hallway or the living room itself provides direct access to every other room in that unit (bedrooms, kitchen, toilets) — no bedroom should be reachable only by passing through another bedroom. The living room, dining area, kitchen, and every bedroom must each have their own window or balcony directly on an external wall — only toilets and the entrance foyer may lack direct external access. CRITICAL: Do not draw any furniture silhouettes. Leave all rooms completely empty. The sole focus is maximizing the number of flats to hit exactly ${totalUnits} units. ${ventStr}${vaastuStr}${customPrompt ? `Custom notes: ${customPrompt}. ` : ''}
+NEIGHBORING FLATS MUST ALWAYS BE SEPARATED BY SOLID CONTINUOUS WALLS. Never connect two different flats with a doorway, opening, or shared passage. Doors may only connect rooms belonging to the same apartment.
 
-COLOR AND RENDERING STYLE:
-Use a single warm tan/beige fill for all residential room interiors — do not vary the shade or hue between 2BHK, 3BHK, and Premium units; unit type should be distinguishable only by size and layout, not by color. Use light blue fill only for toilets/bathrooms, and light green fill only for balconies. Render the core and corridor in flat light grey. Walls are bold black lines; structural columns are solid black squares. This is a strictly utilitarian high-density diagram.
+APARTMENT IDENTIFICATION:
+Place exactly one clearly visible label inside each apartment, preferably inside the living room near the entrance:
+${labelList}.
 
-EXCLUSIONS:
-Do not include any legend, key, title block, north arrow, scale bar, dimension callouts, area statement, unit-mix table, key-plan inset, or tower elevation image. Do not include any text, numbers, or labels anywhere in the image. Do not draw open-plan or wall-less rooms. Do not draw dead-end or disconnected corridors. Do not draw any furniture (no beds, no sofas, no tables). Output must be ONLY the clean floor plan drawing on a plain white background, tightly cropped to the building outline.
+Each label must appear exactly once inside its corresponding apartment. Do not duplicate, skip, or place any label outside an apartment.
 
-Style: Basic CAD line drawing. The absolute only metric of success is fitting exactly ${totalUnits} fully enclosed flats into the building.`;
+APARTMENT TYPES AND MIX:
+Use a realistic mix of ${totalUnits} apartments (${typeAUnits} × 1BHK/2BHK, ${typeBUnits} × 2BHK/3BHK, ${typeCUnits} × 3BHK Premium).
+
+1BHK: 1 living room, 1 separate bedroom, 1 separate enclosed kitchen, 1 bathroom, and an entrance foyer or internal passage.
+
+2BHK: 1 living room, 2 separate bedrooms, 1 separate enclosed kitchen, 1 or 2 bathrooms, and an entrance foyer or internal passage.
+
+3BHK / Premium: 1 living room, 3 separate bedrooms, 1 separate enclosed kitchen, 2 bathrooms, and an entrance foyer or internal passage.
+
+Do not omit any required room. All rooms must be fully enclosed.
+
+APARTMENT COMPOSITION:
+Use this logical planning hierarchy:
+COMMON CORRIDOR → APARTMENT ENTRANCE → FOYER OR LIVING ROOM → INTERNAL DISTRIBUTION → BEDROOMS, KITCHEN, AND BATHROOMS.
+
+The living room should be the main welcoming and distribution space after the entrance. From the living room or a short internal passage, provide access to the bedrooms, separate kitchen, and bathrooms.
+
+Bedrooms must be independently accessible and must never require passage through another bedroom. Kitchens must be separate enclosed rooms and must never function as passageways.
+
+LIVING ROOM VENTILATION — ABSOLUTE RULE:
+Every apartment's living room MUST directly touch an external building façade, balcony edge, or open-to-sky ventilation court. Each living room MUST have at least one clearly visible external window or balcony opening on that external wall. Never place a living room completely inside the building or behind another room without its own external opening. A living room is not considered ventilated merely because an adjacent room has a window; the living room itself must have a direct external opening.
+
+BEDROOM AND KITCHEN VENTILATION — CRITICAL:
+Every bedroom must have direct natural daylight and ventilation through an external window, balcony, or external opening.
+Every kitchen must have an external window/opening or a clearly visible ventilation shaft. Internal bathrooms must connect to a ventilation shaft or duct.
+Do not create windowless living rooms, bedrooms, or kitchens. ${ventStr}${vaastuStr}${customPrompt ? `Custom notes: ${customPrompt}.` : ''}
+
+CENTRAL CORE:
+Use one compact central core containing ${passengerLifts} passenger lifts, ${fireLifts} fire lift, ${staircases} enclosed fire stairs, and small service/electrical shafts. Keep the core and lift lobby compact to maximize residential carpet area.
+
+CORRIDOR:
+Create one clear and efficient ${corridorWidth}m wide common corridor connecting all ${totalUnits} apartment entrances to the central core. Every apartment entrance must open directly onto this corridor.
+
+Use repeated and mirrored apartment modules where practical to create a balanced composition. Use clean, realistic, buildable rectangular or simple angled rooms.
+
+Avoid deformed apartments, impossible triangular rooms, overlapping walls, merged flats, confusing boundaries, and unusable leftover spaces.
+
+GRAPHICAL STYLE:
+Professional high-quality top-down 2D architectural CAD floor plan.
+Use bold black walls, consistent wall thickness, realistic doors and door swings, visible windows, and logical structural columns.
+Use light beige for apartment interiors, light grey for corridors and the central core, light blue for bathrooms, and light green for balconies on a clean white background.
+Do not include furniture, decorative objects, room names, dimensions, legends, title blocks, annotations, elevations, perspective views, or 3D elements.
+
+FINAL CHECK:
+Exactly ${totalUnits} independent apartments must be present and labeled exactly once as ${labelList}.
+
+Every apartment must have:
+- one complete closed boundary;
+- one independent entrance from the common corridor;
+- all required rooms for its apartment type;
+- a logically arranged living room, bedrooms, kitchen, and bathrooms;
+- a living room with its own direct external window or balcony opening;
+- bedrooms with direct natural daylight and ventilation;
+- a kitchen with direct ventilation through an external opening or ventilation shaft.
+
+Neighboring apartments must always be separated by solid continuous walls and must never be connected by doors or openings.
+
+Output only the clean, tightly cropped 2D architectural floor plan.`;
 
         const apiPromise = fetch('/api/generate-idea-image', {
           method: 'POST',
