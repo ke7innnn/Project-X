@@ -197,7 +197,6 @@ export default function StartScreen() {
   const [transcript, setTranscript] = useState('Initializing bat-computer link...');
   const [welcomeGreeting, setWelcomeGreeting] = useState('Initializing bat-computer...');
   const [responseHtml, setResponseHtml] = useState<string | null>(null);
-  const [sessionCount, setSessionCount] = useState<string>('');
   const [isSoundMuted, setIsSoundMuted] = useState(true);
   const isSoundMutedRef = useRef(true); // Mirror of isSoundMuted for use inside async closures
   const [showStatusBlock, setShowStatusBlock] = useState(false);
@@ -250,6 +249,69 @@ export default function StartScreen() {
   } | null>(null);
   const [weatherLoading, setWeatherLoading] = useState(true);
   const [weatherError, setWeatherError] = useState<string | null>(null);
+
+  const [sessionCount, setSessionCount] = useState<string>('60TH WATCH');
+  const [bootCompleted, setBootCompleted] = useState(false);
+  const commandInputRef = useRef<HTMLInputElement>(null);
+  const [showCommandSuggestions, setShowCommandSuggestions] = useState(false);
+
+  useEffect(() => {
+    // 60TH WATCH counter persistence
+    let count = parseInt(localStorage.getItem('batman_watch_count') || '60', 10);
+    if (isNaN(count)) count = 60;
+    if (!sessionStorage.getItem('batman_session_incremented')) {
+      count += 1;
+      localStorage.setItem('batman_watch_count', count.toString());
+      sessionStorage.setItem('batman_session_incremented', 'true');
+    }
+    const suffix = (c: number) => {
+      const j = c % 10, k = c % 100;
+      if (j === 1 && k !== 11) return 'ST';
+      if (j === 2 && k !== 12) return 'ND';
+      if (j === 3 && k !== 13) return 'RD';
+      return 'TH';
+    };
+    setSessionCount(`${count}${suffix(count)} WATCH`);
+  }, []);
+
+  useEffect(() => {
+    // Fast, skippable boot sequence
+    const isDone = sessionStorage.getItem('batman_boot_done');
+    if (isDone) {
+      setBootCompleted(true);
+    } else {
+      const bootTimer = setTimeout(() => {
+        setBootCompleted(true);
+        sessionStorage.setItem('batman_boot_done', 'true');
+      }, 1800);
+
+      const handleSkip = () => {
+        setBootCompleted(true);
+        sessionStorage.setItem('batman_boot_done', 'true');
+      };
+
+      window.addEventListener('keydown', handleSkip);
+      window.addEventListener('click', handleSkip);
+      return () => {
+        clearTimeout(bootTimer);
+        window.removeEventListener('keydown', handleSkip);
+        window.removeEventListener('click', handleSkip);
+      };
+    }
+  }, []);
+
+  useEffect(() => {
+    // Command bar keyboard shortcut (Cmd+K / Ctrl+K)
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        commandInputRef.current?.focus();
+        setShowCommandSuggestions(true);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -1671,11 +1733,24 @@ NOTE: Each time Master Umesh asks for the brief, these stories are shuffled rand
         </div>
       )}
 
+      {/* Weather-Reactive Background Atmosphere */}
+      {weatherData && (weatherData.condition.toLowerCase().includes('rain') || weatherData.condition.toLowerCase().includes('storm') || weatherData.condition.toLowerCase().includes('drizzle') || weatherData.condition.toLowerCase().includes('shower')) && (
+        <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden opacity-30 select-none">
+          <div className="absolute inset-0 bg-[linear-gradient(to_bottom,transparent_0%,rgba(0,240,255,0.08)_100%)] animate-pulse" />
+          <div className="absolute inset-0 bg-[repeating-linear-gradient(105deg,transparent,transparent_20px,rgba(0,240,255,0.12)_21px,transparent_22px)] bg-[length:200%_200%] animate-[rain_0.8s_linear_infinite]" />
+        </div>
+      )}
+
       {/* Tactical Weather Metrics Panel */}
-      <div className="fixed top-10 left-6 z-[10] w-76 select-none pointer-events-none bg-slate-900/30 backdrop-blur-md border border-white/10 rounded-xl p-4 shadow-[0_8px_32px_rgba(0,0,0,0.5)]">
+      <div className="fixed top-10 left-6 z-[10] w-76 select-none pointer-events-none bg-[#040814]/85 backdrop-blur-xl border border-cyan-500/30 rounded-2xl p-4 shadow-[0_0_30px_rgba(0,240,255,0.15)] relative overflow-hidden">
+        <span className="absolute top-0 left-0 w-3 h-3 border-t-2 border-l-2 border-cyan-400 pointer-events-none" />
+        <span className="absolute top-0 right-0 w-3 h-3 border-t-2 border-r-2 border-cyan-400 pointer-events-none" />
+        <span className="absolute bottom-0 left-0 w-3 h-3 border-b-2 border-l-2 border-cyan-400 pointer-events-none" />
+        <span className="absolute bottom-0 right-0 w-3 h-3 border-b-2 border-r-2 border-cyan-400 pointer-events-none" />
+
         <div className="flex flex-col gap-3">
-          <div className="border-b border-white/10 pb-2">
-            <span className="text-[10px] tracking-[3px] text-cyan-500/60 uppercase block text-left">TACTICAL METRICS</span>
+          <div className="border-b border-cyan-500/20 pb-2">
+            <span className="text-[10px] tracking-[3px] text-cyan-500/60 uppercase block text-left font-mono font-bold">TACTICAL METRICS</span>
             <div className="flex justify-between items-center">
               <h3 className="font-rajdhani text-[15px] font-bold text-cyan-400 tracking-[1px] uppercase truncate text-left">
                 {weatherLoading ? "FETCHING DATA..." : weatherError ? "SERVICE OFFLINE" : weatherData?.location}
@@ -1706,16 +1781,16 @@ NOTE: Each time Master Umesh asks for the brief, these stories are shuffled rand
                   <span className="text-[9px] text-cyan-500/60 uppercase block">Feels Like: {weatherData.feelsLike}°C</span>
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 border-t border-b border-white/10 py-2.5 my-0.5 text-[10px]">
+              <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 border-t border-b border-cyan-500/20 py-2.5 my-0.5 text-[10px] font-mono">
                 <div className="flex justify-between"><span className="text-cyan-500/50 uppercase">Humidity:</span><span className="text-cyan-400 font-bold">{weatherData.humidity}%</span></div>
                 <div className="flex justify-between"><span className="text-cyan-500/50 uppercase">Wind:</span><span className="text-cyan-400 font-bold truncate max-w-[55px]">{weatherData.windSpeed} km/h {weatherData.windDir}</span></div>
                 <div className="flex justify-between"><span className="text-cyan-500/50 uppercase">Pressure:</span><span className="text-cyan-400 font-bold">{weatherData.pressure} mb</span></div>
                 <div className="flex justify-between"><span className="text-cyan-500/50 uppercase">Moon:</span><span className="text-cyan-400 font-bold">{weatherData.moonPhase.icon} {weatherData.moonPhase.phase.split(" ")[0]}</span></div>
               </div>
               <div className="flex flex-col gap-1.5 pt-0.5 text-left">
-                <span className="text-[9px] tracking-[2px] text-cyan-500/60 uppercase mb-1 font-bold">3-DAY FORECAST</span>
+                <span className="text-[9px] tracking-[2px] text-cyan-500/60 uppercase mb-1 font-bold font-mono">3-DAY FORECAST</span>
                 {weatherData.forecast.map((day, idx) => (
-                  <div key={idx} className="flex justify-between items-center text-[10px] bg-white/[0.03] px-2.5 py-1.5 rounded-lg border border-white/5">
+                  <div key={idx} className="flex justify-between items-center text-[10px] bg-white/[0.03] px-2.5 py-1.5 rounded-lg border border-cyan-500/10 font-mono">
                     <span className="text-cyan-400 font-bold uppercase text-[9px]">{day.day}</span>
                     <span className="text-cyan-500/60 uppercase truncate max-w-[90px] text-right text-[9px]">{day.condition}</span>
                     <span className="text-cyan-400 font-bold font-mono text-[10px] text-right">{day.tempMax}° / {day.tempMin}°</span>
@@ -1728,39 +1803,83 @@ NOTE: Each time Master Umesh asks for the brief, these stories are shuffled rand
       </div>
 
       {/* System Uptime Counter */}
-      <div className="fixed bottom-10 left-1/2 -translate-x-1/2 z-[5] pointer-events-none select-none text-center">
-        <span className="text-[9px] tracking-[4px] text-cyan-500/40 uppercase block">SYSTEM UPTIME</span>
-        <span className="font-mono text-sm font-semibold text-cyan-400 drop-shadow-[0_0_4px_rgba(0,240,255,0.4)] tracking-[2px]">
+      <div className="fixed bottom-10 left-1/2 -translate-x-1/2 z-[5] pointer-events-none select-none text-center font-mono">
+        <span className="text-[9px] tracking-[4px] text-cyan-500/60 uppercase block font-bold">SESSION UPTIME</span>
+        <span className="font-mono text-sm font-bold text-cyan-400 drop-shadow-[0_0_8px_rgba(0,240,255,0.6)] tracking-[2px]">
           {uptime}
         </span>
       </div>
 
-      {/* HUD Search Bar */}
-      <div className="fixed bottom-10 left-6 z-[20] w-76 select-text pointer-events-auto">
+      {/* Real Command Bar with Module Launcher (Cmd+K) */}
+      <div className="fixed bottom-10 left-6 z-[20] w-80 select-text pointer-events-auto">
         <form onSubmit={handleSearchSubmit} className="relative group">
           <input
+            ref={commandInputRef}
             type="text"
-            placeholder="GOOGLE MATRIX QUERY..."
+            placeholder="COMMAND BAR (CMD+K)..."
             value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full bg-cyan-950/30 hover:bg-cyan-950/40 focus:bg-cyan-950/50 border border-cyan-500/30 focus:border-cyan-400/80 focus:outline-none rounded px-3 py-2 pl-8 text-[10px] font-mono text-cyan-400 placeholder-cyan-500/40 transition-all duration-300 tracking-[1.5px] uppercase backdrop-blur-md"
+            onFocus={() => setShowCommandSuggestions(true)}
+            onBlur={() => setTimeout(() => setShowCommandSuggestions(false), 200)}
+            onChange={(e) => {
+              setSearchQuery(e.target.value);
+              setShowCommandSuggestions(true);
+            }}
+            className="w-full bg-[#040814]/90 hover:bg-[#040814] focus:bg-[#040814] border border-cyan-500/40 focus:border-cyan-400 focus:outline-none rounded-xl px-3.5 py-2.5 pl-9 text-[11px] font-mono text-cyan-300 placeholder-cyan-500/50 transition-all duration-300 tracking-[1.5px] uppercase backdrop-blur-xl shadow-[0_0_20px_rgba(0,240,255,0.15)]"
           />
-          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-cyan-500/60 group-focus-within:text-cyan-400 transition-colors" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-cyan-400 group-focus-within:text-cyan-300 transition-colors" />
+
+          {/* Module Fuzzy Search Dropdown */}
+          {showCommandSuggestions && (
+            <div className="absolute bottom-full mb-2 left-0 right-0 bg-[#040814]/95 border border-cyan-500/40 rounded-xl p-2 shadow-[0_0_30px_rgba(0,240,255,0.25)] backdrop-blur-xl max-h-60 overflow-y-auto font-mono text-[10px]">
+              <div className="px-2 py-1 text-[8px] tracking-[2px] text-cyan-500/50 uppercase border-b border-cyan-500/20 mb-1 font-bold">
+                JUMP TO MODULE
+              </div>
+              {startScreenStages
+                .filter(stage => 
+                  !searchQuery || 
+                  stage.label.toLowerCase().includes(searchQuery.toLowerCase()) || 
+                  stage.id.toLowerCase().includes(searchQuery.toLowerCase())
+                )
+                .map((stage) => (
+                  <button
+                    key={`cmd-${stage.id}`}
+                    type="button"
+                    onMouseDown={() => handleMenuClick(stage.id)}
+                    className="w-full text-left px-2.5 py-2 rounded hover:bg-cyan-500/20 text-cyan-300 hover:text-white flex items-center justify-between transition-colors uppercase tracking-wider font-bold"
+                  >
+                    <span>▶ {stage.label}</span>
+                    {stage.badge && (
+                      <span className="text-[8px] bg-cyan-400 text-black font-bold px-1 rounded">
+                        {stage.badge}
+                      </span>
+                    )}
+                  </button>
+                ))}
+              {searchQuery && (
+                <button
+                  type="button"
+                  onMouseDown={handleSearchSubmit}
+                  className="w-full text-left px-2.5 py-2 mt-1 border-t border-cyan-500/20 rounded hover:bg-cyan-500/20 text-cyan-400 hover:text-white flex items-center justify-between transition-colors uppercase tracking-wider font-bold"
+                >
+                  <span>🔍 SEARCH WEB: "{searchQuery}"</span>
+                </button>
+              )}
+            </div>
+          )}
         </form>
       </div>
 
       {/* Top Right: System Toggle */}
-      <div className="fixed top-10 right-6 flex items-center justify-between w-[220px] bg-[#0f0f18]/80 backdrop-blur border border-[#1e1810] rounded-lg px-4 py-2 z-10">
-        <span className="text-[10px] tracking-widest text-[#4a3a1a] uppercase font-bold">BAT-ASSISTANT</span>
+      <div className="fixed top-10 right-6 flex items-center justify-between w-[220px] bg-[#040814]/85 backdrop-blur border border-cyan-500/30 rounded-xl px-4 py-2 z-10 shadow-[0_0_20px_rgba(0,240,255,0.1)]">
+        <span className="text-[10px] tracking-widest text-cyan-400 uppercase font-bold font-mono">BAT-ASSISTANT</span>
         <button
           onClick={toggleSystem}
-          className={`flex items-center gap-2 px-2 py-1 rounded text-[10px] tracking-wider transition-all ${isSystemOnline ? 'border border-[#00f0ff] text-[#00f0ff] bg-[#00f0ff]/5 shadow-[0_0_10px_rgba(0,240,255,0.2)]' : 'border border-red-500 text-red-500 bg-red-500/5'}`}
+          className={`flex items-center gap-2 px-2 py-1 rounded text-[10px] tracking-wider transition-all font-mono font-bold ${isSystemOnline ? 'border border-[#00f0ff] text-[#00f0ff] bg-[#00f0ff]/5 shadow-[0_0_10px_rgba(0,240,255,0.2)]' : 'border border-red-500 text-red-500 bg-red-500/5'}`}
         >
           <div className={`w-1.5 h-1.5 rounded-full ${isSystemOnline ? 'bg-[#00f0ff] shadow-[0_0_6px_#00f0ff]' : 'bg-red-500'}`} />
           {isSystemOnline ? 'ONLINE' : 'OFFLINE'}
         </button>
       </div>
-
 
       {/* Left HUD Voice Assistant Panel */}
       <div className="fixed left-16 top-[74%] -translate-y-1/2 z-10 w-64 select-none text-left hidden md:block">
@@ -1784,14 +1903,14 @@ NOTE: Each time Master Umesh asks for the brief, these stories are shuffled rand
                   ? 'border-[#00f0ff] bg-[#00f0ff]/10 text-[#00f0ff] shadow-[0_0_12px_#00f0ff]'
                   : statusState === 'speaking'
                     ? 'border-[#5bc8af] bg-[#5bc8af]/10 text-[#5bc8af] shadow-[0_0_12px_#5bc8af]'
-                    : 'border-blue-500/30 bg-blue-950/10 text-cyan-400 hover:border-cyan-400 hover:bg-cyan-500/10'
+                    : 'border-cyan-500/30 bg-cyan-950/20 text-cyan-400 hover:border-cyan-400 hover:bg-cyan-500/10'
                 }`}
             >
-              <Mic size={14} className={statusState === 'listening' ? 'animate-bounce' : ''} />
+              <Mic size={14} className={statusState === 'listening' ? 'animate-bounce text-[#00f0ff]' : ''} />
               <span>
                 {statusState === 'listening' ? 'LINK_ACTIVE' :
                   statusState === 'speaking' ? 'TRANSMITTING' :
-                    'START_COMMS'}
+                    'COMM LINK'}
               </span>
             </button>
 
@@ -1811,7 +1930,7 @@ NOTE: Each time Master Umesh asks for the brief, these stories are shuffled rand
                   key={`hud-wave-${i}`}
                   className={`w-[3px] rounded transition-all duration-100 ${statusState === 'listening' ? 'bg-[#00f0ff] animate-pulse' :
                       statusState === 'speaking' ? 'bg-[#5bc8af] animate-pulse' :
-                        'bg-blue-900/30 h-1'
+                        'bg-cyan-900/40 h-1'
                     }`}
                   style={{
                     animationDelay: `${i * 0.06}s`,
@@ -1962,13 +2081,10 @@ NOTE: Each time Master Umesh asks for the brief, these stories are shuffled rand
       <div className="relative z-10 flex flex-col items-center w-full max-w-md p-6 mt-auto pb-12">
         {/* Welcome Greeting Display */}
         {welcomeGreeting && (
-          <div className="w-full text-center mb-6 animate-fadeIn">
-            <h2 className="font-serif font-bold text-white text-2xl md:text-3xl tracking-normal leading-snug drop-shadow-[0_2px_10px_rgba(0,0,0,0.5)]">
-              {welcomeGreeting}
-            </h2>
+          <div className="w-full text-center mb-6 animate-fadeIn font-serif font-bold text-white text-2xl md:text-3xl tracking-normal leading-snug drop-shadow-[0_2px_10px_rgba(0,0,0,0.5)]">
+            {welcomeGreeting}
           </div>
         )}
-
 
         {/* Mic Button & Waveform Container - Mobile Only */}
         <div className="flex items-center gap-6 mb-6 md:hidden">
@@ -1976,7 +2092,7 @@ NOTE: Each time Master Umesh asks for the brief, these stories are shuffled rand
             {Array.from({ length: 4 }).map((_, i) => (
               <div
                 key={`left-${i}`}
-                className={`w-[3px] bg-[#c8a84b] rounded transition-all duration-100 ${(statusState === 'listening' || statusState === 'speaking') ? 'animate-pulse' : 'h-1'}`}
+                className={`w-[3px] bg-cyan-400 rounded transition-all duration-100 ${(statusState === 'listening' || statusState === 'speaking') ? 'animate-pulse' : 'h-1'}`}
                 style={{ animationDelay: `${i * 0.08}s`, height: (statusState === 'listening' || statusState === 'speaking') ? `${[8, 14, 10, 16][i]}px` : '4px' }}
               />
             ))}
@@ -1984,7 +2100,7 @@ NOTE: Each time Master Umesh asks for the brief, these stories are shuffled rand
 
           <button
             onClick={handleMicClick}
-            className={`w-16 h-16 rounded-full flex shrink-0 items-center justify-center transition-all ${statusState === 'listening' ? 'bg-[#c8a84b] text-[#0a0a0f] border-none animate-bounce' : 'bg-[#1a1408] border-2 border-[#3a2c10] text-[#c8a84b] hover:bg-[#251d0c] hover:border-[#c8a84b]'}`}
+            className={`w-16 h-16 rounded-full flex shrink-0 items-center justify-center transition-all ${statusState === 'listening' ? 'bg-[#00f0ff] text-black border-none animate-bounce' : 'bg-[#040814] border-2 border-cyan-500/50 text-cyan-400 hover:bg-cyan-950/40'}`}
           >
             <Mic size={24} />
           </button>
@@ -1993,32 +2109,37 @@ NOTE: Each time Master Umesh asks for the brief, these stories are shuffled rand
             {Array.from({ length: 4 }).map((_, i) => (
               <div
                 key={`right-${i}`}
-                className={`w-[3px] bg-[#c8a84b] rounded transition-all duration-100 ${(statusState === 'listening' || statusState === 'speaking') ? 'animate-pulse' : 'h-1'}`}
+                className={`w-[3px] bg-cyan-400 rounded transition-all duration-100 ${(statusState === 'listening' || statusState === 'speaking') ? 'animate-pulse' : 'h-1'}`}
                 style={{ animationDelay: `${(i + 4) * 0.08}s`, height: (statusState === 'listening' || statusState === 'speaking') ? `${[15, 9, 13, 7][i]}px` : '4px' }}
               />
             ))}
           </div>
         </div>
+
         {/* Status Label */}
-        <div className={`text-[10px] tracking-[3px] uppercase mb-4 h-4 transition-colors ${statusState === 'listening' ? 'text-cyan-400' : statusState === 'thinking' ? 'text-cyan-400' : statusState === 'speaking' ? 'text-[#5bc8af]' : 'text-blue-900/50'}`}>
+        <div className={`text-[10px] tracking-[3px] font-mono uppercase mb-4 h-4 transition-colors ${statusState === 'listening' ? 'text-[#00f0ff] font-bold' : statusState === 'thinking' ? 'text-amber-400 font-bold' : statusState === 'speaking' ? 'text-[#5bc8af] font-bold' : 'text-cyan-500/50'}`}>
           {statusState === 'listening' ? 'listening...' :
             statusState === 'thinking' ? 'processing...' :
               statusState === 'speaking' ? 'speaking...' :
-                'voice interface offline'}
+                'voice interface idle'}
         </div>
 
-        <div className="w-full bg-[#02050c]/35 backdrop-blur-md border border-blue-500/20 rounded-xl p-4 mb-4 min-h-[52px] shadow-[0_0_15px_rgba(0,240,255,0.08)] glass-card animate-fadeIn">
-          <div className="text-[9px] tracking-widest text-blue-400/50 uppercase mb-1 font-mono">you said</div>
-          <div className="text-[13px] text-blue-300 font-sans">{transcript}</div>
+        {/* YOU SAID Panel */}
+        <div className="w-full bg-[#040814]/85 backdrop-blur-md border border-cyan-500/30 rounded-xl p-4 mb-4 min-h-[52px] shadow-[0_0_20px_rgba(0,240,255,0.12)] glass-card animate-fadeIn font-mono">
+          <div className="flex justify-between items-center mb-1">
+            <span className="text-[9px] font-bold tracking-[2px] text-cyan-400 uppercase">
+              YOU SAID
+            </span>
+            <span className="text-[8px] text-cyan-500/50 uppercase">INPUT LOG</span>
+          </div>
+          <div className="text-[13px] text-cyan-100 font-sans font-semibold">
+            {transcript || "Waiting for command..."}
+          </div>
         </div>
-
-        {/* Response is now shown in the fixed bottom HUD strip, not here */}
 
       </div>
 
-      {/* ── BAT-ASSISTANT RESPONSE HUD STRIP ──────────────────────────────── */}
-      {/* Fixed bottom-center, between Batman's face and the controls panel.  */}
-      {/* Never covers Batman's face. Compact, scrollable, max 4 lines.       */}
+      {/* BAT-ASSISTANT RESPONSE HUD STRIP */}
       {responseHtml && (
         <div
           className="fixed bottom-[148px] left-1/2 -translate-x-1/2 z-30 pointer-events-auto"
@@ -2026,24 +2147,28 @@ NOTE: Each time Master Umesh asks for the brief, these stories are shuffled rand
         >
           <div className="
             relative
-            bg-black/75 backdrop-blur-md
-            border border-blue-500/25
+            bg-[#040814]/90 backdrop-blur-xl
+            border border-cyan-500/40
             rounded-xl
-            px-5 py-3
-            shadow-[0_0_24px_rgba(0,240,255,0.12)]
+            px-5 py-3.5
+            shadow-[0_0_30px_rgba(0,240,255,0.2)]
+            font-mono
           ">
             {/* Corner accents */}
-            <div className="absolute top-0 left-0 w-3 h-3 border-t border-l border-blue-500/40 rounded-tl-xl" />
-            <div className="absolute top-0 right-0 w-3 h-3 border-t border-r border-blue-500/40 rounded-tr-xl" />
-            <div className="absolute bottom-0 left-0 w-3 h-3 border-b border-l border-blue-500/40 rounded-bl-xl" />
-            <div className="absolute bottom-0 right-0 w-3 h-3 border-b border-r border-blue-500/40 rounded-br-xl" />
+            <div className="absolute top-0 left-0 w-3 h-3 border-t-2 border-l-2 border-cyan-400 rounded-tl-xl pointer-events-none" />
+            <div className="absolute top-0 right-0 w-3 h-3 border-t-2 border-r-2 border-cyan-400 rounded-tr-xl pointer-events-none" />
+            <div className="absolute bottom-0 left-0 w-3 h-3 border-b-2 border-l-2 border-cyan-400 rounded-bl-xl pointer-events-none" />
+            <div className="absolute bottom-0 right-0 w-3 h-3 border-b-2 border-r-2 border-cyan-400 rounded-br-xl pointer-events-none" />
 
             {/* Label */}
-            <div className="text-[8px] tracking-[3px] text-blue-400/50 uppercase font-mono mb-1.5">BAT-ASSISTANT</div>
+            <div className="text-[9px] tracking-[3px] text-cyan-400 font-bold uppercase font-mono mb-1.5 flex items-center justify-between">
+              <span>BAT-ASSISTANT</span>
+              <span className="text-[8px] text-cyan-500/50">COMMS ACTIVE</span>
+            </div>
 
-            {/* Response text — max 5 lines, scrollable */}
+            {/* Response text */}
             <div
-              className="text-[13px] leading-relaxed text-blue-200 font-mono overflow-y-auto"
+              className="text-[13px] leading-relaxed text-cyan-100 font-mono overflow-y-auto"
               style={{ maxHeight: '6.5rem' }}
             >
               {responseHtml}
