@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { useArchitectStore } from '@/store/useArchitectStore';
 import { v4 as uuidv4 } from 'uuid';
-import { ArrowLeft, Folder, MapPin, Plus, Clock, Search, Map, Trash2 } from 'lucide-react';
+import { ArrowLeft, Folder, MapPin, Plus, Clock, Search, Map, Trash2, Sparkles, Building, Layers } from 'lucide-react';
 
 interface ProjectRow {
   session_id: string;
@@ -57,10 +57,21 @@ function ProjectThumbnail({ session_id, projectName }: { session_id: string, pro
   }, [session_id, thumb, isFetching]);
 
   if (thumb) {
-    return <img src={thumb.startsWith('data:image/') ? thumb : `data:image/jpeg;base64,${thumb}`} alt={projectName} className="w-full h-full object-cover opacity-80 group-hover:opacity-100 group-hover:scale-105 transition-all duration-500" />;
+    return (
+      <img 
+        src={thumb.startsWith('data:image/') ? thumb : `data:image/jpeg;base64,${thumb}`} 
+        alt={projectName} 
+        className="w-full h-full object-cover opacity-85 group-hover:opacity-100 group-hover:scale-105 transition-all duration-500" 
+      />
+    );
   }
   
-  return <Map size={48} className="text-[#FFB000]/20" />;
+  return (
+    <div className="flex flex-col items-center justify-center gap-2 opacity-30 group-hover:opacity-60 transition-opacity">
+      <Building size={36} className="text-cyan-400" />
+      <span className="text-[9px] tracking-widest text-cyan-500 uppercase">NO BLUEPRINT IMAGE</span>
+    </div>
+  );
 }
 
 export default function ProjectsDashboard() {
@@ -68,6 +79,7 @@ export default function ProjectsDashboard() {
   const switchSession = useArchitectStore(state => state.switchSession);
   
   const [projects, setProjects] = useState<ProjectRow[]>([]);
+  const [searchQuery, setSearchQuery] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [newProjectName, setNewProjectName] = useState('');
@@ -77,7 +89,6 @@ export default function ProjectsDashboard() {
 
   useEffect(() => {
     fetchProjects();
-    // Removed 3-second polling interval to prevent massive database overload & timeouts
   }, []);
 
   const fetchProjects = async () => {
@@ -124,7 +135,6 @@ export default function ProjectsDashboard() {
       }
     });
     
-    // Add a timeout fallback in case Supabase API hangs during an outage
     const timeoutPromise = new Promise((_, reject) => 
       setTimeout(() => reject(new Error('Supabase request timed out')), 5000)
     );
@@ -150,11 +160,9 @@ export default function ProjectsDashboard() {
     if (!deleteConfirmId) return;
     const sessId = deleteConfirmId;
     
-    // OPTIMISTIC UPDATE: Remove instantly from UI
     setDeleteConfirmId(null);
     setProjects(prev => prev.filter(p => p.session_id !== sessId));
     
-    // Clear session from store if it was the active session
     const store = useArchitectStore.getState();
     if (store.sessionId === sessId) {
       store.replaceState({ sessionId: null, isRestored: false, projectName: null, placeName: null });
@@ -172,7 +180,6 @@ export default function ProjectsDashboard() {
   };
 
   const confirmClearAll = async () => {
-    // OPTIMISTIC UPDATE: Remove instantly from UI
     setIsClearingAll(false);
     setProjects([]);
     
@@ -190,71 +197,100 @@ export default function ProjectsDashboard() {
     }
   };
 
+  // Filter projects by search query
+  const filteredProjects = projects.filter((p: any) => {
+    const name = (p.projectName || p.state?.projectName || 'Untitled Project').toLowerCase();
+    const place = (p.placeName || p.state?.placeName || '').toLowerCase();
+    const q = searchQuery.toLowerCase().trim();
+    return !q || name.includes(q) || place.includes(q);
+  });
 
   return (
-    <div className="h-screen overflow-y-auto bg-[#0a0a0f] font-mono text-[#FFB000] p-8">
-      {/* Background grid texture */}
-      <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGRlZnM+PHBhdHRlcm4gaWQ9ImdyaWQiIHdpZHRoPSI0MCIgaGVpZ2h0PSI0MCIgcGF0dGVyblVuaXRzPSJ1c2VyU3BhY2VPblVzZSI+PHBhdGggZD0iTSAwIDEwIEwgNDAgMTAgTSAxMCAwIEwgMTAgNDAiIGZpbGw9Im5vbmUiIHN0cm9rZT0iIzExMSIgc3Ryb2tlLXdpZHRoPSIwLjUiLz48L3BhdHRlcm4+PC9kZWZzPjxyZWN0IHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiIGZpbGw9InVybCgjZ3JpZCkiLz48L3N2Zz4=')] opacity-10 pointer-events-none z-0 fixed" />
+    <div className="min-h-screen bg-[#0a0a0f] font-mono text-cyan-400 p-6 md:p-10 relative overflow-x-hidden">
+      {/* Background Grid & Vignette overlays matching main app theme */}
+      <div className="fixed inset-0 bg-[linear-gradient(rgba(0,240,255,0.02)_1px,transparent_1px),linear-gradient(90deg,rgba(0,240,255,0.02)_1px,transparent_1px)] bg-[size:32px_32px] pointer-events-none z-0" />
+      <div className="fixed inset-0 bg-[radial-gradient(circle_at_center,transparent_20%,#0a0a0f_95%)] pointer-events-none z-0" />
 
-      {/* Header */}
-      <header className="relative z-10 max-w-7xl mx-auto flex items-center justify-between mb-12 border-b border-[#FFB000]/20 pb-6">
-        <div className="flex items-center gap-6">
+      {/* Header Bar */}
+      <header className="relative z-10 max-w-7xl mx-auto flex flex-col md:flex-row items-start md:items-center justify-between gap-6 mb-8 border-b border-cyan-500/20 pb-6 select-none">
+        <div className="flex items-center gap-4">
           <button 
             onClick={() => router.push('/jarvis')}
-            className="flex items-center justify-center w-10 h-10 rounded-full border border-[#FFB000]/30 hover:border-[#FFB000] hover:bg-[#FFB000]/10 transition-all group"
+            className="flex items-center justify-center w-10 h-10 rounded-xl border border-cyan-500/30 bg-cyan-950/20 text-cyan-400 hover:border-cyan-400 hover:bg-cyan-500/10 transition-all cursor-pointer shadow-[0_0_15px_rgba(0,240,255,0.1)]"
+            title="Back to Command Center"
           >
-            <ArrowLeft className="text-[#FFB000]/70 group-hover:text-[#FFB000]" size={18} />
+            <ArrowLeft size={18} />
           </button>
           <div>
-            <h1 className="text-2xl font-bold tracking-[4px] uppercase text-white drop-shadow-[0_0_8px_rgba(255,255,255,0.3)] flex items-center gap-3">
-              <Folder className="text-[#FFB000]" /> Project Archive
+            <h1 className="text-xl md:text-2xl font-bold tracking-[3px] uppercase text-white drop-shadow-[0_0_12px_rgba(0,240,255,0.3)] flex items-center gap-3">
+              <Folder className="text-cyan-400 w-6 h-6" /> PROJECT ARCHIVE
             </h1>
-            <span className="text-xs tracking-[3px] text-[#FFB000]/60 uppercase">
-              Secure Storage Facility
+            <span className="text-[10px] tracking-[2.5px] text-cyan-500/60 uppercase block mt-0.5">
+              SECURE BLUEPRINT & SCHEMATIC REPOSITORY
             </span>
           </div>
         </div>
         
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-3 w-full md:w-auto">
+          {/* Search bar */}
+          <div className="relative flex-1 md:w-64">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-cyan-500/50" />
+            <input 
+              type="text" 
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search projects..."
+              className="w-full bg-black/40 border border-cyan-500/20 focus:border-cyan-400 focus:outline-none rounded-lg pl-9 pr-3 py-2 text-[11px] text-cyan-300 placeholder-cyan-500/30 transition-colors"
+            />
+          </div>
+
           <button 
             onClick={() => setIsModalOpen(true)}
-            className="flex items-center gap-2 px-6 py-3 bg-[#FFB000] text-[#0a0a0f] hover:bg-[#D8B78D] font-bold uppercase tracking-widest rounded-lg transition-all shadow-[0_0_20px_rgba(255,176,0,0.3)] hover:shadow-[0_0_30px_rgba(255,176,0,0.5)]"
+            className="flex items-center gap-2 px-5 py-2.5 bg-cyan-500/20 hover:bg-cyan-500/30 border border-cyan-500/50 hover:border-cyan-400 text-[#00f0ff] font-bold text-xs uppercase tracking-widest rounded-lg transition-all shadow-[0_0_20px_rgba(0,240,255,0.15)] cursor-pointer whitespace-nowrap"
           >
-            <Plus size={18} /> Initialize Project
+            <Plus size={16} /> INITIALIZE PROJECT
           </button>
+          
           {projects.length > 0 && (
             <button
               onClick={() => setIsClearingAll(true)}
-              className="flex items-center gap-2 px-4 py-3 border border-red-500/40 text-red-400 hover:bg-red-500/10 hover:border-red-500 font-bold uppercase tracking-widest rounded-lg transition-all text-xs"
+              className="flex items-center gap-1.5 px-3 py-2.5 border border-red-500/40 text-red-400 hover:bg-red-500/10 hover:border-red-500 font-bold uppercase tracking-wider rounded-lg transition-all text-[11px] cursor-pointer"
+              title="Clear All Projects"
             >
-              <Trash2 size={16} /> Clear All
+              <Trash2 size={14} /> Clear
             </button>
           )}
         </div>
       </header>
 
-      {/* Main Grid */}
+      {/* Main Content Grid */}
       <main className="relative z-10 max-w-7xl mx-auto">
         {isLoading ? (
-          <div className="flex flex-col items-center justify-center py-32 opacity-50">
-             <div className="w-12 h-12 border-4 border-[#FFB000] border-t-transparent rounded-full animate-spin mb-4" />
-             <p className="tracking-widest uppercase">Accessing secure database...</p>
+          <div className="flex flex-col items-center justify-center py-32 opacity-70">
+            <div className="w-10 h-10 border-2 border-cyan-500/20 border-t-cyan-400 rounded-full animate-spin mb-4" />
+            <p className="tracking-widest uppercase text-xs text-cyan-400">ACCESSING ARCHIVE DATABASE...</p>
           </div>
-        ) : projects.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-32 border-2 border-dashed border-[#FFB000]/20 rounded-xl bg-[#0f0f18]/50 backdrop-blur">
-            <Folder size={64} className="text-[#FFB000]/30 mb-6" />
-            <h2 className="text-xl tracking-widest uppercase text-white mb-2">No active projects found</h2>
-            <p className="text-sm tracking-widest uppercase text-[#FFB000]/60 mb-8">Initialize a new project to begin drafting</p>
+        ) : filteredProjects.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-28 border border-cyan-500/20 rounded-2xl bg-cyan-950/10 backdrop-blur text-center p-8">
+            <div className="w-16 h-16 rounded-2xl bg-cyan-950/30 border border-cyan-500/30 flex items-center justify-center mb-5 text-cyan-400 shadow-[0_0_25px_rgba(0,240,255,0.1)]">
+              <Folder size={32} />
+            </div>
+            <h2 className="text-base tracking-[3px] uppercase text-white font-bold mb-2">
+              {searchQuery ? 'No matching projects found' : 'No active projects archived'}
+            </h2>
+            <p className="text-[11px] tracking-wider uppercase text-cyan-500/60 mb-6 max-w-md">
+              {searchQuery ? `No blueprints match your filter "${searchQuery}". Try a different keyword.` : 'Initialize your first high-density architectural tower project to start generating plans.'}
+            </p>
             <button 
               onClick={() => setIsModalOpen(true)}
-              className="px-8 py-3 bg-transparent border border-[#FFB000] text-[#FFB000] hover:bg-[#FFB000] hover:text-[#0a0a0f] font-bold uppercase tracking-widest transition-all"
+              className="px-6 py-2.5 bg-cyan-500/20 border border-cyan-400 text-cyan-300 hover:bg-cyan-500/30 font-bold text-xs uppercase tracking-widest rounded-lg transition-all cursor-pointer shadow-[0_0_15px_rgba(0,240,255,0.15)]"
             >
-              Create First Project
+              + Create First Project
             </button>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            {projects.map((proj: any) => {
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
+            {filteredProjects.map((proj: any) => {
               const name = proj.projectName || proj.state?.projectName || 'Untitled Project';
               const place = proj.placeName || proj.state?.placeName || 'Unknown Location';
               const date = new Date(proj.updated_at).toLocaleDateString();
@@ -263,31 +299,45 @@ export default function ProjectsDashboard() {
                 <div 
                   key={proj.session_id}
                   onClick={() => handleOpenProject(proj)}
-                  className="group bg-[#0f0f18]/80 backdrop-blur border border-[#FFB000]/20 hover:border-[#FFB000] rounded-xl overflow-hidden cursor-pointer transition-all duration-300 shadow-lg hover:shadow-[0_0_30px_rgba(255,176,0,0.2)] flex flex-col"
+                  className="group bg-[#0d0d14]/90 backdrop-blur border border-cyan-500/20 hover:border-cyan-400 rounded-xl overflow-hidden cursor-pointer transition-all duration-300 shadow-[0_0_20px_rgba(0,0,0,0.4)] hover:shadow-[0_0_30px_rgba(0,240,255,0.15)] flex flex-col"
                 >
-                  <div className="relative aspect-video bg-[#0a0a0f] flex items-center justify-center border-b border-[#FFB000]/10 overflow-hidden">
+                  {/* Thumbnail Banner */}
+                  <div className="relative aspect-[16/10] bg-[#050508] flex items-center justify-center border-b border-cyan-500/15 overflow-hidden">
                     <ProjectThumbnail session_id={proj.session_id} projectName={name} />
-                    <div className="absolute inset-0 bg-gradient-to-t from-[#0f0f18] to-transparent opacity-80" />
+                    <div className="absolute inset-0 bg-gradient-to-t from-[#0d0d14] via-transparent to-transparent opacity-90" />
+                    
+                    {/* Delete button */}
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
                         setDeleteConfirmId(proj.session_id);
                       }}
-                      className="absolute top-3 right-3 z-20 flex items-center justify-center w-8 h-8 rounded-full border border-red-500/30 bg-[#0a0a0f]/80 text-red-500/70 hover:text-red-500 hover:border-red-500 hover:bg-red-500/10 transition-all shadow-md cursor-pointer"
+                      className="absolute top-2.5 right-2.5 z-20 flex items-center justify-center w-7 h-7 rounded-lg border border-red-500/30 bg-[#0a0a0f]/80 text-red-400 hover:text-white hover:border-red-500 hover:bg-red-500/20 transition-all cursor-pointer shadow-md"
                       title="Delete Project"
                     >
-                      <Trash2 size={14} />
+                      <Trash2 size={13} />
                     </button>
-                    <div className="absolute bottom-3 left-3 flex items-center gap-2 text-[10px] text-[#FFB000] font-bold tracking-widest uppercase bg-[#0a0a0f]/80 px-2 py-1 rounded backdrop-blur">
-                      <Clock size={12} /> {date}
+
+                    {/* Date Badge */}
+                    <div className="absolute bottom-2.5 left-2.5 flex items-center gap-1.5 text-[9px] text-cyan-300 font-bold tracking-widest uppercase bg-cyan-950/80 border border-cyan-500/30 px-2 py-0.5 rounded backdrop-blur">
+                      <Clock size={10} className="text-cyan-400" /> {date}
                     </div>
                   </div>
-                  <div className="p-5 flex-1 flex flex-col justify-between">
+
+                  {/* Card Content */}
+                  <div className="p-4 flex-1 flex flex-col justify-between">
                     <div>
-                      <h3 className="text-lg font-bold text-white uppercase tracking-wider mb-2 group-hover:text-[#FFB000] transition-colors">{name}</h3>
-                      <p className="flex items-center gap-2 text-xs text-[#FFB000]/60 tracking-widest uppercase">
-                        <MapPin size={12} /> {place}
+                      <h3 className="text-sm font-bold text-white uppercase tracking-wider mb-1.5 group-hover:text-cyan-400 transition-colors line-clamp-1">
+                        {name}
+                      </h3>
+                      <p className="flex items-center gap-1.5 text-[10px] text-cyan-500/60 tracking-wider uppercase line-clamp-1">
+                        <MapPin size={11} className="text-cyan-400/80 shrink-0" /> {place}
                       </p>
+                    </div>
+
+                    <div className="mt-4 pt-3 border-t border-white/5 flex items-center justify-between text-[9px] text-cyan-500/40 tracking-wider uppercase font-semibold">
+                      <span>BLUEPRINT ACTIVE</span>
+                      <span className="text-cyan-400 group-hover:translate-x-0.5 transition-transform">OPEN →</span>
                     </div>
                   </div>
                 </div>
@@ -299,21 +349,25 @@ export default function ProjectsDashboard() {
 
       {/* Delete Single Project Modal */}
       {deleteConfirmId && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#0a0a0f]/90 backdrop-blur-sm">
-          <div className="bg-[#1a1212] border border-red-500/30 rounded-xl p-8 max-w-md w-full shadow-[0_0_50px_rgba(239,68,68,0.15)] relative text-center">
-            <Trash2 size={48} className="text-red-500/50 mx-auto mb-6" />
-            <h2 className="text-2xl font-bold uppercase tracking-[4px] text-white mb-4">Delete Project?</h2>
-            <p className="text-[#FFB000]/70 mb-8 uppercase tracking-widest text-sm">This action is permanent and cannot be reversed. Are you sure you want to delete this project?</p>
-            <div className="flex gap-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#0a0a0f]/90 backdrop-blur-sm p-4">
+          <div className="bg-[#0d0d14] border border-red-500/40 rounded-2xl p-6 max-w-sm w-full shadow-[0_0_60px_rgba(239,68,68,0.2)] relative text-center animate-fadeIn">
+            <div className="w-12 h-12 rounded-xl bg-red-950/30 border border-red-500/30 flex items-center justify-center mx-auto mb-4 text-red-400">
+              <Trash2 size={24} />
+            </div>
+            <h2 className="text-lg font-bold uppercase tracking-[3px] text-white mb-2">Delete Project?</h2>
+            <p className="text-cyan-500/70 mb-6 uppercase tracking-wider text-[11px] leading-relaxed">
+              This action is permanent and cannot be reversed. Are you sure you want to purge this project?
+            </p>
+            <div className="flex gap-3">
               <button 
                 onClick={() => setDeleteConfirmId(null)}
-                className="flex-1 py-3 border border-[#FFB000]/50 text-[#FFB000]/80 hover:text-[#FFB000] hover:bg-[#FFB000]/10 uppercase tracking-widest font-bold rounded transition-colors"
+                className="flex-1 py-2.5 border border-cyan-500/30 text-cyan-400 hover:bg-cyan-500/10 uppercase tracking-wider font-bold rounded-lg text-xs transition-colors cursor-pointer"
               >
                 Cancel
               </button>
               <button 
                 onClick={confirmDeleteProject}
-                className="flex-1 py-3 bg-red-500/80 text-white hover:bg-red-500 uppercase tracking-widest font-bold rounded transition-colors"
+                className="flex-1 py-2.5 bg-red-500/80 text-white hover:bg-red-500 uppercase tracking-wider font-bold rounded-lg text-xs transition-colors cursor-pointer shadow-[0_0_15px_rgba(239,68,68,0.3)]"
               >
                 Delete
               </button>
@@ -324,21 +378,25 @@ export default function ProjectsDashboard() {
 
       {/* Clear All Projects Modal */}
       {isClearingAll && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#0a0a0f]/90 backdrop-blur-sm">
-          <div className="bg-[#1a1212] border border-red-500/50 rounded-xl p-8 max-w-md w-full shadow-[0_0_80px_rgba(239,68,68,0.2)] relative text-center">
-            <Trash2 size={48} className="text-red-500/80 mx-auto mb-6" />
-            <h2 className="text-2xl font-bold uppercase tracking-[4px] text-red-500 mb-4">Clear All Projects?</h2>
-            <p className="text-white/70 mb-8 uppercase tracking-widest text-sm leading-relaxed">WARNING: You are about to wipe your entire project archive. This will permanently destroy all drafted floor plans.</p>
-            <div className="flex gap-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#0a0a0f]/90 backdrop-blur-sm p-4">
+          <div className="bg-[#0d0d14] border border-red-500/60 rounded-2xl p-6 max-w-sm w-full shadow-[0_0_80px_rgba(239,68,68,0.25)] relative text-center animate-fadeIn">
+            <div className="w-12 h-12 rounded-xl bg-red-950/40 border border-red-500/50 flex items-center justify-center mx-auto mb-4 text-red-500">
+              <Trash2 size={24} />
+            </div>
+            <h2 className="text-lg font-bold uppercase tracking-[3px] text-red-400 mb-2">Clear Entire Archive?</h2>
+            <p className="text-slate-300 mb-6 uppercase tracking-wider text-[11px] leading-relaxed">
+              WARNING: You are about to wipe your entire project archive. All drafted floor plans will be permanently removed.
+            </p>
+            <div className="flex gap-3">
               <button 
                 onClick={() => setIsClearingAll(false)}
-                className="flex-1 py-3 border border-[#FFB000]/50 text-[#FFB000]/80 hover:text-[#FFB000] hover:bg-[#FFB000]/10 uppercase tracking-widest font-bold rounded transition-colors"
+                className="flex-1 py-2.5 border border-cyan-500/30 text-cyan-400 hover:bg-cyan-500/10 uppercase tracking-wider font-bold rounded-lg text-xs transition-colors cursor-pointer"
               >
                 Cancel
               </button>
               <button 
                 onClick={confirmClearAll}
-                className="flex-1 py-3 bg-red-600 text-white hover:bg-red-500 uppercase tracking-widest font-bold rounded transition-colors shadow-[0_0_20px_rgba(220,38,38,0.5)]"
+                className="flex-1 py-2.5 bg-red-600 text-white hover:bg-red-500 uppercase tracking-wider font-bold rounded-lg text-xs transition-colors cursor-pointer shadow-[0_0_20px_rgba(220,38,38,0.4)]"
               >
                 Wipe Archive
               </button>
@@ -349,47 +407,54 @@ export default function ProjectsDashboard() {
 
       {/* Create Project Modal */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#0a0a0f]/90 backdrop-blur-sm">
-          <div className="bg-[#0f0f18] border border-[#FFB000]/30 rounded-xl p-8 max-w-md w-full shadow-[0_0_50px_rgba(255,176,0,0.15)] relative">
-            <h2 className="text-2xl font-bold uppercase tracking-[4px] text-white mb-6">Initialize Project</h2>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#0a0a0f]/90 backdrop-blur-sm p-4">
+          <div className="bg-[#0d0d14] border border-cyan-500/40 rounded-2xl p-6 max-w-sm w-full shadow-[0_0_50px_rgba(0,240,255,0.15)] relative animate-fadeIn">
+            <div className="flex items-center gap-2 mb-4 border-b border-cyan-500/20 pb-3">
+              <Building className="w-5 h-5 text-cyan-400" />
+              <h2 className="text-base font-bold uppercase tracking-[3px] text-white">Initialize Project</h2>
+            </div>
             
-            <form onSubmit={handleCreateProject} className="space-y-6">
+            <form onSubmit={handleCreateProject} className="space-y-4">
               <div>
-                <label className="block text-xs uppercase tracking-widest text-[#FFB000]/80 mb-2">Project Designation (Name)</label>
+                <label className="block text-[10px] uppercase tracking-widest text-cyan-500/70 mb-1.5 font-mono">
+                  Project Designation (Name)
+                </label>
                 <input 
                   autoFocus
                   type="text" 
                   value={newProjectName}
                   onChange={(e) => setNewProjectName(e.target.value)}
-                  placeholder="E.g. Wayne Manor Redesign"
-                  className="w-full bg-[#0a0a0f] border border-[#FFB000]/30 rounded p-3 text-white focus:outline-none focus:border-[#FFB000] transition-colors uppercase tracking-wider"
+                  placeholder="E.g. Horizon Arc Tower"
+                  className="w-full bg-black/50 border border-cyan-500/30 rounded-lg p-2.5 text-xs text-cyan-300 placeholder-cyan-500/30 focus:outline-none focus:border-cyan-400 transition-colors uppercase tracking-wider font-mono"
                   required
                 />
               </div>
               
               <div>
-                <label className="block text-xs uppercase tracking-widest text-[#FFB000]/80 mb-2">Geographic Location</label>
+                <label className="block text-[10px] uppercase tracking-widest text-cyan-500/70 mb-1.5 font-mono">
+                  Geographic Location
+                </label>
                 <input 
                   type="text" 
                   value={newPlaceName}
                   onChange={(e) => setNewPlaceName(e.target.value)}
-                  placeholder="E.g. Gotham City"
-                  className="w-full bg-[#0a0a0f] border border-[#FFB000]/30 rounded p-3 text-white focus:outline-none focus:border-[#FFB000] transition-colors uppercase tracking-wider"
+                  placeholder="E.g. Downtown Sector 4"
+                  className="w-full bg-black/50 border border-cyan-500/30 rounded-lg p-2.5 text-xs text-cyan-300 placeholder-cyan-500/30 focus:outline-none focus:border-cyan-400 transition-colors uppercase tracking-wider font-mono"
                 />
               </div>
 
-              <div className="flex gap-4 pt-4">
+              <div className="flex gap-3 pt-3 border-t border-white/5">
                 <button 
                   type="button"
                   onClick={() => setIsModalOpen(false)}
-                  className="flex-1 py-3 border border-[#FFB000]/50 text-[#FFB000]/80 hover:text-[#FFB000] hover:bg-[#FFB000]/10 uppercase tracking-widest font-bold rounded transition-colors"
+                  className="flex-1 py-2.5 border border-cyan-500/30 text-cyan-400 hover:bg-cyan-500/10 uppercase tracking-wider font-bold rounded-lg text-xs transition-colors cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button 
                   type="submit"
                   disabled={!newProjectName.trim()}
-                  className="flex-1 py-3 bg-[#FFB000] text-[#0a0a0f] hover:bg-[#D8B78D] uppercase tracking-widest font-bold rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="flex-1 py-2.5 bg-cyan-500/20 border border-cyan-400 text-cyan-300 hover:bg-cyan-500/30 uppercase tracking-wider font-bold rounded-lg text-xs transition-colors disabled:opacity-40 cursor-pointer shadow-[0_0_15px_rgba(0,240,255,0.15)]"
                 >
                   Initialize
                 </button>
