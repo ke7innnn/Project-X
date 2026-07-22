@@ -1,6 +1,5 @@
 'use client';
 
-// 🦇 BATMAN COMMAND CENTER HUB - FRESH RECOMPILE
 import React, { useState, useEffect, useRef } from 'react';
 import { useArchitectStore } from '@/store/useArchitectStore';
 import { useRouter } from 'next/navigation';
@@ -198,6 +197,7 @@ export default function StartScreen() {
   const [transcript, setTranscript] = useState('Initializing bat-computer link...');
   const [welcomeGreeting, setWelcomeGreeting] = useState('Initializing bat-computer...');
   const [responseHtml, setResponseHtml] = useState<string | null>(null);
+  const [sessionCount, setSessionCount] = useState<string>('');
   const [isSoundMuted, setIsSoundMuted] = useState(true);
   const isSoundMutedRef = useRef(true); // Mirror of isSoundMuted for use inside async closures
   const [showStatusBlock, setShowStatusBlock] = useState(false);
@@ -250,69 +250,6 @@ export default function StartScreen() {
   } | null>(null);
   const [weatherLoading, setWeatherLoading] = useState(true);
   const [weatherError, setWeatherError] = useState<string | null>(null);
-
-  const [sessionCount, setSessionCount] = useState<string>('60TH WATCH');
-  const [bootCompleted, setBootCompleted] = useState(false);
-  const commandInputRef = useRef<HTMLInputElement>(null);
-  const [showCommandSuggestions, setShowCommandSuggestions] = useState(false);
-
-  useEffect(() => {
-    // 60TH WATCH counter persistence
-    let count = parseInt(localStorage.getItem('batman_watch_count') || '60', 10);
-    if (isNaN(count)) count = 60;
-    if (!sessionStorage.getItem('batman_session_incremented')) {
-      count += 1;
-      localStorage.setItem('batman_watch_count', count.toString());
-      sessionStorage.setItem('batman_session_incremented', 'true');
-    }
-    const suffix = (c: number) => {
-      const j = c % 10, k = c % 100;
-      if (j === 1 && k !== 11) return 'ST';
-      if (j === 2 && k !== 12) return 'ND';
-      if (j === 3 && k !== 13) return 'RD';
-      return 'TH';
-    };
-    setSessionCount(`${count}${suffix(count)} WATCH`);
-  }, []);
-
-  useEffect(() => {
-    // Fast, skippable boot sequence
-    const isDone = sessionStorage.getItem('batman_boot_done');
-    if (isDone) {
-      setBootCompleted(true);
-    } else {
-      const bootTimer = setTimeout(() => {
-        setBootCompleted(true);
-        sessionStorage.setItem('batman_boot_done', 'true');
-      }, 1800);
-
-      const handleSkip = () => {
-        setBootCompleted(true);
-        sessionStorage.setItem('batman_boot_done', 'true');
-      };
-
-      window.addEventListener('keydown', handleSkip);
-      window.addEventListener('click', handleSkip);
-      return () => {
-        clearTimeout(bootTimer);
-        window.removeEventListener('keydown', handleSkip);
-        window.removeEventListener('click', handleSkip);
-      };
-    }
-  }, []);
-
-  useEffect(() => {
-    // Command bar keyboard shortcut (Cmd+K / Ctrl+K)
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
-        e.preventDefault();
-        commandInputRef.current?.focus();
-        setShowCommandSuggestions(true);
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, []);
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -1667,91 +1604,78 @@ NOTE: Each time Master Umesh asks for the brief, these stories are shuffled rand
         </svg>
       </div>
 
-      {/* Top Center: Clock Panel */}
-      <div className="fixed top-5 left-1/2 -translate-x-1/2 z-20 flex items-center gap-3.5 pointer-events-none select-none">
-        <div className="relative w-12 h-12 flex items-center justify-center">
+      {/* Top HUD Clock Panel */}
+      <div className="fixed top-10 left-1/2 -translate-x-1/2 z-10 flex items-center gap-4 pointer-events-none select-none">
+        <div className="relative w-14 h-14 flex items-center justify-center">
           <svg className="w-full h-full -rotate-90">
-            <circle cx="24" cy="24" r="19" fill="none" stroke="rgba(0, 240, 255, 0.08)" strokeWidth="2.5" />
+            <circle cx="28" cy="28" r="22" fill="none" stroke="rgba(0, 240, 255, 0.08)" strokeWidth="3" />
             <motion.circle
-              cx="24" cy="24" r="19" fill="none" stroke="#00f0ff" strokeWidth="2.5" strokeDasharray="119.3"
-              initial={{ strokeDashoffset: 119.3 }}
-              animate={{ strokeDashoffset: 119.3 - (currentDate.getSeconds() / 60) * 119.3 }}
+              cx="28" cy="28" r="22" fill="none" stroke="#00f0ff" strokeWidth="3" strokeDasharray="138.2"
+              initial={{ strokeDashoffset: 138.2 }}
+              animate={{ strokeDashoffset: 138.2 - (currentDate.getSeconds() / 60) * 138.2 }}
               transition={{ ease: "linear", duration: 0.2 }}
               className="drop-shadow-[0_0_4px_#00f0ff]"
             />
           </svg>
-          <span className="absolute text-[9px] font-mono text-cyan-400 font-bold">
+          <span className="absolute text-[10px] font-mono text-cyan-400">
             {currentDate.getSeconds().toString().padStart(2, '0')}
           </span>
         </div>
         <div className="flex flex-col text-left">
           <div className="flex items-baseline gap-2">
-            <span className="font-rajdhani text-2xl font-bold tracking-[2px] text-cyan-400 drop-shadow-[0_0_8px_rgba(0,240,255,0.5)]">
+            <span className="font-rajdhani text-2xl font-bold tracking-[2px] text-cyan-400 drop-shadow-[0_0_6px_rgba(0,240,255,0.4)]">
               {currentDate.getHours().toString().padStart(2, '0')}:{currentDate.getMinutes().toString().padStart(2, '0')}
             </span>
-            <span className="text-[10px] font-mono text-cyan-500/70 uppercase tracking-[1px] font-bold">
+            <span className="text-[10px] font-mono text-cyan-500/60 uppercase tracking-[1px]">
               {currentDate.toLocaleDateString([], { weekday: 'short' })}
             </span>
           </div>
-          <span className="text-[9.5px] font-mono text-cyan-500/90 tracking-[1.5px] uppercase -mt-1 font-semibold">
+          <span className="text-[10px] font-mono text-cyan-500/80 tracking-[1.5px] uppercase -mt-1">
             {currentDate.toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' })}
           </span>
         </div>
       </div>
 
-      {/* Top Center: Watch / Session Status Bar (Stacked cleanly below clock) */}
-      <div className="fixed top-[74px] left-1/2 -translate-x-1/2 z-20 flex items-center gap-3 bg-[#040814]/90 backdrop-blur-xl border border-cyan-500/30 rounded-full px-4 py-1 pointer-events-auto select-none font-mono text-[10px] shadow-[0_0_20px_rgba(0,240,255,0.15)]">
-        <span className="text-cyan-400 font-bold tracking-[1.5px] uppercase">
-          {sessionCount || '60TH WATCH'}
-        </span>
-        <span className="h-3 w-px bg-cyan-500/30" />
-        <span className="text-cyan-500/80 tracking-[1px] uppercase font-semibold">
-          RESUMING: {lastToolLabelMap[activeMenuTab] || 'CONCEPT GENERATOR'}
-        </span>
-        <span className="h-3 w-px bg-cyan-500/30" />
-        {/* Speaker Mute/Unmute Toggle */}
-        <button
-          onClick={toggleSoundMute}
-          className="text-cyan-400 hover:text-white transition-colors flex items-center justify-center cursor-pointer"
-          title={isSoundMuted ? 'Unmute audio' : 'Mute audio'}
-        >
-          {isSoundMuted ? <VolumeX size={12} /> : <Volume2 size={12} />}
-        </button>
-        <span className="h-3 w-px bg-cyan-500/30" />
-        {/* Clap Toggle */}
-        <button
-          onClick={() => {
-            const newVal = !isClapEnabled;
-            setIsClapEnabled(newVal);
-            localStorage.setItem('batman_clap_enabled', newVal ? 'true' : 'false');
-          }}
-          className={`transition-colors flex items-center justify-center cursor-pointer ${isClapEnabled ? 'text-green-400' : 'text-cyan-400/50 hover:text-cyan-400'}`}
-          title={isClapEnabled ? 'Clap Detection: ON' : 'Clap Detection: OFF'}
-        >
-          <HandMetal size={12} />
-        </button>
-      </div>
-
-      {/* Weather-Reactive Background Atmosphere */}
-      {weatherData && (weatherData.condition.toLowerCase().includes('rain') || weatherData.condition.toLowerCase().includes('storm') || weatherData.condition.toLowerCase().includes('drizzle') || weatherData.condition.toLowerCase().includes('shower')) && (
-        <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden opacity-30 select-none">
-          <div className="absolute inset-0 bg-[linear-gradient(to_bottom,transparent_0%,rgba(0,240,255,0.08)_100%)] animate-pulse" />
-          <div className="absolute inset-0 bg-[repeating-linear-gradient(105deg,transparent,transparent_20px,rgba(0,240,255,0.12)_21px,transparent_22px)] bg-[length:200%_200%] animate-[rain_0.8s_linear_infinite]" />
+      {/* Cohesive Boot Sequence Status Block */}
+      {showStatusBlock && (
+        <div className="fixed top-[110px] left-1/2 -translate-x-1/2 z-20 flex items-center gap-3 bg-black/60 backdrop-blur border border-cyan-500/20 rounded-full px-4 py-1.5 pointer-events-auto select-none font-sans text-[10.5px] shadow-[0_0_15px_rgba(0,240,255,0.15)] animate-fadeIn">
+          <span className="text-cyan-400 font-bold tracking-[1.5px] uppercase">
+            {sessionCount || 'INITIAL WATCH'}
+          </span>
+          <span className="h-3 w-px bg-cyan-500/30" />
+          <span className="text-cyan-500/70 tracking-[1px] uppercase">
+            Resuming: {lastToolLabelMap[activeMenuTab] || 'CONCEPT GENERATOR'}
+          </span>
+          <span className="h-3 w-px bg-cyan-500/30" />
+          {/* Speaker Mute/Unmute Toggle */}
+          <button
+            onClick={toggleSoundMute}
+            className="text-cyan-400 hover:text-white transition-colors flex items-center justify-center cursor-pointer pointer-events-auto"
+            title={isSoundMuted ? 'Unmute boot audio' : 'Mute boot audio'}
+          >
+            {isSoundMuted ? <VolumeX size={12} /> : <Volume2 size={12} />}
+          </button>
+          <span className="h-3 w-px bg-cyan-500/30" />
+          {/* Clap Toggle */}
+          <button
+            onClick={() => {
+              const newVal = !isClapEnabled;
+              setIsClapEnabled(newVal);
+              localStorage.setItem('batman_clap_enabled', newVal ? 'true' : 'false');
+            }}
+            className={`transition-colors flex items-center justify-center cursor-pointer pointer-events-auto ${isClapEnabled ? 'text-green-400' : 'text-cyan-400/50 hover:text-cyan-400'}`}
+            title={isClapEnabled ? 'Clap Detection: ON' : 'Clap Detection: OFF'}
+          >
+            <HandMetal size={12} />
+          </button>
         </div>
       )}
 
-      {/* ── LEFT COLUMN ─────────────────────────────────────────────────── */}
-
-      {/* LEFT TOP: Tactical Weather Metrics Panel */}
-      <div className="fixed top-5 left-6 z-20 w-80 select-none pointer-events-auto bg-[#040814]/85 backdrop-blur-xl border border-cyan-500/30 rounded-2xl p-4 shadow-[0_0_30px_rgba(0,240,255,0.15)] relative overflow-hidden max-h-[36vh] overflow-y-auto">
-        <span className="absolute top-0 left-0 w-3 h-3 border-t-2 border-l-2 border-cyan-400 pointer-events-none" />
-        <span className="absolute top-0 right-0 w-3 h-3 border-t-2 border-r-2 border-cyan-400 pointer-events-none" />
-        <span className="absolute bottom-0 left-0 w-3 h-3 border-b-2 border-l-2 border-cyan-400 pointer-events-none" />
-        <span className="absolute bottom-0 right-0 w-3 h-3 border-b-2 border-r-2 border-cyan-400 pointer-events-none" />
-
-        <div className="flex flex-col gap-2.5">
-          <div className="border-b border-cyan-500/20 pb-2">
-            <span className="text-[10px] tracking-[3px] text-cyan-500/60 uppercase block text-left font-mono font-bold">TACTICAL METRICS</span>
+      {/* Tactical Weather Metrics Panel */}
+      <div className="fixed top-10 left-6 z-[10] w-76 select-none pointer-events-none bg-slate-900/30 backdrop-blur-md border border-white/10 rounded-xl p-4 shadow-[0_8px_32px_rgba(0,0,0,0.5)]">
+        <div className="flex flex-col gap-3">
+          <div className="border-b border-white/10 pb-2">
+            <span className="text-[10px] tracking-[3px] text-cyan-500/60 uppercase block text-left">TACTICAL METRICS</span>
             <div className="flex justify-between items-center">
               <h3 className="font-rajdhani text-[15px] font-bold text-cyan-400 tracking-[1px] uppercase truncate text-left">
                 {weatherLoading ? "FETCHING DATA..." : weatherError ? "SERVICE OFFLINE" : weatherData?.location}
@@ -1762,39 +1686,39 @@ NOTE: Each time Master Umesh asks for the brief, these stories are shuffled rand
             </div>
           </div>
           {weatherLoading ? (
-            <div className="py-4 flex flex-col items-center justify-center gap-2">
+            <div className="py-6 flex flex-col items-center justify-center gap-2">
               <Loader2 className="w-5 h-5 text-cyan-400 animate-spin" />
-              <span className="text-[9px] text-cyan-500/60 tracking-[1.5px] uppercase font-mono">ANALYZING GEOLOCATION...</span>
+              <span className="text-[9px] text-cyan-500/60 tracking-[1.5px] uppercase">ANALYZING GEOLOCATION...</span>
             </div>
           ) : weatherError ? (
-            <div className="py-3 flex flex-col items-center justify-center gap-1.5 text-center">
+            <div className="py-4 flex flex-col items-center justify-center gap-1.5 text-center">
               <span className="text-xl">⚠️</span>
-              <span className="text-[10px] text-cyan-400 font-bold tracking-[2px] uppercase font-mono">WEATHER OFFLINE</span>
+              <span className="text-[10px] text-cyan-400 font-bold tracking-[2px] uppercase">WEATHER OFFLINE</span>
             </div>
           ) : weatherData ? (
-            <div className="flex flex-col gap-2">
+            <div className="flex flex-col gap-2.5">
               <div className="flex justify-between items-center">
-                <span className="font-rajdhani text-3xl font-bold tracking-tight text-cyan-400 drop-shadow-[0_0_8px_rgba(0,240,255,0.4)]">
+                <span className="font-rajdhani text-4xl font-bold tracking-tight text-cyan-400 drop-shadow-[0_0_8px_rgba(0,240,255,0.4)]">
                   {weatherData.temp}°C
                 </span>
                 <div className="text-right">
                   <span className="text-cyan-400 font-bold block uppercase tracking-[1px] text-[11px]">{weatherData.condition}</span>
-                  <span className="text-[9px] text-cyan-500/60 uppercase block font-mono">Feels Like: {weatherData.feelsLike}°C</span>
+                  <span className="text-[9px] text-cyan-500/60 uppercase block">Feels Like: {weatherData.feelsLike}°C</span>
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-x-3 gap-y-1 border-t border-b border-cyan-500/20 py-2 my-0.5 text-[9.5px] font-mono">
+              <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 border-t border-b border-white/10 py-2.5 my-0.5 text-[10px]">
                 <div className="flex justify-between"><span className="text-cyan-500/50 uppercase">Humidity:</span><span className="text-cyan-400 font-bold">{weatherData.humidity}%</span></div>
-                <div className="flex justify-between"><span className="text-cyan-500/50 uppercase">Wind:</span><span className="text-cyan-400 font-bold truncate max-w-[55px]">{weatherData.windSpeed} km/h</span></div>
+                <div className="flex justify-between"><span className="text-cyan-500/50 uppercase">Wind:</span><span className="text-cyan-400 font-bold truncate max-w-[55px]">{weatherData.windSpeed} km/h {weatherData.windDir}</span></div>
                 <div className="flex justify-between"><span className="text-cyan-500/50 uppercase">Pressure:</span><span className="text-cyan-400 font-bold">{weatherData.pressure} mb</span></div>
                 <div className="flex justify-between"><span className="text-cyan-500/50 uppercase">Moon:</span><span className="text-cyan-400 font-bold">{weatherData.moonPhase.icon} {weatherData.moonPhase.phase.split(" ")[0]}</span></div>
               </div>
-              <div className="flex flex-col gap-1 pt-0.5 text-left">
-                <span className="text-[8.5px] tracking-[2px] text-cyan-500/60 uppercase mb-0.5 font-bold font-mono">3-DAY FORECAST</span>
+              <div className="flex flex-col gap-1.5 pt-0.5 text-left">
+                <span className="text-[9px] tracking-[2px] text-cyan-500/60 uppercase mb-1 font-bold">3-DAY FORECAST</span>
                 {weatherData.forecast.map((day, idx) => (
-                  <div key={idx} className="flex justify-between items-center text-[9.5px] bg-white/[0.03] px-2 py-1 rounded border border-cyan-500/10 font-mono">
-                    <span className="text-cyan-400 font-bold uppercase text-[8.5px]">{day.day}</span>
-                    <span className="text-cyan-500/60 uppercase truncate max-w-[80px] text-right text-[8.5px]">{day.condition}</span>
-                    <span className="text-cyan-400 font-bold font-mono text-[9.5px] text-right">{day.tempMax}° / {day.tempMin}°</span>
+                  <div key={idx} className="flex justify-between items-center text-[10px] bg-white/[0.03] px-2.5 py-1.5 rounded-lg border border-white/5">
+                    <span className="text-cyan-400 font-bold uppercase text-[9px]">{day.day}</span>
+                    <span className="text-cyan-500/60 uppercase truncate max-w-[90px] text-right text-[9px]">{day.condition}</span>
+                    <span className="text-cyan-400 font-bold font-mono text-[10px] text-right">{day.tempMax}° / {day.tempMin}°</span>
                   </div>
                 ))}
               </div>
@@ -1803,62 +1727,95 @@ NOTE: Each time Master Umesh asks for the brief, these stories are shuffled rand
         </div>
       </div>
 
-      {/* LEFT MIDDLE: Voice Assistant Panel ("TALK TO BATMAN" + COMM LINK) */}
-      <div className="fixed left-6 top-[48%] -translate-y-1/2 z-20 w-80 select-none text-left hidden md:block">
-        <div className="relative p-4 backdrop-blur-xl bg-[#040814]/85 border border-cyan-500/30 rounded-2xl shadow-[0_0_30px_rgba(0,240,255,0.15)] overflow-hidden">
-          <span className="absolute top-0 left-0 w-3 h-3 border-t-2 border-l-2 border-cyan-400 pointer-events-none" />
-          <span className="absolute top-0 right-0 w-3 h-3 border-t-2 border-r-2 border-cyan-400 pointer-events-none" />
-          <span className="absolute bottom-0 left-0 w-3 h-3 border-b-2 border-l-2 border-cyan-400 pointer-events-none" />
-          <span className="absolute bottom-0 right-0 w-3 h-3 border-b-2 border-r-2 border-cyan-400 pointer-events-none" />
+      {/* System Uptime Counter */}
+      <div className="fixed bottom-10 left-1/2 -translate-x-1/2 z-[5] pointer-events-none select-none text-center">
+        <span className="text-[9px] tracking-[4px] text-cyan-500/40 uppercase block">SYSTEM UPTIME</span>
+        <span className="font-mono text-sm font-semibold text-cyan-400 drop-shadow-[0_0_4px_rgba(0,240,255,0.4)] tracking-[2px]">
+          {uptime}
+        </span>
+      </div>
 
-          <div className="flex flex-col gap-1 mb-4">
-            <span className="text-[9px] tracking-[4px] text-cyan-500/70 uppercase font-mono font-bold block">
+      {/* HUD Search Bar */}
+      <div className="fixed bottom-10 left-6 z-[20] w-76 select-text pointer-events-auto">
+        <form onSubmit={handleSearchSubmit} className="relative group">
+          <input
+            type="text"
+            placeholder="GOOGLE MATRIX QUERY..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full bg-cyan-950/30 hover:bg-cyan-950/40 focus:bg-cyan-950/50 border border-cyan-500/30 focus:border-cyan-400/80 focus:outline-none rounded px-3 py-2 pl-8 text-[10px] font-mono text-cyan-400 placeholder-cyan-500/40 transition-all duration-300 tracking-[1.5px] uppercase backdrop-blur-md"
+          />
+          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-cyan-500/60 group-focus-within:text-cyan-400 transition-colors" />
+        </form>
+      </div>
+
+      {/* Top Right: System Toggle */}
+      <div className="fixed top-10 right-6 flex items-center justify-between w-[220px] bg-[#0f0f18]/80 backdrop-blur border border-[#1e1810] rounded-lg px-4 py-2 z-10">
+        <span className="text-[10px] tracking-widest text-[#4a3a1a] uppercase font-bold">BAT-ASSISTANT</span>
+        <button
+          onClick={toggleSystem}
+          className={`flex items-center gap-2 px-2 py-1 rounded text-[10px] tracking-wider transition-all ${isSystemOnline ? 'border border-[#00f0ff] text-[#00f0ff] bg-[#00f0ff]/5 shadow-[0_0_10px_rgba(0,240,255,0.2)]' : 'border border-red-500 text-red-500 bg-red-500/5'}`}
+        >
+          <div className={`w-1.5 h-1.5 rounded-full ${isSystemOnline ? 'bg-[#00f0ff] shadow-[0_0_6px_#00f0ff]' : 'bg-red-500'}`} />
+          {isSystemOnline ? 'ONLINE' : 'OFFLINE'}
+        </button>
+      </div>
+
+
+      {/* Left HUD Voice Assistant Panel */}
+      <div className="fixed left-16 top-[74%] -translate-y-1/2 z-10 w-64 select-none text-left hidden md:block">
+        <div className="relative pl-6 py-2">
+          {/* Cyan Glow Vertical Line */}
+          <div className="absolute left-0 top-0 bottom-0 w-[2px] bg-gradient-to-b from-cyan-500/10 via-cyan-400 to-cyan-500/10 shadow-[0_0_8px_#00f0ff]" />
+
+          <div className="flex flex-col gap-1 mb-6">
+            <span className="text-[10px] tracking-[4px] text-cyan-500/60 uppercase font-mono font-bold block">
               BAT-ASSISTANT
             </span>
-            <h2 className="font-rajdhani text-xl font-bold tracking-[2px] text-white uppercase drop-shadow-[0_0_6px_rgba(0,240,255,0.3)]">
+            <h2 className="font-rajdhani text-2xl font-bold tracking-[2px] text-white uppercase drop-shadow-[0_0_6px_rgba(0,240,255,0.3)]">
               TALK TO BATMAN
             </h2>
           </div>
 
-          <div className="flex flex-col gap-3 font-mono text-sm tracking-[2px] uppercase">
+          <div className="flex flex-col gap-4 font-mono text-sm tracking-[2px] uppercase">
             <button
               onClick={handleMicClick}
-              className={`w-full py-2.5 px-3.5 rounded-lg border uppercase tracking-wider font-bold text-[10px] transition-all duration-300 flex items-center justify-between group cursor-pointer ${statusState === 'listening'
-                  ? 'border-[#00f0ff] bg-[#00f0ff]/15 text-[#00f0ff] shadow-[0_0_15px_#00f0ff]'
+              className={`w-full py-3 px-4 rounded border uppercase tracking-wider font-bold text-[10px] transition-all duration-300 flex items-center justify-between group cursor-pointer ${statusState === 'listening'
+                  ? 'border-[#00f0ff] bg-[#00f0ff]/10 text-[#00f0ff] shadow-[0_0_12px_#00f0ff]'
                   : statusState === 'speaking'
-                    ? 'border-[#5bc8af] bg-[#5bc8af]/15 text-[#5bc8af] shadow-[0_0_15px_#5bc8af]'
-                    : 'border-cyan-500/30 bg-cyan-950/20 text-cyan-400 hover:border-cyan-400 hover:bg-cyan-500/10'
+                    ? 'border-[#5bc8af] bg-[#5bc8af]/10 text-[#5bc8af] shadow-[0_0_12px_#5bc8af]'
+                    : 'border-blue-500/30 bg-blue-950/10 text-cyan-400 hover:border-cyan-400 hover:bg-cyan-500/10'
                 }`}
             >
-              <Mic size={14} className={statusState === 'listening' ? 'animate-bounce text-[#00f0ff]' : ''} />
+              <Mic size={14} className={statusState === 'listening' ? 'animate-bounce' : ''} />
               <span>
                 {statusState === 'listening' ? 'LINK_ACTIVE' :
                   statusState === 'speaking' ? 'TRANSMITTING' :
-                    'COMM LINK'}
+                    'START_COMMS'}
               </span>
             </button>
 
             {statusState === 'speaking' && (
               <button
                 onClick={(e) => { e.stopPropagation(); interruptSpeech(); }}
-                className="w-full py-2 px-3 rounded-lg border border-red-500/50 bg-red-500/10 text-red-400 hover:bg-red-500/20 hover:text-red-300 uppercase tracking-wider font-bold text-[10px] transition-all duration-300 flex items-center justify-center cursor-pointer shadow-[0_0_8px_rgba(239,68,68,0.2)]"
+                className="w-full py-2 px-4 mt-1 rounded border border-red-500/50 bg-red-500/10 text-red-400 hover:bg-red-500/20 hover:text-red-300 uppercase tracking-wider font-bold text-[10px] transition-all duration-300 flex items-center justify-center cursor-pointer shadow-[0_0_8px_rgba(239,68,68,0.2)]"
               >
                 STOP TALKING
               </button>
             )}
 
             {/* Waveform indicator */}
-            <div className="flex items-center gap-1.5 h-6 pl-1 mt-1">
-              {Array.from({ length: 10 }).map((_, i) => (
+            <div className="flex items-center gap-1 h-6 pl-2 mt-2">
+              {Array.from({ length: 8 }).map((_, i) => (
                 <div
                   key={`hud-wave-${i}`}
                   className={`w-[3px] rounded transition-all duration-100 ${statusState === 'listening' ? 'bg-[#00f0ff] animate-pulse' :
                       statusState === 'speaking' ? 'bg-[#5bc8af] animate-pulse' :
-                        'bg-cyan-900/40 h-1'
+                        'bg-blue-900/30 h-1'
                     }`}
                   style={{
-                    animationDelay: `${i * 0.05}s`,
-                    height: (statusState === 'listening' || statusState === 'speaking') ? `${[6, 14, 8, 16, 10, 18, 11, 7, 13, 5][i]}px` : '4px'
+                    animationDelay: `${i * 0.06}s`,
+                    height: (statusState === 'listening' || statusState === 'speaking') ? `${[6, 12, 8, 14, 10, 16, 9, 5][i]}px` : '4px'
                   }}
                 />
               ))}
@@ -1867,93 +1824,24 @@ NOTE: Each time Master Umesh asks for the brief, these stories are shuffled rand
         </div>
       </div>
 
-      {/* LEFT BOTTOM: Real Command Bar with Module Launcher (Cmd+K) */}
-      <div className="fixed bottom-6 left-6 z-30 w-80 select-text pointer-events-auto">
-        <form onSubmit={handleSearchSubmit} className="relative group">
-          <input
-            ref={commandInputRef}
-            type="text"
-            placeholder="COMMAND BAR (CMD+K)..."
-            value={searchQuery}
-            onFocus={() => setShowCommandSuggestions(true)}
-            onBlur={() => setTimeout(() => setShowCommandSuggestions(false), 200)}
-            onChange={(e) => {
-              setSearchQuery(e.target.value);
-              setShowCommandSuggestions(true);
-            }}
-            className="w-full bg-[#040814]/90 hover:bg-[#040814] focus:bg-[#040814] border border-cyan-500/40 focus:border-cyan-400 focus:outline-none rounded-xl px-3.5 py-2.5 pl-9 text-[11px] font-mono text-cyan-300 placeholder-cyan-500/50 transition-all duration-300 tracking-[1.5px] uppercase backdrop-blur-xl shadow-[0_0_20px_rgba(0,240,255,0.15)]"
-          />
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-cyan-400 group-focus-within:text-cyan-300 transition-colors" />
-
-          {/* Module Fuzzy Search Dropdown */}
-          {showCommandSuggestions && (
-            <div className="absolute bottom-full mb-2 left-0 right-0 bg-[#040814]/95 border border-cyan-500/40 rounded-xl p-2 shadow-[0_0_30px_rgba(0,240,255,0.25)] backdrop-blur-xl max-h-60 overflow-y-auto font-mono text-[10px]">
-              <div className="px-2 py-1 text-[8px] tracking-[2px] text-cyan-500/50 uppercase border-b border-cyan-500/20 mb-1 font-bold">
-                JUMP TO MODULE
-              </div>
-              {startScreenStages
-                .filter(stage => 
-                  !searchQuery || 
-                  stage.label.toLowerCase().includes(searchQuery.toLowerCase()) || 
-                  stage.id.toLowerCase().includes(searchQuery.toLowerCase())
-                )
-                .map((stage) => (
-                  <button
-                    key={`cmd-${stage.id}`}
-                    type="button"
-                    onMouseDown={() => handleMenuClick(stage.id)}
-                    className="w-full text-left px-2.5 py-2 rounded hover:bg-cyan-500/20 text-cyan-300 hover:text-white flex items-center justify-between transition-colors uppercase tracking-wider font-bold"
-                  >
-                    <span>▶ {stage.label}</span>
-                    {stage.badge && (
-                      <span className="text-[8px] bg-cyan-400 text-black font-bold px-1 rounded">
-                        {stage.badge}
-                      </span>
-                    )}
-                  </button>
-                ))}
-              {searchQuery && (
-                <button
-                  type="button"
-                  onMouseDown={handleSearchSubmit}
-                  className="w-full text-left px-2.5 py-2 mt-1 border-t border-cyan-500/20 rounded hover:bg-cyan-500/20 text-cyan-400 hover:text-white flex items-center justify-between transition-colors uppercase tracking-wider font-bold"
-                >
-                  <span>🔍 SEARCH WEB: "{searchQuery}"</span>
-                </button>
-              )}
-            </div>
-          )}
-        </form>
-      </div>
-
-      {/* ── RIGHT COLUMN ────────────────────────────────────────────────── */}
-
-      {/* RIGHT TOP: System Toggle */}
-      <div className="fixed top-5 right-6 flex items-center justify-between w-[220px] bg-[#040814]/85 backdrop-blur border border-cyan-500/30 rounded-xl px-4 py-2 z-20 shadow-[0_0_20px_rgba(0,240,255,0.1)]">
-        <span className="text-[10px] tracking-widest text-cyan-400 uppercase font-bold font-mono">BAT-ASSISTANT</span>
-        <button
-          onClick={toggleSystem}
-          className={`flex items-center gap-2 px-2 py-1 rounded text-[10px] tracking-wider transition-all font-mono font-bold ${isSystemOnline ? 'border border-[#00f0ff] text-[#00f0ff] bg-[#00f0ff]/5 shadow-[0_0_10px_rgba(0,240,255,0.2)]' : 'border border-red-500 text-red-500 bg-red-500/5'}`}
-        >
-          <div className={`w-1.5 h-1.5 rounded-full ${isSystemOnline ? 'bg-[#00f0ff] shadow-[0_0_6px_#00f0ff]' : 'bg-red-500'}`} />
-          {isSystemOnline ? 'ONLINE' : 'OFFLINE'}
-        </button>
-      </div>
-
-      {/* RIGHT MIDDLE: System Interface / Main Menu */}
-      <div className="fixed right-6 top-1/2 -translate-y-1/2 z-20 w-80 select-none text-left hidden md:block">
+      {/* Right HUD Menu Panel — AAA Video Game Arcade Style */}
+      <div className="fixed right-10 top-1/2 -translate-y-1/2 z-20 w-80 select-none text-left hidden md:block">
         <div className="relative p-5 backdrop-blur-xl bg-[#040814]/85 border border-cyan-500/30 rounded-2xl shadow-[0_0_40px_rgba(0,240,255,0.15)] overflow-hidden">
           
+          {/* Futuristic Corner Tech Accents */}
           <span className="absolute top-0 left-0 w-3 h-3 border-t-2 border-l-2 border-cyan-400 pointer-events-none" />
           <span className="absolute top-0 right-0 w-3 h-3 border-t-2 border-r-2 border-cyan-400 pointer-events-none" />
           <span className="absolute bottom-0 left-0 w-3 h-3 border-b-2 border-l-2 border-cyan-400 pointer-events-none" />
           <span className="absolute bottom-0 right-0 w-3 h-3 border-b-2 border-r-2 border-cyan-400 pointer-events-none" />
 
+          {/* Subtly animated scanlines background overlay */}
           <div className="absolute inset-0 bg-[linear-gradient(to_bottom,transparent_50%,rgba(0,240,255,0.025)_50%)] bg-[length:100%_4px] pointer-events-none" />
+          
+          {/* Pulsing HUD laser beam on the left edge */}
           <div className="absolute left-0 top-0 bottom-0 w-[3px] bg-gradient-to-b from-cyan-500/20 via-[#00f0ff] to-cyan-500/20 shadow-[0_0_12px_#00f0ff] pointer-events-none" />
 
           {/* Header section */}
-          <div className="flex flex-col gap-1.5 mb-4 pb-3 border-b border-cyan-500/20 relative z-10">
+          <div className="flex flex-col gap-1.5 mb-5 pb-3 border-b border-cyan-500/20 relative z-10">
             <div className="flex items-center justify-between">
               <span className="text-[9px] tracking-[3px] text-cyan-400/70 font-mono font-bold flex items-center gap-1.5">
                 <span className="w-1.5 h-1.5 rounded-full bg-[#00f0ff] animate-ping" />
@@ -1997,6 +1885,7 @@ NOTE: Each time Master Umesh asks for the brief, these stories are shuffled rand
                       : 'bg-transparent border-transparent hover:border-cyan-500/20'
                   }`}
                 >
+                  {/* Glowing left edge indicator on hover / active */}
                   <div 
                     className={`absolute left-0 top-0 bottom-0 w-[3px] transition-all duration-200 ${
                       isActive 
@@ -2007,6 +1896,7 @@ NOTE: Each time Master Umesh asks for the brief, these stories are shuffled rand
                     }`} 
                   />
 
+                  {/* Left part: Cursor + Number + Label */}
                   <div className="flex items-center gap-2.5 z-10">
                     <span 
                       className={`text-xs font-bold transition-all duration-200 ${
@@ -2038,6 +1928,7 @@ NOTE: Each time Master Umesh asks for the brief, these stories are shuffled rand
                     </span>
                   </div>
 
+                  {/* Right part: Badge */}
                   {stage.badge && (
                     <span
                       className={`text-[8.5px] px-1.5 py-0.5 rounded font-mono font-bold tracking-wider uppercase transition-all duration-200 z-10 ${
@@ -2058,6 +1949,7 @@ NOTE: Each time Master Umesh asks for the brief, these stories are shuffled rand
             })}
           </div>
 
+          {/* Footer status bar in menu box */}
           <div className="mt-4 pt-3 border-t border-cyan-500/20 flex items-center justify-between text-[8px] font-mono text-cyan-500/50 uppercase tracking-widest relative z-10">
             <span>COMMAND MATRIX</span>
             <span className="text-cyan-400 font-bold animate-pulse">● ACTIVE</span>
@@ -2066,82 +1958,99 @@ NOTE: Each time Master Umesh asks for the brief, these stories are shuffled rand
         </div>
       </div>
 
-      {/* ── CENTER COLUMN (LOWER AREA) ──────────────────────────────────── */}
+      {/* Main UI Container - Pushed to the bottom */}
+      <div className="relative z-10 flex flex-col items-center w-full max-w-md p-6 mt-auto pb-12">
+        {/* Welcome Greeting Display */}
+        {welcomeGreeting && (
+          <div className="w-full text-center mb-6 animate-fadeIn">
+            <h2 className="font-serif font-bold text-white text-2xl md:text-3xl tracking-normal leading-snug drop-shadow-[0_2px_10px_rgba(0,0,0,0.5)]">
+              {welcomeGreeting}
+            </h2>
+          </div>
+        )}
 
-      {/* BAT-ASSISTANT RESPONSE HUD STRIP (Floating above bottom log) */}
+
+        {/* Mic Button & Waveform Container - Mobile Only */}
+        <div className="flex items-center gap-6 mb-6 md:hidden">
+          <div className="flex items-center justify-center gap-1 h-6 w-16">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <div
+                key={`left-${i}`}
+                className={`w-[3px] bg-[#c8a84b] rounded transition-all duration-100 ${(statusState === 'listening' || statusState === 'speaking') ? 'animate-pulse' : 'h-1'}`}
+                style={{ animationDelay: `${i * 0.08}s`, height: (statusState === 'listening' || statusState === 'speaking') ? `${[8, 14, 10, 16][i]}px` : '4px' }}
+              />
+            ))}
+          </div>
+
+          <button
+            onClick={handleMicClick}
+            className={`w-16 h-16 rounded-full flex shrink-0 items-center justify-center transition-all ${statusState === 'listening' ? 'bg-[#c8a84b] text-[#0a0a0f] border-none animate-bounce' : 'bg-[#1a1408] border-2 border-[#3a2c10] text-[#c8a84b] hover:bg-[#251d0c] hover:border-[#c8a84b]'}`}
+          >
+            <Mic size={24} />
+          </button>
+
+          <div className="flex items-center justify-center gap-1 h-6 w-16">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <div
+                key={`right-${i}`}
+                className={`w-[3px] bg-[#c8a84b] rounded transition-all duration-100 ${(statusState === 'listening' || statusState === 'speaking') ? 'animate-pulse' : 'h-1'}`}
+                style={{ animationDelay: `${(i + 4) * 0.08}s`, height: (statusState === 'listening' || statusState === 'speaking') ? `${[15, 9, 13, 7][i]}px` : '4px' }}
+              />
+            ))}
+          </div>
+        </div>
+        {/* Status Label */}
+        <div className={`text-[10px] tracking-[3px] uppercase mb-4 h-4 transition-colors ${statusState === 'listening' ? 'text-cyan-400' : statusState === 'thinking' ? 'text-cyan-400' : statusState === 'speaking' ? 'text-[#5bc8af]' : 'text-blue-900/50'}`}>
+          {statusState === 'listening' ? 'listening...' :
+            statusState === 'thinking' ? 'processing...' :
+              statusState === 'speaking' ? 'speaking...' :
+                'voice interface offline'}
+        </div>
+
+        <div className="w-full bg-[#02050c]/35 backdrop-blur-md border border-blue-500/20 rounded-xl p-4 mb-4 min-h-[52px] shadow-[0_0_15px_rgba(0,240,255,0.08)] glass-card animate-fadeIn">
+          <div className="text-[9px] tracking-widest text-blue-400/50 uppercase mb-1 font-mono">you said</div>
+          <div className="text-[13px] text-blue-300 font-sans">{transcript}</div>
+        </div>
+
+        {/* Response is now shown in the fixed bottom HUD strip, not here */}
+
+      </div>
+
+      {/* ── BAT-ASSISTANT RESPONSE HUD STRIP ──────────────────────────────── */}
+      {/* Fixed bottom-center, between Batman's face and the controls panel.  */}
+      {/* Never covers Batman's face. Compact, scrollable, max 4 lines.       */}
       {responseHtml && (
         <div
-          className="fixed bottom-[135px] left-1/2 -translate-x-1/2 z-30 pointer-events-auto"
-          style={{ width: 'min(460px, 90vw)' }}
+          className="fixed bottom-[148px] left-1/2 -translate-x-1/2 z-30 pointer-events-auto"
+          style={{ width: 'min(600px, 90vw)' }}
         >
           <div className="
             relative
-            bg-[#040814]/90 backdrop-blur-xl
-            border border-cyan-500/40
+            bg-black/75 backdrop-blur-md
+            border border-blue-500/25
             rounded-xl
             px-5 py-3
-            shadow-[0_0_30px_rgba(0,240,255,0.2)]
-            font-mono
+            shadow-[0_0_24px_rgba(0,240,255,0.12)]
           ">
-            <div className="absolute top-0 left-0 w-3 h-3 border-t-2 border-l-2 border-cyan-400 rounded-tl-xl pointer-events-none" />
-            <div className="absolute top-0 right-0 w-3 h-3 border-t-2 border-r-2 border-cyan-400 rounded-tr-xl pointer-events-none" />
-            <div className="absolute bottom-0 left-0 w-3 h-3 border-b-2 border-l-2 border-cyan-400 rounded-bl-xl pointer-events-none" />
-            <div className="absolute bottom-0 right-0 w-3 h-3 border-b-2 border-r-2 border-cyan-400 rounded-br-xl pointer-events-none" />
+            {/* Corner accents */}
+            <div className="absolute top-0 left-0 w-3 h-3 border-t border-l border-blue-500/40 rounded-tl-xl" />
+            <div className="absolute top-0 right-0 w-3 h-3 border-t border-r border-blue-500/40 rounded-tr-xl" />
+            <div className="absolute bottom-0 left-0 w-3 h-3 border-b border-l border-blue-500/40 rounded-bl-xl" />
+            <div className="absolute bottom-0 right-0 w-3 h-3 border-b border-r border-blue-500/40 rounded-br-xl" />
 
-            <div className="text-[9px] tracking-[3px] text-cyan-400 font-bold uppercase font-mono mb-1 flex items-center justify-between">
-              <span>BAT-ASSISTANT</span>
-              <span className="text-[8px] text-cyan-500/50">COMMS ACTIVE</span>
-            </div>
+            {/* Label */}
+            <div className="text-[8px] tracking-[3px] text-blue-400/50 uppercase font-mono mb-1.5">BAT-ASSISTANT</div>
 
+            {/* Response text — max 5 lines, scrollable */}
             <div
-              className="text-[12.5px] leading-relaxed text-cyan-100 font-mono overflow-y-auto"
-              style={{ maxHeight: '5.5rem' }}
+              className="text-[13px] leading-relaxed text-blue-200 font-mono overflow-y-auto"
+              style={{ maxHeight: '6.5rem' }}
             >
               {responseHtml}
             </div>
           </div>
         </div>
       )}
-
-      {/* Center Column Bottom Container: Greeting + Voice Status + YOU SAID input log */}
-      <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-20 flex flex-col items-center w-full max-w-md px-4 pointer-events-auto">
-        {/* Welcome Greeting Display */}
-        {welcomeGreeting && (
-          <div className="w-full text-center mb-3 animate-fadeIn font-serif font-bold text-white text-xl md:text-2xl tracking-normal leading-snug drop-shadow-[0_2px_10px_rgba(0,0,0,0.5)]">
-            {welcomeGreeting}
-          </div>
-        )}
-
-        {/* Status Label */}
-        <div className={`text-[9.5px] tracking-[3px] font-mono uppercase mb-2 h-4 transition-colors ${statusState === 'listening' ? 'text-[#00f0ff] font-bold' : statusState === 'thinking' ? 'text-amber-400 font-bold' : statusState === 'speaking' ? 'text-[#5bc8af] font-bold' : 'text-cyan-500/50'}`}>
-          {statusState === 'listening' ? 'listening...' :
-            statusState === 'thinking' ? 'processing...' :
-              statusState === 'speaking' ? 'speaking...' :
-                'voice interface idle'}
-        </div>
-
-        {/* YOU SAID Panel */}
-        <div className="w-full bg-[#040814]/85 backdrop-blur-md border border-cyan-500/30 rounded-xl p-3.5 shadow-[0_0_20px_rgba(0,240,255,0.12)] font-mono">
-          <div className="flex justify-between items-center mb-1">
-            <span className="text-[9px] font-bold tracking-[2px] text-cyan-400 uppercase">
-              YOU SAID
-            </span>
-            <span className="text-[8px] text-cyan-500/50 uppercase">INPUT LOG</span>
-          </div>
-          <div className="text-[12.5px] text-cyan-100 font-sans font-semibold">
-            {transcript || "Waiting for command..."}
-          </div>
-        </div>
-
-      </div>
-
-      {/* System Uptime Counter (Bottom Center) */}
-      <div className="fixed bottom-1.5 left-1/2 -translate-x-1/2 z-10 pointer-events-none select-none text-center font-mono">
-        <span className="text-[8px] tracking-[3px] text-cyan-500/50 uppercase font-bold">
-          SESSION UPTIME: <span className="text-cyan-400">{uptime}</span>
-        </span>
-      </div>
-
     </div>
   );
 }
