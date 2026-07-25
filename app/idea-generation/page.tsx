@@ -266,30 +266,36 @@ export default function IdeaGenerationPage() {
         // Dynamically build unit labels list e.g. F01, F02, ... F10 based on user UI totalUnits
         const labelList = Array.from({ length: totalUnits }, (_, i) => `F${String(i + 1).padStart(2, '0')}`).join(', ');
         
-        const promptText = `Create a high-quality top-down 2D architectural CAD floor plan of a compact ${styleName} high-rise tower (${overallWidth}m x ${overallLength}m) with one central core.
+        const promptText = `Generate a highly detailed, professional 2D architectural CAD typical floor plan for a luxury high-rise ${styleName} residential tower (${overallWidth}m x ${overallLength}m).
 
-PRIMARY OBJECTIVE:
-Create EXACTLY ${totalUnits} complete, independent apartments (${mixBreakdownParts}): ${labelList}.
+CRITICAL SHAPE CONSTRAINT:
+The outermost exterior walls of the building MUST strictly conform to and perfectly trace the solid shape silhouette provided in the input image. DO NOT draw outside this footprint. All rooms and balconies must be tightly packed inside this exact geometric shape boundary.
 
-FIRST establish ${totalUnits} clearly separated apartment boundaries, then design rooms inside them. Every apartment must have a complete continuous wall boundary and one independent entrance opening directly onto the common corridor.
+CORE & CIRCULATION:
+- Place a highly efficient, compact central structural core containing ${passengerLifts} passenger lifts and ${staircases} fire staircases (shaded in solid grey).
+- Radiate wide, clean circulation corridors (e.g., 2.4m wide) connecting the central core to the individual apartment entrances.
 
-NEIGHBORING FLATS MUST ALWAYS BE SEPARATED BY SOLID CONTINUOUS WALLS. Never connect two different flats with a doorway or shared passage. Doors may only connect rooms belonging to the same apartment.
+UNIT MIX & ZONING:
+Design exactly ${totalUnits} independent, non-connected apartments (${mixBreakdownParts}).
+- Neighboring flats must be separated by thick, solid continuous partition walls.
+- Each apartment must have a complete continuous boundary and ONE independent main entrance door opening directly to the central corridor.
+${ventStr}${vaastuStr}${fireSafetyStr}${customPrompt ? `Notes: ${customPrompt}.` : ''}
 
-APARTMENT IDENTIFICATION:
-Place exactly one clearly visible label inside each apartment near the entrance: ${labelList}. Each label must appear exactly once.
+APARTMENT LAYOUT & FURNITURE (LUXURY STYLE):
+- Every living room, bedroom, and kitchen MUST directly touch the outer glass façade for panoramic views and natural daylight.
+- Include lush, curved panoramic balconies (shaded light green) along the outer perimeter edges of the shape.
+- Fully furnish every apartment with high-quality architectural CAD furniture blocks: master beds, dining tables, L-shaped sofas, kitchen counters, and bathroom fixtures.
 
-APARTMENT COMPOSITION & VENTILATION:
-Use this natural apartment flow:
-COMMON CORRIDOR → APARTMENT ENTRANCE → LIVING ROOM → INTERNAL DISTRIBUTION → BEDROOMS, SEPARATE KITCHEN, AND BATHROOMS.
-Every living room, bedroom, and kitchen MUST directly touch an external façade, balcony edge, or ventilation court with clearly visible external windows. No windowless living rooms, bedrooms, or kitchens allowed. ${ventStr}${vaastuStr}${fireSafetyStr}${customPrompt ? `Notes: ${customPrompt}.` : ''}
+GRAPHICAL STYLE (MATCH REFERENCE):
+High-end professional architectural presentation style.
+- Thick, bold black double-lines for exterior and core structural walls.
+- Light warm beige/wood textures for living areas and bedrooms.
+- Light blue tint for bathrooms and plumbing shafts.
+- Solid grey for the central lift/stair core.
+- Light green for exterior perimeter balconies.
+- Clean white background outside the building footprint.
 
-CENTRAL CORE & CORRIDOR:
-Compact central core containing ${passengerLifts} lifts and ${staircases} fire stairs. One continuous corridor connecting all ${totalUnits} entrances to the core.
-
-GRAPHICAL STYLE:
-Professional 2D architectural CAD floor plan. Bold black walls, light beige for room interiors, light grey for corridor/core, light blue for bathrooms, light green for balconies on clean white background. No furniture, no room names, no dimensions.
-
-Output only the clean, tightly cropped 2D architectural floor plan.`;
+Output ONLY the pristine, highly detailed 2D architectural CAD floor plan.`;
 
         const activePreset = FOOTPRINT_PRESETS.find(f => f.id === footprintShape);
         const imageSize = activePreset?.recommendedImageSize || 'square_hd';
