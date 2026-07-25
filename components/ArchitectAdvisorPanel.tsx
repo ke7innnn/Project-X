@@ -178,9 +178,9 @@ export default function ArchitectAdvisorPanel({ onParamsApplied, onGenerateTrigg
   const chatContainerRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const [canvasW, setCanvasW] = useState(420);
-  const [canvasH, setCanvasH] = useState(260);
-  const [cellPx, setCellPx] = useState(18);
+  const [canvasW, setCanvasW] = useState(1260);
+  const [canvasH, setCanvasH] = useState(780);
+  const [cellPx, setCellPx] = useState(54);
 
   const pxToM = useCallback((px: number) => parseFloat((px / cellPx * CELL_M).toFixed(1)), [cellPx]);
 
@@ -391,8 +391,8 @@ export default function ArchitectAdvisorPanel({ onParamsApplied, onGenerateTrigg
     }
 
     // Grid lines
-    ctx.strokeStyle = 'rgba(0, 240, 255, 0.09)';
-    ctx.lineWidth = 0.5;
+    ctx.strokeStyle = 'rgba(0, 240, 255, 0.15)';
+    ctx.lineWidth = 1.5;
     for (let x = 0; x <= canvasW; x += cellPx) {
       ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, canvasH); ctx.stroke();
     }
@@ -401,17 +401,17 @@ export default function ArchitectAdvisorPanel({ onParamsApplied, onGenerateTrigg
     }
 
     // Grid dots
-    ctx.fillStyle = 'rgba(0, 240, 255, 0.22)';
+    ctx.fillStyle = 'rgba(0, 240, 255, 0.35)';
     for (let x = 0; x <= canvasW; x += cellPx) {
       for (let y = 0; y <= canvasH; y += cellPx) {
-        ctx.beginPath(); ctx.arc(x, y, 1, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.arc(x, y, 2.5, 0, Math.PI * 2); ctx.fill();
       }
     }
 
     // Scale label
-    ctx.fillStyle = 'rgba(0, 240, 255, 0.35)';
-    ctx.font = '7px monospace';
-    ctx.fillText('GRID: 1 CELL = 10M', 6, 11);
+    ctx.fillStyle = 'rgba(0, 240, 255, 0.5)';
+    ctx.font = 'bold 16px monospace';
+    ctx.fillText('GRID: 1 CELL = 10M', 16, 24);
 
     // Draw polygon
     if (polygon.length > 0) {
@@ -689,8 +689,8 @@ export default function ArchitectAdvisorPanel({ onParamsApplied, onGenerateTrigg
     if (!w || !h || w <= 0 || h <= 0) return;
     
     // Default canvas maximum extents
-    const maxW = 420;
-    const maxH = 260;
+    const maxW = 1260;
+    const maxH = 780;
     
     let newCanvasW, newCanvasH;
     
