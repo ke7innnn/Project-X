@@ -71,13 +71,13 @@ function polygonBBox(pts: Point[]) {
   return { minX, minY, maxX, maxY, w: maxX - minX, h: maxY - minY };
 }
 
-// Simplified shape polygon generators
 function getShapePoints(shapeId: string, cx: number, cy: number, w: number, h: number): Point[][] {
   const hw = w / 2, hh = h / 2;
-  switch (shapeId) {
-    case 'monolithic-rect':
+  const id = shapeId.toLowerCase();
+  
+  if (id.includes('monolithic') || id.includes('rect')) {
       return [[{ x: cx - hw, y: cy - hh }, { x: cx + hw, y: cy - hh }, { x: cx + hw, y: cy + hh }, { x: cx - hw, y: cy + hh }]];
-    case 'h-shape': {
+  } else if (id.includes('h-shape') || id === 'h') {
       const arm = hw * 0.35;
       return [[
         { x: cx - hw, y: cy - hh }, { x: cx - hw + arm, y: cy - hh },
@@ -87,9 +87,7 @@ function getShapePoints(shapeId: string, cx: number, cy: number, w: number, h: n
         { x: cx + hw - arm, y: cy + hh * 0.35 }, { x: cx - hw + arm, y: cy + hh * 0.35 },
         { x: cx - hw + arm, y: cy + hh }, { x: cx - hw, y: cy + hh },
       ]];
-    }
-    case 'curved-x':
-    case 'pinwheel': {
+  } else if ((id.includes('curved') && id.includes('x')) || id.includes('pinwheel')) {
       const arm2 = 0.33;
       const pts: Point[] = [];
       [[0, -1], [1, 0], [0, 1], [-1, 0]].forEach(([wx, wy]) => {
@@ -102,8 +100,7 @@ function getShapePoints(shapeId: string, cx: number, cy: number, w: number, h: n
         );
       });
       return [pts];
-    }
-    case 'tri-foil': {
+  } else if (id.includes('tri-foil') || id.includes('y-shape')) {
       const pts3: Point[] = [];
       for (let i = 0; i < 3; i++) {
         const angle = (i * 120 - 90) * Math.PI / 180;
@@ -116,48 +113,42 @@ function getShapePoints(shapeId: string, cx: number, cy: number, w: number, h: n
         );
       }
       return [pts3];
-    }
-    case 'stepped-l':
+  } else if (id.includes('stepped') || id.includes('l-shape') || id === 'l') {
       return [[
         { x: cx - hw, y: cy - hh }, { x: cx + hw * 0.2, y: cy - hh },
         { x: cx + hw * 0.2, y: cy - hh * 0.2 }, { x: cx + hw, y: cy - hh * 0.2 },
         { x: cx + hw, y: cy + hh }, { x: cx - hw, y: cy + hh },
       ]];
-    case 'crescent-arc':
-    case 'elliptical': {
+  } else if (id.includes('arc') || id.includes('crescent') || id.includes('elliptical')) {
       const pts4: Point[] = [];
       const sides = 16;
       for (let i = 0; i <= sides; i++) {
-        const angle = ((i / sides) * (shapeId === 'crescent-arc' ? 180 : 360) - 90) * Math.PI / 180;
+        const angle = ((i / sides) * (id.includes('crescent') ? 180 : 360) - 90) * Math.PI / 180;
         pts4.push({ x: cx + Math.cos(angle) * hw, y: cy + Math.sin(angle) * hh });
       }
-      if (shapeId === 'crescent-arc') {
+      if (id.includes('crescent')) {
         for (let i = sides; i >= 0; i--) {
           const angle = ((i / sides) * 180 - 90) * Math.PI / 180;
           pts4.push({ x: cx + Math.cos(angle) * hw * 0.4, y: cy + Math.sin(angle) * hh * 0.6 + hh * 0.3 });
         }
       }
       return [pts4];
-    }
-    case 'courtyard-ring':
-    case 'circular-atrium': {
-      const sides2 = shapeId === 'courtyard-ring' ? 4 : 12;
+  } else if (id.includes('ring') || id.includes('atrium') || id.includes('courtyard')) {
+      const sides2 = id.includes('ring') ? 4 : 12;
       const outerPts: Point[] = [];
       for (let i = 0; i < sides2; i++) {
         const angle = ((i / sides2) * 360 - 45) * Math.PI / 180;
         outerPts.push({ x: cx + Math.cos(angle) * hw, y: cy + Math.sin(angle) * hh });
       }
       return [outerPts];
-    }
-    case 'hexagonal': {
+  } else if (id.includes('hex')) {
       const hexPts: Point[] = [];
       for (let i = 0; i < 6; i++) {
         const angle = (i * 60 - 30) * Math.PI / 180;
         hexPts.push({ x: cx + Math.cos(angle) * hw, y: cy + Math.sin(angle) * hh });
       }
       return [hexPts];
-    }
-    case 'curved-s':
+  } else if (id.includes('curved') && id.includes('s')) {
       return [[
         { x: cx - hw, y: cy - hh }, { x: cx + hw * 0.1, y: cy - hh },
         { x: cx + hw * 0.5, y: cy - hh * 0.3 }, { x: cx + hw, y: cy - hh * 0.3 },
@@ -166,7 +157,7 @@ function getShapePoints(shapeId: string, cx: number, cy: number, w: number, h: n
         { x: cx - hw, y: cy + hh * 0.3 }, { x: cx - hw * 0.5, y: cy + hh * 0.3 },
         { x: cx - hw * 0.5, y: cy - hh * 0.3 }, { x: cx - hw, y: cy - hh * 0.3 },
       ]];
-    default:
+  } else {
       return [[{ x: cx - hw, y: cy - hh }, { x: cx + hw, y: cy - hh }, { x: cx + hw, y: cy + hh }, { x: cx - hw, y: cy + hh }]];
   }
 }
@@ -450,9 +441,17 @@ export default function ArchitectAdvisorPanel({ onParamsApplied, onGenerateTrigg
           const shapeCx = (bbox.minX + bbox.maxX) / 2;
           const shapeCy = (bbox.minY + bbox.maxY) / 2;
           
-          // Apply a 20% architectural setback margin from the bounding box
-          const padX = bbox.w * 0.20;
-          const padY = bbox.h * 0.20;
+          // Increase margin to 35% so it's much smaller and stays safely away from edges
+          const padX = bbox.w * 0.35;
+          const padY = bbox.h * 0.35;
+          
+          ctx.save();
+          // Add clipping path for the UI drawing as well so it never bleeds out of the cyan polygon
+          ctx.beginPath();
+          ctx.moveTo(polygon[0].x, polygon[0].y);
+          polygon.slice(1).forEach(p => ctx.lineTo(p.x, p.y));
+          ctx.closePath();
+          ctx.clip();
           
           const shapePolygons = getShapePoints(suggestedShape, shapeCx, shapeCy, bbox.w - padX * 2, bbox.h - padY * 2);
           shapePolygons.forEach(shapePts => {
@@ -475,6 +474,15 @@ export default function ArchitectAdvisorPanel({ onParamsApplied, onGenerateTrigg
           ctx.textAlign = 'left';
           
           ctx.restore();
+          
+          // Re-draw polygon outline over the clipped shape so the cyan dots/lines remain pristine
+          ctx.strokeStyle = '#00f0ff';
+          ctx.lineWidth = 1.5;
+          ctx.beginPath();
+          ctx.moveTo(polygon[0].x, polygon[0].y);
+          polygon.slice(1).forEach(p => ctx.lineTo(p.x, p.y));
+          ctx.closePath();
+          ctx.stroke();
         }
 
         // Dimension labels
