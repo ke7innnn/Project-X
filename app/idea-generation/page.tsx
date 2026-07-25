@@ -400,7 +400,7 @@ Output only the clean, tightly cropped 2D architectural floor plan.`;
   }, [handleGenerate]);
 
   return (
-    <div className={`min-h-screen font-mono flex flex-col relative overflow-y-auto p-6 z-50 transition-colors duration-300 ${
+    <div className={`h-screen font-mono flex flex-col relative overflow-hidden p-6 z-50 transition-colors duration-300 ${
       isClientMode ? 'bg-[#FDFCF7] text-[#0B4F30]' : 'bg-[#0a0a0f] text-cyan-400'
     }`}>
         
@@ -523,7 +523,7 @@ Output only the clean, tightly cropped 2D architectural floor plan.`;
         )}
 
         {/* Main Worksite Grid - 3 Column Layout */}
-        <div className="relative z-10 flex-1 grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+        <div className="relative z-10 flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
           
           {/* Column 1: Left Input Panel (Footprint & Unit Mix) */}
           <div className="lg:col-span-4 flex flex-col gap-4 text-left bg-slate-900/30 backdrop-blur border border-white/10 p-5 rounded-xl overflow-y-auto no-scrollbar">
@@ -938,7 +938,7 @@ Output only the clean, tightly cropped 2D architectural floor plan.`;
           </div>
 
           {/* Column 3: Right Panel — ARIA AI Architect Advisor */}
-          <div className="lg:col-span-4 flex flex-col gap-4">
+          <div className="lg:col-span-4 flex flex-col h-full min-h-0">
             <ArchitectAdvisorPanel
               onParamsApplied={handleParamsApplied}
               onGenerateTrigger={handleGenerateTrigger}
