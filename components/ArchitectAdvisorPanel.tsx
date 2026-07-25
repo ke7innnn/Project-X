@@ -400,11 +400,20 @@ export default function ArchitectAdvisorPanel({ onParamsApplied, onGenerateTrigg
       ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(canvasW, y); ctx.stroke();
     }
 
-    // Grid dots
-    ctx.fillStyle = 'rgba(0, 240, 255, 0.35)';
+    // 1m subdivision dots
+    ctx.fillStyle = 'rgba(0, 240, 255, 0.15)';
+    const mPx = cellPx / 10;
+    for (let x = 0; x <= canvasW; x += mPx) {
+      for (let y = 0; y <= canvasH; y += mPx) {
+        ctx.fillRect(x - 0.5, y - 0.5, 1, 1);
+      }
+    }
+
+    // 10m Grid dots
+    ctx.fillStyle = 'rgba(0, 240, 255, 0.4)';
     for (let x = 0; x <= canvasW; x += cellPx) {
       for (let y = 0; y <= canvasH; y += cellPx) {
-        ctx.beginPath(); ctx.arc(x, y, 2.5, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.arc(x, y, 3, 0, Math.PI * 2); ctx.fill();
       }
     }
 
@@ -526,10 +535,13 @@ export default function ArchitectAdvisorPanel({ onParamsApplied, onGenerateTrigg
     }
   }, [messages]);
 
-  const snapToGrid = (px: number, py: number): Point => ({
-    x: Math.round(px / cellPx) * cellPx,
-    y: Math.round(py / cellPx) * cellPx,
-  });
+  const snapToGrid = (px: number, py: number): Point => {
+    const mPx = cellPx / 10;
+    return {
+      x: Math.round(px / mPx) * mPx,
+      y: Math.round(py / mPx) * mPx,
+    };
+  };
 
   const handleCanvasMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
     if (!bgImage || !imgBounds) return;
