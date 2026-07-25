@@ -266,7 +266,30 @@ export default function ArchitectAdvisorPanel({ onParamsApplied, onGenerateTrigg
     ctx.fillStyle = '#ffffff';
     ctx.fillRect(0, 0, outputW, outputH);
 
-    // Calculate polygon bounding box in canvas coords
+    // If a suggested shape is selected, ONLY export the shape itself (for typical floor plan generation)
+    if (suggestedShape) {
+      const margin = 0.15; // 15% margin
+      const availW = outputW * (1 - margin * 2);
+      const availH = outputH * (1 - margin * 2);
+      
+      const shapePolygons = getShapePoints(suggestedShape, outputW / 2, outputH / 2, availW, availH);
+      shapePolygons.forEach(shapePts => {
+        if (shapePts.length < 3) return;
+        ctx.fillStyle = '#f0f0f0'; // light grey = building footprint for AI
+        ctx.strokeStyle = '#000000'; // thick black outline
+        ctx.lineWidth = Math.max(3, outputW / 200);
+        ctx.beginPath();
+        ctx.moveTo(shapePts[0].x, shapePts[0].y);
+        shapePts.slice(1).forEach(p => ctx.lineTo(p.x, p.y));
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+      });
+
+      return offscreen.toDataURL('image/png').replace(/^data:image\/png;base64,/, '');
+    }
+
+    // Fallback: If no suggested shape, export the traced plot boundary
     const bbox = polygonBBox(polygon);
     const polyW = bbox.w;
     const polyH = bbox.h;
@@ -284,7 +307,7 @@ export default function ArchitectAdvisorPanel({ onParamsApplied, onGenerateTrigg
 
     const scalePt = (p: Point) => ({ x: p.x * scale + offsetX, y: p.y * scale + offsetY });
 
-    // Draw plot boundary fill (very light grey = site area)
+    // Draw plot boundary fill
     const scaledPts = polygon.map(scalePt);
     ctx.fillStyle = '#f0f0f0';
     ctx.beginPath();
@@ -293,7 +316,7 @@ export default function ArchitectAdvisorPanel({ onParamsApplied, onGenerateTrigg
     ctx.closePath();
     ctx.fill();
 
-    // Draw plot boundary stroke (black, thick = site boundary wall)
+    // Draw plot boundary stroke
     ctx.strokeStyle = '#000000';
     ctx.lineWidth = Math.max(3, outputW / 200);
     ctx.lineJoin = 'miter';
@@ -302,45 +325,6 @@ export default function ArchitectAdvisorPanel({ onParamsApplied, onGenerateTrigg
     scaledPts.slice(1).forEach(p => ctx.lineTo(p.x, p.y));
     ctx.closePath();
     ctx.stroke();
-
-    // Draw suggested building shape inside plot (centered, ~85% of plot bbox, with margin)
-    if (suggestedShape) {
-      ctx.save();
-      ctx.beginPath();
-      ctx.moveTo(scaledPts[0].x, scaledPts[0].y);
-      scaledPts.slice(1).forEach(p => ctx.lineTo(p.x, p.y));
-      ctx.closePath();
-      ctx.clip(); // Ensure shape never bleeds outside the traced plot boundary
-
-      const shapePad = 0.20; // 20% architectural setback margin from plot edge
-      const shapeCx = (scaledPts.reduce((s, p) => s + p.x, 0) / scaledPts.length);
-      const shapeCy = (scaledPts.reduce((s, p) => s + p.y, 0) / scaledPts.length);
-      const shapeW = scaledPolyW * (1 - shapePad * 2);
-      const shapeH = scaledPolyH * (1 - shapePad * 2);
-
-      const shapePolygons = getShapePoints(suggestedShape, shapeCx, shapeCy, shapeW, shapeH);
-      shapePolygons.forEach(shapePts => {
-        if (shapePts.length < 3) return;
-        ctx.fillStyle = '#d0e8ff'; // light blue = building footprint
-        ctx.strokeStyle = '#1a6eb5';
-        ctx.lineWidth = Math.max(2, outputW / 300);
-        ctx.beginPath();
-        ctx.moveTo(shapePts[0].x, shapePts[0].y);
-        shapePts.slice(1).forEach(p => ctx.lineTo(p.x, p.y));
-        ctx.closePath();
-        ctx.fill();
-        ctx.stroke();
-      });
-
-      // Label
-      ctx.fillStyle = '#1a6eb5';
-      ctx.font = `bold ${Math.max(12, outputW / 60)}px sans-serif`;
-      ctx.textAlign = 'center';
-      ctx.fillText(suggestedShape.toUpperCase().replace(/-/g, ' '), shapeCx, shapeCy);
-      ctx.textAlign = 'left';
-      
-      ctx.restore();
-    }
 
     // Return base64 (strip the data:image/png;base64, prefix)
     return offscreen.toDataURL('image/png').replace(/^data:image\/png;base64,/, '');

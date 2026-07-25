@@ -269,10 +269,7 @@ export default function IdeaGenerationPage() {
         const promptText = `Generate a highly detailed, professional 2D architectural CAD typical floor plan for a luxury high-rise ${styleName} residential tower (${overallWidth}m x ${overallLength}m).
 
 CRITICAL SHAPE CONSTRAINT:
-The input image contains two elements: a thick black outer polygon (the site boundary) and an inner blue shape (the building footprint).
-1. The floor plan MUST be generated STRICTLY INSIDE the inner blue building footprint. Do not draw any rooms outside this inner shape.
-2. PRESERVE the outer black site boundary exactly as it is to show how the building sits on the site.
-3. All rooms and balconies must be tightly packed inside the exact geometric boundary of the inner shape.
+The outermost exterior walls of the building MUST strictly conform to and perfectly trace the solid shape silhouette provided in the input image. DO NOT draw outside this footprint. All rooms and balconies must be tightly packed inside this exact geometric shape boundary.
 
 CORE & CIRCULATION:
 - Place a highly efficient, compact central structural core containing ${passengerLifts} passenger lifts and ${staircases} fire staircases (shaded in solid grey).
