@@ -145,8 +145,8 @@ export default function IdeaGenerationPage() {
   ];
 
   // Unified Async Generation and HUD Progress Pipeline
-  const handleGenerate = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleGenerate = async (e?: React.FormEvent, aiOpts?: { tracerImageBase64?: string; canvasW?: number; canvasH?: number }) => {
+    if (e) e.preventDefault();
     setValidationError(null);
 
     // 1. Validations & Sanity Checks
@@ -308,6 +308,9 @@ Output only the clean, tightly cropped 2D architectural floor plan.`;
             style: styleName,
             imageSize,
             apiKey: apiKey || undefined,
+            inputImageBase64: aiOpts?.tracerImageBase64,
+            canvasW: aiOpts?.canvasW,
+            canvasH: aiOpts?.canvasH,
           }),
         }).then(async (res) => {
           const data = await res.json();
@@ -334,7 +337,7 @@ Output only the clean, tightly cropped 2D architectural floor plan.`;
         }
         setGenerationStep(loadingSteps.length);
 
-        setLogs((prev) => [...prev, '[SYS] DUAL MODEL CALCULATIONS VERIFIED (GPT-IMAGE-2 + NANO BANANA 2). ONLINE.']);
+        setLogs((prev) => [...prev, '[SYS] DUAL MODEL CALCULATIONS VERIFIED (GPT-IMAGE-1 ALPHA/BETA). ONLINE.']);
         
         const gptUrl = resData.gptImageUrl || resData.url || null;
         const nanoUrl = resData.nanoImageUrl || resData.url || null;
@@ -344,7 +347,7 @@ Output only the clean, tightly cropped 2D architectural floor plan.`;
         setResultImage(gptUrl || nanoUrl);
 
         setResultTitle(`${styleName} TOWER PLAN SCHEMATIC`);
-        setResultDesc(`Dual Generative Synthesis (GPT-Image-2 + Nano Banana 2) based on a ${styleName} footprint.`);
+        setResultDesc(`Dual Generative Synthesis (GPT-Image-1 Variants Alpha & Beta) based on a ${styleName} footprint.`);
 
         // Save to variants history
         setVariantsHistory(prev => {
@@ -392,9 +395,8 @@ Output only the clean, tightly cropped 2D architectural floor plan.`;
     if (params.customPrompt) setCustomPrompt(params.customPrompt);
   }, []);
 
-  const handleGenerateTrigger = useCallback(() => {
-    const syntheticEvent = { preventDefault: () => {} } as React.FormEvent;
-    handleGenerate(syntheticEvent);
+  const handleGenerateTrigger = useCallback((opts?: { tracerImageBase64?: string; canvasW?: number; canvasH?: number }) => {
+    handleGenerate(undefined, opts);
   }, [handleGenerate]);
 
   return (

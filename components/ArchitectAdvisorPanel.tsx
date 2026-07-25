@@ -57,7 +57,7 @@ export interface FormParams {
 
 interface Props {
   onParamsApplied: (params: FormParams) => void;
-  onGenerateTrigger: () => void;
+  onGenerateTrigger: (opts: { tracerImageBase64?: string; canvasW?: number; canvasH?: number }) => void;
 }
 
 // ─── Canvas constants ─────────────────────────────────────────────────────────
@@ -200,6 +200,109 @@ export default function ArchitectAdvisorPanel({ onParamsApplied, onGenerateTrigg
   const [plotData, setPlotData] = useState<PlotData | null>(null);
   const [suggestedShape, setSuggestedShape] = useState<string | null>(null);
   const [appliedOptionId, setAppliedOptionId] = useState<string | null>(null);
+
+  // Output canvas dimensions (for AI generation image size)
+  const [outputW, setOutputW] = useState(1024);
+  const [outputH, setOutputH] = useState(1024);
+
+  const OUTPUT_PRESETS = [
+    { label: '1024×1024 (Square)', w: 1024, h: 1024 },
+    { label: '1024×768 (Landscape)', w: 1024, h: 768 },
+    { label: '768×1024 (Portrait)', w: 768, h: 1024 },
+    { label: '1280×960 (Wide)', w: 1280, h: 960 },
+    { label: '1024×576 (Cinema)', w: 1024, h: 576 },
+  ];
+
+  // Export tracer canvas as clean AI input image
+  // Renders the traced polygon (white filled) centered on a white canvas at outputW×outputH
+  // with the suggested building shape overlay in a soft gray
+  const exportForAI = useCallback((): string | null => {
+    if (polygon.length < 3 || !isTracingClosed) return null;
+    const offscreen = document.createElement('canvas');
+    offscreen.width = outputW;
+    offscreen.height = outputH;
+    const ctx = offscreen.getContext('2d');
+    if (!ctx) return null;
+
+    // White background
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, outputW, outputH);
+
+    // Calculate polygon bounding box in canvas coords
+    const bbox = polygonBBox(polygon);
+    const polyW = bbox.w;
+    const polyH = bbox.h;
+
+    // Scale polygon to fit inside outputW × outputH with 6% margin
+    const margin = 0.06;
+    const availW = outputW * (1 - margin * 2);
+    const availH = outputH * (1 - margin * 2);
+    const scale = Math.min(availW / polyW, availH / polyH);
+
+    const scaledPolyW = polyW * scale;
+    const scaledPolyH = polyH * scale;
+    const offsetX = (outputW - scaledPolyW) / 2 - bbox.minX * scale;
+    const offsetY = (outputH - scaledPolyH) / 2 - bbox.minY * scale;
+
+    const scalePt = (p: Point) => ({ x: p.x * scale + offsetX, y: p.y * scale + offsetY });
+
+    // Draw plot boundary fill (very light grey = site area)
+    const scaledPts = polygon.map(scalePt);
+    ctx.fillStyle = '#f0f0f0';
+    ctx.beginPath();
+    ctx.moveTo(scaledPts[0].x, scaledPts[0].y);
+    scaledPts.slice(1).forEach(p => ctx.lineTo(p.x, p.y));
+    ctx.closePath();
+    ctx.fill();
+
+    // Draw plot boundary stroke (black, thick = site boundary wall)
+    ctx.strokeStyle = '#000000';
+    ctx.lineWidth = Math.max(3, outputW / 200);
+    ctx.lineJoin = 'miter';
+    ctx.beginPath();
+    ctx.moveTo(scaledPts[0].x, scaledPts[0].y);
+    scaledPts.slice(1).forEach(p => ctx.lineTo(p.x, p.y));
+    ctx.closePath();
+    ctx.stroke();
+
+    // Draw suggested building shape inside plot (centered, ~85% of plot bbox, with margin)
+    if (suggestedShape) {
+      const shapePad = 0.08; // 8% inset from plot edge
+      const shapeCx = (scaledPts.reduce((s, p) => s + p.x, 0) / scaledPts.length);
+      const shapeCy = (scaledPts.reduce((s, p) => s + p.y, 0) / scaledPts.length);
+      const shapeW = scaledPolyW * (1 - shapePad * 2);
+      const shapeH = scaledPolyH * (1 - shapePad * 2);
+
+      const shapePolygons = getShapePoints(suggestedShape, shapeCx, shapeCy, shapeW, shapeH);
+      shapePolygons.forEach(shapePts => {
+        if (shapePts.length < 3) return;
+        ctx.fillStyle = '#d0e8ff'; // light blue = building footprint
+        ctx.strokeStyle = '#1a6eb5';
+        ctx.lineWidth = Math.max(2, outputW / 300);
+        ctx.beginPath();
+        ctx.moveTo(shapePts[0].x, shapePts[0].y);
+        shapePts.slice(1).forEach(p => ctx.lineTo(p.x, p.y));
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+      });
+
+      // Label
+      ctx.fillStyle = '#1a6eb5';
+      ctx.font = `bold ${Math.max(12, outputW / 60)}px sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.fillText(suggestedShape.toUpperCase().replace(/-/g, ' '), shapeCx, shapeCy);
+      ctx.textAlign = 'left';
+    }
+
+    // Return base64 (strip the data:image/png;base64, prefix)
+    return offscreen.toDataURL('image/png').replace(/^data:image\/png;base64,/, '');
+  }, [polygon, isTracingClosed, suggestedShape, outputW, outputH]);
+
+  const handleGenerateTrigger = useCallback(() => {
+    const base64 = exportForAI();
+    onGenerateTrigger({ tracerImageBase64: base64 || undefined, canvasW: outputW, canvasH: outputH });
+  }, [exportForAI, onGenerateTrigger, outputW, outputH]);
 
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
@@ -656,10 +759,29 @@ export default function ArchitectAdvisorPanel({ onParamsApplied, onGenerateTrigg
         </div>
 
         {paramsApplied && (
-          <div className="px-3 pb-2 shrink-0">
+          <div className="px-3 pb-2 shrink-0 flex flex-col gap-2">
+            
+            {/* Resolution Selector */}
+            <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-1">
+              <span className="text-[9px] font-bold text-cyan-500/60 uppercase tracking-wider shrink-0 mr-1">OUTPUT SIZE:</span>
+              {OUTPUT_PRESETS.map(preset => (
+                <button
+                  key={preset.label}
+                  onClick={() => { setOutputW(preset.w); setOutputH(preset.h); }}
+                  className={`px-2 py-1 rounded-md text-[9px] whitespace-nowrap transition-colors ${
+                    outputW === preset.w && outputH === preset.h
+                      ? 'bg-cyan-500/30 text-cyan-300 border border-cyan-400 font-bold shadow-[0_0_10px_rgba(0,240,255,0.2)]'
+                      : 'bg-black/30 text-slate-400 border border-white/5 hover:border-cyan-500/30'
+                  }`}
+                >
+                  {preset.label}
+                </button>
+              ))}
+            </div>
+
             <button
-              onClick={onGenerateTrigger}
-              className="w-full py-2.5 rounded-lg font-bold text-sm tracking-wider flex items-center justify-center gap-2 bg-gradient-to-r from-cyan-500/30 to-purple-500/20 border border-cyan-400 text-white hover:from-cyan-500/40 transition-all cursor-pointer shadow-[0_0_20px_rgba(0,240,255,0.3)]"
+              onClick={handleGenerateTrigger}
+              className="w-full py-2.5 rounded-lg font-bold text-sm tracking-wider flex items-center justify-center gap-2 bg-gradient-to-r from-cyan-500/30 to-purple-500/20 border border-cyan-400 text-white hover:from-cyan-500/40 hover:to-purple-500/30 transition-all cursor-pointer shadow-[0_0_20px_rgba(0,240,255,0.3)] animate-pulse-slow"
             >
               <Sparkles className="w-4 h-4" />
               GENERATE FLOOR PLAN
