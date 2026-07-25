@@ -506,12 +506,19 @@ export default function ArchitectAdvisorPanel({ onParamsApplied, onGenerateTrigg
   }, [polygon, hoverPt, isTracingClosed, bgImage, imgBounds, suggestedShape]);
 
   useEffect(() => {
-    if (chatContainerRef.current) {
-      chatContainerRef.current.scrollTo({
-        top: chatContainerRef.current.scrollHeight,
-        behavior: 'smooth'
-      });
-    }
+    const scrollToBottom = () => {
+      if (chatContainerRef.current) {
+        chatContainerRef.current.scrollTo({
+          top: chatContainerRef.current.scrollHeight,
+          behavior: 'smooth'
+        });
+      }
+    };
+
+    scrollToBottom();
+    const t1 = setTimeout(scrollToBottom, 100);
+    const t2 = setTimeout(scrollToBottom, 300);
+    return () => { clearTimeout(t1); clearTimeout(t2); };
   }, [messages]);
 
   const snapToGrid = (px: number, py: number): Point => ({
