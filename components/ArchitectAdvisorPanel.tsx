@@ -204,6 +204,32 @@ export default function ArchitectAdvisorPanel({ onParamsApplied, onGenerateTrigg
   // Output canvas dimensions (for AI generation image size)
   const [outputW, setOutputW] = useState(1024);
   const [outputH, setOutputH] = useState(1024);
+  
+  // Custom architectural dimensions (meters)
+  const [customW, setCustomW] = useState<string>('');
+  const [customH, setCustomH] = useState<string>('');
+
+  const applyCustomRatio = useCallback((wM: number, hM: number) => {
+    if (!wM || !hM || wM <= 0 || hM <= 0) return;
+    const maxPx = 1024;
+    let pxW, pxH;
+    
+    // Scale largest dimension to maxPx
+    if (wM >= hM) {
+      pxW = maxPx;
+      pxH = Math.round((hM / wM) * maxPx);
+    } else {
+      pxH = maxPx;
+      pxW = Math.round((wM / hM) * maxPx);
+    }
+    
+    // Snap to nearest 64 (required by diffusion models)
+    pxW = Math.max(512, Math.round(pxW / 64) * 64);
+    pxH = Math.max(512, Math.round(pxH / 64) * 64);
+    
+    setOutputW(pxW);
+    setOutputH(pxH);
+  }, []);
 
   const OUTPUT_PRESETS = [
     { label: '1024×1024 (Square)', w: 1024, h: 1024 },
@@ -779,24 +805,34 @@ export default function ArchitectAdvisorPanel({ onParamsApplied, onGenerateTrigg
                   </button>
                 ))}
               </div>
-              <div className="flex items-center gap-2">
-                <span className="text-[9px] font-bold text-cyan-500/60 uppercase tracking-wider shrink-0 mr-1">CUSTOM:</span>
+              <div className="flex items-center gap-2 mt-1">
+                <span className="text-[9px] font-bold text-cyan-500/60 uppercase tracking-wider shrink-0 mr-1">CUSTOM (METERS):</span>
                 <input
                   type="number"
-                  value={outputW}
-                  onChange={(e) => setOutputW(parseInt(e.target.value) || 1024)}
-                  className="w-16 bg-black/40 border border-cyan-500/20 focus:border-cyan-400 focus:outline-none rounded px-2 py-1 text-[10px] text-cyan-300 font-mono text-center"
+                  value={customW}
+                  onChange={(e) => {
+                    setCustomW(e.target.value);
+                    if (e.target.value && customH) applyCustomRatio(parseFloat(e.target.value), parseFloat(customH));
+                  }}
+                  className="w-14 bg-black/40 border border-cyan-500/20 focus:border-cyan-400 focus:outline-none rounded px-2 py-1 text-[10px] text-cyan-300 font-mono text-center"
                   placeholder="W"
                 />
                 <span className="text-cyan-500/50 text-[10px]">×</span>
                 <input
                   type="number"
-                  value={outputH}
-                  onChange={(e) => setOutputH(parseInt(e.target.value) || 1024)}
-                  className="w-16 bg-black/40 border border-cyan-500/20 focus:border-cyan-400 focus:outline-none rounded px-2 py-1 text-[10px] text-cyan-300 font-mono text-center"
-                  placeholder="H"
+                  value={customH}
+                  onChange={(e) => {
+                    setCustomH(e.target.value);
+                    if (customW && e.target.value) applyCustomRatio(parseFloat(customW), parseFloat(e.target.value));
+                  }}
+                  className="w-14 bg-black/40 border border-cyan-500/20 focus:border-cyan-400 focus:outline-none rounded px-2 py-1 text-[10px] text-cyan-300 font-mono text-center"
+                  placeholder="L"
                 />
-                <span className="text-[9px] text-slate-500 ml-1">(Must be multiples of 64 for Fal AI)</span>
+                {(customW && customH) ? (
+                  <span className="text-[9px] font-bold text-emerald-400/90 ml-2 tracking-wider">→ {outputW}×{outputH} px</span>
+                ) : (
+                  <span className="text-[9px] text-slate-500 ml-1">(Calculates optimal AI pixels)</span>
+                )}
               </div>
             </div>
 
