@@ -198,13 +198,11 @@ export default function ArchitectAdvisorPanel({ onParamsApplied, onGenerateTrigg
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [hasAnalyzed, setHasAnalyzed] = useState(false);
   const [bgImage, setBgImage] = useState<HTMLImageElement | null>(null);
-  const [bgScale, setBgScale] = useState(1);
-  const [bgOffsetX, setBgOffsetX] = useState(0);
-  const [bgOffsetY, setBgOffsetY] = useState(0);
-  const [isDraggingImg, setIsDraggingImg] = useState(false);
-  const [dragStartPt, setDragStartPt] = useState<{x: number, y: number} | null>(null);
-  const [dragStartOffset, setDragStartOffset] = useState<{x: number, y: number} | null>(null);
-  const [hasDragged, setHasDragged] = useState(false);
+  const [imgBounds, setImgBounds] = useState<{ x: number; y: number; w: number; h: number } | null>(null);
+  const [dragMode, setDragMode] = useState<'move' | 'tl' | 'tr' | 'bl' | 'br' | null>(null);
+  const [dragStartRaw, setDragStartRaw] = useState<{ x: number; y: number } | null>(null);
+  const [initialBounds, setInitialBounds] = useState<{ x: number; y: number; w: number; h: number } | null>(null);
+  const [hasDraggedImg, setHasDraggedImg] = useState(false);
   const [hoverPt, setHoverPt] = useState<Point | null>(null);
   const [plotData, setPlotData] = useState<PlotData | null>(null);
   const [suggestedShape, setSuggestedShape] = useState<string | null>(null);
@@ -359,14 +357,32 @@ export default function ArchitectAdvisorPanel({ onParamsApplied, onGenerateTrigg
     ctx.fillStyle = '#050810';
     ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
 
-    if (bgImage) {
-      ctx.globalAlpha = 0.28;
-      const w = CANVAS_W * bgScale;
-      const h = CANVAS_H * bgScale;
-      const x = (CANVAS_W - w) / 2 + bgOffsetX;
-      const y = (CANVAS_H - h) / 2 + bgOffsetY;
-      ctx.drawImage(bgImage, x, y, w, h);
+    if (bgImage && imgBounds) {
+      ctx.globalAlpha = 0.35;
+      ctx.drawImage(bgImage, imgBounds.x, imgBounds.y, imgBounds.w, imgBounds.h);
       ctx.globalAlpha = 1;
+
+      // Draw transform bounding box & corner handles
+      ctx.strokeStyle = '#00f0ff';
+      ctx.lineWidth = 1;
+      ctx.setLineDash([4, 4]);
+      ctx.strokeRect(imgBounds.x, imgBounds.y, imgBounds.w, imgBounds.h);
+      ctx.setLineDash([]);
+
+      const handles = [
+        { x: imgBounds.x, y: imgBounds.y }, // TL
+        { x: imgBounds.x + imgBounds.w, y: imgBounds.y }, // TR
+        { x: imgBounds.x, y: imgBounds.y + imgBounds.h }, // BL
+        { x: imgBounds.x + imgBounds.w, y: imgBounds.y + imgBounds.h }, // BR
+      ];
+
+      handles.forEach(h => {
+        ctx.fillStyle = '#00f0ff';
+        ctx.fillRect(h.x - 4, h.y - 4, 8, 8);
+        ctx.strokeStyle = '#000000';
+        ctx.lineWidth = 1;
+        ctx.strokeRect(h.x - 4, h.y - 4, 8, 8);
+      });
     }
 
     // Grid lines
@@ -486,7 +502,7 @@ export default function ArchitectAdvisorPanel({ onParamsApplied, onGenerateTrigg
       ctx.font = '7px monospace';
       ctx.fillText(`${pxToM(hoverPt.x)}m, ${pxToM(hoverPt.y)}m`, hoverPt.x + 6, hoverPt.y - 3);
     }
-  }, [polygon, hoverPt, isTracingClosed, bgImage, suggestedShape]);
+  }, [polygon, hoverPt, isTracingClosed, bgImage, imgBounds, suggestedShape]);
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -498,16 +514,33 @@ export default function ArchitectAdvisorPanel({ onParamsApplied, onGenerateTrigg
   });
 
   const handleCanvasMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
-    if (!bgImage) return;
+    if (!bgImage || !imgBounds) return;
     const rect = canvasRef.current!.getBoundingClientRect();
     const scaleX = CANVAS_W / rect.width;
     const scaleY = CANVAS_H / rect.height;
     const raw = { x: (e.clientX - rect.left) * scaleX, y: (e.clientY - rect.top) * scaleY };
-    
-    setIsDraggingImg(true);
-    setDragStartPt(raw);
-    setDragStartOffset({ x: bgOffsetX, y: bgOffsetY });
-    setHasDragged(false);
+
+    const handleRadius = 12;
+    const { x, y, w, h } = imgBounds;
+
+    if (Math.hypot(raw.x - x, raw.y - y) <= handleRadius) {
+      setDragMode('tl');
+    } else if (Math.hypot(raw.x - (x + w), raw.y - y) <= handleRadius) {
+      setDragMode('tr');
+    } else if (Math.hypot(raw.x - x, raw.y - (y + h)) <= handleRadius) {
+      setDragMode('bl');
+    } else if (Math.hypot(raw.x - (x + w), raw.y - (y + h)) <= handleRadius) {
+      setDragMode('br');
+    } else if (raw.x >= x && raw.x <= x + w && raw.y >= y && raw.y <= y + h) {
+      setDragMode('move');
+    } else {
+      setDragMode(null);
+      return;
+    }
+
+    setDragStartRaw(raw);
+    setInitialBounds({ ...imgBounds });
+    setHasDraggedImg(false);
   };
 
   const handleCanvasMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
@@ -515,32 +548,71 @@ export default function ArchitectAdvisorPanel({ onParamsApplied, onGenerateTrigg
     const scaleX = CANVAS_W / rect.width;
     const scaleY = CANVAS_H / rect.height;
     const raw = { x: (e.clientX - rect.left) * scaleX, y: (e.clientY - rect.top) * scaleY };
-    
-    if (isDraggingImg && dragStartPt && dragStartOffset && bgImage) {
-      const dx = raw.x - dragStartPt.x;
-      const dy = raw.y - dragStartPt.y;
-      if (Math.hypot(dx, dy) > 3) setHasDragged(true); // Treat as drag if moved more than 3px
-      setBgOffsetX(dragStartOffset.x + dx);
-      setBgOffsetY(dragStartOffset.y + dy);
+
+    if (dragMode && dragStartRaw && initialBounds) {
+      const dx = raw.x - dragStartRaw.x;
+      const dy = raw.y - dragStartRaw.y;
+
+      if (Math.hypot(dx, dy) > 3) setHasDraggedImg(true);
+
+      let { x, y, w, h } = initialBounds;
+
+      if (dragMode === 'move') {
+        x += dx;
+        y += dy;
+      } else if (dragMode === 'br') {
+        w = Math.max(30, w + dx);
+        h = Math.max(30, h + dy);
+      } else if (dragMode === 'bl') {
+        const newW = Math.max(30, w - dx);
+        x = x + (w - newW);
+        w = newW;
+        h = Math.max(30, h + dy);
+      } else if (dragMode === 'tr') {
+        w = Math.max(30, w + dx);
+        const newH = Math.max(30, h - dy);
+        y = y + (h - newH);
+        h = newH;
+      } else if (dragMode === 'tl') {
+        const newW = Math.max(30, w - dx);
+        const newH = Math.max(30, h - dy);
+        x = x + (w - newW);
+        y = y + (h - newH);
+        w = newW;
+        h = newH;
+      }
+
+      setImgBounds({ x, y, w, h });
       return;
+    }
+
+    // Dynamic Cursors on Hover over handles/image
+    if (bgImage && imgBounds && canvasRef.current) {
+      const handleRadius = 10;
+      const { x, y, w, h } = imgBounds;
+      if (Math.hypot(raw.x - x, raw.y - y) <= handleRadius || Math.hypot(raw.x - (x + w), raw.y - (y + h)) <= handleRadius) {
+        canvasRef.current.style.cursor = 'nwse-resize';
+      } else if (Math.hypot(raw.x - (x + w), raw.y - y) <= handleRadius || Math.hypot(raw.x - x, raw.y - (y + h)) <= handleRadius) {
+        canvasRef.current.style.cursor = 'nesw-resize';
+      } else if (raw.x >= x && raw.x <= x + w && raw.y >= y && raw.y <= y + h) {
+        canvasRef.current.style.cursor = 'grab';
+      } else {
+        canvasRef.current.style.cursor = 'crosshair';
+      }
     }
 
     setHoverPt(snapToGrid(raw.x, raw.y));
   };
 
   const handleCanvasMouseUp = () => {
-    setIsDraggingImg(false);
-  };
-
-  const handleCanvasWheel = (e: React.WheelEvent<HTMLCanvasElement>) => {
-    if (!bgImage) return;
-    const zoomFactor = e.deltaY > 0 ? 0.9 : 1.1;
-    setBgScale(s => Math.max(0.1, Math.min(10, s * zoomFactor)));
+    setDragMode(null);
+    setDragStartRaw(null);
+    setInitialBounds(null);
   };
 
   const handleCanvasClick = (e: React.MouseEvent<HTMLCanvasElement>) => {
-    if (hasDragged) {
-      setHasDragged(false);
+    if (hasDraggedImg) {
+      setHasDraggedImg(false);
       return;
     }
     if (isTracingClosed) return;
@@ -589,13 +661,30 @@ export default function ArchitectAdvisorPanel({ onParamsApplied, onGenerateTrigg
     setSuggestedShape(null);
     setAppliedOptionId(null);
     setParamsApplied(false);
+    setBgImage(null);
+    setImgBounds(null);
   };
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     const img = new Image();
-    img.onload = () => setBgImage(img);
+    img.onload = () => {
+      setBgImage(img);
+      const aspect = img.width / img.height;
+      let w = CANVAS_W * 0.75;
+      let h = w / aspect;
+      if (h > CANVAS_H * 0.75) {
+        h = CANVAS_H * 0.75;
+        w = h * aspect;
+      }
+      setImgBounds({
+        x: (CANVAS_W - w) / 2,
+        y: (CANVAS_H - h) / 2,
+        w,
+        h
+      });
+    };
     img.src = URL.createObjectURL(file);
   };
 
@@ -725,13 +814,7 @@ export default function ArchitectAdvisorPanel({ onParamsApplied, onGenerateTrigg
             </button>
             {polygon.length > 0 && (
               <button
-                onClick={() => {
-                  resetTrace();
-                  setBgImage(null);
-                  setBgScale(1);
-                  setBgOffsetX(0);
-                  setBgOffsetY(0);
-                }}
+                onClick={resetTrace}
                 className="flex items-center gap-1 px-2 py-0.5 rounded text-[9px] text-red-400/70 border border-red-500/20 hover:border-red-400 hover:text-red-400 cursor-pointer"
               >
                 <RotateCcw className="w-3 h-3" /> RESET
@@ -757,14 +840,13 @@ export default function ArchitectAdvisorPanel({ onParamsApplied, onGenerateTrigg
             onMouseDown={handleCanvasMouseDown}
             onMouseMove={handleCanvasMouseMove}
             onMouseUp={handleCanvasMouseUp}
-            onMouseLeave={() => { setHoverPt(null); setIsDraggingImg(false); }}
-            onWheel={handleCanvasWheel}
+            onMouseLeave={() => { setHoverPt(null); setDragMode(null); }}
             onClick={handleCanvasClick}
             className={`cursor-crosshair ${isFullscreen ? 'w-auto h-full max-w-full object-contain bg-black/50 rounded-xl border border-white/10' : 'w-full'}`}
           />
           {bgImage && (
             <div className="absolute bottom-2 right-2 px-2 py-1 bg-black/60 backdrop-blur border border-white/10 rounded pointer-events-none shadow">
-              <span className="text-[8px] font-bold text-cyan-400/80 uppercase">Scroll to zoom • Drag to pan</span>
+              <span className="text-[8px] font-bold text-cyan-400/80 uppercase">Drag corners to resize • Drag image to shift</span>
             </div>
           )}
         </div>
