@@ -52,13 +52,17 @@ Help real estate developers plan high-rise towers. Analyze plot boundaries, sugg
 - Always show specific numbers
 - When user confirms, say "Parameters set! Click GENERATE FLOOR PLAN."
 
-## CRITICAL: When showing options, ALWAYS include this exact JSON block at the end:
+## CRITICAL RESPONSE FORMAT:
+When showing options, you MUST generate a valid JSON block enclosed in \`\`\`options ... \`\`\` at the exact end of your response.
+The JSON must be an array of EXACTLY 3 objects.
+Choose 3 DIFFERENT footprint shapes from the available presets that best fit the plot dimensions.
+Calculate the "width" and "length" mathematically to fit within the plot dimensions (${plotData ? `${plotData.widthM}m x ${plotData.lengthM}m` : '...'}).
+You must dynamically generate the values for each option! DO NOT just copy the example below.
 
+Example JSON Structure (Replace values with YOUR calculated values!):
 \`\`\`options
-[{"id":"A","label":"OPTIMAL QUALITY — 100% GUARANTEED","footprintShape":"curved-x","shapeName":"CURVED X-SHAPE","width":"100","length":"100","units1BHK":0,"units2BHK":4,"units3BHK":8,"units4BHK":2,"passengerLifts":8,"staircases":2,"guaranteedPct":100,"totalUnits":14,"plateArea":6200,"availableArea":4800,"designNotes":"Curved X-shape tower with panoramic views on all 4 wings.","highlights":["All units with external facades","360 panoramic views","Cross-ventilation guaranteed"]},{"id":"B","label":"MAX DENSITY — 85% GUARANTEED","footprintShape":"monolithic-rect","shapeName":"MONOLITHIC RECTANGULAR","width":"100","length":"100","units1BHK":2,"units2BHK":6,"units3BHK":8,"units4BHK":2,"passengerLifts":8,"staircases":2,"guaranteedPct":85,"totalUnits":18,"plateArea":8800,"availableArea":7200,"designNotes":"Double-loaded rectangular slab maximizing unit count.","highlights":["Maximum density","Simple construction","Good core efficiency"]},{"id":"C","label":"BALANCED MIX — 95% GUARANTEED","footprintShape":"h-shape","shapeName":"H-SHAPE DUAL WING","width":"100","length":"100","units1BHK":0,"units2BHK":4,"units3BHK":6,"units4BHK":2,"passengerLifts":6,"staircases":2,"guaranteedPct":95,"totalUnits":12,"plateArea":7500,"availableArea":6000,"designNotes":"H-shape twin wings with premium unit mix.","highlights":["Balanced efficiency","High privacy","Wide views"]}]
+[{"id":"A","label":"OPTIMAL QUALITY — 100% GUARANTEED","footprintShape":"curved-x","shapeName":"CURVED X-SHAPE","width":"[CALCULATED_W]","length":"[CALCULATED_L]","units1BHK":0,"units2BHK":4,"units3BHK":8,"units4BHK":2,"passengerLifts":8,"staircases":2,"guaranteedPct":100,"totalUnits":14,"plateArea":6200,"availableArea":4800,"designNotes":"...","highlights":["..."]},{"id":"B", ...}]
 \`\`\`
-
-Replace the example numbers above with ACTUAL calculations based on the plot data provided.
 
 ## Current Plot Data:
 ${plotData ? `

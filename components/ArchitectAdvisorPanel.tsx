@@ -62,19 +62,6 @@ interface Props {
 
 // ─── Canvas constants ─────────────────────────────────────────────────────────
 const CELL_M = 10;
-const CELL_PX = 18;
-
-function pxToM(px: number) { return parseFloat((px / CELL_PX * CELL_M).toFixed(1)); }
-
-function polygonAreaM2(pts: Point[]): number {
-  if (pts.length < 3) return 0;
-  let a = 0;
-  for (let i = 0; i < pts.length; i++) {
-    const j = (i + 1) % pts.length;
-    a += pxToM(pts[i].x) * pxToM(pts[j].y) - pxToM(pts[j].x) * pxToM(pts[i].y);
-  }
-  return parseFloat(Math.abs(a / 2).toFixed(1));
-}
 
 function polygonBBox(pts: Point[]) {
   if (!pts.length) return { minX: 0, minY: 0, maxX: 0, maxY: 0, w: 0, h: 0 };
@@ -191,8 +178,21 @@ export default function ArchitectAdvisorPanel({ onParamsApplied, onGenerateTrigg
   const chatContainerRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const CANVAS_W = 420;
-  const CANVAS_H = 260;
+  const [canvasW, setCanvasW] = useState(420);
+  const [canvasH, setCanvasH] = useState(260);
+  const [cellPx, setCellPx] = useState(18);
+
+  const pxToM = useCallback((px: number) => parseFloat((px / cellPx * CELL_M).toFixed(1)), [cellPx]);
+
+  const polygonAreaM2 = useCallback((pts: Point[]): number => {
+    if (pts.length < 3) return 0;
+    let a = 0;
+    for (let i = 0; i < pts.length; i++) {
+      const j = (i + 1) % pts.length;
+      a += pxToM(pts[i].x) * pxToM(pts[j].y) - pxToM(pts[j].x) * pxToM(pts[i].y);
+    }
+    return parseFloat(Math.abs(a / 2).toFixed(1));
+  }, [pxToM]);
 
   const [polygon, setPolygon] = useState<Point[]>([]);
   const [isTracingClosed, setIsTracingClosed] = useState(false);
@@ -360,7 +360,7 @@ export default function ArchitectAdvisorPanel({ onParamsApplied, onGenerateTrigg
     if (!ctx) return;
 
     ctx.fillStyle = '#050810';
-    ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
+    ctx.fillRect(0, 0, canvasW, canvasH);
 
     if (bgImage && imgBounds) {
       ctx.globalAlpha = 0.35;
@@ -393,17 +393,17 @@ export default function ArchitectAdvisorPanel({ onParamsApplied, onGenerateTrigg
     // Grid lines
     ctx.strokeStyle = 'rgba(0, 240, 255, 0.09)';
     ctx.lineWidth = 0.5;
-    for (let x = 0; x <= CANVAS_W; x += CELL_PX) {
-      ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, CANVAS_H); ctx.stroke();
+    for (let x = 0; x <= canvasW; x += cellPx) {
+      ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, canvasH); ctx.stroke();
     }
-    for (let y = 0; y <= CANVAS_H; y += CELL_PX) {
-      ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(CANVAS_W, y); ctx.stroke();
+    for (let y = 0; y <= canvasH; y += cellPx) {
+      ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(canvasW, y); ctx.stroke();
     }
 
     // Grid dots
     ctx.fillStyle = 'rgba(0, 240, 255, 0.22)';
-    for (let x = 0; x <= CANVAS_W; x += CELL_PX) {
-      for (let y = 0; y <= CANVAS_H; y += CELL_PX) {
+    for (let x = 0; x <= canvasW; x += cellPx) {
+      for (let y = 0; y <= canvasH; y += cellPx) {
         ctx.beginPath(); ctx.arc(x, y, 1, 0, Math.PI * 2); ctx.fill();
       }
     }
@@ -500,14 +500,14 @@ export default function ArchitectAdvisorPanel({ onParamsApplied, onGenerateTrigg
       ctx.strokeStyle = 'rgba(0, 240, 255, 0.3)';
       ctx.lineWidth = 0.5;
       ctx.setLineDash([3, 3]);
-      ctx.beginPath(); ctx.moveTo(hoverPt.x, 0); ctx.lineTo(hoverPt.x, CANVAS_H); ctx.stroke();
-      ctx.beginPath(); ctx.moveTo(0, hoverPt.y); ctx.lineTo(CANVAS_W, hoverPt.y); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(hoverPt.x, 0); ctx.lineTo(hoverPt.x, canvasH); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(0, hoverPt.y); ctx.lineTo(canvasW, hoverPt.y); ctx.stroke();
       ctx.setLineDash([]);
       ctx.fillStyle = 'rgba(0,240,255,0.7)';
       ctx.font = '7px monospace';
       ctx.fillText(`${pxToM(hoverPt.x)}m, ${pxToM(hoverPt.y)}m`, hoverPt.x + 6, hoverPt.y - 3);
     }
-  }, [polygon, hoverPt, isTracingClosed, bgImage, imgBounds, suggestedShape]);
+  }, [polygon, hoverPt, isTracingClosed, bgImage, imgBounds, suggestedShape, canvasW, canvasH, cellPx, pxToM]);
 
   useEffect(() => {
     // Smooth scroll the closest scrollable container (the page wrapper) instead of using scrollIntoView
@@ -527,15 +527,15 @@ export default function ArchitectAdvisorPanel({ onParamsApplied, onGenerateTrigg
   }, [messages]);
 
   const snapToGrid = (px: number, py: number): Point => ({
-    x: Math.round(px / CELL_PX) * CELL_PX,
-    y: Math.round(py / CELL_PX) * CELL_PX,
+    x: Math.round(px / cellPx) * cellPx,
+    y: Math.round(py / cellPx) * cellPx,
   });
 
   const handleCanvasMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
     if (!bgImage || !imgBounds) return;
     const rect = canvasRef.current!.getBoundingClientRect();
-    const scaleX = CANVAS_W / rect.width;
-    const scaleY = CANVAS_H / rect.height;
+    const scaleX = canvasW / rect.width;
+    const scaleY = canvasH / rect.height;
     const raw = { x: (e.clientX - rect.left) * scaleX, y: (e.clientY - rect.top) * scaleY };
 
     const handleRadius = 12;
@@ -563,8 +563,8 @@ export default function ArchitectAdvisorPanel({ onParamsApplied, onGenerateTrigg
 
   const handleCanvasMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
     const rect = canvasRef.current!.getBoundingClientRect();
-    const scaleX = CANVAS_W / rect.width;
-    const scaleY = CANVAS_H / rect.height;
+    const scaleX = canvasW / rect.width;
+    const scaleY = canvasH / rect.height;
     const raw = { x: (e.clientX - rect.left) * scaleX, y: (e.clientY - rect.top) * scaleY };
 
     if (dragMode && dragStartRaw && initialBounds) {
@@ -635,14 +635,14 @@ export default function ArchitectAdvisorPanel({ onParamsApplied, onGenerateTrigg
     }
     if (isTracingClosed) return;
     const rect = canvasRef.current!.getBoundingClientRect();
-    const scaleX = CANVAS_W / rect.width;
-    const scaleY = CANVAS_H / rect.height;
+    const scaleX = canvasW / rect.width;
+    const scaleY = canvasH / rect.height;
     const raw = { x: (e.clientX - rect.left) * scaleX, y: (e.clientY - rect.top) * scaleY };
     const snapped = snapToGrid(raw.x, raw.y);
 
     if (polygon.length >= 3) {
       const first = polygon[0];
-      if (Math.hypot(snapped.x - first.x, snapped.y - first.y) < CELL_PX) {
+      if (Math.hypot(snapped.x - first.x, snapped.y - first.y) < cellPx) {
         closePlot();
         return;
       }
@@ -688,17 +688,35 @@ export default function ArchitectAdvisorPanel({ onParamsApplied, onGenerateTrigg
     const h = parseFloat(plotInputH);
     if (!w || !h || w <= 0 || h <= 0) return;
     
-    // Create perfect rectangle centered on grid
-    const wPx = (w / CELL_M) * CELL_PX;
-    const hPx = (h / CELL_M) * CELL_PX;
-    const cx = CANVAS_W / 2;
-    const cy = CANVAS_H / 2;
+    // Default canvas maximum extents
+    const maxW = 420;
+    const maxH = 260;
     
+    let newCanvasW, newCanvasH;
+    
+    // Scale canvas to match exactly the aspect ratio of the inputs, up to the maximum extents
+    if (w / h > maxW / maxH) {
+       newCanvasW = maxW;
+       newCanvasH = maxW * (h / w);
+    } else {
+       newCanvasH = maxH;
+       newCanvasW = maxH * (w / h);
+    }
+    
+    // Calculate the grid cell size (cellPx) so that the physical px distance represents 'w' meters
+    // Formula: pxToM(newCanvasW) = w  =>  newCanvasW / newCellPx * CELL_M = w
+    const newCellPx = (newCanvasW * CELL_M) / w;
+    
+    setCanvasW(newCanvasW);
+    setCanvasH(newCanvasH);
+    setCellPx(newCellPx);
+    
+    // Set polygon to perfectly match the four corners of the canvas
     const poly: Point[] = [
-      { x: cx - wPx / 2, y: cy - hPx / 2 },
-      { x: cx + wPx / 2, y: cy - hPx / 2 },
-      { x: cx + wPx / 2, y: cy + hPx / 2 },
-      { x: cx - wPx / 2, y: cy + hPx / 2 }
+      { x: 0, y: 0 },
+      { x: newCanvasW, y: 0 },
+      { x: newCanvasW, y: newCanvasH },
+      { x: 0, y: newCanvasH }
     ];
     setPolygon(poly);
     setIsTracingClosed(true);
@@ -707,8 +725,8 @@ export default function ArchitectAdvisorPanel({ onParamsApplied, onGenerateTrigg
       widthM: w,
       lengthM: h,
       areaM2: w * h,
-      shapeDesc: 'Rectangular plot',
-      polygonVertices: poly.map(p => ({ x: Math.round(pxToM(p.x)), y: Math.round(pxToM(p.y)) }))
+      shapeDesc: `Exact ${w}m × ${h}m plot`,
+      polygonVertices: poly.map(p => ({ x: Math.round((p.x / newCellPx) * CELL_M), y: Math.round((p.y / newCellPx) * CELL_M) }))
     });
   };
 
@@ -719,15 +737,15 @@ export default function ArchitectAdvisorPanel({ onParamsApplied, onGenerateTrigg
     img.onload = () => {
       setBgImage(img);
       const aspect = img.width / img.height;
-      let w = CANVAS_W * 0.75;
+      let w = canvasW * 0.75;
       let h = w / aspect;
-      if (h > CANVAS_H * 0.75) {
-        h = CANVAS_H * 0.75;
+      if (h > canvasH * 0.75) {
+        h = canvasH * 0.75;
         w = h * aspect;
       }
       setImgBounds({
-        x: (CANVAS_W - w) / 2,
-        y: (CANVAS_H - h) / 2,
+        x: (canvasW - w) / 2,
+        y: (canvasH - h) / 2,
         w,
         h
       });
@@ -904,17 +922,17 @@ export default function ArchitectAdvisorPanel({ onParamsApplied, onGenerateTrigg
           </div>
         )}
 
-        <div className={`flex flex-col relative flex-1 min-h-0 ${isFullscreen ? 'items-center justify-center p-4' : ''}`}>
+        <div className={`flex flex-col relative flex-1 min-h-0 ${isFullscreen ? 'items-center justify-center p-4' : 'items-center justify-center'}`}>
           <canvas
             ref={canvasRef}
-            width={CANVAS_W}
-            height={CANVAS_H}
+            width={canvasW}
+            height={canvasH}
             onMouseDown={handleCanvasMouseDown}
             onMouseMove={handleCanvasMouseMove}
             onMouseUp={handleCanvasMouseUp}
             onMouseLeave={() => { setHoverPt(null); setDragMode(null); }}
             onClick={handleCanvasClick}
-            className={`cursor-crosshair ${isFullscreen ? 'w-auto h-full max-w-full object-contain bg-black/50 rounded-xl border border-white/10' : 'w-full'}`}
+            className={`cursor-crosshair ${isFullscreen ? 'w-auto h-full max-w-full object-contain bg-black/50 rounded-xl border border-white/10' : 'w-full max-h-[300px] object-contain'}`}
           />
           {bgImage && (
             <div className="absolute bottom-2 right-2 px-2 py-1 bg-black/60 backdrop-blur border border-white/10 rounded pointer-events-none shadow">
