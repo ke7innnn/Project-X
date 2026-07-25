@@ -762,21 +762,42 @@ export default function ArchitectAdvisorPanel({ onParamsApplied, onGenerateTrigg
           <div className="px-3 pb-2 shrink-0 flex flex-col gap-2">
             
             {/* Resolution Selector */}
-            <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-1">
-              <span className="text-[9px] font-bold text-cyan-500/60 uppercase tracking-wider shrink-0 mr-1">OUTPUT SIZE:</span>
-              {OUTPUT_PRESETS.map(preset => (
-                <button
-                  key={preset.label}
-                  onClick={() => { setOutputW(preset.w); setOutputH(preset.h); }}
-                  className={`px-2 py-1 rounded-md text-[9px] whitespace-nowrap transition-colors ${
-                    outputW === preset.w && outputH === preset.h
-                      ? 'bg-cyan-500/30 text-cyan-300 border border-cyan-400 font-bold shadow-[0_0_10px_rgba(0,240,255,0.2)]'
-                      : 'bg-black/30 text-slate-400 border border-white/5 hover:border-cyan-500/30'
-                  }`}
-                >
-                  {preset.label}
-                </button>
-              ))}
+            <div className="flex flex-col gap-2 bg-black/20 p-2 rounded-lg border border-white/5">
+              <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-1">
+                <span className="text-[9px] font-bold text-cyan-500/60 uppercase tracking-wider shrink-0 mr-1">OUTPUT SIZE:</span>
+                {OUTPUT_PRESETS.map(preset => (
+                  <button
+                    key={preset.label}
+                    onClick={() => { setOutputW(preset.w); setOutputH(preset.h); }}
+                    className={`px-2 py-1 rounded-md text-[9px] whitespace-nowrap transition-colors ${
+                      outputW === preset.w && outputH === preset.h
+                        ? 'bg-cyan-500/30 text-cyan-300 border border-cyan-400 font-bold shadow-[0_0_10px_rgba(0,240,255,0.2)]'
+                        : 'bg-black/30 text-slate-400 border border-white/5 hover:border-cyan-500/30'
+                    }`}
+                  >
+                    {preset.label}
+                  </button>
+                ))}
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-[9px] font-bold text-cyan-500/60 uppercase tracking-wider shrink-0 mr-1">CUSTOM:</span>
+                <input
+                  type="number"
+                  value={outputW}
+                  onChange={(e) => setOutputW(parseInt(e.target.value) || 1024)}
+                  className="w-16 bg-black/40 border border-cyan-500/20 focus:border-cyan-400 focus:outline-none rounded px-2 py-1 text-[10px] text-cyan-300 font-mono text-center"
+                  placeholder="W"
+                />
+                <span className="text-cyan-500/50 text-[10px]">×</span>
+                <input
+                  type="number"
+                  value={outputH}
+                  onChange={(e) => setOutputH(parseInt(e.target.value) || 1024)}
+                  className="w-16 bg-black/40 border border-cyan-500/20 focus:border-cyan-400 focus:outline-none rounded px-2 py-1 text-[10px] text-cyan-300 font-mono text-center"
+                  placeholder="H"
+                />
+                <span className="text-[9px] text-slate-500 ml-1">(Must be multiples of 64 for Fal AI)</span>
+              </div>
             </div>
 
             <button
