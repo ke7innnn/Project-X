@@ -711,23 +711,14 @@ export default function ArchitectAdvisorPanel({ onParamsApplied, onGenerateTrigg
     setCanvasH(newCanvasH);
     setCellPx(newCellPx);
     
-    // Set polygon to perfectly match the four corners of the canvas
-    const poly: Point[] = [
-      { x: 0, y: 0 },
-      { x: newCanvasW, y: 0 },
-      { x: newCanvasW, y: newCanvasH },
-      { x: 0, y: newCanvasH }
-    ];
-    setPolygon(poly);
-    setIsTracingClosed(true);
+    // Clear any existing tracing so the user can trace their own shape on the newly scaled canvas
+    setPolygon([]);
+    setIsTracingClosed(false);
     setHasAnalyzed(false);
-    setPlotData({
-      widthM: w,
-      lengthM: h,
-      areaM2: w * h,
-      shapeDesc: `Exact ${w}m × ${h}m plot`,
-      polygonVertices: poly.map(p => ({ x: Math.round((p.x / newCellPx) * CELL_M), y: Math.round((p.y / newCellPx) * CELL_M) }))
-    });
+    setPlotData(null);
+    setSuggestedShape(null);
+    setAppliedOptionId(null);
+    setParamsApplied(false);
   };
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
