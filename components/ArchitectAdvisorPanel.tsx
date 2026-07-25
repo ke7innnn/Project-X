@@ -201,6 +201,10 @@ export default function ArchitectAdvisorPanel({ onParamsApplied, onGenerateTrigg
   const [bgScale, setBgScale] = useState(1);
   const [bgOffsetX, setBgOffsetX] = useState(0);
   const [bgOffsetY, setBgOffsetY] = useState(0);
+  const [isDraggingImg, setIsDraggingImg] = useState(false);
+  const [dragStartPt, setDragStartPt] = useState<{x: number, y: number} | null>(null);
+  const [dragStartOffset, setDragStartOffset] = useState<{x: number, y: number} | null>(null);
+  const [hasDragged, setHasDragged] = useState(false);
   const [hoverPt, setHoverPt] = useState<Point | null>(null);
   const [plotData, setPlotData] = useState<PlotData | null>(null);
   const [suggestedShape, setSuggestedShape] = useState<string | null>(null);
@@ -493,15 +497,52 @@ export default function ArchitectAdvisorPanel({ onParamsApplied, onGenerateTrigg
     y: Math.round(py / CELL_PX) * CELL_PX,
   });
 
+  const handleCanvasMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    if (!bgImage) return;
+    const rect = canvasRef.current!.getBoundingClientRect();
+    const scaleX = CANVAS_W / rect.width;
+    const scaleY = CANVAS_H / rect.height;
+    const raw = { x: (e.clientX - rect.left) * scaleX, y: (e.clientY - rect.top) * scaleY };
+    
+    setIsDraggingImg(true);
+    setDragStartPt(raw);
+    setDragStartOffset({ x: bgOffsetX, y: bgOffsetY });
+    setHasDragged(false);
+  };
+
   const handleCanvasMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
     const rect = canvasRef.current!.getBoundingClientRect();
     const scaleX = CANVAS_W / rect.width;
     const scaleY = CANVAS_H / rect.height;
     const raw = { x: (e.clientX - rect.left) * scaleX, y: (e.clientY - rect.top) * scaleY };
+    
+    if (isDraggingImg && dragStartPt && dragStartOffset && bgImage) {
+      const dx = raw.x - dragStartPt.x;
+      const dy = raw.y - dragStartPt.y;
+      if (Math.hypot(dx, dy) > 3) setHasDragged(true); // Treat as drag if moved more than 3px
+      setBgOffsetX(dragStartOffset.x + dx);
+      setBgOffsetY(dragStartOffset.y + dy);
+      return;
+    }
+
     setHoverPt(snapToGrid(raw.x, raw.y));
   };
 
+  const handleCanvasMouseUp = () => {
+    setIsDraggingImg(false);
+  };
+
+  const handleCanvasWheel = (e: React.WheelEvent<HTMLCanvasElement>) => {
+    if (!bgImage) return;
+    const zoomFactor = e.deltaY > 0 ? 0.9 : 1.1;
+    setBgScale(s => Math.max(0.1, Math.min(10, s * zoomFactor)));
+  };
+
   const handleCanvasClick = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    if (hasDragged) {
+      setHasDragged(false);
+      return;
+    }
     if (isTracingClosed) return;
     const rect = canvasRef.current!.getBoundingClientRect();
     const scaleX = CANVAS_W / rect.width;
@@ -713,33 +754,20 @@ export default function ArchitectAdvisorPanel({ onParamsApplied, onGenerateTrigg
             ref={canvasRef}
             width={CANVAS_W}
             height={CANVAS_H}
+            onMouseDown={handleCanvasMouseDown}
             onMouseMove={handleCanvasMouseMove}
+            onMouseUp={handleCanvasMouseUp}
+            onMouseLeave={() => { setHoverPt(null); setIsDraggingImg(false); }}
+            onWheel={handleCanvasWheel}
             onClick={handleCanvasClick}
-            onMouseLeave={() => setHoverPt(null)}
             className={`cursor-crosshair ${isFullscreen ? 'w-auto h-full max-w-full object-contain bg-black/50 rounded-xl border border-white/10' : 'w-full'}`}
           />
+          {bgImage && (
+            <div className="absolute bottom-2 right-2 px-2 py-1 bg-black/60 backdrop-blur border border-white/10 rounded pointer-events-none shadow">
+              <span className="text-[8px] font-bold text-cyan-400/80 uppercase">Scroll to zoom • Drag to pan</span>
+            </div>
+          )}
         </div>
-
-        {bgImage && (
-          <div className="flex items-center justify-between px-3 py-1.5 bg-black/40 border-t border-cyan-500/10">
-            <div className="flex items-center gap-2">
-              <span className="text-[8px] font-bold text-cyan-500/60 uppercase">IMAGE ZOOM</span>
-              <input 
-                type="range" min="0.2" max="5" step="0.1" 
-                value={bgScale} 
-                onChange={e => setBgScale(parseFloat(e.target.value))}
-                className="w-20 accent-cyan-400 cursor-pointer"
-              />
-            </div>
-            <div className="flex items-center gap-1">
-              <span className="text-[8px] font-bold text-cyan-500/60 uppercase mr-1">PAN</span>
-              <button onClick={() => setBgOffsetX(x => x - 20)} className="w-5 h-5 flex items-center justify-center bg-cyan-500/20 text-cyan-400 rounded hover:bg-cyan-500/40 cursor-pointer">◄</button>
-              <button onClick={() => setBgOffsetY(y => y - 20)} className="w-5 h-5 flex items-center justify-center bg-cyan-500/20 text-cyan-400 rounded hover:bg-cyan-500/40 cursor-pointer">▲</button>
-              <button onClick={() => setBgOffsetY(y => y + 20)} className="w-5 h-5 flex items-center justify-center bg-cyan-500/20 text-cyan-400 rounded hover:bg-cyan-500/40 cursor-pointer">▼</button>
-              <button onClick={() => setBgOffsetX(x => x + 20)} className="w-5 h-5 flex items-center justify-center bg-cyan-500/20 text-cyan-400 rounded hover:bg-cyan-500/40 cursor-pointer">►</button>
-            </div>
-          </div>
-        )}
 
         {isTracingClosed && plotData && (
           <div className="flex items-center justify-between px-3 py-1.5 text-[9px] font-mono border-t border-white/5">
