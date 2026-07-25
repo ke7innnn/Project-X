@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { 
   ArrowLeft, 
@@ -27,6 +27,7 @@ import ClientExportModal from '@/components/ClientExportModal';
 import { useArchitectStore } from '@/store/useArchitectStore';
 import { useActiveProjectGuard } from '@/lib/useActiveProjectGuard';
 import { useDebounce } from '@/lib/useDebounce';
+import ArchitectAdvisorPanel, { type FormParams } from '@/components/ArchitectAdvisorPanel';
 
 // Architectural Shapes Presets
 export interface FootprintPreset {
@@ -377,6 +378,25 @@ Output only the clean, tightly cropped 2D architectural floor plan.`;
 
   const totalUnits = units1BHK + units2BHK + units3BHK + units4BHK;
 
+  // ── Architect Advisor callbacks (from AI chat panel) ──────────────────
+  const handleParamsApplied = useCallback((params: FormParams) => {
+    if (params.footprintShape) setFootprintShape(params.footprintShape);
+    if (params.overallWidth) setOverallWidth(params.overallWidth);
+    if (params.overallLength) setOverallLength(params.overallLength);
+    if (typeof params.units1BHK === 'number') setUnits1BHK(params.units1BHK);
+    if (typeof params.units2BHK === 'number') setUnits2BHK(params.units2BHK);
+    if (typeof params.units3BHK === 'number') setUnits3BHK(params.units3BHK);
+    if (typeof params.units4BHK === 'number') setUnits4BHK(params.units4BHK);
+    if (typeof params.passengerLifts === 'number') setPassengerLifts(params.passengerLifts);
+    if (typeof params.staircases === 'number') setStaircases(params.staircases);
+    if (params.customPrompt) setCustomPrompt(params.customPrompt);
+  }, []);
+
+  const handleGenerateTrigger = useCallback(() => {
+    const syntheticEvent = { preventDefault: () => {} } as React.FormEvent;
+    handleGenerate(syntheticEvent);
+  }, [handleGenerate]);
+
   return (
     <div className={`min-h-screen font-mono flex flex-col relative overflow-hidden p-6 z-50 transition-colors duration-300 ${
       isClientMode ? 'bg-[#FDFCF7] text-[#0B4F30]' : 'bg-[#0a0a0f] text-cyan-400'
@@ -500,7 +520,7 @@ Output only the clean, tightly cropped 2D architectural floor plan.`;
           </div>
         )}
 
-        {/* Main Worksite Grid - Highly Balanced Layout */}
+        {/* Main Worksite Grid - 3 Column Layout */}
         <div className="relative z-10 flex-1 grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch overflow-hidden">
           
           {/* Column 1: Left Input Panel (Footprint & Unit Mix) */}
@@ -696,7 +716,7 @@ Output only the clean, tightly cropped 2D architectural floor plan.`;
           </div>
 
           {/* Column 2: Center Display Panel (Canvas & Circulation Core underneath) */}
-          <div className="lg:col-span-5 flex flex-col gap-4 overflow-y-auto no-scrollbar">
+          <div className="lg:col-span-4 flex flex-col gap-4 overflow-y-auto no-scrollbar">
             
             {/* Main Interactive CAD Canvas */}
             <div className="relative w-full aspect-[16/10] rounded-xl overflow-hidden border border-cyan-500/20 bg-[#050508] flex items-center justify-center p-6 shadow-2xl shrink-0">
@@ -915,52 +935,12 @@ Output only the clean, tightly cropped 2D architectural floor plan.`;
 
           </div>
 
-          {/* Column 3: Right Panel (Console Logs & Highlight Summary) */}
-          <div className="lg:col-span-3 flex flex-col gap-4 bg-slate-900/30 backdrop-blur border border-white/10 p-5 rounded-xl text-left overflow-y-auto no-scrollbar">
-            
-            <div className="flex items-center gap-2 border-b border-cyan-500/20 pb-2 mb-1 select-none">
-              <Terminal className="w-4 h-4 text-cyan-400" />
-              <span className="text-[10px] font-bold tracking-widest text-cyan-400 uppercase">CONSOLE FEED</span>
-            </div>
-            
-            <div className="flex-1 min-h-[140px] overflow-y-auto no-scrollbar flex flex-col gap-2 font-mono text-[9px] text-cyan-500/60 leading-normal pr-1 bg-black/10 p-2 rounded border border-white/5">
-              {logs.length === 0 ? (
-                <div className="italic text-cyan-500/30">[Awaiting command execution]</div>
-              ) : (
-                logs.map((log, idx) => (
-                  <div key={idx} className={log.startsWith('[ERR]') ? 'text-red-400' : log.startsWith('[SYS]') ? 'text-cyan-400' : 'text-cyan-500/60'}>
-                    {log}
-                  </div>
-                ))
-              )}
-            </div>
-
-            {/* Summary Details sheet */}
-            {resultImage && !isGenerating && (
-              <div className="flex flex-col gap-2.5 border-t border-cyan-500/20 pt-3.5 mt-1 animate-fadeIn select-none text-[11px] leading-relaxed">
-                <div className="flex items-center gap-1.5 text-cyan-400 font-bold">
-                  <Compass className="w-3.5 h-3.5" />
-                  <span className="uppercase tracking-wider">PROJECT SUMMARY</span>
-                </div>
-                <div className="text-[10px] text-white flex flex-col gap-1">
-                  <div>• Building: {storyCount} Stories</div>
-                  <div>• Wing Units: 16 Units/Floor</div>
-                  <div>• Lifts: 8 Pass / 2 Fire Lifts</div>
-                  <div>• Corridors: 2.40m Loop</div>
-                </div>
-
-                <div className="border-t border-white/5 pt-3 mt-1 flex flex-col gap-1.5 text-[9px] font-bold">
-                  <span className="text-cyan-500/60 uppercase tracking-wider block mb-0.5">KEY METRICS VALIDATED:</span>
-                  <div className="flex items-center gap-1.5 text-white"><Wind className="w-3.5 h-3.5 text-cyan-400" /> 360° PANORAMIC VIEW</div>
-                  <div className="flex items-center gap-1.5 text-white"><ShieldCheck className="w-3.5 h-3.5 text-cyan-400" /> EGRESS REMOTE EGRESS</div>
-                  <div className="flex items-center gap-1.5 text-white"><Sparkles className="w-3.5 h-3.5 text-cyan-400" /> BALANCED CENTRAL CORE</div>
-                </div>
-              </div>
-            )}
-
-            <div className="border-t border-cyan-500/15 pt-2 mt-auto text-[8px] text-cyan-500/40 font-mono select-none">
-              SYS STATUS: ONLINE // SECTOR 17
-            </div>
+          {/* Column 3: Right Panel — ARIA AI Architect Advisor */}
+          <div className="lg:col-span-4 flex flex-col overflow-hidden">
+            <ArchitectAdvisorPanel
+              onParamsApplied={handleParamsApplied}
+              onGenerateTrigger={handleGenerateTrigger}
+            />
           </div>
 
         </div>
