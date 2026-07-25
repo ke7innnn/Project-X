@@ -188,6 +188,7 @@ function getShapePoints(shapeId: string, cx: number, cy: number, w: number, h: n
 export default function ArchitectAdvisorPanel({ onParamsApplied, onGenerateTrigger }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const chatEndRef = useRef<HTMLDivElement>(null);
+  const chatContainerRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const CANVAS_W = 420;
@@ -505,7 +506,12 @@ export default function ArchitectAdvisorPanel({ onParamsApplied, onGenerateTrigg
   }, [polygon, hoverPt, isTracingClosed, bgImage, imgBounds, suggestedShape]);
 
   useEffect(() => {
-    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    if (chatContainerRef.current) {
+      chatContainerRef.current.scrollTo({
+        top: chatContainerRef.current.scrollHeight,
+        behavior: 'smooth'
+      });
+    }
   }, [messages]);
 
   const snapToGrid = (px: number, py: number): Point => ({
@@ -869,7 +875,7 @@ export default function ArchitectAdvisorPanel({ onParamsApplied, onGenerateTrigg
           {isLoading && <span className="ml-auto text-[9px] text-amber-400 flex items-center gap-1"><Loader2 className="w-3 h-3 animate-spin" /> ANALYZING</span>}
         </div>
 
-        <div className="flex-1 overflow-y-auto p-3 flex flex-col gap-3 min-h-0" style={{ scrollbarWidth: 'thin', scrollbarColor: 'rgba(0,240,255,0.2) transparent' }}>
+        <div ref={chatContainerRef} className="flex-1 overflow-y-auto p-3 flex flex-col gap-3 min-h-0" style={{ scrollbarWidth: 'thin', scrollbarColor: 'rgba(0,240,255,0.2) transparent' }}>
           {messages.map((msg, idx) => (
             <div key={idx} className={`flex flex-col gap-2 ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
               <div className={`max-w-[92%] rounded-xl px-3 py-2 text-[11px] leading-relaxed ${
