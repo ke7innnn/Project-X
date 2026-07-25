@@ -195,6 +195,8 @@ export default function ArchitectAdvisorPanel({ onParamsApplied, onGenerateTrigg
 
   const [polygon, setPolygon] = useState<Point[]>([]);
   const [isTracingClosed, setIsTracingClosed] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [hasAnalyzed, setHasAnalyzed] = useState(false);
   const [bgImage, setBgImage] = useState<HTMLImageElement | null>(null);
   const [bgScale, setBgScale] = useState(1);
   const [bgOffsetX, setBgOffsetX] = useState(0);
@@ -527,13 +529,21 @@ export default function ArchitectAdvisorPanel({ onParamsApplied, onGenerateTrigg
     const vertices = polygon.map(p => ({ x: Math.round(pxToM(p.x)), y: Math.round(pxToM(p.y)) }));
     const pd: PlotData = { widthM, lengthM, areaM2, shapeDesc: 'User-traced polygon on 10m grid', polygonVertices: vertices };
     setPlotData(pd);
-    const analysisMsg = `Plot traced! Dimensions: **${widthM}m × ${lengthM}m**, Area: **${areaM2}m²**. Please analyze and give me 3 building configurations with maximum flats and proper ventilation.`;
-    triggerAI(analysisMsg, pd);
+    setHasAnalyzed(false);
   }, [polygon]);
+
+  const handleAnalyzePlot = () => {
+    if (!plotData || hasAnalyzed) return;
+    setHasAnalyzed(true);
+    if (isFullscreen) setIsFullscreen(false); // exit fullscreen on analyze to view chat
+    const analysisMsg = `Plot closed! Dimensions: **${plotData.widthM}m × ${plotData.lengthM}m**, Area: **${plotData.areaM2}m²**. Please analyze and give me 3 building configurations with maximum flats and proper ventilation.`;
+    triggerAI(analysisMsg, plotData);
+  };
 
   const resetTrace = () => {
     setPolygon([]);
     setIsTracingClosed(false);
+    setHasAnalyzed(false);
     setPlotData(null);
     setSuggestedShape(null);
     setAppliedOptionId(null);
@@ -632,11 +642,16 @@ export default function ArchitectAdvisorPanel({ onParamsApplied, onGenerateTrigg
     <div className="flex flex-col h-full min-h-0 gap-3">
 
       {/* ── Plot Tracer Canvas ──────────────────────────────────────── */}
-      <div className="flex flex-col bg-slate-900/30 backdrop-blur border border-cyan-500/20 rounded-xl overflow-hidden shrink-0" style={{ maxHeight: '46%' }}>
-        <div className="flex items-center justify-between px-3 py-2 border-b border-cyan-500/15 select-none">
+      <div className={`flex flex-col bg-slate-900/30 backdrop-blur border border-cyan-500/20 overflow-hidden shrink-0 transition-all ${
+        isFullscreen 
+          ? 'fixed inset-4 z-[100] rounded-2xl shadow-[0_0_50px_rgba(0,240,255,0.2)]' 
+          : 'rounded-xl relative'
+      }`} style={{ maxHeight: isFullscreen ? 'none' : '46%' }}>
+        
+        <div className="flex items-center justify-between px-3 py-2 border-b border-cyan-500/15 select-none shrink-0">
           <div className="flex items-center gap-2">
             <MousePointer className="w-3.5 h-3.5 text-cyan-400" />
-            <span className="text-[10px] font-bold tracking-widest text-cyan-400 uppercase">PLOT TRACER — 10M GRID</span>
+            <span className="text-[10px] font-bold tracking-widest text-cyan-400 uppercase">PLOT TRACER</span>
           </div>
           <div className="flex items-center gap-1.5">
             {!isTracingClosed && polygon.length >= 3 && (
@@ -644,14 +659,28 @@ export default function ArchitectAdvisorPanel({ onParamsApplied, onGenerateTrigg
                 onClick={closePlot}
                 className="px-2 py-0.5 rounded text-[9px] font-bold bg-cyan-500/20 border border-cyan-400 text-cyan-300 hover:bg-cyan-500/30 cursor-pointer tracking-wider"
               >
-                CLOSE & ANALYZE
+                CLOSE PLOT
               </button>
             )}
+            {isTracingClosed && plotData && !hasAnalyzed && (
+              <button
+                onClick={handleAnalyzePlot}
+                className="px-2 py-0.5 rounded text-[9px] font-bold bg-gradient-to-r from-emerald-500/30 to-teal-500/20 border border-emerald-400 text-emerald-300 hover:from-emerald-500/40 cursor-pointer tracking-wider shadow-[0_0_10px_rgba(16,185,129,0.2)]"
+              >
+                ANALYZE SHAPE
+              </button>
+            )}
+            <button
+              onClick={() => setIsFullscreen(!isFullscreen)}
+              className="flex items-center gap-1 px-2 py-0.5 rounded text-[9px] text-cyan-500/70 border border-cyan-500/20 hover:border-cyan-400 hover:text-cyan-300 cursor-pointer transition-colors"
+            >
+              {isFullscreen ? 'COLLAPSE' : 'FULLSCREEN'}
+            </button>
             <button
               onClick={() => fileInputRef.current?.click()}
               className="flex items-center gap-1 px-2 py-0.5 rounded text-[9px] text-cyan-500/70 border border-cyan-500/20 hover:border-cyan-400 hover:text-cyan-300 cursor-pointer transition-colors"
             >
-              <Upload className="w-3 h-3" /> SITE PLAN
+              <Upload className="w-3 h-3" /> IMAGE
             </button>
             {polygon.length > 0 && (
               <button
@@ -679,15 +708,17 @@ export default function ArchitectAdvisorPanel({ onParamsApplied, onGenerateTrigg
           </div>
         )}
 
-        <canvas
-          ref={canvasRef}
-          width={CANVAS_W}
-          height={CANVAS_H}
-          onMouseMove={handleCanvasMouseMove}
-          onClick={handleCanvasClick}
-          onMouseLeave={() => setHoverPt(null)}
-          className="w-full cursor-crosshair"
-        />
+        <div className={`flex flex-col relative flex-1 min-h-0 ${isFullscreen ? 'items-center justify-center p-4' : ''}`}>
+          <canvas
+            ref={canvasRef}
+            width={CANVAS_W}
+            height={CANVAS_H}
+            onMouseMove={handleCanvasMouseMove}
+            onClick={handleCanvasClick}
+            onMouseLeave={() => setHoverPt(null)}
+            className={`cursor-crosshair ${isFullscreen ? 'w-auto h-full max-w-full object-contain bg-black/50 rounded-xl border border-white/10' : 'w-full'}`}
+          />
+        </div>
 
         {bgImage && (
           <div className="flex items-center justify-between px-3 py-1.5 bg-black/40 border-t border-cyan-500/10">

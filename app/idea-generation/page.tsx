@@ -938,7 +938,7 @@ Output only the clean, tightly cropped 2D architectural floor plan.`;
           </div>
 
           {/* Column 3: Right Panel — ARIA AI Architect Advisor */}
-          <div className="lg:col-span-4 flex flex-col overflow-hidden h-full">
+          <div className="lg:col-span-4 flex flex-col overflow-hidden h-full min-h-0">
             <ArchitectAdvisorPanel
               onParamsApplied={handleParamsApplied}
               onGenerateTrigger={handleGenerateTrigger}
