@@ -667,7 +667,7 @@ export default function ArchitectAdvisorPanel({ onParamsApplied, onGenerateTrigg
     if (!plotData || hasAnalyzed) return;
     setHasAnalyzed(true);
     if (isFullscreen) setIsFullscreen(false); // exit fullscreen on analyze to view chat
-    const analysisMsg = `Plot closed! Dimensions: **${plotData.widthM}m × ${plotData.lengthM}m**, Area: **${plotData.areaM2}m²**. Please analyze and give me 3 building configurations with maximum flats and proper ventilation.`;
+    const analysisMsg = `Plot closed! Dimensions: **${plotData.widthM}m × ${plotData.lengthM}m**, Area: **${plotData.areaM2}m²**. Please analyze the dimensions and ask me what building shape I want, or offer to suggest the best shape.`;
     triggerAI(analysisMsg, plotData);
   };
 
@@ -763,6 +763,10 @@ export default function ArchitectAdvisorPanel({ onParamsApplied, onGenerateTrigg
 
       const assistantMsg: ChatMessage = { role: 'assistant', content: data.message, options: data.options || undefined };
       setMessages(prev => [...prev.filter(m => !m.isTyping), assistantMsg]);
+
+      if (data.shapeSuggestion && data.shapeSuggestion.shapeId) {
+        setSuggestedShape(data.shapeSuggestion.shapeId);
+      }
 
       if (data.options && data.options.length > 0) {
         setSuggestedShape(data.options[0].footprintShape);
