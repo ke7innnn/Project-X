@@ -213,6 +213,10 @@ export default function ArchitectAdvisorPanel({ onParamsApplied, onGenerateTrigg
   const [outputW, setOutputW] = useState(1024);
   const [outputH, setOutputH] = useState(1024);
   
+  // Custom plot dimensions input
+  const [plotInputW, setPlotInputW] = useState('');
+  const [plotInputH, setPlotInputH] = useState('');
+
   // Custom architectural dimensions (meters)
   const [customW, setCustomW] = useState<string>('');
   const [customH, setCustomH] = useState<string>('');
@@ -506,9 +510,19 @@ export default function ArchitectAdvisorPanel({ onParamsApplied, onGenerateTrigg
   }, [polygon, hoverPt, isTracingClosed, bgImage, imgBounds, suggestedShape]);
 
   useEffect(() => {
-    // Smooth scroll page to show bottom of chat when new messages arrive
+    // Smooth scroll the closest scrollable container (the page wrapper) instead of using scrollIntoView
+    // which breaks the body's overflow-hidden layout in Next.js
     if (chatEndRef.current) {
-      chatEndRef.current.scrollIntoView({ behavior: 'smooth', block: 'end' });
+      const scrollContainer = chatEndRef.current.closest('.overflow-y-auto');
+      if (scrollContainer) {
+        // Use a slight delay to ensure DOM has expanded after state update
+        setTimeout(() => {
+          scrollContainer.scrollTo({
+            top: scrollContainer.scrollHeight,
+            behavior: 'smooth'
+          });
+        }, 100);
+      }
     }
   }, [messages]);
 
@@ -564,26 +578,26 @@ export default function ArchitectAdvisorPanel({ onParamsApplied, onGenerateTrigg
       if (dragMode === 'move') {
         x += dx;
         y += dy;
-      } else if (dragMode === 'br') {
-        w = Math.max(30, w + dx);
-        h = Math.max(30, h + dy);
-      } else if (dragMode === 'bl') {
-        const newW = Math.max(30, w - dx);
-        x = x + (w - newW);
-        w = newW;
-        h = Math.max(30, h + dy);
-      } else if (dragMode === 'tr') {
-        w = Math.max(30, w + dx);
-        const newH = Math.max(30, h - dy);
-        y = y + (h - newH);
-        h = newH;
-      } else if (dragMode === 'tl') {
-        const newW = Math.max(30, w - dx);
-        const newH = Math.max(30, h - dy);
-        x = x + (w - newW);
-        y = y + (h - newH);
-        w = newW;
-        h = newH;
+      } else {
+        // Proportional Canva-style scaling
+        const aspect = initialBounds.w / initialBounds.h;
+        if (dragMode === 'br') {
+          w = Math.max(30, initialBounds.w + dx);
+          h = w / aspect;
+        } else if (dragMode === 'bl') {
+          w = Math.max(30, initialBounds.w - dx);
+          h = w / aspect;
+          x = initialBounds.x + (initialBounds.w - w);
+        } else if (dragMode === 'tr') {
+          w = Math.max(30, initialBounds.w + dx);
+          h = w / aspect;
+          y = initialBounds.y + (initialBounds.h - h);
+        } else if (dragMode === 'tl') {
+          w = Math.max(30, initialBounds.w - dx);
+          h = w / aspect;
+          x = initialBounds.x + (initialBounds.w - w);
+          y = initialBounds.y + (initialBounds.h - h);
+        }
       }
 
       setImgBounds({ x, y, w, h });
@@ -667,6 +681,35 @@ export default function ArchitectAdvisorPanel({ onParamsApplied, onGenerateTrigg
     setParamsApplied(false);
     setBgImage(null);
     setImgBounds(null);
+  };
+
+  const handleSetExactPlot = () => {
+    const w = parseFloat(plotInputW);
+    const h = parseFloat(plotInputH);
+    if (!w || !h || w <= 0 || h <= 0) return;
+    
+    // Create perfect rectangle centered on grid
+    const wPx = (w / CELL_M) * CELL_PX;
+    const hPx = (h / CELL_M) * CELL_PX;
+    const cx = CANVAS_W / 2;
+    const cy = CANVAS_H / 2;
+    
+    const poly: Point[] = [
+      { x: cx - wPx / 2, y: cy - hPx / 2 },
+      { x: cx + wPx / 2, y: cy - hPx / 2 },
+      { x: cx + wPx / 2, y: cy + hPx / 2 },
+      { x: cx - wPx / 2, y: cy + hPx / 2 }
+    ];
+    setPolygon(poly);
+    setIsTracingClosed(true);
+    setHasAnalyzed(false);
+    setPlotData({
+      widthM: w,
+      lengthM: h,
+      areaM2: w * h,
+      shapeDesc: 'Rectangular plot',
+      polygonVertices: poly.map(p => ({ x: Math.round(pxToM(p.x)), y: Math.round(pxToM(p.y)) }))
+    });
   };
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -804,6 +847,31 @@ export default function ArchitectAdvisorPanel({ onParamsApplied, onGenerateTrigg
                 ANALYZE SHAPE
               </button>
             )}
+            
+            <div className="flex items-center ml-2 border-l border-cyan-500/20 pl-2 gap-1">
+              <input 
+                type="text" 
+                placeholder="W" 
+                value={plotInputW}
+                onChange={e => setPlotInputW(e.target.value)}
+                className="w-10 h-5 bg-black/40 border border-cyan-500/30 text-cyan-400 text-[9px] px-1 focus:outline-none focus:border-cyan-400 text-center rounded"
+              />
+              <span className="text-cyan-500/50 text-[9px]">×</span>
+              <input 
+                type="text" 
+                placeholder="H" 
+                value={plotInputH}
+                onChange={e => setPlotInputH(e.target.value)}
+                className="w-10 h-5 bg-black/40 border border-cyan-500/30 text-cyan-400 text-[9px] px-1 focus:outline-none focus:border-cyan-400 text-center rounded"
+              />
+              <button
+                onClick={handleSetExactPlot}
+                className="px-1.5 py-0.5 ml-1 rounded text-[9px] bg-cyan-500/10 border border-cyan-500/30 text-cyan-400 hover:bg-cyan-500/20 cursor-pointer"
+              >
+                SET
+              </button>
+            </div>
+
             <button
               onClick={() => setIsFullscreen(!isFullscreen)}
               className="flex items-center gap-1 px-2 py-0.5 rounded text-[9px] text-cyan-500/70 border border-cyan-500/20 hover:border-cyan-400 hover:text-cyan-300 cursor-pointer transition-colors"
