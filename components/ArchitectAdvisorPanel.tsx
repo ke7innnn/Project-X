@@ -312,7 +312,7 @@ export default function ArchitectAdvisorPanel({ onParamsApplied, onGenerateTrigg
       ctx.closePath();
       ctx.clip(); // Ensure shape never bleeds outside the traced plot boundary
 
-      const shapePad = 0.08; // 8% inset from plot edge
+      const shapePad = 0.20; // 20% architectural setback margin from plot edge
       const shapeCx = (scaledPts.reduce((s, p) => s + p.x, 0) / scaledPts.length);
       const shapeCy = (scaledPts.reduce((s, p) => s + p.y, 0) / scaledPts.length);
       const shapeW = scaledPolyW * (1 - shapePad * 2);
@@ -465,8 +465,12 @@ export default function ArchitectAdvisorPanel({ onParamsApplied, onGenerateTrigg
           const bbox = polygonBBox(polygon);
           const shapeCx = (bbox.minX + bbox.maxX) / 2;
           const shapeCy = (bbox.minY + bbox.maxY) / 2;
-          const pad = 8;
-          const shapePolygons = getShapePoints(suggestedShape, shapeCx, shapeCy, bbox.w - pad * 2, bbox.h - pad * 2);
+          
+          // Apply a 20% architectural setback margin from the bounding box
+          const padX = bbox.w * 0.20;
+          const padY = bbox.h * 0.20;
+          
+          const shapePolygons = getShapePoints(suggestedShape, shapeCx, shapeCy, bbox.w - padX * 2, bbox.h - padY * 2);
           shapePolygons.forEach(shapePts => {
             if (shapePts.length < 3) return;
             ctx.fillStyle = 'rgba(255, 165, 0, 0.18)';
