@@ -196,6 +196,9 @@ export default function ArchitectAdvisorPanel({ onParamsApplied, onGenerateTrigg
   const [polygon, setPolygon] = useState<Point[]>([]);
   const [isTracingClosed, setIsTracingClosed] = useState(false);
   const [bgImage, setBgImage] = useState<HTMLImageElement | null>(null);
+  const [bgScale, setBgScale] = useState(1);
+  const [bgOffsetX, setBgOffsetX] = useState(0);
+  const [bgOffsetY, setBgOffsetY] = useState(0);
   const [hoverPt, setHoverPt] = useState<Point | null>(null);
   const [plotData, setPlotData] = useState<PlotData | null>(null);
   const [suggestedShape, setSuggestedShape] = useState<string | null>(null);
@@ -352,7 +355,11 @@ export default function ArchitectAdvisorPanel({ onParamsApplied, onGenerateTrigg
 
     if (bgImage) {
       ctx.globalAlpha = 0.28;
-      ctx.drawImage(bgImage, 0, 0, CANVAS_W, CANVAS_H);
+      const w = CANVAS_W * bgScale;
+      const h = CANVAS_H * bgScale;
+      const x = (CANVAS_W - w) / 2 + bgOffsetX;
+      const y = (CANVAS_H - h) / 2 + bgOffsetY;
+      ctx.drawImage(bgImage, x, y, w, h);
       ctx.globalAlpha = 1;
     }
 
@@ -648,7 +655,13 @@ export default function ArchitectAdvisorPanel({ onParamsApplied, onGenerateTrigg
             </button>
             {polygon.length > 0 && (
               <button
-                onClick={resetTrace}
+                onClick={() => {
+                  resetTrace();
+                  setBgImage(null);
+                  setBgScale(1);
+                  setBgOffsetX(0);
+                  setBgOffsetY(0);
+                }}
                 className="flex items-center gap-1 px-2 py-0.5 rounded text-[9px] text-red-400/70 border border-red-500/20 hover:border-red-400 hover:text-red-400 cursor-pointer"
               >
                 <RotateCcw className="w-3 h-3" /> RESET
@@ -675,6 +688,27 @@ export default function ArchitectAdvisorPanel({ onParamsApplied, onGenerateTrigg
           onMouseLeave={() => setHoverPt(null)}
           className="w-full cursor-crosshair"
         />
+
+        {bgImage && (
+          <div className="flex items-center justify-between px-3 py-1.5 bg-black/40 border-t border-cyan-500/10">
+            <div className="flex items-center gap-2">
+              <span className="text-[8px] font-bold text-cyan-500/60 uppercase">IMAGE ZOOM</span>
+              <input 
+                type="range" min="0.2" max="5" step="0.1" 
+                value={bgScale} 
+                onChange={e => setBgScale(parseFloat(e.target.value))}
+                className="w-20 accent-cyan-400 cursor-pointer"
+              />
+            </div>
+            <div className="flex items-center gap-1">
+              <span className="text-[8px] font-bold text-cyan-500/60 uppercase mr-1">PAN</span>
+              <button onClick={() => setBgOffsetX(x => x - 20)} className="w-5 h-5 flex items-center justify-center bg-cyan-500/20 text-cyan-400 rounded hover:bg-cyan-500/40 cursor-pointer">◄</button>
+              <button onClick={() => setBgOffsetY(y => y - 20)} className="w-5 h-5 flex items-center justify-center bg-cyan-500/20 text-cyan-400 rounded hover:bg-cyan-500/40 cursor-pointer">▲</button>
+              <button onClick={() => setBgOffsetY(y => y + 20)} className="w-5 h-5 flex items-center justify-center bg-cyan-500/20 text-cyan-400 rounded hover:bg-cyan-500/40 cursor-pointer">▼</button>
+              <button onClick={() => setBgOffsetX(x => x + 20)} className="w-5 h-5 flex items-center justify-center bg-cyan-500/20 text-cyan-400 rounded hover:bg-cyan-500/40 cursor-pointer">►</button>
+            </div>
+          </div>
+        )}
 
         {isTracingClosed && plotData && (
           <div className="flex items-center justify-between px-3 py-1.5 text-[9px] font-mono border-t border-white/5">
