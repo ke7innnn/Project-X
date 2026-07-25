@@ -305,6 +305,13 @@ export default function ArchitectAdvisorPanel({ onParamsApplied, onGenerateTrigg
 
     // Draw suggested building shape inside plot (centered, ~85% of plot bbox, with margin)
     if (suggestedShape) {
+      ctx.save();
+      ctx.beginPath();
+      ctx.moveTo(scaledPts[0].x, scaledPts[0].y);
+      scaledPts.slice(1).forEach(p => ctx.lineTo(p.x, p.y));
+      ctx.closePath();
+      ctx.clip(); // Ensure shape never bleeds outside the traced plot boundary
+
       const shapePad = 0.08; // 8% inset from plot edge
       const shapeCx = (scaledPts.reduce((s, p) => s + p.x, 0) / scaledPts.length);
       const shapeCy = (scaledPts.reduce((s, p) => s + p.y, 0) / scaledPts.length);
@@ -331,6 +338,8 @@ export default function ArchitectAdvisorPanel({ onParamsApplied, onGenerateTrigg
       ctx.textAlign = 'center';
       ctx.fillText(suggestedShape.toUpperCase().replace(/-/g, ' '), shapeCx, shapeCy);
       ctx.textAlign = 'left';
+      
+      ctx.restore();
     }
 
     // Return base64 (strip the data:image/png;base64, prefix)
@@ -446,6 +455,13 @@ export default function ArchitectAdvisorPanel({ onParamsApplied, onGenerateTrigg
 
         // Suggested shape overlay
         if (suggestedShape) {
+          ctx.save();
+          ctx.beginPath();
+          ctx.moveTo(polygon[0].x, polygon[0].y);
+          polygon.slice(1).forEach(p => ctx.lineTo(p.x, p.y));
+          ctx.closePath();
+          ctx.clip(); // Ensure shape never bleeds outside the traced plot boundary
+
           const bbox = polygonBBox(polygon);
           const shapeCx = (bbox.minX + bbox.maxX) / 2;
           const shapeCy = (bbox.minY + bbox.maxY) / 2;
@@ -469,6 +485,8 @@ export default function ArchitectAdvisorPanel({ onParamsApplied, onGenerateTrigg
           const bbox2 = polygonBBox(polygon);
           ctx.fillText('BUILDING SHAPE', (bbox2.minX + bbox2.maxX) / 2, (bbox2.minY + bbox2.maxY) / 2);
           ctx.textAlign = 'left';
+          
+          ctx.restore();
         }
 
         // Dimension labels
