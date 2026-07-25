@@ -493,10 +493,10 @@ export default function ArchitectAdvisorPanel({ onParamsApplied, onGenerateTrigg
   };
 
   return (
-    <div className="flex flex-col h-full gap-3">
+    <div className="flex flex-col h-full min-h-0 gap-3">
 
       {/* ── Plot Tracer Canvas ──────────────────────────────────────── */}
-      <div className="flex flex-col bg-slate-900/30 backdrop-blur border border-cyan-500/20 rounded-xl overflow-hidden shrink-0">
+      <div className="flex flex-col bg-slate-900/30 backdrop-blur border border-cyan-500/20 rounded-xl overflow-hidden shrink-0" style={{ maxHeight: '46%' }}>
         <div className="flex items-center justify-between px-3 py-2 border-b border-cyan-500/15 select-none">
           <div className="flex items-center gap-2">
             <MousePointer className="w-3.5 h-3.5 text-cyan-400" />
@@ -565,7 +565,7 @@ export default function ArchitectAdvisorPanel({ onParamsApplied, onGenerateTrigg
           {isLoading && <span className="ml-auto text-[9px] text-amber-400 flex items-center gap-1"><Loader2 className="w-3 h-3 animate-spin" /> ANALYZING</span>}
         </div>
 
-        <div className="flex-1 overflow-y-auto no-scrollbar p-3 flex flex-col gap-3 min-h-0">
+        <div className="flex-1 overflow-y-auto p-3 flex flex-col gap-3 min-h-0" style={{ scrollbarWidth: 'thin', scrollbarColor: 'rgba(0,240,255,0.2) transparent' }}>
           {messages.map((msg, idx) => (
             <div key={idx} className={`flex flex-col gap-2 ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
               <div className={`max-w-[92%] rounded-xl px-3 py-2 text-[11px] leading-relaxed ${
