@@ -381,7 +381,8 @@ CRITICAL INSTRUCTIONS:
 - Extrude the walls exactly according to the 2D floor plan. Do not invent new structures outside the footprint.
 - Apply high-quality textures, realistic global illumination, and ray-traced shadows.
 - Ensure the lighting direction strictly matches the requested sunpath direction.
-- The environment should reflect the requested style beautifully.`;
+- The environment should reflect the requested style beautifully.
+- Do NOT include any text, dimensions, labels, or numbers in the final 3D render. The floor plan input contains text labels and dimensions, but these must be completely ignored and excluded from the photorealistic 3D output.`;
 };
 
 export const EDIT_RENDER_TRANSLATOR_SYSTEM_PROMPT = (params: any, isInpaint?: boolean) => {
