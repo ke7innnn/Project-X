@@ -71,6 +71,22 @@ function polygonBBox(pts: Point[]) {
   return { minX, minY, maxX, maxY, w: maxX - minX, h: maxY - minY };
 }
 
+function polygonCentroid(pts: Point[]) {
+  if (!pts.length) return { x: 0, y: 0 };
+  if (pts.length === 1) return pts[0];
+  if (pts.length === 2) return { x: (pts[0].x + pts[1].x) / 2, y: (pts[0].y + pts[1].y) / 2 };
+  let cx = 0, cy = 0, area = 0;
+  // If the polygon is open, we implicitly close it by iterating from the last point to the first
+  for (let i = 0, j = pts.length - 1; i < pts.length; j = i++) {
+    const f = pts[j].x * pts[i].y - pts[i].x * pts[j].y;
+    cx += (pts[j].x + pts[i].x) * f;
+    cy += (pts[j].y + pts[i].y) * f;
+    area += f * 3;
+  }
+  if (area === 0) return { x: pts[0].x, y: pts[0].y };
+  return { x: cx / area, y: cy / area };
+}
+
 function getShapePoints(shapeId: string, cx: number, cy: number, w: number, h: number): Point[][] {
   const hw = w / 2, hh = h / 2;
   const id = shapeId.toLowerCase();
@@ -259,9 +275,9 @@ export default function ArchitectAdvisorPanel({ onParamsApplied, onGenerateTrigg
 
     // If a suggested shape is selected, ONLY export the shape itself (for typical floor plan generation)
     if (suggestedShape) {
-      const margin = 0.15; // 15% margin
-      const availW = outputW * (1 - margin * 2);
-      const availH = outputH * (1 - margin * 2);
+      const marginPx = 10; // 10px margin from image edges
+      const availW = outputW - (marginPx * 2);
+      const availH = outputH - (marginPx * 2);
       
       const shapePolygons = getShapePoints(suggestedShape, outputW / 2, outputH / 2, availW, availH);
       shapePolygons.forEach(shapePts => {
@@ -438,12 +454,13 @@ export default function ArchitectAdvisorPanel({ onParamsApplied, onGenerateTrigg
           ctx.clip(); // Ensure shape never bleeds outside the traced plot boundary
 
           const bbox = polygonBBox(polygon);
-          const shapeCx = (bbox.minX + bbox.maxX) / 2;
-          const shapeCy = (bbox.minY + bbox.maxY) / 2;
+          const centroid = polygonCentroid(polygon);
+          const shapeCx = centroid.x;
+          const shapeCy = centroid.y;
           
-          // Increase margin to 35% so it's much smaller and stays safely away from edges
-          const padX = bbox.w * 0.35;
-          const padY = bbox.h * 0.35;
+          // Increase margin to 40% so it's much smaller and stays safely away from edges
+          const padX = bbox.w * 0.40;
+          const padY = bbox.h * 0.40;
           
           ctx.save();
           // Add clipping path for the UI drawing as well so it never bleeds out of the cyan polygon
