@@ -20,7 +20,8 @@ import {
   Layers,
   ShieldCheck,
   Wind,
-  Camera
+  Camera,
+  X
 } from 'lucide-react';
 import Image from 'next/image';
 import ClientExportModal from '@/components/ClientExportModal';
@@ -107,6 +108,10 @@ export default function IdeaGenerationPage() {
   const [variantsHistory, setVariantsHistory] = useState<string[]>([]);
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
   const [isClientMode, setIsClientMode] = useState(false);
+  
+  // Realtime Logs State
+  const [debugPayload, setDebugPayload] = useState<{ prompt: string; imageBase64?: string } | null>(null);
+  const [showDebugModal, setShowDebugModal] = useState(false);
 
   // Load project configuration from activeProject config on mount or project switch
   useEffect(() => {
@@ -297,6 +302,12 @@ High-end professional architectural presentation style.
 
 Output ONLY the pristine, highly detailed 2D architectural CAD floor plan.`;
 
+        // Store the exact payload for the realtime logs UI
+        setDebugPayload({
+          prompt: promptText,
+          imageBase64: aiOpts?.tracerImageBase64
+        });
+
         const activePreset = FOOTPRINT_PRESETS.find(f => f.id === footprintShape);
         const imageSize = activePreset?.recommendedImageSize || 'square_hd';
 
@@ -446,6 +457,20 @@ Output ONLY the pristine, highly detailed 2D architectural CAD floor plan.`;
 
           {/* Mode Selector and API Configuration */}
           <div className="flex items-center gap-3">
+            {debugPayload && (
+              <button
+                onClick={() => setShowDebugModal(true)}
+                className={`p-1.5 px-3 border rounded text-[10px] font-bold tracking-wider transition-all flex items-center gap-1.5 animate-fadeIn ${
+                  isClientMode
+                    ? 'border-indigo-600/30 text-indigo-600 bg-indigo-50 hover:bg-indigo-100'
+                    : 'border-indigo-500/50 text-indigo-400 bg-indigo-950/30 hover:bg-indigo-900/50 shadow-[0_0_15px_rgba(99,102,241,0.2)]'
+                }`}
+              >
+                <Terminal className="w-3 h-3" />
+                API PAYLOAD LOGS
+              </button>
+            )}
+            
             <button
               onClick={() => setIsClientMode(!isClientMode)}
               className={`px-3 py-1.5 rounded border text-[10px] font-bold tracking-wider uppercase transition-all cursor-pointer ${
@@ -952,6 +977,49 @@ Output ONLY the pristine, highly detailed 2D architectural CAD floor plan.`;
           </div>
 
         </div>
+
+        {/* API Payload Logs Modal */}
+        {showDebugModal && debugPayload && (
+          <div className="fixed inset-0 z-[200] bg-black/80 backdrop-blur-sm flex items-center justify-center p-6 animate-fadeIn">
+            <div className="bg-[#0a0a0f] border border-indigo-500/30 rounded-xl max-w-4xl w-full max-h-[85vh] flex flex-col overflow-hidden shadow-[0_0_50px_rgba(99,102,241,0.15)]">
+              <div className="flex items-center justify-between p-4 border-b border-indigo-500/20 bg-indigo-950/20">
+                <div className="flex items-center gap-2 text-indigo-400">
+                  <Terminal className="w-4 h-4" />
+                  <span className="text-xs font-bold tracking-widest uppercase">Raw AI Generation Payload</span>
+                </div>
+                <button onClick={() => setShowDebugModal(false)} className="text-indigo-400/60 hover:text-white p-1 transition-colors">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              
+              <div className="flex-1 overflow-y-auto p-6 flex flex-col gap-6">
+                <div className="flex flex-col gap-2">
+                  <span className="text-[10px] text-indigo-400/60 uppercase tracking-widest font-bold">1. System Prompt (Text-to-Image Layer)</span>
+                  <div className="p-4 bg-black/60 border border-indigo-500/20 rounded-lg text-[11px] text-indigo-200 font-mono whitespace-pre-wrap leading-relaxed shadow-inner">
+                    {debugPayload.prompt}
+                  </div>
+                </div>
+                
+                <div className="flex flex-col gap-2">
+                  <span className="text-[10px] text-indigo-400/60 uppercase tracking-widest font-bold">2. Base64 ControlNet Canvas (Image-to-Image Layer)</span>
+                  {debugPayload.imageBase64 ? (
+                    <div className="p-4 bg-white border border-indigo-500/20 rounded-lg flex items-center justify-center min-h-[300px] bg-[url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyMCIgaGVpZ2h0PSIyMCI+CjxyZWN0IHdpZHRoPSIyMCIgaGVpZ2h0PSIyMCIgZmlsbD0iI2ZmZmZmZiI+PC9yZWN0Pgo8cmVjdCB3aWR0aD0iMTAiIGhlaWdodD0iMTAiIGZpbGw9IiNmM2YzZjMiPjwvcmVjdD4KPHJlY3QgeD0iMTAiIHk9IjEwIiB3aWR0aD0iMTAiIGhlaWdodD0iMTAiIGZpbGw9IiNmM2YzZjMiPjwvcmVjdD4KPC9zdmc+')]">
+                      <img 
+                        src={`data:image/png;base64,${debugPayload.imageBase64}`} 
+                        alt="Base64 Payload"
+                        className="max-w-full max-h-[400px] object-contain border border-black/10 shadow-lg"
+                      />
+                    </div>
+                  ) : (
+                    <div className="p-4 bg-black/60 border border-red-500/20 rounded-lg text-[11px] text-red-400 font-mono flex items-center gap-2">
+                      <AlertTriangle className="w-4 h-4" /> NO CANVAS IMAGE ATTACHED (Falling back to Text-Only mode)
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
       </div>
   );
