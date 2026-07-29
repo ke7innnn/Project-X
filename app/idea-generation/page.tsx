@@ -271,35 +271,94 @@ export default function IdeaGenerationPage() {
         // Dynamically build unit labels list e.g. F01, F02, ... F10 based on user UI totalUnits
         const labelList = Array.from({ length: totalUnits }, (_, i) => `F${String(i + 1).padStart(2, '0')}`).join(', ');
         
-        const promptText = `Generate a highly detailed, professional 2D architectural CAD typical floor plan for a luxury high-rise ${styleName} residential tower (${overallWidth}m x ${overallLength}m).
+        const promptText = `MISSION
+Optimise the internal architectural planning of the supplied building footprint without modifying the footprint itself.
 
-CRITICAL SHAPE CONSTRAINT:
-The outermost exterior walls of the building MUST strictly conform to and perfectly trace the solid shape silhouette provided in the input image. DO NOT draw outside this footprint. All rooms and balconies must be tightly packed inside this exact geometric shape boundary.
+ROLE
+You are an expert architectural planning AI specialising in residential high-rise buildings. Produce realistic, buildable CAD floor plans following professional architectural planning principles.
 
-CORE & CIRCULATION:
-- Place a highly efficient, compact central structural core containing ${passengerLifts} passenger lifts and ${staircases} fire staircases (shaded in solid grey).
-- Radiate wide, clean circulation corridors (e.g., 2.4m wide) connecting the central core to the individual apartment entrances.
+INPUT
+The input image represents a binary building footprint mask. It is a geometric constraint. It is NOT a style reference. The building massing has already been finalised. Only the internal planning should be optimised.
 
-UNIT MIX & ZONING:
-Design exactly ${totalUnits} independent, non-connected apartments (${mixBreakdownParts}).
-- Neighboring flats must be separated by thick, solid continuous partition walls.
-- Each apartment must have a complete continuous boundary and ONE independent main entrance door opening directly to the central corridor.
-${ventStr}${vaastuStr}${fireSafetyStr}${customPrompt ? `Notes: ${customPrompt}.` : ''}
+HARD CONSTRAINTS (HIGHEST PRIORITY)
+* The supplied footprint is authoritative.
+* Preserve approximately 95–100% footprint similarity.
+* Minor wall-thickness adjustments are acceptable.
+* Do not rotate, mirror, stretch, simplify or reinterpret the footprint.
+* Architecture must adapt to the footprint. The footprint must never adapt to the architecture.
+* Every architectural element must remain inside the supplied footprint.
+* Nothing may extend beyond the boundary.
+* If any instruction conflicts with the footprint, preserve the footprint.
 
-APARTMENT LAYOUT & FURNITURE (LUXURY STYLE):
-- Every living room, bedroom, and kitchen MUST directly touch the outer glass façade for panoramic views and natural daylight.
-- Include lush, curved panoramic balconies (shaded light green) along the outer perimeter edges of the shape.
-- Fully furnish every apartment with high-quality architectural CAD furniture blocks: master beds, dining tables, L-shaped sofas, kitchen counters, and bathroom fixtures.
+PROJECT PARAMETERS
+* Building Type: Luxury high-rise ${styleName} residential tower
+* Footprint Size: ${overallWidth}m x ${overallLength}m
+* Apartment Count: ${totalUnits}
+* Apartment Mix: ${mixBreakdownParts}
+* Lifts: ${passengerLifts} passenger lifts
+* Stairs: ${staircases} fire staircases
+* Labels: ${labelList}
+* Preferences: ${ventStr}${vaastuStr}${fireSafetyStr}${customPrompt ? `Notes: ${customPrompt}` : 'None'}
 
-GRAPHICAL STYLE (MATCH REFERENCE):
-High-end professional architectural presentation style.
-- Thick, bold black double-lines for exterior and core structural walls.
-- Light warm beige/wood textures for living areas and bedrooms.
-- Light blue tint for bathrooms and plumbing shafts.
-- Solid grey for the central lift/stair core.
-- Light green for exterior perimeter balconies.
-- Clean white background outside the building footprint.
+ARCHITECTURAL OBJECTIVES
+Maximise: usable apartment area, façade utilisation, natural daylight, natural ventilation, planning efficiency.
+Minimise: wasted circulation, unusable spaces, awkward geometry, dead-end corridors.
+Each apartment must:
+* have one independent entrance
+* have continuous enclosing walls
+* be directly accessible from the corridor
+* maintain realistic proportions
+* maintain privacy
+Living spaces must be placed along the exterior façade whenever practical.
+Bathrooms and utilities must be grouped around shafts where practical.
+Every wall and corridor must serve a functional purpose.
 
+PLANNING PHILOSOPHY
+Function over aesthetics.
+Efficiency over symmetry.
+Buildability over artistic interpretation.
+Architectural realism over creativity.
+
+GENERATION STRATEGY
+1. Preserve the footprint.
+2. Position the structural core.
+3. Create circulation.
+4. Divide apartment boundaries.
+5. Arrange internal planning.
+6. Refine walls.
+7. Produce the final CAD drawing.
+
+DRAWING STYLE
+Generate: monochrome CAD drawing, crisp black linework, thick exterior walls, thinner internal walls, CAD doors, CAD windows, lift symbols, stair symbols, shafts, ducts.
+Do NOT generate: furniture, textures, colours, rendering, shadows, landscaping, decorative graphics.
+Do not label rooms.
+Label apartments only using: ${labelList}.
+One apartment label per apartment.
+No dimensions, notes, legends or north arrows.
+
+NEGATIVE CONSTRAINTS
+* Do not hallucinate geometry.
+* Do not invent missing building portions.
+* Do not generate outside the footprint.
+* Do not overlap apartments.
+* Do not generate disconnected rooms.
+* Do not force rectangular layouts.
+* Do not optimise by modifying the footprint.
+
+QUALITY CHECKLIST
+✓ footprint preserved
+✓ everything inside boundary
+✓ apartment count correct
+✓ independent entrances
+✓ continuous walls
+✓ efficient circulation
+✓ compact core
+✓ exterior-facing habitable spaces where practical
+✓ professional CAD drafting
+✓ no furniture
+✓ apartment labels only
+
+FINAL OBJECTIVE
 Output ONLY the pristine, highly detailed 2D architectural CAD floor plan.`;
 
         // Store the exact payload for the realtime logs UI
