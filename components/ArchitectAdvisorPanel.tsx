@@ -277,6 +277,7 @@ export default function ArchitectAdvisorPanel({ onParamsApplied, onGenerateTrigg
   const chatContainerRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const buildingAreaRef = useRef<number | null>(null);
+  const finalShapePolygonsRef = useRef<Point[][] | null>(null);
 
   const [canvasW, setCanvasW] = useState(1260);
   const [canvasH, setCanvasH] = useState(780);
@@ -367,20 +368,41 @@ export default function ArchitectAdvisorPanel({ onParamsApplied, onGenerateTrigg
     ctx.fillRect(0, 0, outputW, outputH);
 
     // If a suggested shape is selected, ONLY export the shape itself (for typical floor plan generation)
-    if (suggestedShape) {
-      const marginPx = 10; // 10px margin from image edges
+    // using the exact aspect ratio and rotation optimized by the physics engine
+    if (suggestedShape && finalShapePolygonsRef.current) {
+      const shapePolygons = finalShapePolygonsRef.current;
+      
+      // Calculate bounding box of the optimized shape
+      const allPts = shapePolygons.flat();
+      const minX = Math.min(...allPts.map(p => p.x));
+      const maxX = Math.max(...allPts.map(p => p.x));
+      const minY = Math.min(...allPts.map(p => p.y));
+      const maxY = Math.max(...allPts.map(p => p.y));
+      const shapeW = maxX - minX;
+      const shapeH = maxY - minY;
+
+      const marginPx = 10;
       const availW = outputW - (marginPx * 2);
       const availH = outputH - (marginPx * 2);
       
-      const shapePolygons = getShapePoints(suggestedShape, outputW / 2, outputH / 2, availW, availH);
+      // Scale up the shape to fill the 1024x1024 canvas while maintaining its exact aspect ratio
+      const scale = Math.min(availW / shapeW, availH / shapeH);
+      const offsetX = (outputW - shapeW * scale) / 2 - minX * scale;
+      const offsetY = (outputH - shapeH * scale) / 2 - minY * scale;
+      
       shapePolygons.forEach(shapePts => {
         if (shapePts.length < 3) return;
         ctx.fillStyle = '#f0f0f0'; // light grey = building footprint for AI
         ctx.strokeStyle = '#000000'; // thick black outline
         ctx.lineWidth = Math.max(3, outputW / 200);
+        ctx.lineJoin = 'miter';
         ctx.beginPath();
-        ctx.moveTo(shapePts[0].x, shapePts[0].y);
-        shapePts.slice(1).forEach(p => ctx.lineTo(p.x, p.y));
+        
+        const tx = (p: Point) => p.x * scale + offsetX;
+        const ty = (p: Point) => p.y * scale + offsetY;
+        
+        ctx.moveTo(tx(shapePts[0]), ty(shapePts[0]));
+        shapePts.slice(1).forEach(p => ctx.lineTo(tx(p), ty(p)));
         ctx.closePath();
         ctx.fill();
         ctx.stroke();
@@ -636,6 +658,7 @@ export default function ArchitectAdvisorPanel({ onParamsApplied, onGenerateTrigg
              totalBuildingAreaM2 += polygonAreaM2(pts);
           });
           buildingAreaRef.current = totalBuildingAreaM2;
+          finalShapePolygonsRef.current = shapePolygons;
           
           ctx.save();
           
