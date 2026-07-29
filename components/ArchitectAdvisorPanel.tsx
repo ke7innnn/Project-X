@@ -456,23 +456,43 @@ export default function ArchitectAdvisorPanel({ onParamsApplied, onGenerateTrigg
 
     const scalePt = (p: Point) => ({ x: p.x * scale + offsetX, y: p.y * scale + offsetY });
 
-    // Draw plot boundary fill
+    // Clip the canvas to only draw inside the plot boundary
     const scaledPts = polygon.map(scalePt);
-    ctx.fillStyle = '#f0f0f0';
     ctx.beginPath();
     ctx.moveTo(scaledPts[0].x, scaledPts[0].y);
     scaledPts.slice(1).forEach(p => ctx.lineTo(p.x, p.y));
     ctx.closePath();
-    ctx.fill();
 
-    // Draw plot boundary stroke
+    ctx.save();
+    ctx.clip();
+
+    // Draw a mock "existing" CAD interior pattern to trick the edit model
     ctx.strokeStyle = '#000000';
-    ctx.lineWidth = Math.max(3, outputW / 200);
+    ctx.lineWidth = 1.5;
+    const grid = 80;
+    for (let x = 0; x < outputW; x += grid) {
+      for (let y = 0; y < outputH; y += grid) {
+        // Draw mock room partitions
+        ctx.strokeRect(x, y, grid, grid);
+        // Draw mock door arcs
+        ctx.beginPath();
+        ctx.moveTo(x + 20, y + grid);
+        ctx.arc(x + 20, y + grid, 20, 0, -Math.PI/2, true);
+        ctx.stroke();
+        // Draw mock labels
+        ctx.fillStyle = '#000000';
+        ctx.font = 'bold 10px monospace';
+        ctx.fillText('EXISTING', x + 15, y + 35);
+        ctx.fillText('SPACE', x + 25, y + 50);
+      }
+    }
+
+    ctx.restore();
+
+    // Draw plot boundary stroke over the pattern
+    ctx.strokeStyle = '#000000';
+    ctx.lineWidth = Math.max(5, outputW / 150);
     ctx.lineJoin = 'miter';
-    ctx.beginPath();
-    ctx.moveTo(scaledPts[0].x, scaledPts[0].y);
-    scaledPts.slice(1).forEach(p => ctx.lineTo(p.x, p.y));
-    ctx.closePath();
     ctx.stroke();
 
     // Return base64 (strip the data:image/png;base64, prefix)
