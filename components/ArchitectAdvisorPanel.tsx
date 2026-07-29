@@ -114,6 +114,20 @@ function generateShapeOutlinePoints(shape: Point[], segments: number = 10): Poin
   return points;
 }
 
+function rotateShape(shape: Point[], cx: number, cy: number, angle: number): Point[] {
+  if (angle === 0) return shape;
+  const cos = Math.cos(angle);
+  const sin = Math.sin(angle);
+  return shape.map(p => {
+    const dx = p.x - cx;
+    const dy = p.y - cy;
+    return {
+      x: cx + dx * cos - dy * sin,
+      y: cy + dx * sin + dy * cos
+    };
+  });
+}
+
 function getShapePoints(shapeId: string, cx: number, cy: number, w: number, h: number): Point[][] {
   const hw = w / 2, hh = h / 2;
   const id = shapeId.toLowerCase();
@@ -474,37 +488,73 @@ export default function ArchitectAdvisorPanel({ onParamsApplied, onGenerateTrigg
         // Suggested shape overlay
         if (suggestedShape) {
           const bbox = polygonBBox(polygon);
-          const centroid = polygonCentroid(polygon);
           
-          // Test scaling factors to find the largest size that fits completely inside the polygon trace
-          let bestScale = 0.15; // Minimum fallback scale
-          const maxW = bbox.w * 0.90; // Start with 10% margin from bounding box
+          // Optimizer: Find the best center (cx, cy), rotation, and scale to maximize the building footprint.
+          // We test a 9x9 grid of possible center points across the bounding box, 
+          // and for each point, we test 4 rotations (0, 90, 180, 270 degrees).
+          let bestScale = 0.15;
+          let bestCx = polygonCentroid(polygon).x;
+          let bestCy = polygonCentroid(polygon).y;
+          let bestAngle = 0;
+          
+          const maxW = bbox.w * 0.90;
           const maxH = bbox.h * 0.90;
           
-          for (let scale = 1.0; scale >= 0.15; scale -= 0.05) {
-            const testShapes = getShapePoints(suggestedShape, centroid.x, centroid.y, maxW * scale, maxH * scale);
-            let allInside = true;
-            
-            for (const pts of testShapes) {
-              const outlinePts = generateShapeOutlinePoints(pts, 15); // Interpolate points along edges to catch intersections
-              for (const pt of outlinePts) {
-                if (!isPointInPolygon(pt, polygon)) {
-                  allInside = false;
-                  break;
+          const stepsX = 9;
+          const stepsY = 9;
+          
+          for (let ix = 1; ix < stepsX; ix++) {
+            for (let iy = 1; iy < stepsY; iy++) {
+              const testCx = bbox.minX + (bbox.w * ix) / stepsX;
+              const testCy = bbox.minY + (bbox.h * iy) / stepsY;
+              
+              // Only test centers that are actually inside the plot
+              if (!isPointInPolygon({ x: testCx, y: testCy }, polygon)) continue;
+              
+              for (let angle = 0; angle < Math.PI * 2; angle += Math.PI / 2) {
+                // Quick bound check: if it can't even fit at the current bestScale, skip it
+                let currentScaleFits = false;
+                
+                // Binary-search-like approach to find max scale at this config
+                let localMaxScale = 0;
+                for (let scale = 1.0; scale > bestScale; scale -= 0.05) {
+                  const testShapes = getShapePoints(suggestedShape, testCx, testCy, maxW * scale, maxH * scale);
+                  let allInside = true;
+                  
+                  for (const pts of testShapes) {
+                    const rotatedPts = rotateShape(pts, testCx, testCy, angle);
+                    const outlinePts = generateShapeOutlinePoints(rotatedPts, 8); // fewer segments for speed
+                    for (const pt of outlinePts) {
+                      if (!isPointInPolygon(pt, polygon)) {
+                        allInside = false;
+                        break;
+                      }
+                    }
+                    if (!allInside) break;
+                  }
+                  
+                  if (allInside) {
+                    localMaxScale = scale;
+                    break;
+                  }
+                }
+                
+                if (localMaxScale > bestScale) {
+                  bestScale = localMaxScale;
+                  bestCx = testCx;
+                  bestCy = testCy;
+                  bestAngle = angle;
                 }
               }
-              if (!allInside) break;
-            }
-            
-            if (allInside) {
-              // Once we find the maximum scale that fits, shrink it by an additional 15% 
-              // to leave a healthy, visible architectural margin from the plot lines
-              bestScale = scale * 0.85;
-              break;
             }
           }
           
-          const shapePolygons = getShapePoints(suggestedShape, centroid.x, centroid.y, maxW * bestScale, maxH * bestScale);
+          // Apply the 15% visual setback margin to the absolute mathematical maximum we found
+          const finalScale = bestScale * 0.85;
+          
+          // Generate the final shape using the best configuration
+          let shapePolygons = getShapePoints(suggestedShape, bestCx, bestCy, maxW * finalScale, maxH * finalScale);
+          shapePolygons = shapePolygons.map(pts => rotateShape(pts, bestCx, bestCy, bestAngle));
           
           ctx.save();
           
@@ -524,7 +574,9 @@ export default function ArchitectAdvisorPanel({ onParamsApplied, onGenerateTrigg
           ctx.fillStyle = 'rgba(255,165,0,0.85)';
           ctx.font = 'bold 7px monospace';
           ctx.textAlign = 'center';
-          ctx.fillText('BUILDING SHAPE', centroid.x, centroid.y);
+          
+          // Rotate text to match building orientation if needed (optional, keeping horizontal for readability)
+          ctx.fillText('BUILDING SHAPE', bestCx, bestCy);
           ctx.textAlign = 'left';
           
           ctx.restore();
