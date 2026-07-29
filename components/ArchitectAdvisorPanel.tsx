@@ -129,7 +129,7 @@ function getShapePoints(shapeId: string, cx: number, cy: number, w: number, h: n
         );
       }
       return [pts3];
-  } else if (id.includes('stepped') || id.includes('l-shape') || id === 'l') {
+  } else if (id.includes('stepped') || id.includes('l-shape') || id.match(/\bl\b/)) {
       return [[
         { x: cx - hw, y: cy - hh }, { x: cx + hw * 0.2, y: cy - hh },
         { x: cx + hw * 0.2, y: cy - hh * 0.2 }, { x: cx + hw, y: cy - hh * 0.2 },
@@ -447,22 +447,6 @@ export default function ArchitectAdvisorPanel({ onParamsApplied, onGenerateTrigg
         // Suggested shape overlay
         if (suggestedShape) {
           ctx.save();
-          ctx.beginPath();
-          ctx.moveTo(polygon[0].x, polygon[0].y);
-          polygon.slice(1).forEach(p => ctx.lineTo(p.x, p.y));
-          ctx.closePath();
-          ctx.clip(); // Ensure shape never bleeds outside the traced plot boundary
-
-          const bbox = polygonBBox(polygon);
-          const centroid = polygonCentroid(polygon);
-          const shapeCx = centroid.x;
-          const shapeCy = centroid.y;
-          
-          // Set margin to 15% (30% total reduction) so the shape is realistically sized
-          const padX = bbox.w * 0.15;
-          const padY = bbox.h * 0.15;
-          
-          ctx.save();
           // Add clipping path for the UI drawing as well so it never bleeds out of the cyan polygon
           ctx.beginPath();
           ctx.moveTo(polygon[0].x, polygon[0].y);
@@ -470,12 +454,21 @@ export default function ArchitectAdvisorPanel({ onParamsApplied, onGenerateTrigg
           ctx.closePath();
           ctx.clip();
           
-          const shapePolygons = getShapePoints(suggestedShape, shapeCx, shapeCy, bbox.w - padX * 2, bbox.h - padY * 2);
+          // To maximize size, we test different scale factors. 
+          // Start large and shrink until it fits within the plot (or just use a generous base scale).
+          // Since we have ctx.clip(), we can just draw it very large and let the clip handle it, 
+          // but to make it look like a complete shape, we'll give it a 10% margin of the bounding box.
+          const bbox = polygonBBox(polygon);
+          const padX = bbox.w * 0.10;
+          const padY = bbox.h * 0.10;
+          const centroid = polygonCentroid(polygon);
+          
+          const shapePolygons = getShapePoints(suggestedShape, centroid.x, centroid.y, bbox.w - padX * 2, bbox.h - padY * 2);
           shapePolygons.forEach(shapePts => {
             if (shapePts.length < 3) return;
-            ctx.fillStyle = 'rgba(255, 165, 0, 0.18)';
+            ctx.fillStyle = 'rgba(255, 165, 0, 0.25)'; // Slightly more opaque
             ctx.strokeStyle = '#FFB000';
-            ctx.lineWidth = 1.5;
+            ctx.lineWidth = 2.0;
             ctx.beginPath();
             ctx.moveTo(shapePts[0].x, shapePts[0].y);
             shapePts.slice(1).forEach(p => ctx.lineTo(p.x, p.y));
@@ -483,11 +476,11 @@ export default function ArchitectAdvisorPanel({ onParamsApplied, onGenerateTrigg
             ctx.fill();
             ctx.stroke();
           });
+          
           ctx.fillStyle = 'rgba(255,165,0,0.85)';
           ctx.font = 'bold 7px monospace';
           ctx.textAlign = 'center';
-          const bbox2 = polygonBBox(polygon);
-          ctx.fillText('BUILDING SHAPE', (bbox2.minX + bbox2.maxX) / 2, (bbox2.minY + bbox2.maxY) / 2);
+          ctx.fillText('BUILDING SHAPE', (bbox.minX + bbox.maxX) / 2, (bbox.minY + bbox.maxY) / 2);
           ctx.textAlign = 'left';
           
           ctx.restore();
