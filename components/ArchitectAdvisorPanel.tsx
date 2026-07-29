@@ -517,14 +517,23 @@ export default function ArchitectAdvisorPanel({ onParamsApplied, onGenerateTrigg
           
           // Optimizer: Find the best center (cx, cy), rotation, and scale to maximize the building footprint.
           // We test a 9x9 grid of possible center points across the bounding box, 
-          // and for each point, we test 4 rotations (0, 90, 180, 270 degrees).
+          // Optimizer: Find the best center (cx, cy), rotation, aspect ratio, and scale.
+          let bestArea = 0;
           let bestScale = 0.15;
           let bestCx = polygonCentroid(polygon).x;
           let bestCy = polygonCentroid(polygon).y;
           let bestAngle = 0;
+          let bestRatio = { rw: 1.0, rh: 1.0 };
           
-          const maxW = bbox.w * 0.90;
-          const maxH = bbox.h * 0.90;
+          // Decouple the building aspect ratio from the plot's bounding box
+          const baseSize = Math.max(bbox.w, bbox.h) * 0.85;
+          const aspectRatios = [
+            { rw: 1.0, rh: 1.0 },   // Square
+            { rw: 1.25, rh: 1.0 },  // Slightly wide
+            { rw: 1.5, rh: 1.0 },   // Wide
+            { rw: 1.75, rh: 1.0 },  // Very wide
+            { rw: 2.0, rh: 1.0 }    // Extra wide
+          ];
           
           const stepsX = 15;
           const stepsY = 15;
@@ -537,40 +546,48 @@ export default function ArchitectAdvisorPanel({ onParamsApplied, onGenerateTrigg
               // Only test centers that are actually inside the plot
               if (!isPointInPolygon({ x: testCx, y: testCy }, polygon)) continue;
               
-              // Test 12 rotations (every 30 degrees) instead of just 4
-              for (let angle = 0; angle < Math.PI * 2; angle += Math.PI / 6) {
-                // Quick bound check: if it can't even fit at the current bestScale, skip it
-                let currentScaleFits = false;
+              for (const ratio of aspectRatios) {
+                const maxW = baseSize * ratio.rw;
+                const maxH = baseSize * ratio.rh;
                 
-                // Binary-search-like approach to find max scale at this config
-                let localMaxScale = 0;
-                for (let scale = 1.0; scale > bestScale; scale -= 0.05) {
-                  const testShapes = getShapePoints(suggestedShape, testCx, testCy, maxW * scale, maxH * scale);
-                  let allInside = true;
+                // Test 12 rotations (every 30 degrees)
+                for (let angle = 0; angle < Math.PI * 2; angle += Math.PI / 6) {
+                  // Math optimization: skip if the maximum possible area for this ratio can't beat our bestArea
+                  const minRequiredScale = Math.sqrt(bestArea / (ratio.rw * ratio.rh));
+                  if (minRequiredScale >= 1.0) continue;
                   
-                  for (const pts of testShapes) {
-                    const rotatedPts = rotateShape(pts, testCx, testCy, angle);
-                    const outlinePts = generateShapeOutlinePoints(rotatedPts, 8); // fewer segments for speed
-                    for (const pt of outlinePts) {
-                      if (!isPointInPolygon(pt, polygon)) {
-                        allInside = false;
-                        break;
+                  let localMaxScale = 0;
+                  for (let scale = 1.0; scale > minRequiredScale; scale -= 0.05) {
+                    const testShapes = getShapePoints(suggestedShape, testCx, testCy, maxW * scale, maxH * scale);
+                    let allInside = true;
+                    
+                    for (const pts of testShapes) {
+                      const rotatedPts = rotateShape(pts, testCx, testCy, angle);
+                      const outlinePts = generateShapeOutlinePoints(rotatedPts, 6); // fewer segments for speed
+                      for (const pt of outlinePts) {
+                        if (!isPointInPolygon(pt, polygon)) {
+                          allInside = false;
+                          break;
+                        }
                       }
+                      if (!allInside) break;
                     }
-                    if (!allInside) break;
+                    
+                    if (allInside) {
+                      localMaxScale = scale;
+                      break;
+                    }
                   }
                   
-                  if (allInside) {
-                    localMaxScale = scale;
-                    break;
+                  const localArea = ratio.rw * ratio.rh * localMaxScale * localMaxScale;
+                  if (localArea > bestArea) {
+                    bestArea = localArea;
+                    bestScale = localMaxScale;
+                    bestCx = testCx;
+                    bestCy = testCy;
+                    bestAngle = angle;
+                    bestRatio = ratio;
                   }
-                }
-                
-                if (localMaxScale > bestScale) {
-                  bestScale = localMaxScale;
-                  bestCx = testCx;
-                  bestCy = testCy;
-                  bestAngle = angle;
                 }
               }
             }
@@ -578,9 +595,11 @@ export default function ArchitectAdvisorPanel({ onParamsApplied, onGenerateTrigg
           
           // Apply the 15% visual setback margin to the absolute mathematical maximum we found
           const finalScale = bestScale * 0.85;
+          const finalW = baseSize * bestRatio.rw * finalScale;
+          const finalH = baseSize * bestRatio.rh * finalScale;
           
           // Generate the final shape using the best configuration
-          let shapePolygons = getShapePoints(suggestedShape, bestCx, bestCy, maxW * finalScale, maxH * finalScale);
+          let shapePolygons = getShapePoints(suggestedShape, bestCx, bestCy, finalW, finalH);
           shapePolygons = shapePolygons.map(pts => rotateShape(pts, bestCx, bestCy, bestAngle));
           
           ctx.save();
