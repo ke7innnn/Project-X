@@ -87,6 +87,33 @@ function polygonCentroid(pts: Point[]) {
   return { x: cx / area, y: cy / area };
 }
 
+function isPointInPolygon(point: Point, vs: Point[]): boolean {
+  let x = point.x, y = point.y;
+  let inside = false;
+  for (let i = 0, j = vs.length - 1; i < vs.length; j = i++) {
+    let xi = vs[i].x, yi = vs[i].y;
+    let xj = vs[j].x, yj = vs[j].y;
+    let intersect = ((yi > y) !== (yj > y)) && (x < (xj - xi) * (y - yi) / (yj - yi) + xi);
+    if (intersect) inside = !inside;
+  }
+  return inside;
+}
+
+function generateShapeOutlinePoints(shape: Point[], segments: number = 10): Point[] {
+  const points: Point[] = [];
+  for (let i = 0; i < shape.length; i++) {
+    const p1 = shape[i];
+    const p2 = shape[(i + 1) % shape.length];
+    for (let j = 0; j <= segments; j++) {
+      points.push({
+        x: p1.x + (p2.x - p1.x) * (j / segments),
+        y: p1.y + (p2.y - p1.y) * (j / segments)
+      });
+    }
+  }
+  return points;
+}
+
 function getShapePoints(shapeId: string, cx: number, cy: number, w: number, h: number): Point[][] {
   const hw = w / 2, hh = h / 2;
   const id = shapeId.toLowerCase();
@@ -446,27 +473,42 @@ export default function ArchitectAdvisorPanel({ onParamsApplied, onGenerateTrigg
 
         // Suggested shape overlay
         if (suggestedShape) {
-          ctx.save();
-          // Add clipping path for the UI drawing as well so it never bleeds out of the cyan polygon
-          ctx.beginPath();
-          ctx.moveTo(polygon[0].x, polygon[0].y);
-          polygon.slice(1).forEach(p => ctx.lineTo(p.x, p.y));
-          ctx.closePath();
-          ctx.clip();
-          
-          // To maximize size, we test different scale factors. 
-          // Start large and shrink until it fits within the plot (or just use a generous base scale).
-          // Since we have ctx.clip(), we can just draw it very large and let the clip handle it, 
-          // but to make it look like a complete shape, we'll give it a 10% margin of the bounding box.
           const bbox = polygonBBox(polygon);
-          const padX = bbox.w * 0.10;
-          const padY = bbox.h * 0.10;
           const centroid = polygonCentroid(polygon);
           
-          const shapePolygons = getShapePoints(suggestedShape, centroid.x, centroid.y, bbox.w - padX * 2, bbox.h - padY * 2);
+          // Test scaling factors to find the largest size that fits completely inside the polygon trace
+          let bestScale = 0.15; // Minimum fallback scale
+          const maxW = bbox.w * 0.90; // Start with 10% margin from bounding box
+          const maxH = bbox.h * 0.90;
+          
+          for (let scale = 1.0; scale >= 0.15; scale -= 0.05) {
+            const testShapes = getShapePoints(suggestedShape, centroid.x, centroid.y, maxW * scale, maxH * scale);
+            let allInside = true;
+            
+            for (const pts of testShapes) {
+              const outlinePts = generateShapeOutlinePoints(pts, 15); // Interpolate points along edges to catch intersections
+              for (const pt of outlinePts) {
+                if (!isPointInPolygon(pt, polygon)) {
+                  allInside = false;
+                  break;
+                }
+              }
+              if (!allInside) break;
+            }
+            
+            if (allInside) {
+              bestScale = scale;
+              break;
+            }
+          }
+          
+          const shapePolygons = getShapePoints(suggestedShape, centroid.x, centroid.y, maxW * bestScale, maxH * bestScale);
+          
+          ctx.save();
+          
           shapePolygons.forEach(shapePts => {
             if (shapePts.length < 3) return;
-            ctx.fillStyle = 'rgba(255, 165, 0, 0.25)'; // Slightly more opaque
+            ctx.fillStyle = 'rgba(255, 165, 0, 0.25)';
             ctx.strokeStyle = '#FFB000';
             ctx.lineWidth = 2.0;
             ctx.beginPath();
@@ -480,12 +522,12 @@ export default function ArchitectAdvisorPanel({ onParamsApplied, onGenerateTrigg
           ctx.fillStyle = 'rgba(255,165,0,0.85)';
           ctx.font = 'bold 7px monospace';
           ctx.textAlign = 'center';
-          ctx.fillText('BUILDING SHAPE', (bbox.minX + bbox.maxX) / 2, (bbox.minY + bbox.maxY) / 2);
+          ctx.fillText('BUILDING SHAPE', centroid.x, centroid.y);
           ctx.textAlign = 'left';
           
           ctx.restore();
           
-          // Re-draw polygon outline over the clipped shape so the cyan dots/lines remain pristine
+          // Re-draw polygon outline to ensure it stays crisp
           ctx.strokeStyle = '#00f0ff';
           ctx.lineWidth = 1.5;
           ctx.beginPath();
