@@ -321,6 +321,14 @@ export default function ArchitectAdvisorPanel({ onParamsApplied, onGenerateTrigg
   // Custom architectural dimensions (meters)
   const [customW, setCustomW] = useState<string>('');
   const [customH, setCustomH] = useState<string>('');
+  
+  const [cadPatternImg, setCadPatternImg] = useState<HTMLImageElement | null>(null);
+
+  useEffect(() => {
+    const img = new Image();
+    img.src = '/cad-style-reference.png';
+    img.onload = () => setCadPatternImg(img);
+  }, []);
 
   const applyCustomRatio = useCallback((wM: number, hM: number) => {
     if (!wM || !hM || wM <= 0 || hM <= 0) return;
@@ -407,30 +415,37 @@ export default function ArchitectAdvisorPanel({ onParamsApplied, onGenerateTrigg
       ctx.clip();
 
       // Draw a mock "existing" CAD interior pattern to trick the edit model
-      ctx.strokeStyle = '#000000';
-      ctx.lineWidth = 1.5;
-      const grid = 80;
-      for (let x = 0; x < outputW; x += grid) {
-        for (let y = 0; y < outputH; y += grid) {
-          // Draw mock room partitions
-          ctx.strokeRect(x, y, grid, grid);
-          // Draw mock door arcs
-          ctx.beginPath();
-          ctx.moveTo(x + 20, y + grid);
-          ctx.arc(x + 20, y + grid, 20, 0, -Math.PI/2, true);
-          ctx.stroke();
-          // Draw mock labels
-          ctx.fillStyle = '#000000';
-          ctx.font = 'bold 10px monospace';
-          ctx.fillText('EXISTING', x + 15, y + 35);
-          ctx.fillText('SPACE', x + 25, y + 50);
+      if (cadPatternImg) {
+        // Tile the real CAD plan inside the shape
+        const pat = ctx.createPattern(cadPatternImg, 'repeat');
+        if (pat) {
+          ctx.fillStyle = pat;
+          ctx.fillRect(0, 0, outputW, outputH);
+        }
+      } else {
+        // Fallback grid if image fails to load
+        ctx.strokeStyle = '#000000';
+        ctx.lineWidth = 1.5;
+        const grid = 80;
+        for (let x = 0; x < outputW; x += grid) {
+          for (let y = 0; y < outputH; y += grid) {
+            ctx.strokeRect(x, y, grid, grid);
+            ctx.beginPath();
+            ctx.moveTo(x + 20, y + grid);
+            ctx.arc(x + 20, y + grid, 20, 0, -Math.PI/2, true);
+            ctx.stroke();
+            ctx.fillStyle = '#000000';
+            ctx.font = 'bold 10px monospace';
+            ctx.fillText('EXISTING', x + 15, y + 35);
+            ctx.fillText('SPACE', x + 25, y + 50);
+          }
         }
       }
 
       ctx.restore();
 
-      // Draw the thick outer black boundary over the pattern
-      ctx.strokeStyle = '#000000';
+      // Draw the thick outer RED boundary over the pattern
+      ctx.strokeStyle = '#ff0000';
       ctx.lineWidth = Math.max(5, outputW / 150);
       ctx.lineJoin = 'miter';
       ctx.stroke();
@@ -467,30 +482,35 @@ export default function ArchitectAdvisorPanel({ onParamsApplied, onGenerateTrigg
     ctx.clip();
 
     // Draw a mock "existing" CAD interior pattern to trick the edit model
-    ctx.strokeStyle = '#000000';
-    ctx.lineWidth = 1.5;
-    const grid = 80;
-    for (let x = 0; x < outputW; x += grid) {
-      for (let y = 0; y < outputH; y += grid) {
-        // Draw mock room partitions
-        ctx.strokeRect(x, y, grid, grid);
-        // Draw mock door arcs
-        ctx.beginPath();
-        ctx.moveTo(x + 20, y + grid);
-        ctx.arc(x + 20, y + grid, 20, 0, -Math.PI/2, true);
-        ctx.stroke();
-        // Draw mock labels
-        ctx.fillStyle = '#000000';
-        ctx.font = 'bold 10px monospace';
-        ctx.fillText('EXISTING', x + 15, y + 35);
-        ctx.fillText('SPACE', x + 25, y + 50);
+    if (cadPatternImg) {
+      const pat = ctx.createPattern(cadPatternImg, 'repeat');
+      if (pat) {
+        ctx.fillStyle = pat;
+        ctx.fillRect(0, 0, outputW, outputH);
+      }
+    } else {
+      ctx.strokeStyle = '#000000';
+      ctx.lineWidth = 1.5;
+      const grid = 80;
+      for (let x = 0; x < outputW; x += grid) {
+        for (let y = 0; y < outputH; y += grid) {
+          ctx.strokeRect(x, y, grid, grid);
+          ctx.beginPath();
+          ctx.moveTo(x + 20, y + grid);
+          ctx.arc(x + 20, y + grid, 20, 0, -Math.PI/2, true);
+          ctx.stroke();
+          ctx.fillStyle = '#000000';
+          ctx.font = 'bold 10px monospace';
+          ctx.fillText('EXISTING', x + 15, y + 35);
+          ctx.fillText('SPACE', x + 25, y + 50);
+        }
       }
     }
 
     ctx.restore();
 
-    // Draw plot boundary stroke over the pattern
-    ctx.strokeStyle = '#000000';
+    // Draw plot boundary stroke over the pattern in RED
+    ctx.strokeStyle = '#ff0000';
     ctx.lineWidth = Math.max(5, outputW / 150);
     ctx.lineJoin = 'miter';
     ctx.stroke();
