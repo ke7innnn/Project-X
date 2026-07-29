@@ -619,8 +619,8 @@ export default function ArchitectAdvisorPanel({ onParamsApplied, onGenerateTrigg
             }
           }
           
-          // Apply a minimal 2% visual setback margin to prove it's perfectly wedged
-          const finalScale = bestScale * 0.98;
+          // Apply a healthy 10% visual setback margin so it doesn't touch the property line
+          const finalScale = bestScale * 0.90;
           const finalW = baseSize * bestRatio.rw * finalScale;
           const finalH = baseSize * bestRatio.rh * finalScale;
           
