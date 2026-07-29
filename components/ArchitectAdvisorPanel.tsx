@@ -497,7 +497,9 @@ export default function ArchitectAdvisorPanel({ onParamsApplied, onGenerateTrigg
             }
             
             if (allInside) {
-              bestScale = scale;
+              // Once we find the maximum scale that fits, shrink it by an additional 15% 
+              // to leave a healthy, visible architectural margin from the plot lines
+              bestScale = scale * 0.85;
               break;
             }
           }
