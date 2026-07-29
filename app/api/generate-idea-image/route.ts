@@ -71,52 +71,52 @@ export async function POST(req: Request) {
       }
     };
 
-    // ── Model: FLUX ──────────────────────────────────
+    // ── Model: GPT-Image-2 (OpenAI via Fal) ──────────────────────────────────
     // Run twice with different seeds for Variant Alpha and Variant Beta
     const SEED_A = 42;
     const SEED_B = 137;
 
     const runVariant = async (seed: number, label: string): Promise<string | null> => {
-      // Image-to-Image Generation (ControlNet / Structure Guided)
+      // Try GPT-Image-2 edit mode (supports image_url in input)
       if (inputImageBase64) {
         try {
-          const res = await fal.subscribe('fal-ai/flux/dev/image-to-image', {
+          const res = await fal.subscribe('openai/gpt-image-2/edit', {
             input: {
               prompt: prompt,
               image_url: `data:image/png;base64,${inputImageBase64}`,
-              strength: 0.85, // 0.85 allows the AI to draw inside the mask while strictly keeping the boundary
-              image_size: { width: outputWidth, height: outputHeight },
-              seed: seed,
+              quality: 'medium',
+              size: `${outputWidth}x${outputHeight}`,
             } as any
           });
           const imgs = (res as any)?.images || (res as any)?.data?.images;
           const url = imgs?.[0]?.url;
           if (url) {
-            console.log(`[IdeaGenerator] ${label} FLUX I2I succeeded`);
+            console.log(`[IdeaGenerator] ${label} GPT-Image-2 edit succeeded`);
             return url;
           }
         } catch (e: any) {
-          console.error(`[IdeaGenerator] ${label} FLUX I2I failed:`, e.message);
+          console.error(`[IdeaGenerator] ${label} GPT-Image-2 edit failed:`, e.message);
         }
       }
 
-      // Fallback: Text-to-Image Generation
+      // Fallback: GPT-Image-2 text-only with quality=medium
       try {
-        const res = await fal.subscribe('fal-ai/flux-pro/v1.1', {
+        // Just use the base model for text generation if no image provided or edit failed
+        const res = await fal.subscribe('openai/gpt-image-2', {
           input: {
             prompt: prompt,
-            image_size: { width: outputWidth, height: outputHeight },
-            seed: seed,
+            quality: 'medium',
+            size: `${outputWidth}x${outputHeight}`,
           } as any
         });
         const imgs = (res as any)?.images || (res as any)?.data?.images;
         const url = imgs?.[0]?.url;
         if (url) {
-          console.log(`[IdeaGenerator] ${label} FLUX T2I succeeded`);
+          console.log(`[IdeaGenerator] ${label} GPT-Image-2 text-only succeeded`);
           return url;
         }
       } catch (e: any) {
-        console.error(`[IdeaGenerator] ${label} FLUX T2I failed:`, e.message);
+        console.error(`[IdeaGenerator] ${label} GPT-Image-2 text-only failed:`, e.message);
       }
 
       return null;
