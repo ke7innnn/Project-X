@@ -458,9 +458,9 @@ export default function ArchitectAdvisorPanel({ onParamsApplied, onGenerateTrigg
           const shapeCx = centroid.x;
           const shapeCy = centroid.y;
           
-          // Increase margin to 40% so it's much smaller and stays safely away from edges
-          const padX = bbox.w * 0.40;
-          const padY = bbox.h * 0.40;
+          // Set margin to 15% (30% total reduction) so the shape is realistically sized
+          const padX = bbox.w * 0.15;
+          const padY = bbox.h * 0.15;
           
           ctx.save();
           // Add clipping path for the UI drawing as well so it never bleeds out of the cyan polygon
