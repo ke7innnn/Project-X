@@ -144,19 +144,28 @@ function getShapePoints(shapeId: string, cx: number, cy: number, w: number, h: n
         { x: cx + hw - arm, y: cy + hh * 0.35 }, { x: cx - hw + arm, y: cy + hh * 0.35 },
         { x: cx - hw + arm, y: cy + hh }, { x: cx - hw, y: cy + hh },
       ]];
-  } else if ((id.includes('curved') && id.includes('x')) || id.includes('pinwheel')) {
-      const arm2 = 0.33;
-      const pts: Point[] = [];
-      [[0, -1], [1, 0], [0, 1], [-1, 0]].forEach(([wx, wy]) => {
-        const nx = wx === 0 ? 1 : 0, ny = wy === 0 ? 1 : 0;
-        pts.push(
-          { x: cx + (wx * 0.65 - nx * arm2) * hw, y: cy + (wy * 0.65 - ny * arm2) * hh },
-          { x: cx + (wx * 1.0 - nx * arm2) * hw, y: cy + (wy * 1.0 - ny * arm2) * hh },
-          { x: cx + (wx * 1.0 + nx * arm2) * hw, y: cy + (wy * 1.0 + ny * arm2) * hh },
-          { x: cx + (wx * 0.65 + nx * arm2) * hw, y: cy + (wy * 0.65 + ny * arm2) * hh },
-        );
-      });
-      return [pts];
+  } else if (id.includes('x-shape') || id.includes('cross') || (id.includes('curved') && id.includes('x')) || id.includes('pinwheel')) {
+      // Clean Architectural Cross / X-Shape
+      const armThickness = 0.35; // thickness of the arms
+      const core = 0.35; // size of the center core where arms meet
+      return [[
+        // Top arm
+        { x: cx - hw * armThickness, y: cy - hh },
+        { x: cx + hw * armThickness, y: cy - hh },
+        { x: cx + hw * armThickness, y: cy - hh * core },
+        // Right arm
+        { x: cx + hw, y: cy - hh * core },
+        { x: cx + hw, y: cy + hh * core },
+        { x: cx + hw * armThickness, y: cy + hh * core },
+        // Bottom arm
+        { x: cx + hw * armThickness, y: cy + hh },
+        { x: cx - hw * armThickness, y: cy + hh },
+        { x: cx - hw * armThickness, y: cy + hh * core },
+        // Left arm
+        { x: cx - hw, y: cy + hh * core },
+        { x: cx - hw, y: cy - hh * core },
+        { x: cx - hw * armThickness, y: cy - hh * core },
+      ]];
   } else if (id.includes('tri-foil') || id.includes('y-shape')) {
       const pts3: Point[] = [];
       for (let i = 0; i < 3; i++) {
@@ -231,14 +240,30 @@ function getShapePoints(shapeId: string, cx: number, cy: number, w: number, h: n
         hexPts.push({ x: cx + Math.cos(angle) * hw, y: cy + Math.sin(angle) * hh });
       }
       return [hexPts];
-  } else if (id.includes('curved') && id.includes('s')) {
+  } else if (id.includes('s-shape') || id.includes('z-shape') || (id.includes('curved') && id.includes('s'))) {
+      // Clean Architectural Z/S-Shape footprint
+      const barH = 0.25; // thickness of the horizontal bars
+      const stemW = 0.25; // thickness of the vertical stem
       return [[
-        { x: cx - hw, y: cy - hh }, { x: cx + hw * 0.1, y: cy - hh },
-        { x: cx + hw * 0.5, y: cy - hh * 0.3 }, { x: cx + hw, y: cy - hh * 0.3 },
-        { x: cx + hw, y: cy + hh * 0.3 }, { x: cx + hw * 0.5, y: cy + hh * 0.3 },
-        { x: cx - hw * 0.1, y: cy + hh }, { x: cx - hw, y: cy + hh },
-        { x: cx - hw, y: cy + hh * 0.3 }, { x: cx - hw * 0.5, y: cy + hh * 0.3 },
-        { x: cx - hw * 0.5, y: cy - hh * 0.3 }, { x: cx - hw, y: cy - hh * 0.3 },
+        // Top horizontal bar
+        { x: cx - hw, y: cy - hh },
+        { x: cx + hw, y: cy - hh },
+        { x: cx + hw, y: cy - hh + hh * barH * 2 },
+        // Inner cut leftwards to the stem
+        { x: cx + hw * stemW, y: cy - hh + hh * barH * 2 },
+        // Vertical stem down
+        { x: cx + hw * stemW, y: cy + hh - hh * barH * 2 },
+        // Bottom horizontal bar
+        { x: cx + hw, y: cy + hh - hh * barH * 2 },
+        { x: cx + hw, y: cy + hh },
+        { x: cx - hw, y: cy + hh },
+        { x: cx - hw, y: cy + hh - hh * barH * 2 },
+        // Inner cut rightwards to the stem
+        { x: cx - hw * stemW, y: cy + hh - hh * barH * 2 },
+        // Vertical stem up
+        { x: cx - hw * stemW, y: cy - hh + hh * barH * 2 },
+        // Top horizontal bar (left side completion)
+        { x: cx - hw, y: cy - hh + hh * barH * 2 },
       ]];
   } else {
       return [[{ x: cx - hw, y: cy - hh }, { x: cx + hw, y: cy - hh }, { x: cx + hw, y: cy + hh }, { x: cx - hw, y: cy + hh }]];
