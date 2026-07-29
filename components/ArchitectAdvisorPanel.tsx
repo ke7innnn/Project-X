@@ -526,8 +526,8 @@ export default function ArchitectAdvisorPanel({ onParamsApplied, onGenerateTrigg
           const maxW = bbox.w * 0.90;
           const maxH = bbox.h * 0.90;
           
-          const stepsX = 9;
-          const stepsY = 9;
+          const stepsX = 15;
+          const stepsY = 15;
           
           for (let ix = 1; ix < stepsX; ix++) {
             for (let iy = 1; iy < stepsY; iy++) {
@@ -537,7 +537,8 @@ export default function ArchitectAdvisorPanel({ onParamsApplied, onGenerateTrigg
               // Only test centers that are actually inside the plot
               if (!isPointInPolygon({ x: testCx, y: testCy }, polygon)) continue;
               
-              for (let angle = 0; angle < Math.PI * 2; angle += Math.PI / 2) {
+              // Test 12 rotations (every 30 degrees) instead of just 4
+              for (let angle = 0; angle < Math.PI * 2; angle += Math.PI / 6) {
                 // Quick bound check: if it can't even fit at the current bestScale, skip it
                 let currentScaleFits = false;
                 
