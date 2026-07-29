@@ -272,13 +272,13 @@ export default function IdeaGenerationPage() {
         const labelList = Array.from({ length: totalUnits }, (_, i) => `F${String(i + 1).padStart(2, '0')}`).join(', ');
         
         const promptText = `MISSION
-Optimise the internal architectural planning of the supplied building footprint without modifying the footprint itself.
+Redesign and optimise the interior layout of this existing architectural floor plan. Treat the supplied image as an existing CAD drawing and modify the interior spaces according to the new requirements, without modifying the exterior footprint.
 
 ROLE
-You are an expert architectural planning AI specialising in residential high-rise buildings. Produce realistic, buildable CAD floor plans following professional architectural planning principles.
+You are a senior AutoCAD drafter and architectural prompt engineer specialising in residential high-rise buildings. Your job is to execute a precise architectural edit on this existing floor plan image to produce a realistic, buildable CAD drawing.
 
 INPUT
-The input image represents a binary building footprint mask. It is a geometric constraint. It is NOT a style reference. The building massing has already been finalised. Only the internal planning should be optimised.
+The input image is an existing architectural CAD floor plan. The outer building boundary is a strict constraint and must not be altered. Only the internal layout, walls, and rooms should be edited and redesigned.
 
 HARD CONSTRAINTS (HIGHEST PRIORITY)
 * The supplied footprint is authoritative.

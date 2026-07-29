@@ -390,23 +390,50 @@ export default function ArchitectAdvisorPanel({ onParamsApplied, onGenerateTrigg
       const offsetX = (outputW - shapeW * scale) / 2 - minX * scale;
       const offsetY = (outputH - shapeH * scale) / 2 - minY * scale;
       
+      const tx = (p: Point) => p.x * scale + offsetX;
+      const ty = (p: Point) => p.y * scale + offsetY;
+      
+      // Build the shape path
+      ctx.beginPath();
       shapePolygons.forEach(shapePts => {
         if (shapePts.length < 3) return;
-        ctx.fillStyle = '#f0f0f0'; // light grey = building footprint for AI
-        ctx.strokeStyle = '#000000'; // thick black outline
-        ctx.lineWidth = Math.max(3, outputW / 200);
-        ctx.lineJoin = 'miter';
-        ctx.beginPath();
-        
-        const tx = (p: Point) => p.x * scale + offsetX;
-        const ty = (p: Point) => p.y * scale + offsetY;
-        
         ctx.moveTo(tx(shapePts[0]), ty(shapePts[0]));
         shapePts.slice(1).forEach(p => ctx.lineTo(tx(p), ty(p)));
         ctx.closePath();
-        ctx.fill();
-        ctx.stroke();
       });
+
+      // Clip the canvas to only draw inside the boundary
+      ctx.save();
+      ctx.clip();
+
+      // Draw a mock "existing" CAD interior pattern to trick the edit model
+      ctx.strokeStyle = '#000000';
+      ctx.lineWidth = 1.5;
+      const grid = 80;
+      for (let x = 0; x < outputW; x += grid) {
+        for (let y = 0; y < outputH; y += grid) {
+          // Draw mock room partitions
+          ctx.strokeRect(x, y, grid, grid);
+          // Draw mock door arcs
+          ctx.beginPath();
+          ctx.moveTo(x + 20, y + grid);
+          ctx.arc(x + 20, y + grid, 20, 0, -Math.PI/2, true);
+          ctx.stroke();
+          // Draw mock labels
+          ctx.fillStyle = '#000000';
+          ctx.font = 'bold 10px monospace';
+          ctx.fillText('EXISTING', x + 15, y + 35);
+          ctx.fillText('SPACE', x + 25, y + 50);
+        }
+      }
+
+      ctx.restore();
+
+      // Draw the thick outer black boundary over the pattern
+      ctx.strokeStyle = '#000000';
+      ctx.lineWidth = Math.max(5, outputW / 150);
+      ctx.lineJoin = 'miter';
+      ctx.stroke();
 
       return offscreen.toDataURL('image/png').replace(/^data:image\/png;base64,/, '');
     }
