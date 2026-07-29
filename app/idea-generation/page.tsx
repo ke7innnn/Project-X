@@ -291,6 +291,8 @@ HARD CONSTRAINTS (HIGHEST PRIORITY)
 * Every architectural element must remain strictly inside the RED boundary.
 * Nothing may extend beyond the RED boundary.
 * If any instruction conflicts with the RED footprint, preserve the RED footprint.
+* ALL Living Rooms and Bedrooms MUST be placed on the external perimeter/façade to ensure natural ventilation and daylight. Do NOT place living rooms or bedrooms deep inside the core.
+* ALL Toilets/Bathrooms MUST have ventilation (either on the external façade or connected to an internal plumbing/ventilation duct).
 
 PROJECT PARAMETERS
 * Building Type: Luxury high-rise ${styleName} residential tower
@@ -311,8 +313,8 @@ Each apartment must:
 * be directly accessible from the corridor
 * maintain realistic proportions
 * maintain privacy
-Living spaces must be placed along the exterior façade whenever practical.
-Bathrooms and utilities must be grouped around shafts where practical.
+* feature Living Rooms and Bedrooms STRICTLY along the exterior façade.
+* group Bathrooms and utilities around internal shafts if they cannot reach the façade.
 Every wall and corridor must serve a functional purpose.
 
 PLANNING PHILOSOPHY
