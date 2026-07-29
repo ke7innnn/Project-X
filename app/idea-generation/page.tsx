@@ -168,13 +168,15 @@ export default function IdeaGenerationPage() {
     }
 
     // Parse float bounds
-    const w = parseFloat(overallWidth);
+    const cleanW = overallWidth.replace(/[^0-9.]/g, '');
+    const w = parseFloat(cleanW || '100');
     if (isNaN(w) || w < 5 || w > 500) {
       setValidationError("Overall width must be a valid number between 5 and 500 meters.");
       return;
     }
 
-    const l = parseFloat(overallLength);
+    const cleanL = overallLength.replace(/[^0-9.]/g, '');
+    const l = parseFloat(cleanL || '100');
     if (isNaN(l) || l < 5 || l > 500) {
       setValidationError("Overall length must be a valid number between 5 and 500 meters.");
       return;
