@@ -71,18 +71,16 @@ export async function POST(req: Request) {
       }
     };
 
-    // ── Model: GPT-Image-1 (OpenAI via Fal) ──────────────────────────────────
+    // ── Model: GPT-Image-2 (OpenAI via Fal) ──────────────────────────────────
     // Run twice with different seeds for Variant Alpha and Variant Beta
     const SEED_A = 42;
     const SEED_B = 137;
 
-    // Try GPT-Image-1 image edit first (supports image input)
-    // Fallback to flux/dev/image-to-image if GPT-Image-1 image edit is unavailable
     const runVariant = async (seed: number, label: string): Promise<string | null> => {
-      // Try GPT-Image-1 edit mode (supports image_url in input)
+      // Try GPT-Image-2 edit mode (supports image_url in input)
       if (inputImageBase64) {
         try {
-          const res = await fal.subscribe('openai/gpt-image-1', {
+          const res = await fal.subscribe('openai/gpt-image-2/edit', {
             input: {
               prompt: prompt,
               image_url: `data:image/png;base64,${inputImageBase64}`,
@@ -93,52 +91,32 @@ export async function POST(req: Request) {
           const imgs = (res as any)?.images || (res as any)?.data?.images;
           const url = imgs?.[0]?.url;
           if (url) {
-            console.log(`[IdeaGenerator] ${label} GPT-Image-1 edit succeeded`);
+            console.log(`[IdeaGenerator] ${label} GPT-Image-2 edit succeeded`);
             return url;
           }
         } catch (e: any) {
-          console.error(`[IdeaGenerator] ${label} GPT-Image-1 edit failed:`, e.message);
-        }
-
-        // Fallback: Flux Dev image-to-image (supports seed + image input)
-        try {
-          const res = await fal.subscribe('fal-ai/flux/dev/image-to-image', {
-            input: {
-              prompt: prompt,
-              image_url: `data:image/png;base64,${inputImageBase64}`,
-              strength: 0.82,
-              seed: seed,
-              image_size: { width: outputWidth, height: outputHeight },
-              num_inference_steps: 28,
-            } as any
-          });
-          const imgs = (res as any)?.images || (res as any)?.data?.images;
-          const url = imgs?.[0]?.url;
-          if (url) {
-            console.log(`[IdeaGenerator] ${label} Flux Dev i2i succeeded (seed ${seed})`);
-            return url;
-          }
-        } catch (e: any) {
-          console.error(`[IdeaGenerator] ${label} Flux Dev i2i failed:`, e.message);
+          console.error(`[IdeaGenerator] ${label} GPT-Image-2 edit failed:`, e.message);
         }
       }
 
-      // Final fallback: GPT-Image-1 text-only with quality=medium
+      // Fallback: GPT-Image-2 text-only with quality=medium
       try {
-        const res = await fal.subscribe('openai/gpt-image-1', {
+        // Just use the base model for text generation if no image provided or edit failed
+        const res = await fal.subscribe('openai/gpt-image-2', {
           input: {
             prompt: prompt,
             quality: 'medium',
+            size: `${outputWidth}x${outputHeight}`,
           } as any
         });
         const imgs = (res as any)?.images || (res as any)?.data?.images;
         const url = imgs?.[0]?.url;
         if (url) {
-          console.log(`[IdeaGenerator] ${label} GPT-Image-1 text-only succeeded`);
+          console.log(`[IdeaGenerator] ${label} GPT-Image-2 text-only succeeded`);
           return url;
         }
       } catch (e: any) {
-        console.error(`[IdeaGenerator] ${label} GPT-Image-1 text-only failed:`, e.message);
+        console.error(`[IdeaGenerator] ${label} GPT-Image-2 text-only failed:`, e.message);
       }
 
       return null;
