@@ -276,6 +276,7 @@ export default function ArchitectAdvisorPanel({ onParamsApplied, onGenerateTrigg
   const chatEndRef = useRef<HTMLDivElement>(null);
   const chatContainerRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const buildingAreaRef = useRef<number | null>(null);
 
   const [canvasW, setCanvasW] = useState(1260);
   const [canvasH, setCanvasH] = useState(780);
@@ -628,6 +629,14 @@ export default function ArchitectAdvisorPanel({ onParamsApplied, onGenerateTrigg
           let shapePolygons = getShapePoints(suggestedShape, bestCx, bestCy, finalW, finalH);
           shapePolygons = shapePolygons.map(pts => rotateShape(pts, bestCx, bestCy, bestAngle));
           
+          // Calculate the true physical footprint area of the generated building
+          let totalBuildingAreaM2 = 0;
+          shapePolygons.forEach(pts => {
+             // The shoelace formula (polygonAreaM2) naturally handles holes correctly!
+             totalBuildingAreaM2 += polygonAreaM2(pts);
+          });
+          buildingAreaRef.current = totalBuildingAreaM2;
+          
           ctx.save();
           
           shapePolygons.forEach(shapePts => {
@@ -957,6 +966,15 @@ export default function ArchitectAdvisorPanel({ onParamsApplied, onGenerateTrigg
 
     try {
       const apiMessages = updatedMessages.map(m => ({ role: m.role, content: m.content }));
+      
+      // Geometric Feedback Loop: Silently inject the exact footprint area into the prompt
+      if (buildingAreaRef.current && suggestedShape && apiMessages.length > 0) {
+        const lastMsg = apiMessages[apiMessages.length - 1];
+        if (lastMsg.role === 'user') {
+          lastMsg.content += `\n\n[CRITICAL SYSTEM FEEDBACK: The 2D physics engine has successfully wedged the ${suggestedShape} into the plot limits. The exact, final physical footprint area of the building is exactly ${buildingAreaRef.current} m². You MUST use ${buildingAreaRef.current} m² as your starting footprint (plateArea) for all flat mix calculations right now. DO NOT estimate the footprint using plot efficiency ratios anymore.]`;
+        }
+      }
+
       const res = await fetch('/api/plot-advisor', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
