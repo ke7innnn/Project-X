@@ -191,13 +191,39 @@ function getShapePoints(shapeId: string, cx: number, cy: number, w: number, h: n
       }
       return [pts4];
   } else if (id.includes('ring') || id.includes('atrium') || id.includes('courtyard')) {
-      const sides2 = id.includes('ring') ? 4 : 12;
-      const outerPts: Point[] = [];
-      for (let i = 0; i < sides2; i++) {
-        const angle = ((i / sides2) * 360 - 45) * Math.PI / 180;
-        outerPts.push({ x: cx + Math.cos(angle) * hw, y: cy + Math.sin(angle) * hh });
+      if (id.includes('oval') || id.includes('circular') || id.includes('atrium')) {
+         const pts: Point[] = [];
+         const sides = 24;
+         for (let i = 0; i <= sides; i++) {
+           const angle = ((i / sides) * 359 - 90) * Math.PI / 180;
+           pts.push({ x: cx + Math.cos(angle) * hw, y: cy + Math.sin(angle) * hh });
+         }
+         for (let i = sides; i >= 0; i--) {
+           const angle = ((i / sides) * 359 - 90) * Math.PI / 180;
+           pts.push({ x: cx + Math.cos(angle) * hw * 0.45, y: cy + Math.sin(angle) * hh * 0.45 });
+         }
+         return [pts];
+      } else {
+         // Rectangular ring with a slit on the right to form a valid non-intersecting polygon hole
+         const ir = 0.45; // inner courtyard size ratio
+         const slit = 0.1; // tiny slit offset
+         return [[
+           // Outer path
+           { x: cx + hw, y: cy - slit },
+           { x: cx + hw, y: cy - hh },
+           { x: cx - hw, y: cy - hh },
+           { x: cx - hw, y: cy + hh },
+           { x: cx + hw, y: cy + hh },
+           { x: cx + hw, y: cy + slit },
+           // Inner path (backwards)
+           { x: cx + hw * ir, y: cy + slit },
+           { x: cx + hw * ir, y: cy + hh * ir },
+           { x: cx - hw * ir, y: cy + hh * ir },
+           { x: cx - hw * ir, y: cy - hh * ir },
+           { x: cx + hw * ir, y: cy - hh * ir },
+           { x: cx + hw * ir, y: cy - slit },
+         ]];
       }
-      return [outerPts];
   } else if (id.includes('hex')) {
       const hexPts: Point[] = [];
       for (let i = 0; i < 6; i++) {
