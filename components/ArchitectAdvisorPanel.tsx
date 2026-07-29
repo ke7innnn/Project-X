@@ -575,14 +575,15 @@ export default function ArchitectAdvisorPanel({ onParamsApplied, onGenerateTrigg
                 const maxW = baseSize * ratio.rw;
                 const maxH = baseSize * ratio.rh;
                 
-                // Test 12 rotations (every 30 degrees)
-                for (let angle = 0; angle < Math.PI * 2; angle += Math.PI / 6) {
+                // Test 24 rotations (every 15 degrees) for ultra-precise wedging
+                for (let angle = 0; angle < Math.PI * 2; angle += Math.PI / 12) {
                   // Math optimization: skip if the maximum possible area for this ratio can't beat our bestArea
                   const minRequiredScale = Math.sqrt(bestArea / (ratio.rw * ratio.rh));
                   if (minRequiredScale >= 1.0) continue;
                   
                   let localMaxScale = 0;
-                  for (let scale = 1.0; scale > minRequiredScale; scale -= 0.05) {
+                  // Test down in 2% steps (0.02) for much higher precision
+                  for (let scale = 1.0; scale > minRequiredScale; scale -= 0.02) {
                     const testShapes = getShapePoints(suggestedShape, testCx, testCy, maxW * scale, maxH * scale);
                     let allInside = true;
                     
@@ -618,8 +619,8 @@ export default function ArchitectAdvisorPanel({ onParamsApplied, onGenerateTrigg
             }
           }
           
-          // Apply the 15% visual setback margin to the absolute mathematical maximum we found
-          const finalScale = bestScale * 0.85;
+          // Apply a minimal 2% visual setback margin to prove it's perfectly wedged
+          const finalScale = bestScale * 0.98;
           const finalW = baseSize * bestRatio.rw * finalScale;
           const finalH = baseSize * bestRatio.rh * finalScale;
           
