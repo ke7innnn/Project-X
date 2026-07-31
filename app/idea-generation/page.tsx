@@ -241,11 +241,6 @@ export default function IdeaGenerationPage() {
 
     try {
       const isShapeModified = aiOpts?.isShapeModified || advisorRef.current?.getShapeModifiedState() || false;
-      const styleName = isShapeModified
-        ? "CUSTOM GEOMETRIC"
-        : footprintShape === 'custom'
-          ? customFootprintText.trim().toUpperCase()
-          : (FOOTPRINT_PRESETS.find(f => f.id === footprintShape)?.name || 'X-SHAPE');
 
       if (useDemoMode) {
         // Wait for all steps to print sequentially
@@ -257,8 +252,8 @@ export default function IdeaGenerationPage() {
         const fallbackUrl = '/x-shape-floorplan.jpg';
         setLogs((prev) => [...prev, '[SYS] CORE CALCULATIONS VERIFIED. DESIGN SCHEMATIC PIPELINE ONLINE.']);
         setResultImage(fallbackUrl);
-        setResultTitle(`${styleName} TYPICAL PLAN`);
-        setResultDesc(`High-rise Floor Plan Core Synthesis: Monolithic ${styleName} tower floor plan.`);
+        setResultTitle(`TYPICAL PLAN`);
+        setResultDesc(`High-rise Floor Plan Core Synthesis: Monolithic tower floor plan.`);
         setIsGenerating(false);
       } else {
         // Call Fal AI route
@@ -301,12 +296,10 @@ export default function IdeaGenerationPage() {
         const roomSizeBlock = roomSizeLines.join('\n');
         
         // Build core spec line — only mention what's > 0
-        const coreParts: string[] = [];
-        if (hasLifts) coreParts.push(`${passengerLifts} lifts`);
-        if (hasStairs) coreParts.push(`${staircases} staircases`);
-        const coreSpecLine = coreParts.length > 0
-          ? `- Central core: ${coreParts.join(' + ')}, placed at the center of the building.`
-          : '';
+        const coreSpecs = [];
+        if (hasLifts) coreSpecs.push(`${passengerLifts} lifts`);
+        if (hasStairs) coreSpecs.push(`${staircases} staircases`);
+        const coreSpecStr = coreSpecs.length > 0 ? `- Central core: ${coreSpecs.join(' + ')}, placed at the center of the building.` : '';
         
         // Build optional constraint lines
         const optionalLines: string[] = [];
@@ -334,7 +327,7 @@ export default function IdeaGenerationPage() {
         const promptText = `Generate a top-down 2D architectural CAD floor plan viewed from above.
 
 BUILDING SPEC:
-- ${styleName} residential tower, ${overallWidth}m x ${overallLength}m footprint.
+- Residential tower, ${overallWidth}m x ${overallLength}m footprint.
 - ${totalUnits} apartments: ${mixBreakdownParts}.
 ${coreSpecLine}
 
