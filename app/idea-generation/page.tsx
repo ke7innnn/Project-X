@@ -310,8 +310,10 @@ STRICT LAYOUT RULES:
 - The input image has an existing floor plan inside a thick RED border. The RED border is the fixed building boundary.
 - DO NOT modify, move, reshape, or remove the RED border.
 - ONLY edit the interior layout INSIDE the RED border. Everything outside the RED border must remain plain white.
-- ALL Living Rooms, Bedrooms, and Kitchens MUST touch the RED border edge for windows and ventilation. No habitable room may be landlocked inside the core.
-- ALL Bathrooms must either touch the outer edge OR connect to a ventilation duct shaft.
+- ALL Living Rooms and Bedrooms MUST be placed along the outer edge (RED border) with at least one window on the outer wall. No living room or bedroom may be placed in the interior without a window.
+- ALL Kitchens MUST be placed along the outer edge with a window, OR next to a vertical exhaust duct shaft.
+- ALL Bathrooms MUST be placed along the outer edge with a window, OR next to a vertical ventilation duct shaft. Draw duct shafts as small labeled rectangles near the core.
+- No room in any apartment may be fully enclosed without either a window to the outside or a connection to a duct shaft.
 - Each apartment has exactly one entrance door opening onto the corridor.
 - A central corridor connects all apartment entrances to the lift/stair core.
 ${optionalBlock}
