@@ -93,7 +93,7 @@ export async function POST(req: Request) {
             input.quality = 'medium';
             input.size = `${outputWidth}x${outputHeight}`;
           } else {
-            input.strength = 0.85;
+            input.strength = 0.70;
           }
 
           const res = await fal.subscribe(config.imageToImage, { input });
@@ -113,7 +113,7 @@ export async function POST(req: Request) {
               input: {
                 prompt,
                 image_url: `data:image/png;base64,${inputImageBase64}`,
-                strength: 0.85,
+                strength: 0.70,
               } as any,
             });
             const url = extractUrl(res);
