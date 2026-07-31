@@ -297,6 +297,7 @@ export default function ArchitectAdvisorPanel({ onParamsApplied, onGenerateTrigg
 
   const [polygon, setPolygon] = useState<Point[]>([]);
   const [isTracingClosed, setIsTracingClosed] = useState(false);
+  const [isGridSet, setIsGridSet] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [hasAnalyzed, setHasAnalyzed] = useState(false);
   const [bgImage, setBgImage] = useState<HTMLImageElement | null>(null);
@@ -936,6 +937,10 @@ export default function ArchitectAdvisorPanel({ onParamsApplied, onGenerateTrigg
       setHasDraggedImg(false);
       return;
     }
+    if (!isGridSet) {
+      alert("Please enter the Overall Width and Length and click 'SET' before tracing.");
+      return;
+    }
     if (isTracingClosed) return;
     const rect = canvasRef.current!.getBoundingClientRect();
     const scaleX = canvasW / rect.width;
@@ -1022,6 +1027,7 @@ export default function ArchitectAdvisorPanel({ onParamsApplied, onGenerateTrigg
     setSuggestedShape(null);
     setAppliedOptionId(null);
     setParamsApplied(false);
+    setIsGridSet(true);
   };
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -1223,7 +1229,8 @@ export default function ArchitectAdvisorPanel({ onParamsApplied, onGenerateTrigg
 
         {!isTracingClosed && (
           <div className="px-3 py-1 text-[9px] text-cyan-500/45 select-none">
-            {polygon.length === 0 ? 'Click on grid to trace your plot. Each cell = 10×10 meters.' :
+            {!isGridSet ? 'Enter W × H and click SET before tracing.' :
+             polygon.length === 0 ? 'Click on grid to trace your plot. Each cell = 10×10 meters.' :
              polygon.length < 3 ? `${polygon.length} point(s). Need at least 3 to close.` :
              `${polygon.length} points. Click near first point (green dot) to close & analyze.`}
           </div>

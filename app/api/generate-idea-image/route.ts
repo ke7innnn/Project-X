@@ -71,71 +71,75 @@ export async function POST(req: Request) {
       }
     };
 
-    // ── Model: GPT-Image-2 (OpenAI via Fal) ──────────────────────────────────
-    // Run twice with different seeds for Variant Alpha and Variant Beta
-    const SEED_A = 42;
-    const SEED_B = 137;
-
-    const runVariant = async (seed: number, label: string): Promise<string | null> => {
-      // Try GPT-Image-2 edit mode (supports image_url in input)
+    // ── Model: Nano Banana 2 (Fal AI) ──────────────────────────────────
+    const runGeneration = async (): Promise<string | null> => {
       if (inputImageBase64) {
         try {
-          const res = await fal.subscribe('openai/gpt-image-2/edit', {
+          const res = await fal.subscribe('fal-ai/nano-banana-2/image-to-image', {
             input: {
               prompt: prompt,
               image_url: `data:image/png;base64,${inputImageBase64}`,
-              quality: 'medium',
-              size: `${outputWidth}x${outputHeight}`,
+              strength: 0.85,
             } as any
           });
           const imgs = (res as any)?.images || (res as any)?.data?.images;
           const url = imgs?.[0]?.url;
           if (url) {
-            console.log(`[IdeaGenerator] ${label} GPT-Image-2 edit succeeded`);
+            console.log(`[IdeaGenerator] Nano-Banana-2 image-to-image succeeded`);
             return url;
           }
         } catch (e: any) {
-          console.error(`[IdeaGenerator] ${label} GPT-Image-2 edit failed:`, e.message);
+          console.error(`[IdeaGenerator] Nano-Banana-2 image-to-image failed:`, e.message);
+          // Attempt the /edit endpoint as requested if image-to-image fails
+          try {
+            const res = await fal.subscribe('fal-ai/nano-banana-2/edit', {
+              input: {
+                prompt: prompt,
+                image_url: `data:image/png;base64,${inputImageBase64}`,
+                strength: 0.85,
+              } as any
+            });
+            const imgs = (res as any)?.images || (res as any)?.data?.images;
+            const url = imgs?.[0]?.url;
+            if (url) {
+              console.log(`[IdeaGenerator] Nano-Banana-2 edit succeeded`);
+              return url;
+            }
+          } catch (err2: any) {
+            console.error(`[IdeaGenerator] Nano-Banana-2 edit failed:`, err2.message);
+          }
         }
       }
 
-      // Fallback: GPT-Image-2 text-only with quality=medium
+      // Fallback: Nano Banana 2 text-only
       try {
-        // Just use the base model for text generation if no image provided or edit failed
-        const res = await fal.subscribe('openai/gpt-image-2', {
+        const res = await fal.subscribe('fal-ai/nano-banana-2', {
           input: {
             prompt: prompt,
-            quality: 'medium',
-            size: `${outputWidth}x${outputHeight}`,
+            image_size: { width: outputWidth, height: outputHeight },
           } as any
         });
         const imgs = (res as any)?.images || (res as any)?.data?.images;
         const url = imgs?.[0]?.url;
         if (url) {
-          console.log(`[IdeaGenerator] ${label} GPT-Image-2 text-only succeeded`);
+          console.log(`[IdeaGenerator] Nano-Banana-2 text-only succeeded`);
           return url;
         }
       } catch (e: any) {
-        console.error(`[IdeaGenerator] ${label} GPT-Image-2 text-only failed:`, e.message);
+        console.error(`[IdeaGenerator] Nano-Banana-2 text-only failed:`, e.message);
       }
 
       return null;
     };
 
-    // Run both variants in parallel
-    const [variantA, variantB] = await Promise.all([
-      runVariant(SEED_A, 'Variant-Alpha'),
-      runVariant(SEED_B, 'Variant-Beta'),
-    ]);
+    const finalUrl = await runGeneration();
 
-    if (!variantA && !variantB) {
-      return NextResponse.json({ error: 'Both GPT-Image-1 variants failed to generate images.' }, { status: 500 });
+    if (!finalUrl) {
+      return NextResponse.json({ error: 'Nano-Banana-2 failed to generate images.' }, { status: 500 });
     }
 
     return NextResponse.json({
-      gptImageUrl: variantA,
-      nanoImageUrl: variantB,
-      url: variantA || variantB,
+      url: finalUrl,
     });
 
   } catch (error: any) {

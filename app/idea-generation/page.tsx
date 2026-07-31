@@ -291,8 +291,9 @@ HARD CONSTRAINTS (HIGHEST PRIORITY)
 * Every architectural element must remain strictly inside the RED boundary.
 * Nothing may extend beyond the RED boundary.
 * If any instruction conflicts with the RED footprint, preserve the RED footprint.
-* ALL Living Rooms and Bedrooms MUST be placed on the external perimeter/façade to ensure natural ventilation and daylight. Do NOT place living rooms or bedrooms deep inside the core.
+* ALL Living Rooms, Bedrooms, and Kitchens MUST be placed on the external perimeter/façade to ensure natural ventilation and daylight. Do NOT place living rooms, bedrooms, or kitchens deep inside the core.
 * ALL Toilets/Bathrooms MUST have ventilation (either on the external façade or connected to an internal plumbing/ventilation duct).
+* Each apartment MUST have a logically correct main entrance connecting to the central corridor/circulation core.
 
 PROJECT PARAMETERS
 * Building Type: Luxury high-rise ${styleName} residential tower
@@ -419,12 +420,7 @@ Output ONLY the pristine, highly detailed 2D architectural CAD floor plan.`;
 
         setLogs((prev) => [...prev, '[SYS] DUAL MODEL CALCULATIONS VERIFIED (GPT-IMAGE-1 ALPHA/BETA). ONLINE.']);
         
-        const gptUrl = resData.gptImageUrl || resData.url || null;
-        const nanoUrl = resData.nanoImageUrl || resData.url || null;
-
-        setGptResultImage(gptUrl);
-        setNanoResultImage(nanoUrl);
-        setResultImage(gptUrl || nanoUrl);
+        setResultImage(resData.gptImageUrl || resData.nanoImageUrl || resData.url || null);
 
         setResultTitle(`${styleName} TOWER PLAN SCHEMATIC`);
         setResultDesc(`Dual Generative Synthesis (GPT-Image-1 Variants Alpha & Beta) based on a ${styleName} footprint.`);
@@ -841,29 +837,29 @@ Output ONLY the pristine, highly detailed 2D architectural CAD floor plan.`;
                 </div>
               )}
 
-              {/* Dual Generated Images Viewport */}
-              {(gptResultImage || nanoResultImage || resultImage) && !isGenerating ? (
-                <div className="w-full h-full grid grid-cols-1 md:grid-cols-2 gap-4 overflow-y-auto p-1 animate-fadeIn">
+              {/* Single Generated Image Viewport */}
+              {(resultImage) && !isGenerating ? (
+                <div className="w-full h-full flex flex-col overflow-y-auto p-1 animate-fadeIn">
                   
-                  {/* Variant Alpha Card */}
+                  {/* Synthesis Card */}
                   <div className="relative flex flex-col rounded-xl border border-cyan-500/30 bg-black/60 overflow-hidden group">
                     <div className="px-3 py-1.5 bg-cyan-950/80 border-b border-cyan-500/20 flex items-center justify-between">
-                      <span className="text-[10px] font-bold text-cyan-400 tracking-wider uppercase">SCHEMATIC VARIANT ALPHA</span>
-                      <span className="text-[9px] text-cyan-500/60 font-mono">SYNTHESIS CORE A</span>
+                      <span className="text-[10px] font-bold text-cyan-400 tracking-wider uppercase">SCHEMATIC SYNTHESIS (NANO BANANA 2)</span>
+                      <span className="text-[9px] text-cyan-500/60 font-mono">PRIMARY CORE</span>
                     </div>
-                    <div className="relative flex-1 bg-white min-h-[240px] flex items-center justify-center">
+                    <div className="relative flex-1 bg-white min-h-[400px] flex items-center justify-center">
                       <img 
-                        src={gptResultImage || resultImage || ''} 
-                        alt="Variant Alpha Floor Plan"
+                        src={resultImage} 
+                        alt="Floor Plan Schematic"
                         className="w-full h-full object-contain"
                       />
                     </div>
                     <div className="p-3 bg-[#08080c] border-t border-white/10 flex flex-col gap-2">
                       <div className="flex items-center justify-between">
-                        <span className="text-[10px] text-cyan-300 font-semibold truncate">Variant Alpha Schematics</span>
+                        <span className="text-[10px] text-cyan-300 font-semibold truncate">Generated Schematic</span>
                         <a 
-                          href={gptResultImage || resultImage || ''}
-                          download="variant-alpha-floorplan.png"
+                          href={resultImage}
+                          download="floorplan-schematic.png"
                           className="px-2.5 py-1 rounded bg-cyan-950 border border-cyan-500/30 text-[10px] text-cyan-400 hover:text-white flex items-center gap-1"
                         >
                           <Download className="w-3 h-3" /> Download
@@ -871,7 +867,7 @@ Output ONLY the pristine, highly detailed 2D architectural CAD floor plan.`;
                       </div>
                       <button
                         onClick={() => {
-                          const targetImg = gptResultImage || resultImage || '';
+                          const targetImg = resultImage;
                           const styleName = footprintShape === 'custom'
                             ? customFootprintText.trim().toUpperCase()
                             : (FOOTPRINT_PRESETS.find(f => f.id === footprintShape)?.name || 'X-SHAPE');
@@ -889,63 +885,6 @@ Output ONLY the pristine, highly detailed 2D architectural CAD floor plan.`;
                       >
                         <Camera className="w-3 h-3" /> 3D VIEWS
                       </button>
-                    </div>
-                  </div>
-
-                  {/* Variant Beta Card */}
-                  <div className="relative flex flex-col rounded-xl border border-amber-500/30 bg-black/60 overflow-hidden group">
-                    <div className="px-3 py-1.5 bg-amber-950/80 border-b border-amber-500/20 flex items-center justify-between">
-                      <span className="text-[10px] font-bold text-amber-400 tracking-wider uppercase">SCHEMATIC VARIANT BETA</span>
-                      <span className="text-[9px] text-amber-500/60 font-mono">SYNTHESIS CORE B</span>
-                    </div>
-                    <div className="relative flex-1 bg-white min-h-[240px] flex items-center justify-center">
-                      {nanoResultImage ? (
-                        <img 
-                          src={nanoResultImage} 
-                          alt="Variant Beta Floor Plan"
-                          className="w-full h-full object-contain"
-                        />
-                      ) : (
-                        <div className="flex flex-col items-center justify-center text-center p-4 text-slate-400">
-                          <AlertTriangle className="w-6 h-6 text-amber-400/60 mb-2" />
-                          <span className="text-[11px] font-semibold text-amber-300">Variant Beta processing...</span>
-                        </div>
-                      )}
-                    </div>
-                    <div className="p-3 bg-[#08080c] border-t border-white/10 flex flex-col gap-2">
-                      <div className="flex items-center justify-between">
-                        <span className="text-[10px] text-amber-300 font-semibold truncate">Variant Beta Schematics</span>
-                        {nanoResultImage && (
-                          <a 
-                            href={nanoResultImage}
-                            download="variant-beta-floorplan.png"
-                            className="px-2.5 py-1 rounded bg-amber-950 border border-amber-500/30 text-[10px] text-amber-400 hover:text-white flex items-center gap-1"
-                          >
-                            <Download className="w-3 h-3" /> Download
-                          </a>
-                        )}
-                      </div>
-                      {nanoResultImage && (
-                        <button
-                          onClick={() => {
-                            const styleName = footprintShape === 'custom'
-                              ? customFootprintText.trim().toUpperCase()
-                              : (FOOTPRINT_PRESETS.find(f => f.id === footprintShape)?.name || 'X-SHAPE');
-                            const params = new URLSearchParams({
-                              floorPlanImageUrl: nanoResultImage,
-                              footprintShape: styleName,
-                              overallWidth,
-                              overallLength,
-                              storyCount,
-                              designNotes: customPrompt,
-                            });
-                            router.push(`/idea-generation/view-synthesis?${params.toString()}`);
-                          }}
-                          className="w-full py-2 rounded font-bold text-[10px] tracking-wider transition-all flex items-center justify-center gap-1.5 bg-gradient-to-r from-amber-500/20 to-purple-500/20 border border-amber-400/30 text-white hover:border-amber-300"
-                        >
-                          <Camera className="w-3 h-3" /> 3D VIEWS
-                        </button>
-                      )}
                     </div>
                   </div>
 
