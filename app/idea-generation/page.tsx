@@ -79,6 +79,7 @@ export default function IdeaGenerationPage() {
   // Central Core Spec States (Simplified to Lifts & Stairs)
   const [passengerLifts, setPassengerLifts] = useState(8);
   const [staircases, setStaircases] = useState(2);
+  const advisorRef = useRef<ArchitectAdvisorRef>(null);
 
   // Compliance Toggles
   const [vastuCompliant, setVastuCompliant] = useState(true);
@@ -151,8 +152,9 @@ export default function IdeaGenerationPage() {
   ];
 
   // Unified Async Generation and HUD Progress Pipeline
-  const handleGenerate = async (e?: React.FormEvent, aiOpts?: { tracerImageBase64?: string; canvasW?: number; canvasH?: number }) => {
+  const handleGenerate = async (e?: React.FormEvent, aiOpts?: { tracerImageBase64?: string; canvasW?: number; canvasH?: number; isShapeModified?: boolean }) => {
     if (e) e.preventDefault();
+    const fallbackBase64 = advisorRef.current?.exportCanvasBase64() || undefined;
     setValidationError(null);
 
     // 1. Validations & Sanity Checks
@@ -238,9 +240,12 @@ export default function IdeaGenerationPage() {
     }, 550);
 
     try {
-      const styleName = footprintShape === 'custom'
-        ? customFootprintText.trim().toUpperCase()
-        : (FOOTPRINT_PRESETS.find(f => f.id === footprintShape)?.name || 'X-SHAPE');
+      const isShapeModified = aiOpts?.isShapeModified || advisorRef.current?.getShapeModifiedState() || false;
+      const styleName = isShapeModified
+        ? "CUSTOM GEOMETRIC"
+        : footprintShape === 'custom'
+          ? customFootprintText.trim().toUpperCase()
+          : (FOOTPRINT_PRESETS.find(f => f.id === footprintShape)?.name || 'X-SHAPE');
 
       if (useDemoMode) {
         // Wait for all steps to print sequentially
@@ -368,7 +373,7 @@ ${symbolBlock}
         // Store the exact payload for the realtime logs UI
         setDebugPayload({
           prompt: promptText,
-          imageBase64: aiOpts?.tracerImageBase64
+          imageBase64: aiOpts?.tracerImageBase64 || fallbackBase64
         });
 
         const activePreset = FOOTPRINT_PRESETS.find(f => f.id === footprintShape);
@@ -386,7 +391,7 @@ ${symbolBlock}
             style: styleName,
             imageSize,
             apiKey: apiKey || undefined,
-            inputImageBase64: aiOpts?.tracerImageBase64,
+            inputImageBase64: aiOpts?.tracerImageBase64 || fallbackBase64,
             canvasW: aiOpts?.canvasW,
             canvasH: aiOpts?.canvasH,
             modelId: selectedModel,
@@ -470,7 +475,7 @@ ${symbolBlock}
     if (params.customPrompt) setCustomPrompt(params.customPrompt);
   }, []);
 
-  const handleGenerateTrigger = useCallback((opts?: { tracerImageBase64?: string; canvasW?: number; canvasH?: number }) => {
+  const handleGenerateTrigger = useCallback((opts?: { tracerImageBase64?: string; canvasW?: number; canvasH?: number; isShapeModified?: boolean }) => {
     handleGenerate(undefined, opts);
   }, [handleGenerate]);
 
@@ -987,6 +992,7 @@ ${symbolBlock}
           {/* Column 3: Right Panel — ARIA AI Architect Advisor */}
           <div className="lg:col-span-4 flex flex-col h-full min-h-0">
             <ArchitectAdvisorPanel
+              ref={advisorRef}
               onParamsApplied={handleParamsApplied}
               onGenerateTrigger={handleGenerateTrigger}
               selectedModel={selectedModel}

@@ -55,9 +55,14 @@ export interface FormParams {
   customPrompt: string;
 }
 
+export interface ArchitectAdvisorRef {
+  exportCanvasBase64: () => string | null;
+  getShapeModifiedState: () => boolean;
+}
+
 interface Props {
   onParamsApplied: (params: FormParams) => void;
-  onGenerateTrigger: (opts: { tracerImageBase64?: string; canvasW?: number; canvasH?: number }) => void;
+  onGenerateTrigger: (opts: { tracerImageBase64?: string; canvasW?: number; canvasH?: number; isShapeModified?: boolean }) => void;
   selectedModel: string;
   onModelChange: (modelId: string) => void;
 }
@@ -273,7 +278,9 @@ function getShapePoints(shapeId: string, cx: number, cy: number, w: number, h: n
 }
 
 // ─── Main Component ───────────────────────────────────────────────────────────
-export default function ArchitectAdvisorPanel({ onParamsApplied, onGenerateTrigger, selectedModel, onModelChange }: Props) {
+import { forwardRef, useImperativeHandle } from 'react';
+
+const ArchitectAdvisorPanel = forwardRef<ArchitectAdvisorRef, Props>(({ onParamsApplied, onGenerateTrigger, selectedModel, onModelChange }, ref) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const chatEndRef = useRef<HTMLDivElement>(null);
   const chatContainerRef = useRef<HTMLDivElement>(null);
@@ -567,8 +574,8 @@ export default function ArchitectAdvisorPanel({ onParamsApplied, onGenerateTrigg
 
   const handleGenerateTrigger = useCallback(() => {
     const base64 = exportForAI();
-    onGenerateTrigger({ tracerImageBase64: base64 || undefined, canvasW: outputW, canvasH: outputH });
-  }, [exportForAI, onGenerateTrigger, outputW, outputH]);
+    onGenerateTrigger({ tracerImageBase64: base64 || undefined, canvasW: outputW, canvasH: outputH, isShapeModified: shapeWasModified });
+  }, [exportForAI, onGenerateTrigger, outputW, outputH, shapeWasModified]);
 
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
@@ -579,6 +586,11 @@ export default function ArchitectAdvisorPanel({ onParamsApplied, onGenerateTrigg
   const [inputValue, setInputValue] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [paramsApplied, setParamsApplied] = useState(false);
+
+  useImperativeHandle(ref, () => ({
+    exportCanvasBase64: () => exportForAI(),
+    getShapeModifiedState: () => shapeWasModified
+  }));
 
   // Draw canvas
   useEffect(() => {
@@ -1378,6 +1390,8 @@ Use these measurements to determine which apartment types can physically fit in 
     const analysis = computeGeometryAnalysis(editablePolygons);
     setShapeGeometryAnalysis(analysis);
     
+    finalShapePolygonsRef.current = editablePolygons;
+    
     setIsEditingShape(false);
     setEditablePolygons(null);
     setShapeDragIdx(null);
@@ -1876,4 +1890,6 @@ Use these measurements to determine which apartment types can physically fit in 
       </div>
     </div>
   );
-}
+});
+
+export default ArchitectAdvisorPanel;
