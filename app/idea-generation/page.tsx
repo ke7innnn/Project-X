@@ -420,14 +420,15 @@ Output ONLY the pristine, highly detailed 2D architectural CAD floor plan.`;
 
         setLogs((prev) => [...prev, '[SYS] DUAL MODEL CALCULATIONS VERIFIED (GPT-IMAGE-1 ALPHA/BETA). ONLINE.']);
         
-        setResultImage(resData.gptImageUrl || resData.nanoImageUrl || resData.url || null);
+        const finalResultImg = resData.gptImageUrl || resData.nanoImageUrl || resData.url || null;
+        setResultImage(finalResultImg);
 
         setResultTitle(`${styleName} TOWER PLAN SCHEMATIC`);
-        setResultDesc(`Dual Generative Synthesis (GPT-Image-1 Variants Alpha & Beta) based on a ${styleName} footprint.`);
+        setResultDesc(`Generative Synthesis (Nano Banana 2) based on a ${styleName} footprint.`);
 
         // Save to variants history
         setVariantsHistory(prev => {
-          const newItems = [gptUrl, nanoUrl].filter((u): u is string => Boolean(u));
+          const newItems = [finalResultImg].filter((u): u is string => Boolean(u));
           const list = [...newItems, ...prev.filter(item => !newItems.includes(item))];
           return list.slice(0, 10);
         });
