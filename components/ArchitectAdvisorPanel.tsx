@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { Send, Loader2, Upload, CheckCircle2, ChevronRight, RotateCcw, MousePointer, Sparkles } from 'lucide-react';
+import { Send, Loader2, Upload, CheckCircle2, ChevronRight, RotateCcw, MousePointer, Sparkles, Edit2, Check } from 'lucide-react';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface Point { x: number; y: number; }
@@ -310,6 +310,49 @@ export default function ArchitectAdvisorPanel({ onParamsApplied, onGenerateTrigg
   const [plotData, setPlotData] = useState<PlotData | null>(null);
   const [suggestedShape, setSuggestedShape] = useState<string | null>(null);
   const [appliedOptionId, setAppliedOptionId] = useState<string | null>(null);
+
+  // ── Shape Vertex Editing State ────────────────────────────────────────────
+  const [isEditingShape, setIsEditingShape] = useState(false);
+  const [editablePolygons, setEditablePolygons] = useState<Point[][] | null>(null);
+  const [shapeDragIdx, setShapeDragIdx] = useState<{ polyIdx: number; ptIdx: number } | null>(null);
+  const [shapeDragStart, setShapeDragStart] = useState<Point | null>(null);
+  const [hoveredEdge, setHoveredEdge] = useState<{ polyIdx: number; edgeIdx: number; insertPt: Point } | null>(null);
+  const [isRotatingShape, setIsRotatingShape] = useState(false);
+  const [shapeRotationAngle, setShapeRotationAngle] = useState(0);
+  const [rotationStartAngle, setRotationStartAngle] = useState(0);
+  const [shapeWasModified, setShapeWasModified] = useState(false);
+  const [shapeGeometryAnalysis, setShapeGeometryAnalysis] = useState<string | null>(null);
+
+  // Helper: check if a point is inside the traced plot polygon
+  const isPointInPlot = useCallback((pt: Point): boolean => {
+    if (polygon.length < 3) return true;
+    let inside = false;
+    for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
+      const xi = polygon[i].x, yi = polygon[i].y;
+      const xj = polygon[j].x, yj = polygon[j].y;
+      if ((yi > pt.y) !== (yj > pt.y) && pt.x < (xj - xi) * (pt.y - yi) / (yj - yi) + xi) {
+        inside = !inside;
+      }
+    }
+    return inside;
+  }, [polygon]);
+
+  // Helper: get centroid of all editable polygons
+  const getShapeCentroid = useCallback((polys: Point[][]): Point => {
+    const allPts = polys.flat();
+    const cx = allPts.reduce((s, p) => s + p.x, 0) / allPts.length;
+    const cy = allPts.reduce((s, p) => s + p.y, 0) / allPts.length;
+    return { x: cx, y: cy };
+  }, []);
+
+  // Helper: rotate a point around a center
+  const rotatePoint = useCallback((pt: Point, center: Point, angle: number): Point => {
+    const cos = Math.cos(angle);
+    const sin = Math.sin(angle);
+    const dx = pt.x - center.x;
+    const dy = pt.y - center.y;
+    return { x: center.x + dx * cos - dy * sin, y: center.y + dx * sin + dy * cos };
+  }, []);
 
   // Output canvas dimensions (for AI generation image size)
   const [outputW, setOutputW] = useState(1024);
@@ -730,18 +773,20 @@ export default function ArchitectAdvisorPanel({ onParamsApplied, onGenerateTrigg
           
           ctx.save();
           
-          shapePolygons.forEach(shapePts => {
-            if (shapePts.length < 3) return;
-            ctx.fillStyle = 'rgba(255, 165, 0, 0.25)';
-            ctx.strokeStyle = '#FFB000';
-            ctx.lineWidth = 2.0;
-            ctx.beginPath();
-            ctx.moveTo(shapePts[0].x, shapePts[0].y);
-            shapePts.slice(1).forEach(p => ctx.lineTo(p.x, p.y));
-            ctx.closePath();
-            ctx.fill();
-            ctx.stroke();
-          });
+          if (!isEditingShape) {
+            shapePolygons.forEach(shapePts => {
+              if (shapePts.length < 3) return;
+              ctx.fillStyle = 'rgba(255, 165, 0, 0.25)';
+              ctx.strokeStyle = '#FFB000';
+              ctx.lineWidth = 2.0;
+              ctx.beginPath();
+              ctx.moveTo(shapePts[0].x, shapePts[0].y);
+              shapePts.slice(1).forEach(p => ctx.lineTo(p.x, p.y));
+              ctx.closePath();
+              ctx.fill();
+              ctx.stroke();
+            });
+          }
           
           ctx.fillStyle = 'rgba(255,165,0,0.85)';
           ctx.font = 'bold 7px monospace';
@@ -752,6 +797,92 @@ export default function ArchitectAdvisorPanel({ onParamsApplied, onGenerateTrigg
           ctx.textAlign = 'left';
           
           ctx.restore();
+          
+          // ── Shape Editing Overlay ───────────────────────────────────────
+          if (isEditingShape && editablePolygons) {
+            // Draw the editable shape (overrides the static one)
+            editablePolygons.forEach(shapePts => {
+              if (shapePts.length < 3) return;
+              ctx.fillStyle = 'rgba(255, 165, 0, 0.30)';
+              ctx.strokeStyle = '#FF6B00';
+              ctx.lineWidth = 2.5;
+              ctx.beginPath();
+              ctx.moveTo(shapePts[0].x, shapePts[0].y);
+              shapePts.slice(1).forEach(p => ctx.lineTo(p.x, p.y));
+              ctx.closePath();
+              ctx.fill();
+              ctx.stroke();
+            });
+            
+            // Draw vertex handles
+            editablePolygons.forEach(shapePts => {
+              shapePts.forEach(pt => {
+                ctx.fillStyle = '#FF6B00';
+                ctx.strokeStyle = '#ffffff';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.arc(pt.x, pt.y, 6, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.stroke();
+              });
+            });
+            
+            // Draw hovered edge insert point
+            if (hoveredEdge) {
+              ctx.fillStyle = '#00ff88';
+              ctx.strokeStyle = '#ffffff';
+              ctx.lineWidth = 2;
+              ctx.beginPath();
+              ctx.arc(hoveredEdge.insertPt.x, hoveredEdge.insertPt.y, 5, 0, Math.PI * 2);
+              ctx.fill();
+              ctx.stroke();
+              // Draw a "+" label
+              ctx.fillStyle = '#00ff88';
+              ctx.font = 'bold 10px sans-serif';
+              ctx.textAlign = 'center';
+              ctx.fillText('+', hoveredEdge.insertPt.x, hoveredEdge.insertPt.y - 10);
+              ctx.textAlign = 'left';
+            }
+            
+            // Draw rotation handle
+            const centroid = getShapeCentroid(editablePolygons);
+            const rotHandleY = centroid.y - 50;
+            
+            // Dashed line from centroid to rotation handle
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
+            ctx.lineWidth = 1;
+            ctx.setLineDash([3, 3]);
+            ctx.beginPath();
+            ctx.moveTo(centroid.x, centroid.y);
+            ctx.lineTo(centroid.x, rotHandleY);
+            ctx.stroke();
+            ctx.setLineDash([]);
+            
+            // Rotation circle
+            ctx.fillStyle = '#8B5CF6';
+            ctx.strokeStyle = '#ffffff';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.arc(centroid.x, rotHandleY, 8, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.stroke();
+            
+            // Rotation icon (↻)
+            ctx.fillStyle = '#ffffff';
+            ctx.font = 'bold 9px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText('↻', centroid.x, rotHandleY + 3);
+            ctx.textAlign = 'left';
+            
+            // Real-time area display
+            let editArea = 0;
+            editablePolygons.forEach(pts => { editArea += polygonAreaM2(pts); });
+            ctx.fillStyle = 'rgba(255, 107, 0, 0.9)';
+            ctx.font = 'bold 9px monospace';
+            ctx.textAlign = 'center';
+            ctx.fillText(`${editArea.toFixed(0)} m²`, centroid.x, centroid.y + 4);
+            ctx.textAlign = 'left';
+          }
           
           // Re-draw polygon outline to ensure it stays crisp
           ctx.strokeStyle = '#00f0ff';
@@ -836,11 +967,57 @@ export default function ArchitectAdvisorPanel({ onParamsApplied, onGenerateTrigg
   };
 
   const handleCanvasMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
-    if (!bgImage || !imgBounds) return;
     const rect = canvasRef.current!.getBoundingClientRect();
     const scaleX = canvasW / rect.width;
     const scaleY = canvasH / rect.height;
     const raw = { x: (e.clientX - rect.left) * scaleX, y: (e.clientY - rect.top) * scaleY };
+
+    // ── Shape editing intercept ─────────────────────────────────────────────
+    if (isEditingShape && editablePolygons) {
+      const HANDLE_R = 8;
+      
+      // Check rotation handle (circle above centroid)
+      const centroid = getShapeCentroid(editablePolygons);
+      const rotHandleY = centroid.y - 50;
+      if (Math.hypot(raw.x - centroid.x, raw.y - rotHandleY) <= HANDLE_R + 4) {
+        setIsRotatingShape(true);
+        setRotationStartAngle(Math.atan2(raw.y - centroid.y, raw.x - centroid.x) - shapeRotationAngle);
+        return;
+      }
+
+      // Check vertex handles
+      for (let pi = 0; pi < editablePolygons.length; pi++) {
+        for (let vi = 0; vi < editablePolygons[pi].length; vi++) {
+          const pt = editablePolygons[pi][vi];
+          if (Math.hypot(raw.x - pt.x, raw.y - pt.y) <= HANDLE_R) {
+            setShapeDragIdx({ polyIdx: pi, ptIdx: vi });
+            setShapeDragStart(raw);
+            return;
+          }
+        }
+      }
+
+      // Check if clicking on an edge (insert vertex)
+      if (hoveredEdge) {
+        const { polyIdx, edgeIdx, insertPt } = hoveredEdge;
+        // Only insert if the point is inside the plot
+        if (isPointInPlot(insertPt)) {
+          setEditablePolygons(prev => {
+            if (!prev) return prev;
+            const newPolys = prev.map(p => [...p]);
+            newPolys[polyIdx].splice(edgeIdx + 1, 0, { ...insertPt });
+            return newPolys;
+          });
+          setShapeWasModified(true);
+          setHoveredEdge(null);
+        }
+        return;
+      }
+      return;
+    }
+
+
+    if (!bgImage || !imgBounds) return;
 
     const handleRadius = 12;
     const { x, y, w, h } = imgBounds;
@@ -870,6 +1047,85 @@ export default function ArchitectAdvisorPanel({ onParamsApplied, onGenerateTrigg
     const scaleX = canvasW / rect.width;
     const scaleY = canvasH / rect.height;
     const raw = { x: (e.clientX - rect.left) * scaleX, y: (e.clientY - rect.top) * scaleY };
+
+    // ── Shape editing intercept ─────────────────────────────────────────────
+    if (isEditingShape && editablePolygons) {
+      // Handle rotation
+      if (isRotatingShape) {
+        const centroid = getShapeCentroid(editablePolygons);
+        const currentAngle = Math.atan2(raw.y - centroid.y, raw.x - centroid.x);
+        const newAngle = currentAngle - rotationStartAngle;
+        const deltaAngle = newAngle - shapeRotationAngle;
+        
+        // Rotate all points
+        const rotated = editablePolygons.map(poly =>
+          poly.map(p => rotatePoint(p, centroid, deltaAngle))
+        );
+        
+        // Check all points are inside plot
+        const allInside = rotated.flat().every(p => isPointInPlot(p));
+        if (allInside) {
+          setEditablePolygons(rotated);
+          setShapeRotationAngle(newAngle);
+          setShapeWasModified(true);
+        }
+        return;
+      }
+      
+      // Handle vertex dragging
+      if (shapeDragIdx && shapeDragStart) {
+        const dx = raw.x - shapeDragStart.x;
+        const dy = raw.y - shapeDragStart.y;
+        const newPt = {
+          x: editablePolygons[shapeDragIdx.polyIdx][shapeDragIdx.ptIdx].x + dx,
+          y: editablePolygons[shapeDragIdx.polyIdx][shapeDragIdx.ptIdx].y + dy,
+        };
+        
+        // Constrain to plot boundary
+        if (isPointInPlot(newPt)) {
+          setEditablePolygons(prev => {
+            if (!prev) return prev;
+            const newPolys = prev.map(poly => poly.map(p => ({ ...p })));
+            newPolys[shapeDragIdx.polyIdx][shapeDragIdx.ptIdx] = newPt;
+            return newPolys;
+          });
+          setShapeDragStart(raw);
+          setShapeWasModified(true);
+        }
+        return;
+      }
+      
+      // Detect edge hover for vertex insertion
+      const EDGE_DIST = 10;
+      let foundEdge: typeof hoveredEdge = null;
+      for (let pi = 0; pi < editablePolygons.length && !foundEdge; pi++) {
+        const pts = editablePolygons[pi];
+        for (let ei = 0; ei < pts.length; ei++) {
+          const a = pts[ei];
+          const b = pts[(ei + 1) % pts.length];
+          // Distance from raw to line segment a-b
+          const dx = b.x - a.x, dy = b.y - a.y;
+          const lenSq = dx * dx + dy * dy;
+          if (lenSq === 0) continue;
+          let t = ((raw.x - a.x) * dx + (raw.y - a.y) * dy) / lenSq;
+          t = Math.max(0.1, Math.min(0.9, t)); // clamp to avoid inserting on top of existing vertices
+          const proj = { x: a.x + t * dx, y: a.y + t * dy };
+          const dist = Math.hypot(raw.x - proj.x, raw.y - proj.y);
+          if (dist <= EDGE_DIST) {
+            foundEdge = { polyIdx: pi, edgeIdx: ei, insertPt: proj };
+            break;
+          }
+        }
+      }
+      setHoveredEdge(foundEdge);
+      
+      if (canvasRef.current) {
+        if (shapeDragIdx) canvasRef.current.style.cursor = 'grabbing';
+        else if (foundEdge) canvasRef.current.style.cursor = 'cell';
+        else canvasRef.current.style.cursor = 'default';
+      }
+      return;
+    }
 
     if (dragMode && dragStartRaw && initialBounds) {
       const dx = raw.x - dragStartRaw.x;
@@ -930,9 +1186,14 @@ export default function ArchitectAdvisorPanel({ onParamsApplied, onGenerateTrigg
     setDragMode(null);
     setDragStartRaw(null);
     setInitialBounds(null);
+    // Shape editing
+    setShapeDragIdx(null);
+    setShapeDragStart(null);
+    setIsRotatingShape(false);
   };
 
   const handleCanvasClick = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    if (isEditingShape) return; // editing mode handles its own clicks in mouseDown
     if (hasDraggedImg) {
       setHasDraggedImg(false);
       return;
@@ -956,6 +1217,35 @@ export default function ArchitectAdvisorPanel({ onParamsApplied, onGenerateTrigg
       }
     }
     setPolygon(prev => [...prev, snapped]);
+  };
+
+  // Right-click to delete a vertex in shape edit mode
+  const handleCanvasContextMenu = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    if (!isEditingShape || !editablePolygons) return;
+    e.preventDefault();
+    const rect = canvasRef.current!.getBoundingClientRect();
+    const scaleX = canvasW / rect.width;
+    const scaleY = canvasH / rect.height;
+    const raw = { x: (e.clientX - rect.left) * scaleX, y: (e.clientY - rect.top) * scaleY };
+    
+    const HANDLE_R = 10;
+    for (let pi = 0; pi < editablePolygons.length; pi++) {
+      for (let vi = 0; vi < editablePolygons[pi].length; vi++) {
+        const pt = editablePolygons[pi][vi];
+        if (Math.hypot(raw.x - pt.x, raw.y - pt.y) <= HANDLE_R) {
+          // Don't allow deleting if polygon would have < 3 vertices
+          if (editablePolygons[pi].length <= 3) return;
+          setEditablePolygons(prev => {
+            if (!prev) return prev;
+            const newPolys = prev.map(poly => [...poly]);
+            newPolys[pi].splice(vi, 1);
+            return newPolys;
+          });
+          setShapeWasModified(true);
+          return;
+        }
+      }
+    }
   };
 
   const closePlot = useCallback(() => {
@@ -989,7 +1279,128 @@ export default function ArchitectAdvisorPanel({ onParamsApplied, onGenerateTrigg
     setParamsApplied(false);
     setBgImage(null);
     setImgBounds(null);
+    setIsEditingShape(false);
+    setEditablePolygons(null);
+    setShapeWasModified(false);
+    setShapeGeometryAnalysis(null);
+    setShapeRotationAngle(0);
   };
+
+  // ── Shape Editing Functions ─────────────────────────────────────────────────
+  const enterShapeEditMode = useCallback(() => {
+    if (!finalShapePolygonsRef.current) return;
+    // Deep clone the shape polygons so edits don't affect the original until "Done"
+    const cloned = finalShapePolygonsRef.current.map(poly => poly.map(p => ({ ...p })));
+    setEditablePolygons(cloned);
+    setIsEditingShape(true);
+    setShapeRotationAngle(0);
+  }, []);
+
+  const computeGeometryAnalysis = useCallback((polys: Point[][]): string => {
+    const allPts = polys.flat();
+    if (allPts.length < 3) return '';
+
+    // Bounding box in meters
+    const minX = Math.min(...allPts.map(p => p.x));
+    const maxX = Math.max(...allPts.map(p => p.x));
+    const minY = Math.min(...allPts.map(p => p.y));
+    const maxY = Math.max(...allPts.map(p => p.y));
+    const bbWidthM = pxToM(maxX - minX);
+    const bbHeightM = pxToM(maxY - minY);
+
+    // Total footprint area
+    let totalArea = 0;
+    polys.forEach(pts => { totalArea += polygonAreaM2(pts); });
+
+    // Perimeter
+    let totalPerimeter = 0;
+    polys.forEach(pts => {
+      for (let i = 0; i < pts.length; i++) {
+        const j = (i + 1) % pts.length;
+        totalPerimeter += Math.hypot(pxToM(pts[j].x - pts[i].x), pxToM(pts[j].y - pts[i].y));
+      }
+    });
+    const perimeterToArea = totalArea > 0 ? parseFloat((totalPerimeter / totalArea).toFixed(3)) : 0;
+
+    // Wing width analysis: sample horizontal and vertical slices through the shape
+    // to find the narrowest and widest passable widths
+    const sampleCount = 20;
+    const widths: number[] = [];
+    
+    polys.forEach(pts => {
+      for (let s = 0; s < sampleCount; s++) {
+        const y = minY + (maxY - minY) * (s + 0.5) / sampleCount;
+        // Find horizontal intersections at this Y
+        const intersections: number[] = [];
+        for (let i = 0; i < pts.length; i++) {
+          const j = (i + 1) % pts.length;
+          const y1 = pts[i].y, y2 = pts[j].y;
+          if ((y1 <= y && y2 > y) || (y2 <= y && y1 > y)) {
+            const t = (y - y1) / (y2 - y1);
+            intersections.push(pts[i].x + t * (pts[j].x - pts[i].x));
+          }
+        }
+        intersections.sort((a, b) => a - b);
+        // Pair consecutive intersections for wing widths
+        for (let k = 0; k < intersections.length - 1; k += 2) {
+          const w = pxToM(intersections[k + 1] - intersections[k]);
+          if (w > 2) widths.push(w); // ignore slivers < 2m
+        }
+      }
+    });
+
+    const narrowestWidth = widths.length > 0 ? Math.min(...widths) : 0;
+    const widestWidth = widths.length > 0 ? Math.max(...widths) : 0;
+
+    // Determine what fits in narrowest wing
+    let narrowFit = 'studio only';
+    if (narrowestWidth >= 18) narrowFit = 'up to 4BHK';
+    else if (narrowestWidth >= 15) narrowFit = 'up to 3BHK';
+    else if (narrowestWidth >= 12) narrowFit = '1BHK or 2BHK';
+    else if (narrowestWidth >= 8) narrowFit = '1BHK only';
+
+    let wideFit = 'studio only';
+    if (widestWidth >= 18) wideFit = 'up to 4BHK';
+    else if (widestWidth >= 15) wideFit = 'up to 3BHK';
+    else if (widestWidth >= 12) wideFit = '1BHK or 2BHK';
+    else if (widestWidth >= 8) wideFit = '1BHK only';
+
+    return `[SHAPE GEOMETRY ANALYSIS:
+- Modified footprint area: ${totalArea.toFixed(1)} m²
+- Bounding box: ${bbWidthM}m × ${bbHeightM}m
+- Narrowest wing: ${narrowestWidth.toFixed(1)}m (can fit: ${narrowFit})
+- Widest wing: ${widestWidth.toFixed(1)}m (can fit: ${wideFit})
+- Perimeter-to-area ratio: ${perimeterToArea} (${perimeterToArea > 0.15 ? 'good facade exposure' : 'compact, fewer windows'})
+- Shape type: ${suggestedShape ? suggestedShape.toUpperCase() + (shapeWasModified ? ' (EDITED)' : '') : 'CUSTOM'}
+Use these measurements to determine which apartment types can physically fit in each wing. Do NOT place apartment types wider than the wing allows.]`;
+  }, [pxToM, polygonAreaM2, suggestedShape, shapeWasModified]);
+
+  const exitShapeEditMode = useCallback(() => {
+    if (!editablePolygons) return;
+    
+    // Save edited polygons back to the ref
+    finalShapePolygonsRef.current = editablePolygons;
+    
+    // Recalculate building area
+    let totalArea = 0;
+    editablePolygons.forEach(pts => { totalArea += polygonAreaM2(pts); });
+    buildingAreaRef.current = totalArea;
+    
+    // Mark as modified if any changes were made
+    if (shapeWasModified && suggestedShape) {
+      // Label stays as original + "(Edited)" — handled in display
+    }
+    
+    // Compute geometry analysis for chatbot
+    const analysis = computeGeometryAnalysis(editablePolygons);
+    setShapeGeometryAnalysis(analysis);
+    
+    setIsEditingShape(false);
+    setEditablePolygons(null);
+    setShapeDragIdx(null);
+    setHoveredEdge(null);
+    setIsRotatingShape(false);
+  }, [editablePolygons, polygonAreaM2, computeGeometryAnalysis, suggestedShape, shapeWasModified]);
 
   const handleSetExactPlot = () => {
     const w = parseFloat(plotInputW);
@@ -1068,6 +1479,10 @@ export default function ArchitectAdvisorPanel({ onParamsApplied, onGenerateTrigg
         const lastMsg = apiMessages[apiMessages.length - 1];
         if (lastMsg.role === 'user') {
           lastMsg.content += `\n\n[CRITICAL SYSTEM FEEDBACK: The 2D physics engine has successfully wedged the ${suggestedShape} into the plot limits. The exact, final physical footprint area of the building is exactly ${buildingAreaRef.current} m². You MUST use ${buildingAreaRef.current} m² as your starting footprint (plateArea) for all flat mix calculations right now. DO NOT estimate the footprint using plot efficiency ratios anymore.]`;
+          
+          if (shapeGeometryAnalysis) {
+            lastMsg.content += `\n\n${shapeGeometryAnalysis}`;
+          }
         }
       }
 
@@ -1257,9 +1672,25 @@ export default function ArchitectAdvisorPanel({ onParamsApplied, onGenerateTrigg
 
         {isTracingClosed && plotData && (
           <div className="flex items-center justify-between px-3 py-1.5 text-[9px] font-mono border-t border-white/5">
-            <span className="text-cyan-400/70">PLOT: <strong className="text-cyan-300">{plotData.widthM}m × {plotData.lengthM}m</strong></span>
-            <span className="text-cyan-400/70">AREA: <strong className="text-cyan-300">{plotData.areaM2}m²</strong></span>
-            {suggestedShape && <span className="text-amber-400/80">SHAPE: <strong className="text-amber-300">{suggestedShape.replace(/-/g,'·').toUpperCase()}</strong></span>}
+            <div className="flex items-center gap-3">
+              <span className="text-cyan-400/70">PLOT: <strong className="text-cyan-300">{plotData.widthM}m × {plotData.lengthM}m</strong></span>
+              <span className="text-cyan-400/70">AREA: <strong className="text-cyan-300">{buildingAreaRef.current ? buildingAreaRef.current.toFixed(1) : plotData.areaM2}m²</strong></span>
+              {suggestedShape && (
+                <span className="text-amber-400/80 flex items-center gap-1.5">
+                  SHAPE: <strong className="text-amber-300">{suggestedShape.replace(/-/g,'·').toUpperCase()}{shapeWasModified ? ' (EDITED)' : ''}</strong>
+                  
+                  {!isEditingShape ? (
+                    <button onClick={enterShapeEditMode} className="ml-2 px-2 py-0.5 bg-amber-500/20 hover:bg-amber-500/40 text-amber-300 rounded border border-amber-500/30 transition-colors flex items-center gap-1">
+                      <Edit2 className="w-2.5 h-2.5" /> Edit Vertices
+                    </button>
+                  ) : (
+                    <button onClick={exitShapeEditMode} className="ml-2 px-2 py-0.5 bg-green-500/20 hover:bg-green-500/40 text-green-300 rounded border border-green-500/30 transition-colors flex items-center gap-1">
+                      <Check className="w-2.5 h-2.5" /> Done Editing
+                    </button>
+                  )}
+                </span>
+              )}
+            </div>
           </div>
         )}
       </div>
