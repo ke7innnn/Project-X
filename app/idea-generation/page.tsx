@@ -268,10 +268,17 @@ export default function IdeaGenerationPage() {
         // Dynamically build unit labels list e.g. F01, F02, ... F10 based on user UI totalUnits
         const labelList = Array.from({ length: totalUnits }, (_, i) => `F${String(i + 1).padStart(2, '0')}`).join(', ');
         
+        // Dynamically build room composition — only include BHK types that have units > 0
+        const roomCompLines: string[] = [];
+        if (units1BHK > 0) roomCompLines.push('- 1BHK = 1 bedroom, 1 living room, 1 kitchen, 1 bathroom.');
+        if (units2BHK > 0) roomCompLines.push('- 2BHK = 2 bedrooms, 1 living room, 1 kitchen, 2 bathrooms.');
+        if (units3BHK > 0) roomCompLines.push('- 3BHK = 3 bedrooms, 1 living room, 1 kitchen, 2 bathrooms.');
+        if (units4BHK > 0) roomCompLines.push('- 4BHK = 4 bedrooms, 1 living room, 1 kitchen, 3 bathrooms.');
+        const roomCompBlock = roomCompLines.join('\n');
+        
         // Build optional constraint lines
         const optionalLines: string[] = [];
         if (vastuCompliant) optionalLines.push('- Vaastu: kitchens SE, master bedrooms SW, entrance NE.');
-        if (crossVentilation) optionalLines.push('- Cross ventilation: all habitable rooms face the exterior facade.');
         if (fireSafetyCode) optionalLines.push('- Fire safety: two independent escape routes per floor.');
         if (customPrompt) optionalLines.push(`- Notes: ${customPrompt}`);
         const optionalBlock = optionalLines.length > 0 ? optionalLines.join('\n') + '\n' : '';
@@ -279,25 +286,30 @@ export default function IdeaGenerationPage() {
         const promptText = `Generate a top-down 2D architectural CAD floor plan viewed from above.
 
 BUILDING SPEC:
-- ${styleName} residential tower footprint, ${overallWidth}m x ${overallLength}m.
-- ${totalUnits} apartments per floor: ${mixBreakdownParts}.
-- Central core: ${passengerLifts} lifts + ${staircases} staircases.
-- Label each apartment: ${labelList}.
+- ${styleName} residential tower, ${overallWidth}m x ${overallLength}m footprint.
+- ${totalUnits} apartments: ${mixBreakdownParts}.
+- Central core: ${passengerLifts} lifts + ${staircases} staircases, placed at the center of the building.
+
+ROOM COMPOSITION:
+${roomCompBlock}
+- Every room listed above MUST appear in each apartment. Do not skip any room.
 
 STRICT LAYOUT RULES:
-- The input image contains an existing floor plan inside a thick RED border. The RED border is the building boundary.
-- DO NOT modify, move, reshape, or remove the RED border. It is fixed.
-- ONLY edit the interior layout INSIDE the RED border. Everything outside the RED border must remain untouched.
-- ALL Living Rooms, Bedrooms, and Kitchens MUST touch the outer building edge (the RED border) for windows and ventilation.
-- Toilets and Bathrooms go near internal shafts or ducts, or on the outer edge.
-- Each apartment has exactly one entrance door from the corridor.
-- Central corridor connects all apartments to the lift and stair core.
+- The input image has an existing floor plan inside a thick RED border. The RED border is the fixed building boundary.
+- DO NOT modify, move, reshape, or remove the RED border.
+- ONLY edit the interior layout INSIDE the RED border. Everything outside the RED border must remain plain white.
+- ALL Living Rooms, Bedrooms, and Kitchens MUST touch the RED border edge for windows and ventilation. No habitable room may be landlocked inside the core.
+- ALL Bathrooms must either touch the outer edge OR connect to a ventilation duct shaft.
+- Each apartment has exactly one entrance door opening onto the corridor.
+- A central corridor connects all apartment entrances to the lift/stair core.
 ${optionalBlock}
 DRAWING STYLE:
-- Black-and-white CAD linework only. Thick outer walls, thin inner walls.
-- Show doors, windows, lift symbols, stair symbols, duct shafts.
-- Do NOT draw furniture, textures, colors, shadows, dimensions, or legends.
-- Label apartments only: ${labelList}.`;
+- Black-and-white CAD linework only. No colors except the existing RED border.
+- Outer walls: thick lines. Inner partition walls: thin lines.
+- Draw doors as arcs, windows as thin gaps on outer walls.
+- Draw lifts as small squares with X inside. Staircases as parallel diagonal lines.
+- Do NOT draw furniture, textures, shadows, dimensions, or legends.
+- Label each apartment: ${labelList}. One label per apartment, no room labels.`;
 
         // Store the exact payload for the realtime logs UI
         setDebugPayload({
