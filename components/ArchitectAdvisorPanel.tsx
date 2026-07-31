@@ -442,7 +442,7 @@ const ArchitectAdvisorPanel = forwardRef<ArchitectAdvisorRef, Props>(({ onParams
       const shapeW = maxX - minX;
       const shapeH = maxY - minY;
 
-      const marginPx = 10;
+      const marginPx = 40;
       const availW = outputW - (marginPx * 2);
       const availH = outputH - (marginPx * 2);
       
@@ -499,7 +499,7 @@ const ArchitectAdvisorPanel = forwardRef<ArchitectAdvisorRef, Props>(({ onParams
 
       // Draw the thick outer RED boundary over the pattern
       ctx.strokeStyle = '#ff0000';
-      ctx.lineWidth = Math.max(5, outputW / 150);
+      ctx.lineWidth = Math.max(12, outputW / 60);
       ctx.lineJoin = 'miter';
       ctx.stroke();
 
@@ -512,7 +512,7 @@ const ArchitectAdvisorPanel = forwardRef<ArchitectAdvisorRef, Props>(({ onParams
     const polyH = bbox.h;
 
     // Scale polygon to fit inside outputW × outputH with 6% margin
-    const margin = 0.06;
+    const margin = 0.15;
     const availW = outputW * (1 - margin * 2);
     const availH = outputH * (1 - margin * 2);
     const scale = Math.min(availW / polyW, availH / polyH);
@@ -564,7 +564,7 @@ const ArchitectAdvisorPanel = forwardRef<ArchitectAdvisorRef, Props>(({ onParams
 
     // Draw plot boundary stroke over the pattern in RED
     ctx.strokeStyle = '#ff0000';
-    ctx.lineWidth = Math.max(5, outputW / 150);
+    ctx.lineWidth = Math.max(12, outputW / 60);
     ctx.lineJoin = 'miter';
     ctx.stroke();
 

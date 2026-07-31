@@ -375,7 +375,7 @@ ${symbolBlock}
         });
 
         const activePreset = FOOTPRINT_PRESETS.find(f => f.id === footprintShape);
-        const imageSize = activePreset?.recommendedImageSize || 'square_hd';
+        const imageSize = (aiOpts?.tracerImageBase64 || fallbackBase64) ? 'square_hd' : (activePreset?.recommendedImageSize || 'square_hd');
 
         setResultImage(null);
 
