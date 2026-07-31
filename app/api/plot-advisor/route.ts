@@ -42,8 +42,9 @@ You are in an interactive consultation with a real estate developer. You must st
 - If POSSIBLE: Generate 3 options optimized around their request.
 - **CRITICAL**: Only in Phase 4, you MUST output the options block in this exact format at the end of your message:
 \`\`\`options
-[{"id":"A","label":"OPTIMAL QUALITY","footprintShape":"[SELECTED_SHAPE]","shapeName":"[NAME]","width":"[CALC]","length":"[CALC]","units1BHK":0,"units2BHK":4,"units3BHK":8,"units4BHK":2,"passengerLifts":8,"staircases":2,"guaranteedPct":100,"totalUnits":14,"plateArea":6200,"availableArea":4800,"designNotes":"...","highlights":["..."]},{"id":"B", ...}]
+[{"id":"A","label":"OPTIMAL QUALITY","footprintShape":"[SELECTED_SHAPE]","shapeName":"[NAME]","width":"[ACTUAL_NUMBER_IN_METERS]","length":"[ACTUAL_NUMBER_IN_METERS]","units1BHK":0,"units2BHK":4,"units3BHK":8,"units4BHK":2,"passengerLifts":8,"staircases":2,"guaranteedPct":100,"totalUnits":14,"plateArea":6200,"availableArea":4800,"designNotes":"...","highlights":["..."]},{"id":"B", ...}]
 \`\`\`
+- Replace `[ACTUAL_NUMBER_IN_METERS]` with real numbers calculated to fit the plot (e.g., "71"), NOT the literal string "[CALC]".
 - Always generate 3 EXACTLY DIFFERENT options. Dynamically calculate the dimensions and areas to perfectly fit the user's plot.
 
 ## Available Building Shape Presets:

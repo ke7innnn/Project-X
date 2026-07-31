@@ -195,7 +195,7 @@ function getShapePoints(shapeId: string, cx: number, cy: number, w: number, h: n
       if (id.includes('crescent')) {
         for (let i = sides; i >= 0; i--) {
           const angle = ((i / sides) * 180 - 90) * Math.PI / 180;
-          pts4.push({ x: cx + Math.cos(angle) * hw * 0.4, y: cy + Math.sin(angle) * hh * 0.6 + hh * 0.3 });
+          pts4.push({ x: cx + Math.cos(angle) * hw * 0.4, y: cy + Math.sin(angle) * hh * 0.8 });
         }
       }
       return [pts4];
@@ -1478,7 +1478,7 @@ Use these measurements to determine which apartment types can physically fit in 
       if (buildingAreaRef.current && suggestedShape && apiMessages.length > 0) {
         const lastMsg = apiMessages[apiMessages.length - 1];
         if (lastMsg.role === 'user') {
-          lastMsg.content += `\n\n[CRITICAL SYSTEM FEEDBACK: The 2D physics engine has successfully wedged the ${suggestedShape} into the plot limits. The exact, final physical footprint area of the building is exactly ${buildingAreaRef.current} m². You MUST use ${buildingAreaRef.current} m² as your starting footprint (plateArea) for all flat mix calculations right now. DO NOT estimate the footprint using plot efficiency ratios anymore.]`;
+          lastMsg.content += `\n\n[SYSTEM LOG: The UI currently has the shape '${suggestedShape}' placed with a physical footprint area of ${buildingAreaRef.current} m². If the user is asking to change the shape, you MUST output a new \`\`\`shape-suggestion\`\`\` block. If the user is proceeding with unit mix for the current shape, you MUST use ${buildingAreaRef.current} m² as your starting footprint (plateArea) for calculations instead of estimating.]`;
           
           if (shapeGeometryAnalysis) {
             lastMsg.content += `\n\n${shapeGeometryAnalysis}`;
