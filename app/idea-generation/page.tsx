@@ -285,8 +285,10 @@ BUILDING SPEC:
 - Label each apartment: ${labelList}.
 
 STRICT LAYOUT RULES:
-- The input image shows the exact building boundary outlined in RED. Do NOT change the RED boundary shape.
-- ALL Living Rooms, Bedrooms, and Kitchens MUST touch the outer building edge for windows and ventilation.
+- The input image contains an existing floor plan inside a thick RED border. The RED border is the building boundary.
+- DO NOT modify, move, reshape, or remove the RED border. It is fixed.
+- ONLY edit the interior layout INSIDE the RED border. Everything outside the RED border must remain untouched.
+- ALL Living Rooms, Bedrooms, and Kitchens MUST touch the outer building edge (the RED border) for windows and ventilation.
 - Toilets and Bathrooms go near internal shafts or ducts, or on the outer edge.
 - Each apartment has exactly one entrance door from the corridor.
 - Central corridor connects all apartments to the lift and stair core.
