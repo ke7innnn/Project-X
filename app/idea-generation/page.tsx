@@ -96,12 +96,13 @@ export default function IdeaGenerationPage() {
   const [logs, setLogs] = useState<string[]>([]);
   const [copiedLink, setCopiedLink] = useState(false);
 
-  // Dual Model Output states
-  const [gptResultImage, setGptResultImage] = useState<string | null>(null);
-  const [nanoResultImage, setNanoResultImage] = useState<string | null>(null);
+  // Model Output states
   const [resultImage, setResultImage] = useState<string | null>(null);
   const [resultTitle, setResultTitle] = useState('');
   const [resultDesc, setResultDesc] = useState('');
+
+  // AI Model Selection
+  const [selectedModel, setSelectedModel] = useState('nano-banana-2');
 
   // QA Hardening states
   const [validationError, setValidationError] = useState<string | null>(null);
@@ -250,8 +251,6 @@ export default function IdeaGenerationPage() {
         
         const fallbackUrl = '/x-shape-floorplan.jpg';
         setLogs((prev) => [...prev, '[SYS] CORE CALCULATIONS VERIFIED. DESIGN SCHEMATIC PIPELINE ONLINE.']);
-        setGptResultImage(fallbackUrl);
-        setNanoResultImage(fallbackUrl);
         setResultImage(fallbackUrl);
         setResultTitle(`${styleName} TYPICAL PLAN`);
         setResultDesc(`High-rise Floor Plan Core Synthesis: Monolithic ${styleName} tower floor plan.`);
@@ -265,106 +264,38 @@ export default function IdeaGenerationPage() {
           units3BHK > 0 ? `${units3BHK} × 3BHK` : null,
           units4BHK > 0 ? `${units4BHK} × 4BHK` : null,
         ].filter(Boolean).join(', ');
-
-        const vaastuStr = vastuCompliant ? 'VAASTU RULES: Orient kitchens toward the South-East (SE) zone, Master Bedrooms toward South-West (SW), main entrances toward North-East (NE), and avoid toilets in the North-East corner. ' : '';
-        const ventStr = crossVentilation ? 'SOLAR & DUCT RULES: All living rooms and bedrooms must face the outer building façade for maximum solar exposure and natural daylighting. Internal bathrooms and service areas must connect to dedicated vertical ventilation shafts/ducts. ' : '';
-        const fireSafetyStr = fireSafetyCode ? 'Ensure compliance with fire egress codes. ' : '';
         
         // Dynamically build unit labels list e.g. F01, F02, ... F10 based on user UI totalUnits
         const labelList = Array.from({ length: totalUnits }, (_, i) => `F${String(i + 1).padStart(2, '0')}`).join(', ');
         
-        const promptText = `MISSION
-Redesign and optimise the interior layout of this existing architectural floor plan. Treat the supplied image as an existing CAD drawing and modify the interior spaces according to the new requirements, without modifying the exterior footprint.
+        // Build optional constraint lines
+        const optionalLines: string[] = [];
+        if (vastuCompliant) optionalLines.push('- Vaastu: kitchens SE, master bedrooms SW, entrance NE.');
+        if (crossVentilation) optionalLines.push('- Cross ventilation: all habitable rooms face the exterior facade.');
+        if (fireSafetyCode) optionalLines.push('- Fire safety: two independent escape routes per floor.');
+        if (customPrompt) optionalLines.push(`- Notes: ${customPrompt}`);
+        const optionalBlock = optionalLines.length > 0 ? optionalLines.join('\n') + '\n' : '';
+        
+        const promptText = `Generate a top-down 2D architectural CAD floor plan viewed from above.
 
-ROLE
-You are a senior AutoCAD drafter and architectural prompt engineer specialising in residential high-rise buildings. Your job is to execute a precise architectural edit on this existing floor plan image to produce a realistic, buildable CAD drawing.
+BUILDING SPEC:
+- ${styleName} residential tower footprint, ${overallWidth}m x ${overallLength}m.
+- ${totalUnits} apartments per floor: ${mixBreakdownParts}.
+- Central core: ${passengerLifts} lifts + ${staircases} staircases.
+- Label each apartment: ${labelList}.
 
-INPUT
-The input image is an existing architectural CAD floor plan enclosed by a thick RED border. The RED border represents the strict exterior building boundary and must NOT be altered, moved, or deleted. Only the internal layout, walls, and rooms inside the red border should be edited and redesigned.
-
-HARD CONSTRAINTS (HIGHEST PRIORITY)
-* The RED footprint boundary is authoritative.
-* Preserve approximately 100% footprint similarity to the RED border.
-* Minor internal wall-thickness adjustments are acceptable.
-* Do not rotate, mirror, stretch, simplify or reinterpret the RED footprint.
-* Architecture must adapt to the footprint. The footprint must never adapt to the architecture.
-* Every architectural element must remain strictly inside the RED boundary.
-* Nothing may extend beyond the RED boundary.
-* If any instruction conflicts with the RED footprint, preserve the RED footprint.
-* ALL Living Rooms, Bedrooms, and Kitchens MUST be placed on the external perimeter/façade to ensure natural ventilation and daylight. Do NOT place living rooms, bedrooms, or kitchens deep inside the core.
-* ALL Toilets/Bathrooms MUST have ventilation (either on the external façade or connected to an internal plumbing/ventilation duct).
-* Each apartment MUST have a logically correct main entrance connecting to the central corridor/circulation core.
-
-PROJECT PARAMETERS
-* Building Type: Luxury high-rise ${styleName} residential tower
-* Footprint Size: ${overallWidth}m x ${overallLength}m
-* Apartment Count: ${totalUnits}
-* Apartment Mix: ${mixBreakdownParts}
-* Lifts: ${passengerLifts} passenger lifts
-* Stairs: ${staircases} fire staircases
-* Labels: ${labelList}
-* Preferences: ${ventStr}${vaastuStr}${fireSafetyStr}${customPrompt ? `Notes: ${customPrompt}` : 'None'}
-
-ARCHITECTURAL OBJECTIVES
-Maximise: usable apartment area, façade utilisation, natural daylight, natural ventilation, planning efficiency.
-Minimise: wasted circulation, unusable spaces, awkward geometry, dead-end corridors.
-Each apartment must:
-* have one independent entrance
-* have continuous enclosing walls
-* be directly accessible from the corridor
-* maintain realistic proportions
-* maintain privacy
-* feature Living Rooms and Bedrooms STRICTLY along the exterior façade.
-* group Bathrooms and utilities around internal shafts if they cannot reach the façade.
-Every wall and corridor must serve a functional purpose.
-
-PLANNING PHILOSOPHY
-Function over aesthetics.
-Efficiency over symmetry.
-Buildability over artistic interpretation.
-Architectural realism over creativity.
-
-GENERATION STRATEGY
-1. Preserve the footprint.
-2. Position the structural core.
-3. Create circulation.
-4. Divide apartment boundaries.
-5. Arrange internal planning.
-6. Refine walls.
-7. Produce the final CAD drawing.
-
-DRAWING STYLE
-Generate: monochrome CAD drawing, crisp black linework, thick exterior walls, thinner internal walls, CAD doors, CAD windows, lift symbols, stair symbols, shafts, ducts.
-Do NOT generate: furniture, textures, colours, rendering, shadows, landscaping, decorative graphics.
-Do not label rooms.
-Label apartments only using: ${labelList}.
-One apartment label per apartment.
-No dimensions, notes, legends or north arrows.
-
-NEGATIVE CONSTRAINTS
-* Do not hallucinate geometry.
-* Do not invent missing building portions.
-* Do not generate outside the footprint.
-* Do not overlap apartments.
-* Do not generate disconnected rooms.
-* Do not force rectangular layouts.
-* Do not optimise by modifying the footprint.
-
-QUALITY CHECKLIST
-✓ footprint preserved
-✓ everything inside boundary
-✓ apartment count correct
-✓ independent entrances
-✓ continuous walls
-✓ efficient circulation
-✓ compact core
-✓ exterior-facing habitable spaces where practical
-✓ professional CAD drafting
-✓ no furniture
-✓ apartment labels only
-
-FINAL OBJECTIVE
-Output ONLY the pristine, highly detailed 2D architectural CAD floor plan.`;
+STRICT LAYOUT RULES:
+- The input image shows the exact building boundary outlined in RED. Do NOT change the RED boundary shape.
+- ALL Living Rooms, Bedrooms, and Kitchens MUST touch the outer building edge for windows and ventilation.
+- Toilets and Bathrooms go near internal shafts or ducts, or on the outer edge.
+- Each apartment has exactly one entrance door from the corridor.
+- Central corridor connects all apartments to the lift and stair core.
+${optionalBlock}
+DRAWING STYLE:
+- Black-and-white CAD linework only. Thick outer walls, thin inner walls.
+- Show doors, windows, lift symbols, stair symbols, duct shafts.
+- Do NOT draw furniture, textures, colors, shadows, dimensions, or legends.
+- Label apartments only: ${labelList}.`;
 
         // Store the exact payload for the realtime logs UI
         setDebugPayload({
@@ -375,8 +306,6 @@ Output ONLY the pristine, highly detailed 2D architectural CAD floor plan.`;
         const activePreset = FOOTPRINT_PRESETS.find(f => f.id === footprintShape);
         const imageSize = activePreset?.recommendedImageSize || 'square_hd';
 
-        setGptResultImage(null);
-        setNanoResultImage(null);
         setResultImage(null);
 
         const apiPromise = fetch('/api/generate-idea-image', {
@@ -392,6 +321,7 @@ Output ONLY the pristine, highly detailed 2D architectural CAD floor plan.`;
             inputImageBase64: aiOpts?.tracerImageBase64,
             canvasW: aiOpts?.canvasW,
             canvasH: aiOpts?.canvasH,
+            modelId: selectedModel,
           }),
         }).then(async (res) => {
           const data = await res.json();
@@ -418,13 +348,13 @@ Output ONLY the pristine, highly detailed 2D architectural CAD floor plan.`;
         }
         setGenerationStep(loadingSteps.length);
 
-        setLogs((prev) => [...prev, '[SYS] DUAL MODEL CALCULATIONS VERIFIED (GPT-IMAGE-1 ALPHA/BETA). ONLINE.']);
+        setLogs((prev) => [...prev, `[SYS] MODEL: ${selectedModel.toUpperCase()} — GENERATION COMPLETE.`]);
         
-        const finalResultImg = resData.gptImageUrl || resData.nanoImageUrl || resData.url || null;
+        const finalResultImg = resData.url || null;
         setResultImage(finalResultImg);
 
         setResultTitle(`${styleName} TOWER PLAN SCHEMATIC`);
-        setResultDesc(`Generative Synthesis (Nano Banana 2) based on a ${styleName} footprint.`);
+        setResultDesc(`Generated with ${selectedModel} based on a ${styleName} footprint.`);
 
         // Save to variants history
         setVariantsHistory(prev => {
@@ -635,6 +565,21 @@ Output ONLY the pristine, highly detailed 2D architectural CAD floor plan.`;
                 disabled={isGenerating}
                 className="w-full bg-black/30 border border-white/10 focus:border-cyan-400 focus:outline-none rounded-lg p-2.5 text-[11px] leading-normal text-cyan-400 placeholder-cyan-500/20 resize-none transition-colors"
               />
+            </div>
+
+            {/* AI Model Engine Selector */}
+            <div className="flex flex-col gap-1.5">
+              <label className="text-[9px] tracking-[2px] text-cyan-500/60 uppercase font-mono block">AI MODEL ENGINE</label>
+              <select
+                value={selectedModel}
+                onChange={(e) => setSelectedModel(e.target.value)}
+                disabled={isGenerating}
+                className="w-full bg-black/40 border border-white/10 focus:border-cyan-400 focus:outline-none rounded-lg p-2 text-[11px] text-cyan-400 cursor-pointer"
+              >
+                <option value="nano-banana-pro" className="bg-[#0a0a0f] text-cyan-400">Nano Banana Pro (Fast)</option>
+                <option value="nano-banana-2" className="bg-[#0a0a0f] text-cyan-400">Nano Banana 2 (Balanced)</option>
+                <option value="gpt-image-2" className="bg-[#0a0a0f] text-cyan-400">GPT Image 2 — Medium (Best Quality)</option>
+              </select>
             </div>
 
             {/* Footprint Selector */}
