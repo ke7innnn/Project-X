@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { 
   ArrowLeft, 
@@ -28,7 +28,7 @@ import ClientExportModal from '@/components/ClientExportModal';
 import { useArchitectStore } from '@/store/useArchitectStore';
 import { useActiveProjectGuard } from '@/lib/useActiveProjectGuard';
 import { useDebounce } from '@/lib/useDebounce';
-import ArchitectAdvisorPanel, { type FormParams } from '@/components/ArchitectAdvisorPanel';
+import ArchitectAdvisorPanel, { type FormParams, type ArchitectAdvisorRef } from '@/components/ArchitectAdvisorPanel';
 
 // Architectural Shapes Presets
 export interface FootprintPreset {
@@ -241,6 +241,11 @@ export default function IdeaGenerationPage() {
 
     try {
       const isShapeModified = aiOpts?.isShapeModified || advisorRef.current?.getShapeModifiedState() || false;
+      const styleName = isShapeModified
+        ? "CUSTOM GEOMETRIC"
+        : footprintShape === 'custom'
+          ? customFootprintText.trim().toUpperCase()
+          : (FOOTPRINT_PRESETS.find(f => f.id === footprintShape)?.name || 'X-SHAPE');
 
       if (useDemoMode) {
         // Wait for all steps to print sequentially
@@ -322,14 +327,14 @@ export default function IdeaGenerationPage() {
         const symbolBlock = symbolLines.join('\n');
         
         // Build corridor line — only mention lifts/stairs if they exist
-        const corridorTarget = coreParts.length > 0 ? 'the lift/stair core' : 'the central core';
+        const corridorTarget = coreSpecs.length > 0 ? 'the lift/stair core' : 'the central core';
         
         const promptText = `Generate a top-down 2D architectural CAD floor plan viewed from above.
 
 BUILDING SPEC:
 - Residential tower, ${overallWidth}m x ${overallLength}m footprint.
 - ${totalUnits} apartments: ${mixBreakdownParts}.
-${coreSpecLine}
+\${coreSpecStr}
 
 ROOM COMPOSITION:
 ${roomCompBlock}
