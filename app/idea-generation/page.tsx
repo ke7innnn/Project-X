@@ -297,7 +297,7 @@ ${roomCompBlock}
 ROOM SIZES (relative):
 - Living room is the largest room in each apartment.
 - Bedrooms are medium sized. Master bedroom is larger than other bedrooms.
-- Kitchen is small, adjacent to or open to the living room.
+- Kitchen is small.
 - Bathrooms are the smallest rooms.
 
 SPATIAL FLOW (inside each apartment):
@@ -318,11 +318,11 @@ STRICT LAYOUT RULES:
 - A central corridor connects all apartment entrances to the lift/stair core.
 ${optionalBlock}
 DRAWING STYLE:
-- Black-and-white CAD linework only. No colors except the existing RED border.
+- Black-and-white CAD linework only. Keep the existing RED border as-is.
 - Outer walls: thick lines. Inner partition walls: thin lines.
 - Draw doors as arcs, windows as thin gaps on outer walls.
 - Draw lifts as small squares with X inside. Staircases as parallel diagonal lines.
-- Do NOT draw furniture, textures, shadows, dimensions, or legends.
+- Do NOT draw furniture, textures, shadows, dimensions, legends, 3D views, perspective drawings, people, or colored fills.
 - Label each apartment: ${labelList}. One label per apartment, no room labels.`;
 
         // Store the exact payload for the realtime logs UI
