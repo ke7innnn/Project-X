@@ -9,16 +9,18 @@ const MODEL_CONFIGS: Record<string, {
   imageToImage: string;
   textOnly: string;
   editFallback?: string;
-  useSize?: boolean; // GPT-Image-2 uses size string like "1024x1024" instead of image_size object
+  useSize?: boolean;
+  skipStrength?: boolean;
 }> = {
   'nano-banana-pro': {
     imageToImage: 'fal-ai/nano-banana-pro/image-to-image',
     textOnly: 'fal-ai/nano-banana-pro',
   },
   'nano-banana-2': {
-    imageToImage: 'fal-ai/nano-banana-2/image-to-image',
+    imageToImage: 'fal-ai/nano-banana-2/edit',        // Primary — instruction-based editing (autoregressive model)
     textOnly: 'fal-ai/nano-banana-2',
-    editFallback: 'fal-ai/nano-banana-2/edit',
+    editFallback: 'fal-ai/nano-banana-2/image-to-image', // Fallback
+    skipStrength: true,                                 // Not a diffusion model — strength param is ignored
   },
   'gpt-image-2': {
     imageToImage: 'openai/gpt-image-2/edit',
@@ -92,7 +94,7 @@ export async function POST(req: Request) {
           if (config.useSize) {
             input.quality = 'medium';
             input.size = `${outputWidth}x${outputHeight}`;
-          } else {
+          } else if (!config.skipStrength) {
             input.strength = 0.70;
           }
 
@@ -109,12 +111,14 @@ export async function POST(req: Request) {
         // Fallback: /edit endpoint (if available)
         if (config.editFallback) {
           try {
+            const fallbackInput: any = {
+              prompt,
+              image_url: `data:image/png;base64,${inputImageBase64}`,
+            };
+            if (!config.skipStrength) fallbackInput.strength = 0.70;
+            
             const res = await fal.subscribe(config.editFallback, {
-              input: {
-                prompt,
-                image_url: `data:image/png;base64,${inputImageBase64}`,
-                strength: 0.70,
-              } as any,
+              input: fallbackInput,
             });
             const url = extractUrl(res);
             if (url) {
