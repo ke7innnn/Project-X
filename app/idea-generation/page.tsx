@@ -361,8 +361,9 @@ DRAWING STYLE:
 - Black-and-white CAD linework only. Keep the existing RED border as-is.
 - Outer walls: thick lines. Inner partition walls: thin lines.
 ${symbolBlock}
-- Do NOT draw furniture, textures, shadows, dimensions, legends, 3D views, perspective drawings, people, or colored fills.
-- Label each apartment: ${labelList}. One label per apartment, no room labels.`;
+- CRITICAL: Do NOT draw any furniture, textures, shadows, 3D views, perspective drawings, people, or colored fills.
+- CRITICAL: Do NOT write any room names, dimensions, or legends. Rooms must be completely empty boxes.
+- Label each apartment: ${labelList}. ONLY these exact labels are allowed. One label per apartment, NO room labels.`;
 
         // Store the exact payload for the realtime logs UI
         setDebugPayload({
@@ -988,6 +989,8 @@ ${symbolBlock}
             <ArchitectAdvisorPanel
               onParamsApplied={handleParamsApplied}
               onGenerateTrigger={handleGenerateTrigger}
+              selectedModel={selectedModel}
+              onModelChange={setSelectedModel}
             />
           </div>
 
