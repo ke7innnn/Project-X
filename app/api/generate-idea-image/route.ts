@@ -92,8 +92,18 @@ export async function POST(req: Request) {
           };
 
           if (config.useSize) {
+            // GPT Image 2 only supports specific sizes — pick the closest match by aspect ratio
+            const ratio = outputWidth / outputHeight;
+            let gptSize: string;
+            if (ratio > 1.2) {
+              gptSize = '1536x1024';    // Landscape
+            } else if (ratio < 0.83) {
+              gptSize = '1024x1536';    // Portrait
+            } else {
+              gptSize = '1024x1024';    // Square
+            }
             input.quality = 'medium';
-            input.size = `${outputWidth}x${outputHeight}`;
+            input.size = gptSize;
           } else if (!config.skipStrength) {
             input.strength = 0.70;
           }
@@ -135,8 +145,13 @@ export async function POST(req: Request) {
       try {
         const input: any = { prompt };
         if (config.useSize) {
+          const ratio = outputWidth / outputHeight;
+          let gptSize: string;
+          if (ratio > 1.2) gptSize = '1536x1024';
+          else if (ratio < 0.83) gptSize = '1024x1536';
+          else gptSize = '1024x1024';
           input.quality = 'medium';
-          input.size = `${outputWidth}x${outputHeight}`;
+          input.size = gptSize;
         } else {
           input.image_size = { width: outputWidth, height: outputHeight };
         }
