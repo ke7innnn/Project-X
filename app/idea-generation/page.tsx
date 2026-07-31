@@ -268,6 +268,12 @@ export default function IdeaGenerationPage() {
         // Dynamically build unit labels list e.g. F01, F02, ... F10 based on user UI totalUnits
         const labelList = Array.from({ length: totalUnits }, (_, i) => `F${String(i + 1).padStart(2, '0')}`).join(', ');
         
+        // Derived flags
+        const hasMasterBedroom = units2BHK > 0 || units3BHK > 0 || units4BHK > 0;
+        const hasMultipleBedrooms = hasMasterBedroom; // 2BHK+ means > 1 bedroom per unit
+        const hasLifts = passengerLifts > 0;
+        const hasStairs = staircases > 0;
+        
         // Dynamically build room composition — only include BHK types that have units > 0
         const roomCompLines: string[] = [];
         if (units1BHK > 0) roomCompLines.push('- 1BHK = 1 bedroom, 1 living room, 1 kitchen, 1 bathroom.');
@@ -276,29 +282,63 @@ export default function IdeaGenerationPage() {
         if (units4BHK > 0) roomCompLines.push('- 4BHK = 4 bedrooms (1 master with attached bathroom), 1 living room, 1 kitchen, 3 bathrooms.');
         const roomCompBlock = roomCompLines.join('\n');
         
+        // Build room sizes — only include master bedroom line if 2BHK+ exists
+        const roomSizeLines: string[] = [
+          '- Living room is the largest room in each apartment.',
+        ];
+        if (hasMultipleBedrooms) {
+          roomSizeLines.push('- Bedrooms are medium sized. Master bedroom is larger than other bedrooms.');
+        } else {
+          roomSizeLines.push('- Bedroom is medium sized.');
+        }
+        roomSizeLines.push('- Kitchen is small.');
+        roomSizeLines.push('- Bathrooms are the smallest rooms.');
+        const roomSizeBlock = roomSizeLines.join('\n');
+        
+        // Build core spec line — only mention what's > 0
+        const coreParts: string[] = [];
+        if (hasLifts) coreParts.push(`${passengerLifts} lifts`);
+        if (hasStairs) coreParts.push(`${staircases} staircases`);
+        const coreSpecLine = coreParts.length > 0
+          ? `- Central core: ${coreParts.join(' + ')}, placed at the center of the building.`
+          : '';
+        
         // Build optional constraint lines
         const optionalLines: string[] = [];
-        if (vastuCompliant) optionalLines.push('- Vaastu: kitchens SE, master bedrooms SW, entrance NE.');
+        if (vastuCompliant) {
+          const vastuParts = ['kitchens SE'];
+          if (hasMasterBedroom) vastuParts.push('master bedrooms SW');
+          vastuParts.push('entrance NE');
+          optionalLines.push(`- Vaastu: ${vastuParts.join(', ')}.`);
+        }
         if (fireSafetyCode) optionalLines.push('- Fire safety: two independent escape routes per floor.');
         if (customPrompt) optionalLines.push(`- Notes: ${customPrompt}`);
         const optionalBlock = optionalLines.length > 0 ? optionalLines.join('\n') + '\n' : '';
+
+        // Build drawing style CAD symbol lines — only include what's present
+        const symbolLines: string[] = [
+          '- Draw doors as arcs, windows as thin gaps on outer walls.',
+        ];
+        if (hasLifts) symbolLines.push('- Draw lifts as small squares with X inside.');
+        if (hasStairs) symbolLines.push('- Draw staircases as parallel diagonal lines.');
+        const symbolBlock = symbolLines.join('\n');
+        
+        // Build corridor line — only mention lifts/stairs if they exist
+        const corridorTarget = coreParts.length > 0 ? 'the lift/stair core' : 'the central core';
         
         const promptText = `Generate a top-down 2D architectural CAD floor plan viewed from above.
 
 BUILDING SPEC:
 - ${styleName} residential tower, ${overallWidth}m x ${overallLength}m footprint.
 - ${totalUnits} apartments: ${mixBreakdownParts}.
-- Central core: ${passengerLifts} lifts + ${staircases} staircases, placed at the center of the building.
+${coreSpecLine}
 
 ROOM COMPOSITION:
 ${roomCompBlock}
 - Every room listed above MUST appear in each apartment. Do not skip any room.
 
 ROOM SIZES (relative):
-- Living room is the largest room in each apartment.
-- Bedrooms are medium sized. Master bedroom is larger than other bedrooms.
-- Kitchen is small.
-- Bathrooms are the smallest rooms.
+${roomSizeBlock}
 
 SPATIAL FLOW (inside each apartment):
 - Entrance door leads into living/dining area first (public zone near corridor).
@@ -315,13 +355,12 @@ STRICT LAYOUT RULES:
 - ALL Bathrooms MUST be placed along the outer edge with a window, OR next to a vertical ventilation duct shaft. Draw duct shafts as small labeled rectangles near the core.
 - No room in any apartment may be fully enclosed without either a window to the outside or a connection to a duct shaft.
 - Each apartment has exactly one entrance door opening onto the corridor.
-- A central corridor connects all apartment entrances to the lift/stair core.
+- A central corridor connects all apartment entrances to ${corridorTarget}.
 ${optionalBlock}
 DRAWING STYLE:
 - Black-and-white CAD linework only. Keep the existing RED border as-is.
 - Outer walls: thick lines. Inner partition walls: thin lines.
-- Draw doors as arcs, windows as thin gaps on outer walls.
-- Draw lifts as small squares with X inside. Staircases as parallel diagonal lines.
+${symbolBlock}
 - Do NOT draw furniture, textures, shadows, dimensions, legends, 3D views, perspective drawings, people, or colored fills.
 - Label each apartment: ${labelList}. One label per apartment, no room labels.`;
 
