@@ -375,7 +375,19 @@ ${symbolBlock}
         });
 
         const activePreset = FOOTPRINT_PRESETS.find(f => f.id === footprintShape);
-        const imageSize = (aiOpts?.tracerImageBase64 || fallbackBase64) ? 'square_hd' : (activePreset?.recommendedImageSize || 'square_hd');
+        
+        let dynamicImageSize = 'square_hd';
+        const cDim = advisorRef.current?.getCanvasDimensions();
+        const finalW = aiOpts?.canvasW || cDim?.w || 1024;
+        const finalH = aiOpts?.canvasH || cDim?.h || 1024;
+        
+        if (finalW && finalH) {
+          const ratio = finalW / finalH;
+          if (ratio > 1.2) dynamicImageSize = 'landscape_16_9';
+          else if (ratio < 0.8) dynamicImageSize = 'portrait_16_9';
+        }
+
+        const imageSize = (aiOpts?.tracerImageBase64 || fallbackBase64) ? dynamicImageSize : (activePreset?.recommendedImageSize || 'square_hd');
 
         setResultImage(null);
 

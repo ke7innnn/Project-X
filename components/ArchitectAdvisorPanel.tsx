@@ -58,6 +58,7 @@ export interface FormParams {
 export interface ArchitectAdvisorRef {
   exportCanvasBase64: () => string | null;
   getShapeModifiedState: () => boolean;
+  getCanvasDimensions: () => { w: number, h: number };
 }
 
 interface Props {
@@ -589,7 +590,8 @@ const ArchitectAdvisorPanel = forwardRef<ArchitectAdvisorRef, Props>(({ onParams
 
   useImperativeHandle(ref, () => ({
     exportCanvasBase64: () => exportForAI(),
-    getShapeModifiedState: () => shapeWasModified
+    getShapeModifiedState: () => shapeWasModified,
+    getCanvasDimensions: () => ({ w: outputW, h: outputH })
   }));
 
   // Draw canvas
