@@ -271,9 +271,9 @@ export default function IdeaGenerationPage() {
         // Dynamically build room composition — only include BHK types that have units > 0
         const roomCompLines: string[] = [];
         if (units1BHK > 0) roomCompLines.push('- 1BHK = 1 bedroom, 1 living room, 1 kitchen, 1 bathroom.');
-        if (units2BHK > 0) roomCompLines.push('- 2BHK = 2 bedrooms, 1 living room, 1 kitchen, 2 bathrooms.');
-        if (units3BHK > 0) roomCompLines.push('- 3BHK = 3 bedrooms, 1 living room, 1 kitchen, 2 bathrooms.');
-        if (units4BHK > 0) roomCompLines.push('- 4BHK = 4 bedrooms, 1 living room, 1 kitchen, 3 bathrooms.');
+        if (units2BHK > 0) roomCompLines.push('- 2BHK = 2 bedrooms (1 master with attached bathroom), 1 living room, 1 kitchen, 2 bathrooms.');
+        if (units3BHK > 0) roomCompLines.push('- 3BHK = 3 bedrooms (1 master with attached bathroom), 1 living room, 1 kitchen, 2 bathrooms.');
+        if (units4BHK > 0) roomCompLines.push('- 4BHK = 4 bedrooms (1 master with attached bathroom), 1 living room, 1 kitchen, 3 bathrooms.');
         const roomCompBlock = roomCompLines.join('\n');
         
         // Build optional constraint lines
@@ -293,6 +293,18 @@ BUILDING SPEC:
 ROOM COMPOSITION:
 ${roomCompBlock}
 - Every room listed above MUST appear in each apartment. Do not skip any room.
+
+ROOM SIZES (relative):
+- Living room is the largest room in each apartment.
+- Bedrooms are medium sized. Master bedroom is larger than other bedrooms.
+- Kitchen is small, adjacent to or open to the living room.
+- Bathrooms are the smallest rooms.
+
+SPATIAL FLOW (inside each apartment):
+- Entrance door leads into living/dining area first (public zone near corridor).
+- Kitchen is next to the living area.
+- Bedrooms are on the opposite side from the entrance (private zone near facade).
+- Each bathroom is attached to or directly adjacent to a bedroom.
 
 STRICT LAYOUT RULES:
 - The input image has an existing floor plan inside a thick RED border. The RED border is the fixed building boundary.
