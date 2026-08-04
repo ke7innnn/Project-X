@@ -376,13 +376,6 @@ const ArchitectAdvisorPanel = forwardRef<ArchitectAdvisorRef, Props>(({ onParams
   const [customW, setCustomW] = useState<string>('');
   const [customH, setCustomH] = useState<string>('');
   
-  const [cadPatternImg, setCadPatternImg] = useState<HTMLImageElement | null>(null);
-
-  useEffect(() => {
-    const img = new Image();
-    img.src = '/cad-style-reference.png';
-    img.onload = () => setCadPatternImg(img);
-  }, []);
 
   const applyCustomRatio = useCallback((wM: number, hM: number) => {
     if (!wM || !hM || wM <= 0 || hM <= 0) return;
