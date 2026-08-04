@@ -325,6 +325,11 @@ STAGE 2 → Refine interior layout, enforce NBC room sizes, verify room complete
             useFireSafety: fireSafetyCode,
           }),
         }).then(async (res) => {
+          const contentType = res.headers.get('content-type') || '';
+          if (!contentType.includes('application/json')) {
+            const text = await res.text();
+            throw new Error(`Server error (${res.status}): ${text.slice(0, 200)}`);
+          }
           const data = await res.json();
           if (!res.ok) {
             throw new Error(data.error || 'Pipeline generation failed');
