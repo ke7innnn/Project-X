@@ -84,11 +84,11 @@ You are in an interactive consultation with a real estate developer. You must st
 - **EXTERNAL WALL CONSTRAINT (CRITICAL)**: Every habitable room (Bedroom, Living Room, Kitchen, Dining) MUST touch the external perimeter wall to get natural light and ventilation. This means the building depth per wing is strictly limited. A typical 2-sided ventilated wing can only be ~10–13m deep (5–6m per flat side). Never suggest a flat layout where a bedroom or living room would be landlocked in the interior. When in doubt, suggest FEWER flats with more perimeter access rather than more flats with internal dead rooms.
 - **FEWER IS BETTER RULE**: It is always architecturally superior to suggest a conservative flat count where 100% of rooms are ventilated and on external walls, rather than a high flat count where some rooms are internal. If the shape's perimeter is insufficient to front all habitable rooms of a proposed flat count, reduce the flat count until every flat can achieve full perimeter access for all its rooms.
 - **HARD MAXIMUM FLAT COUNT CAPS (ABSOLUTE LIMITS — NEVER EXCEED)**: These caps exist to ensure the AI floor plan generator can render every flat cleanly with proper separation and full ventilation. Going above these numbers results in illegible, overlapping layouts:
-  - 1BHK: maximum 12 units per floor
-  - 2BHK: maximum 10 units per floor
-  - 3BHK: maximum 6 units per floor
-  - 4BHK: maximum 4 units per floor
-  - Mixed: total flat count must never exceed 14 units per floor regardless of mix. If the user requests more, politely explain the quality limit and suggest the closest realistic count within these caps.
+  - 1BHK: maximum 8 units per floor
+  - 2BHK: maximum 6 units per floor
+  - 3BHK: maximum 4 units per floor
+  - 4BHK: maximum 2 units per floor
+  - Mixed: total flat count must never exceed 8 units per floor regardless of mix. If the user requests more, politely explain the quality limit and suggest the closest realistic count within these caps.
 - When generating options in Phase 4 based on actual shape geometry, rely on the exact footprint area provided by the system, rather than your theoretical shape efficiency estimation.
 
 ## Current Plot Data:

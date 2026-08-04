@@ -161,7 +161,8 @@ DRAWING RULES — STRICT
 - Each flat is labelled ONLY with its flat number (F1, F2, F3…) placed once near its entry door. No other text anywhere.
 - Thick black exterior walls. Thinner black interior partition walls. Visible double party walls between flats.
 - Every door drawn with a swing arc. Window ticks on perimeter walls only.
-- White background. Clean 2D CAD style. Red outline on the exterior perimeter (#FF0000).`;
+- ALL WALLS MUST BE PERFECTLY STRAIGHT and meet at strict 90-degree angles. No diagonal, wavy, or jagged lines. Rooms must be clean rectangles or L-shapes.
+- White background. Clean professional 2D CAD style. Strictly black and white drawing only.`;
 }
 
 
@@ -235,8 +236,8 @@ DRAWING & ANNOTATION — STRICT:
 - Thick black exterior walls, thin interior partitions.
 - Solid party walls clearly visible between adjacent flats.
 - Swing doors shown with arc; window ticks on exterior walls only.
-- Red outline around the exterior walls.
-- White background, clean professional 2D CAD style.
+- ALL WALLS MUST BE PERFECTLY STRAIGHT and meet at strict 90-degree angles. No diagonal, wavy, or jagged lines.
+- White background, clean professional 2D CAD style. Strictly black and white drawing only.
 
 FINAL VALIDATION — verify all ${numFlats} apartments each have:
 ${countedRooms.map(r => `- ${r}`).join('\n')}

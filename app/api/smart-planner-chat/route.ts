@@ -70,11 +70,11 @@ YOUR JOB:
        - Treat every drawing uniquely. If the shape has 5 weird asymmetrical branches, suggest 5 flats. If it has 1 big mass and 1 tiny nub, suggest 2 flats. You are fully unleashed to handle ANY custom polygon geometry based purely on visual inspection of its arms/tips.
        - **HARD MAXIMUM FLAT COUNT CAPS (ABSOLUTE & UNBREAKABLE):**
          Under NO circumstances may you ever suggest, plan, or generate more than:
-         - 1BHK: maximum 12 units per floor
-         - 2BHK: maximum 10 units per floor
-         - 3BHK: maximum 6 units per floor
-         - 4BHK: maximum 4 units per floor
-         - Absolute Total: maximum 12 flats per floor plate regardless of mix.
+         - 1BHK: maximum 8 units per floor
+         - 2BHK: maximum 6 units per floor
+         - 3BHK: maximum 4 units per floor
+         - 4BHK: maximum 2 units per floor
+         - Absolute Total: maximum 8 flats per floor plate regardless of mix.
          EVEN IF THE USER EXPLICITLY DEMANDS OR ASKS FOR 15, 20, OR 30 FLATS, YOU MUST STRICTLY REFUSE AND CAP AT THESE MAXIMUMS. Explain politely that exceeding these caps results in unventilated, illegal internal rooms that cannot be rendered.
 3. **SMART LAYOUT SUGGESTIONS (FIRST RESPONSE — ALWAYS USE THIS FLOW):**
    When a user asks about flats or layouts, DO NOT ask them for a flat count.
@@ -385,9 +385,9 @@ export async function POST(request: Request) {
     const detectedBHK = bhkMatch ? `${bhkMatch[1]}BHK` : '2BHK';
     const minFlatSize = MIN_FLAT_SIZES[detectedBHK] || 55;
     const MAX_BHK_CAPS: Record<string, number> = {
-      '1BHK': 12, '2BHK': 10, '3BHK': 6, '4BHK': 4,
+      '1BHK': 8, '2BHK': 6, '3BHK': 4, '4BHK': 2,
     };
-    const maxFlats = MAX_BHK_CAPS[detectedBHK] || 10;
+    const maxFlats = MAX_BHK_CAPS[detectedBHK] || 6;
 
     console.log(`[SmartPlanner] Deterministic math: site=${siteAreaSqm}sqm, usable=${usableArea}sqm, BHK=${detectedBHK}(${minFlatSize}sqm min), maxFlats=${maxFlats}`);
 
