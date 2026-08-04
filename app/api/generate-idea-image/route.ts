@@ -109,7 +109,7 @@ Every flat must be designed as a real apartment you would walk through in this e
 
 STEP 1 — ENTRY: The flat's front door opens from the common corridor. Directly behind it is the Foyer or Living Room. The entry side of the flat faces the corridor.
 
-STEP 2 — LIVING ROOM: Immediately past the entry door. This is the first room you step into. It must be the largest open room, positioned at the corridor-facing side of the flat, with a window on the external perimeter wall.
+STEP 2 — LIVING ROOM: Immediately past the entry door. This is the first room you step into. It MUST be placed directly against an external perimeter wall of the building, exposed to the outside with a clearly drawn external window tick for natural light and ventilation. It is strictly FORBIDDEN to place a Living Room landlocked in the interior.
 
 STEP 3 — KITCHEN + DINING: Adjacent to the Living Room, forming a connected public zone. Kitchen and Dining share a wall or opening. Kitchen must touch an external wall for ventilation.
 
@@ -140,6 +140,7 @@ SEP-3: Each flat has exactly ONE entrance door from the common corridor. All its
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 VENTILATION — ALL HABITABLE ROOMS EXTERNAL
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+- STRICT LIVING ROOM VENTILATION (NON-NEGOTIABLE): The Living Room MUST be exposed to an external perimeter wall with an external window tick. Never landlock a Living Room.
 - Every bedroom, living room, kitchen, and dining area MUST touch an external (perimeter) wall with at least one window tick drawn on it.
 - No bedroom or living room may be landlocked in the interior — if it cannot touch the perimeter, replace it with a bathroom or storage instead.
 - Only bathrooms, lift cores, staircases, and internal corridors may be in the interior core with no external wall.
@@ -219,7 +220,7 @@ ZONING GRADIENT (public → private):
 ADJACENCY & VENTILATION:
 1. Dining touches Kitchen; Kitchen touches a Utility balcony.
 2. Every ensuite touches and connects directly to its own Bedroom.
-3. Bedrooms, Living, and Kitchen MUST touch an external wall (windows).
+3. Living Room MUST be placed on an external wall with an external window tick for natural light & ventilation. Living Room, Bedrooms, and Kitchen MUST all touch an external wall (windows). Zero landlocked Living Rooms.
 
 VAASTU:
 - Kitchen toward South-East of the flat.

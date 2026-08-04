@@ -68,8 +68,14 @@ YOUR JOB:
        - The image rendering engine struggles heavily if you cram too many flats into complex shapes. Keep the flat count spacious and highly realistic.
        - **DYNAMIC SHAPE ADAPTABILITY (VERSATILITY):** Do not restrict yourself to standard shapes (L, T, Y, Cross). If the user provides a completely bizarre, asymmetrical, or custom freeform shape, you MUST adapt dynamically!
        - Treat every drawing uniquely. If the shape has 5 weird asymmetrical branches, suggest 5 flats. If it has 1 big mass and 1 tiny nub, suggest 2 flats. You are fully unleashed to handle ANY custom polygon geometry based purely on visual inspection of its arms/tips.
-       - **KEEP FLAT COUNT CONSERVATIVE:** Sparing room space and ensuring clean ventilation is better than cramming flats. Never suggest high-density layouts (e.g. 6+ flats) on custom traces UNLESS the shape physically has that many distinct outward branches.
-    6. If the user requests more flats than standard capacity limits, warning them about compact room sizing is required, but you must still proceed and fulfill their request by proposing ultra-efficient compact units. Do not refuse to design them.
+       - **HARD MAXIMUM FLAT COUNT CAPS (ABSOLUTE & UNBREAKABLE):**
+         Under NO circumstances may you ever suggest, plan, or generate more than:
+         - 1BHK: maximum 12 units per floor
+         - 2BHK: maximum 10 units per floor
+         - 3BHK: maximum 6 units per floor
+         - 4BHK: maximum 4 units per floor
+         - Absolute Total: maximum 12 flats per floor plate regardless of mix.
+         EVEN IF THE USER EXPLICITLY DEMANDS OR ASKS FOR 15, 20, OR 30 FLATS, YOU MUST STRICTLY REFUSE AND CAP AT THESE MAXIMUMS. Explain politely that exceeding these caps results in unventilated, illegal internal rooms that cannot be rendered.
 3. **SMART LAYOUT SUGGESTIONS (FIRST RESPONSE — ALWAYS USE THIS FLOW):**
    When a user asks about flats or layouts, DO NOT ask them for a flat count.
    Instead, act like a master architect.
@@ -378,10 +384,12 @@ export async function POST(request: Request) {
     const bhkMatch = userText.match(/(\d)\s*bhk/i);
     const detectedBHK = bhkMatch ? `${bhkMatch[1]}BHK` : '2BHK';
     const minFlatSize = MIN_FLAT_SIZES[detectedBHK] || 55;
-    // User explicitly requested LLM to handle flat counting based on visual wings, no hard clamping.
-    const maxFlats = 99;
+    const MAX_BHK_CAPS: Record<string, number> = {
+      '1BHK': 12, '2BHK': 10, '3BHK': 6, '4BHK': 4,
+    };
+    const maxFlats = MAX_BHK_CAPS[detectedBHK] || 10;
 
-    console.log(`[SmartPlanner] Deterministic math: site=${siteAreaSqm}sqm, usable=${usableArea}sqm, BHK=${detectedBHK}(${minFlatSize}sqm min), maxFlats=UNLIMITED(Visual)`);
+    console.log(`[SmartPlanner] Deterministic math: site=${siteAreaSqm}sqm, usable=${usableArea}sqm, BHK=${detectedBHK}(${minFlatSize}sqm min), maxFlats=${maxFlats}`);
 
     // ─── Build system prompt with deterministic constraints ───────────────
     const deterministicConstraints = siteAreaSqm > 0 ? `
