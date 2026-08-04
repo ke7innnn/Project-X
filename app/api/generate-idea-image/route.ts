@@ -154,9 +154,9 @@ Specify architectural constraints:
 150 mm exterior walls, 100 mm partition walls, 900 mm doors, 1200 mm corridor.
 
 DRAWING & ANNOTATION — STRICT:
-- ALL ROOM BOXES MUST BE EMPTY. Do NOT write any text, labels, names, room types, numbers, or dimensions inside any room. Every room is a blank white rectangle.
-- Do NOT write flat numbers anywhere on the plan.
-- Do NOT annotate dimensions (no "3.5 x 4.0" or similar text).
+- ALL ROOM BOXES MUST BE EMPTY. Do NOT write room names, room types, or dimensions inside any room box. Every room is a blank white rectangle with no interior text.
+- Each flat may be labelled with ONLY its flat number (F1, F2, F3 … etc.) placed once at the flat entrance — no other text anywhere.
+- Do NOT annotate room dimensions (no "3.5 x 4.0" or similar text anywhere).
 - Thick black exterior walls, thin interior partitions, visible party walls between flats.
 - Swing doors shown with arc; window ticks on exterior walls only.
 - Red outline around the exterior walls.
@@ -229,8 +229,9 @@ VAASTU:
 - Avoid Toilet/Bathroom in the North-East corner.
 
 DRAWING & ANNOTATION — STRICT:
-- ALL ROOM BOXES MUST BE EMPTY. Do NOT write any text, labels, room names, room types, numbers, or dimensions inside any room box. Every room is a blank white rectangle.
-- Do NOT annotate dimensions or flat numbers anywhere on the plan.
+- ALL ROOM BOXES MUST BE EMPTY. Do NOT write room names, room types, or dimensions inside any room box. Every room is a blank white rectangle with no interior text.
+- Each flat may be labelled with ONLY its flat number (F1, F2, F3 … etc.) placed once at the flat entrance — no other text anywhere.
+- Do NOT annotate room dimensions (no "3.5 x 4.0" or similar text anywhere).
 - Thick black exterior walls, thin interior partitions.
 - Solid party walls clearly visible between adjacent flats.
 - Swing doors shown with arc; window ticks on exterior walls only.
