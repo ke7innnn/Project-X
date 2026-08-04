@@ -271,11 +271,39 @@ export default function IdeaGenerationPage() {
           return;
         }
 
+        // Strip data URL prefix for display in debug modal (modal adds it back)
+        const strippedBase64 = typeof traceBase64 === 'string' ? traceBase64.replace(/^data:image\/\w+;base64,/, '') : traceBase64;
+
+        // Build a client-side preview of what the server will generate
+        const totalUnits = units1BHK + units2BHK + units3BHK + units4BHK;
+        const mixParts = [
+          units1BHK > 0 ? `${units1BHK} × 1BHK` : null,
+          units2BHK > 0 ? `${units2BHK} × 2BHK` : null,
+          units3BHK > 0 ? `${units3BHK} × 3BHK` : null,
+          units4BHK > 0 ? `${units4BHK} × 4BHK` : null,
+        ].filter(Boolean).join(', ');
+
+        const promptPreview = `═══ PIPELINE: ${selectedModel.toUpperCase()} ═══
+
+STAGE 1 → Design architectural floor plan inside white footprint boundary.
+  • ${totalUnits} apartments: ${mixParts}
+  • Central core: ${passengerLifts} lifts + ${staircases} staircases
+  • Vastu: ${vastuCompliant ? 'YES' : 'NO'} | Fire Safety: ${fireSafetyCode ? 'YES' : 'NO'}
+  • Zoning: Public → Service → Private gradient
+  • Rules: Immutable white boundary, compact rooms, CAD style
+
+STAGE 2 → Refine interior layout, enforce NBC room sizes, verify room completeness.
+
+(Full architectural prompt is built server-side and sent to AI model)`;
+
         // Store the exact payload for the realtime logs UI
         setDebugPayload({
-          prompt: `[Pipeline: ${selectedModel}] Units: ${units1BHK}×1BHK, ${units2BHK}×2BHK, ${units3BHK}×3BHK, ${units4BHK}×4BHK | Lifts: ${passengerLifts} | Stairs: ${staircases}`,
-          imageBase64: traceBase64
+          prompt: promptPreview,
+          imageBase64: strippedBase64
         });
+
+        setLogs(prev => [...prev, `[SYS] PIPELINE: ${selectedModel.toUpperCase()} | ${totalUnits} apartments (${mixParts})`]);
+        setLogs(prev => [...prev, `[SYS] TRACE IMAGE: ${strippedBase64.length > 100 ? `${(strippedBase64.length / 1024).toFixed(0)}KB base64 payload attached` : 'MISSING'}`]);
 
         setResultImage(null);
 
@@ -304,6 +332,8 @@ export default function IdeaGenerationPage() {
           return data;
         });
 
+        setLogs(prev => [...prev, `[SYS] DISPATCHING TO FAL.AI PIPELINE...`]);
+
         // Race/wait for API response, ensuring at least 3.3 seconds of tactical logging runs
         const [resData] = await Promise.all([
           apiPromise,
@@ -321,7 +351,27 @@ export default function IdeaGenerationPage() {
         }
         setGenerationStep(loadingSteps.length);
 
+        // Update debug payload with the ACTUAL server-built prompts
+        if (resData.systemPrompt || resData.refinementPrompt) {
+          const fullPromptDisplay = [
+            resData.systemPrompt ? `═══ STAGE 1 PROMPT ═══\n${resData.systemPrompt}` : '',
+            resData.refinementPrompt ? `\n═══ STAGE 2 REFINEMENT PROMPT ═══\n${resData.refinementPrompt}` : '',
+            resData.userPrompt ? `\n═══ MODEL INFO ═══\n${resData.userPrompt}` : '',
+          ].filter(Boolean).join('\n');
+          
+          setDebugPayload({
+            prompt: fullPromptDisplay,
+            imageBase64: strippedBase64
+          });
+        }
+
         setLogs((prev) => [...prev, `[SYS] PIPELINE: ${selectedModel.toUpperCase()} — GENERATION COMPLETE.`]);
+        if (resData.stage1ImageUrl) {
+          setLogs(prev => [...prev, `[SYS] STAGE 1 OUTPUT: ${resData.stage1ImageUrl ? 'RECEIVED' : 'NONE'}`]);
+        }
+        if (resData.stage2ImageUrl) {
+          setLogs(prev => [...prev, `[SYS] STAGE 2 REFINEMENT OUTPUT: RECEIVED`]);
+        }
         
         const finalResultImg = resData.url || null;
         setResultImage(finalResultImg);
