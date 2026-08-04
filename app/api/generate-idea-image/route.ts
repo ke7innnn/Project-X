@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { fal } from '@fal-ai/client';
 
-export const maxDuration = 120; // extended for 2-stage pipeline
+export const maxDuration = 300; // 5 min — needed for 2-stage pipeline (Grok ~60s + GPT ~90s + uploads)
 
 fal.config({ credentials: process.env.FAL_KEY });
 
