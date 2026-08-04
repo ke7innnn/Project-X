@@ -101,7 +101,7 @@ ${coreSpecStr}
 Use realistic architectural planning, COMPACT miniature rooms, and strict Vastu principles.
 A tiny room is always better than a missing room. Micro-size rooms if needed. Pack rooms tightly.
 
-Show: Thick black exterior walls, interior partition walls, doors with swings, windows, room labels, flat numbering, clean CAD style, white background.
+Show: Thick black exterior walls, interior partition walls, door swing arcs, window ticks on perimeter walls, clean CAD style, white background. All room boxes must be completely EMPTY — no text, no labels, no room names, no numbers, no dimensions inside any room.
 
 ${checklist}
 Validate every unit contains these exact rooms before finalizing. Do not omit any room.
@@ -118,6 +118,14 @@ CRITICAL CIRCULATION, DOOR PLACEMENT & ADJACENCY:
 3. Adjacencies: Dining must touch Kitchen; Kitchen must touch the Utility balcony.
 4. Bathrooms must connect directly to a Bedroom (as ensuite) or a Common Hallway. NEVER make a bathroom door open directly into the Living Room, Dining Room, or Kitchen.
 5. Wall layouts must align cleanly at 90-degree angles to make functional rectangular spaces.
+
+CRITICAL FLAT SEPARATION — THREE RULES (NON-NEGOTIABLE):
+
+SEP-1 — SOLID WALL BETWEEN EVERY FLAT: Each apartment must be fully enclosed by its own continuous solid wall boundary. The wall between two adjacent flats must be a DOUBLE wall (party wall) — a thick solid line that clearly separates the two units. No room from Flat A may share an interior wall that is also an interior wall of Flat B. There must be a visible solid barrier between them.
+
+SEP-2 — NO ROOM MAY CROSS FLAT BOUNDARIES: Every room polygon must be 100% contained inside its own flat's wall boundary. A bedroom or kitchen cannot straddle two flats. Each flat is a hermetically sealed unit — its walls form a closed, non-overlapping polygon. Rooms from different flats must never be adjacent without a party wall between them.
+
+SEP-3 — REAL-LIFE FLAT COMPOSITION: Design each flat as a self-contained apartment unit exactly as it would be built in real life — a single front door from the corridor, all rooms clustered within that flat's sealed boundary, with no shared rooms between flats. Each flat is an island. Visualise it as cutting the floor plate with scissors — every flat must be a completely separate piece with no connection to any other flat except through the common corridor.
 
 CRITICAL LIGHT & VENTILATION — FIVE RULES (ALL MANDATORY, ZERO EXCEPTIONS):
 
@@ -145,11 +153,12 @@ Any floor with 3 or more apartments MUST have TWO separate staircases, placed so
 Specify architectural constraints:
 150 mm exterior walls, 100 mm partition walls, 900 mm doors, 1200 mm corridor.
 
-DRAWING & ANNOTATION:
-- Label every room with its name clearly. Do not write numerical dimensions.
-- Thick black exterior walls, thin interior partitions.
-- Swing doors shown with arc; window ticks on exterior walls.
-- Room labels prefixed with flat number (F1-Living, F1-Kitchen).
+DRAWING & ANNOTATION — STRICT:
+- ALL ROOM BOXES MUST BE EMPTY. Do NOT write any text, labels, names, room types, numbers, or dimensions inside any room. Every room is a blank white rectangle.
+- Do NOT write flat numbers anywhere on the plan.
+- Do NOT annotate dimensions (no "3.5 x 4.0" or similar text).
+- Thick black exterior walls, thin interior partitions, visible party walls between flats.
+- Swing doors shown with arc; window ticks on exterior walls only.
 - Red outline around the exterior walls.
 - White background, clean professional 2D CAD style.
 
@@ -219,18 +228,19 @@ VAASTU:
 - Main Entrance toward North-East.
 - Avoid Toilet/Bathroom in the North-East corner.
 
-DRAWING & ANNOTATION:
-- Label every room with its name clearly.
+DRAWING & ANNOTATION — STRICT:
+- ALL ROOM BOXES MUST BE EMPTY. Do NOT write any text, labels, room names, room types, numbers, or dimensions inside any room box. Every room is a blank white rectangle.
+- Do NOT annotate dimensions or flat numbers anywhere on the plan.
 - Thick black exterior walls, thin interior partitions.
-- Swing doors shown with arc; window ticks on exterior walls.
-- Room labels prefixed with flat number (F1-Living, F1-Kitchen).
+- Solid party walls clearly visible between adjacent flats.
+- Swing doors shown with arc; window ticks on exterior walls only.
 - Red outline around the exterior walls.
 - White background, clean professional 2D CAD style.
 
-FINAL VALIDATION — verify all ${numFlats} apartments contain exactly:
+FINAL VALIDATION — verify all ${numFlats} apartments each have:
 ${countedRooms.map(r => `- ${r}`).join('\n')}
-- 1x Entrance (door to corridor)
-- All rooms labeled
+- 1x Entrance door from common corridor
+- Each flat fully enclosed by its own solid wall boundary, completely separate from all other flats
 
 Output the redesigned floor plan image only.`;
 }
