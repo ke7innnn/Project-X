@@ -91,79 +91,76 @@ function buildStage1Prompt(opts: {
     checklist += '\n';
   }
 
-  return `Task: Design a professional architectural floor plan using the uploaded building footprint (WHITE) as the exact outer boundary.
-Preserve the exterior shape exactly. The white boundary is immutable.
+  return `Task: Design a professional 2D architectural floor plan using the uploaded building footprint (WHITE polygon on BLACK background) as the exact outer boundary. The white shape defines where the building sits — draw all apartments inside it.
 
-Create ${numFlats} independent residential apartments, each approximately equal in area (if practical).
+The white boundary is IMMUTABLE. Never draw outside it.
+
+Create ${numFlats} independent residential apartments inside the white footprint.
 
 ${coreSpecStr}
 
-Use realistic architectural planning, COMPACT miniature rooms, and strict Vastu principles.
-A tiny room is always better than a missing room. Micro-size rooms if needed. Pack rooms tightly.
-
-Show: Thick black exterior walls, interior partition walls, door swing arcs, window ticks on perimeter walls, clean CAD style, white background. All room boxes must be completely EMPTY — no text, no labels, no room names, no numbers, no dimensions inside any room.
-
 ${checklist}
-Validate every unit contains these exact rooms before finalizing. Do not omit any room.
+Every apartment must contain all the rooms listed above. Do not omit, merge, or skip any room.
 
-CRITICAL ZONING GRADIENT:
-Design every flat logically as a gradient from public to private spaces:
-- "public" zone (Living Room, Dining, Entrance/Foyer) must be near the entry corridor/road side.
-- "service" zone (Kitchen, Utility, Common Bath, Store) acts as a buffer between public and private.
-- "private" zone (Bedrooms, Ensuite Bathrooms) must be placed at the deepest point of the flat, furthest from the entrance.
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FLAT COMPOSITION FLOW — MANDATORY SEQUENCE
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Every flat must be designed as a real apartment you would walk through in this exact sequence:
 
-CRITICAL CIRCULATION, DOOR PLACEMENT & ADJACENCY:
-1. Every room MUST have a physical door swing (clearly drawn arc) connecting it to another room or hallway. No landlocked or doorless rooms.
-2. Flat entrance door must open directly into the Living Room or Foyer.
-3. Adjacencies: Dining must touch Kitchen; Kitchen must touch the Utility balcony.
-4. Bathrooms must connect directly to a Bedroom (as ensuite) or a Common Hallway. NEVER make a bathroom door open directly into the Living Room, Dining Room, or Kitchen.
-5. Wall layouts must align cleanly at 90-degree angles to make functional rectangular spaces.
+STEP 1 — ENTRY: The flat's front door opens from the common corridor. Directly behind it is the Foyer or Living Room. The entry side of the flat faces the corridor.
 
-CRITICAL FLAT SEPARATION — THREE RULES (NON-NEGOTIABLE):
+STEP 2 — LIVING ROOM: Immediately past the entry door. This is the first room you step into. It must be the largest open room, positioned at the corridor-facing side of the flat, with a window on the external perimeter wall.
 
-SEP-1 — SOLID WALL BETWEEN EVERY FLAT: Each apartment must be fully enclosed by its own continuous solid wall boundary. The wall between two adjacent flats must be a DOUBLE wall (party wall) — a thick solid line that clearly separates the two units. No room from Flat A may share an interior wall that is also an interior wall of Flat B. There must be a visible solid barrier between them.
+STEP 3 — KITCHEN + DINING: Adjacent to the Living Room, forming a connected public zone. Kitchen and Dining share a wall or opening. Kitchen must touch an external wall for ventilation.
 
-SEP-2 — NO ROOM MAY CROSS FLAT BOUNDARIES: Every room polygon must be 100% contained inside its own flat's wall boundary. A bedroom or kitchen cannot straddle two flats. Each flat is a hermetically sealed unit — its walls form a closed, non-overlapping polygon. Rooms from different flats must never be adjacent without a party wall between them.
+STEP 4 — BEDROOM ZONE: Deepest part of the flat, furthest from the entry door. Bedrooms are at the back or side of the flat. Each bedroom touches an external wall and has its own window. Master Bedroom is the largest.
 
-SEP-3 — REAL-LIFE FLAT COMPOSITION: Design each flat as a self-contained apartment unit exactly as it would be built in real life — a single front door from the corridor, all rooms clustered within that flat's sealed boundary, with no shared rooms between flats. Each flat is an island. Visualise it as cutting the floor plate with scissors — every flat must be a completely separate piece with no connection to any other flat except through the common corridor.
+STEP 5 — BATHROOMS: Each bathroom connects directly to a bedroom (ensuite) or to a small internal hallway. Bathroom doors NEVER open into a Living Room, Kitchen, or Dining Room.
 
-CRITICAL LIGHT & VENTILATION — FIVE RULES (ALL MANDATORY, ZERO EXCEPTIONS):
+DOOR LOGIC — HOW DOORS CONNECT:
+- Corridor → [Entry Door] → Living Room/Foyer
+- Living Room → Kitchen/Dining (shared opening or door)
+- Living Room or internal hallway → [Door] → Bedroom 1
+- Living Room or internal hallway → [Door] → Bedroom 2 (if applicable)
+- Bedroom → [Door] → Ensuite Bathroom
+- Common hallway → [Door] → Common Bathroom (if applicable)
+Every door must have a clearly drawn swing arc. No doorless rooms.
 
-RULE A — EXTERNAL WALL ACCESS MANDATORY: Every habitable room (Bedroom, Living Room, Kitchen, Dining) MUST directly touch at least one external (perimeter) wall of the building footprint. No habitable room may be fully surrounded by other rooms or corridors.
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FLAT SEPARATION — MANDATORY
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+SEP-1: Each apartment is fully enclosed by its own solid wall boundary. The wall between two adjacent flats is a thick double party wall — a solid barrier with no openings between them.
 
-RULE B — WINDOWS ON PERIMETER ONLY: Every bedroom, living room, kitchen, and dining area requires a minimum of one window drawn on the external boundary wall. A room with no perimeter wall contact has no valid window location and is architecturally illegal — do not place it there.
+SEP-2: Every room belongs to exactly one flat. No room straddles two flats. Rooms from different flats are never adjacent without a party wall between them.
 
-RULE C — ZERO INTERNAL DEAD ROOMS: Under no circumstance should a bedroom or living room be landlocked inside the floor plate with no direct access to an external façade. If a room cannot touch the perimeter, replace it with storage or a bathroom (which can be internal).
+SEP-3: Each flat has exactly ONE entrance door from the common corridor. All its rooms are clustered inside its sealed boundary. Think of each flat as a completely separate island — you can only get from one flat to another via the corridor, never directly.
 
-RULE D — LIVING ROOM MUST FACE ENTRY WITH WINDOW: The Living Room must be positioned at the entry side of the flat, directly adjacent to the flat entrance door. It must have at least one window on the external perimeter wall facing outward — the resident must receive natural light the moment they enter.
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+VENTILATION — ALL HABITABLE ROOMS EXTERNAL
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+- Every bedroom, living room, kitchen, and dining area MUST touch an external (perimeter) wall with at least one window tick drawn on it.
+- No bedroom or living room may be landlocked in the interior — if it cannot touch the perimeter, replace it with a bathroom or storage instead.
+- Only bathrooms, lift cores, staircases, and internal corridors may be in the interior core with no external wall.
+- Cross-ventilation is ideal: bedrooms on one side of the flat, kitchen/living on the other.
 
-RULE E — CROSS-VENTILATION PRIORITY: Where possible, every flat should achieve cross-ventilation by having habitable rooms on at least two opposite or adjacent external faces. Bedrooms must face outward; kitchens must vent to an external wall or ventilation shaft. Never place a bedroom or kitchen in the interior core.
+${useVaastu ? `VAASTU:
+- Kitchen: South-East corner of the flat.
+- Master Bedroom: South-West corner.
+- Main Entrance: North-East corner.
+- No Toilet in the North-East corner.` : ''}
 
-Only bathrooms, stairwells, lift cores, utility rooms, and common corridors may be in the interior core without external wall contact.
+${useFireSafety ? `FIRE SAFETY: Any floor with 3+ apartments must have TWO staircases at opposite ends of the common corridor.` : ''}
 
-${useVaastu ? `VAASTU RULES (Highly Weighted):
-- Kitchen: Position towards the South-East (SE) corner of the flat layout.
-- Master Bedroom: Position towards the South-West (SW) corner of the flat.
-- Main Entrance: Position towards the North-East (NE) corner of the flat.
-- Avoid Toilet/Bathroom in the North-East corner.` : ''}
-
-${useFireSafety ? `FIRE SAFETY:
-Any floor with 3 or more apartments MUST have TWO separate staircases, placed so the two escape routes are remote from each other. Every apartment entrance must reach at least one staircase via the common corridor without passing through another apartment.` : ''}
-
-Specify architectural constraints:
-150 mm exterior walls, 100 mm partition walls, 900 mm doors, 1200 mm corridor.
-
-DRAWING & ANNOTATION — STRICT:
-- ALL ROOM BOXES MUST BE EMPTY. Do NOT write room names, room types, or dimensions inside any room box. Every room is a blank white rectangle with no interior text.
-- Each flat may be labelled with ONLY its flat number (F1, F2, F3 … etc.) placed once at the flat entrance — no other text anywhere.
-- Do NOT annotate room dimensions (no "3.5 x 4.0" or similar text anywhere).
-- Thick black exterior walls, thin interior partitions, visible party walls between flats.
-- Swing doors shown with arc; window ticks on exterior walls only.
-- Red outline around the exterior walls.
-- White background, clean professional 2D CAD style.
-
-After completion, draw one red outline around the exterior walls (#FF0000).`;
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+DRAWING RULES — STRICT
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+- ALL ROOM BOXES MUST BE EMPTY. No room names, no text, no dimensions inside any room. Every room is a blank white rectangle.
+- Each flat is labelled ONLY with its flat number (F1, F2, F3…) placed once near its entry door. No other text anywhere.
+- Thick black exterior walls. Thinner black interior partition walls. Visible double party walls between flats.
+- Every door drawn with a swing arc. Window ticks on perimeter walls only.
+- White background. Clean 2D CAD style. Red outline on the exterior perimeter (#FF0000).`;
 }
+
 
 // ── Build Stage 2 refinement prompt ──────────────────────────────────────────
 
