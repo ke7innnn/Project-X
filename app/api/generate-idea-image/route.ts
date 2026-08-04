@@ -119,8 +119,19 @@ CRITICAL CIRCULATION, DOOR PLACEMENT & ADJACENCY:
 4. Bathrooms must connect directly to a Bedroom (as ensuite) or a Common Hallway. NEVER make a bathroom door open directly into the Living Room, Dining Room, or Kitchen.
 5. Wall layouts must align cleanly at 90-degree angles to make functional rectangular spaces.
 
-CRITICAL LIGHT & VENTILATION (EXTERNAL WALLS):
-Bedrooms, Living Rooms, and Kitchens MUST touch an external wall to allow large windows for natural light and ventilation. Internal baths, corridors, and stores can be placed in the interior core without direct light.
+CRITICAL LIGHT & VENTILATION — FIVE RULES (ALL MANDATORY, ZERO EXCEPTIONS):
+
+RULE A — EXTERNAL WALL ACCESS MANDATORY: Every habitable room (Bedroom, Living Room, Kitchen, Dining) MUST directly touch at least one external (perimeter) wall of the building footprint. No habitable room may be fully surrounded by other rooms or corridors.
+
+RULE B — WINDOWS ON PERIMETER ONLY: Every bedroom, living room, kitchen, and dining area requires a minimum of one window drawn on the external boundary wall. A room with no perimeter wall contact has no valid window location and is architecturally illegal — do not place it there.
+
+RULE C — ZERO INTERNAL DEAD ROOMS: Under no circumstance should a bedroom or living room be landlocked inside the floor plate with no direct access to an external façade. If a room cannot touch the perimeter, replace it with storage or a bathroom (which can be internal).
+
+RULE D — LIVING ROOM MUST FACE ENTRY WITH WINDOW: The Living Room must be positioned at the entry side of the flat, directly adjacent to the flat entrance door. It must have at least one window on the external perimeter wall facing outward — the resident must receive natural light the moment they enter.
+
+RULE E — CROSS-VENTILATION PRIORITY: Where possible, every flat should achieve cross-ventilation by having habitable rooms on at least two opposite or adjacent external faces. Bedrooms must face outward; kitchens must vent to an external wall or ventilation shaft. Never place a bedroom or kitchen in the interior core.
+
+Only bathrooms, stairwells, lift cores, utility rooms, and common corridors may be in the interior core without external wall contact.
 
 ${useVaastu ? `VAASTU RULES (Highly Weighted):
 - Kitchen: Position towards the South-East (SE) corner of the flat layout.

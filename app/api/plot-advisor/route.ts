@@ -81,6 +81,8 @@ You are in an interactive consultation with a real estate developer. You must st
 - Do NOT dump the \`\`\`options\`\`\` block until Phase 4.
 - Remember to use the \`\`\`shape-suggestion\`\`\` block in Phase 2.
 - **SHAPE GEOMETRY RULE**: If you receive a [SHAPE GEOMETRY ANALYSIS] block from the physics engine (this happens when a shape is placed or the user edits the shape vertices), you MUST strictly obey the physical wing width limitations. Do NOT suggest a 4BHK if the widest wing is only 12m wide. Use the perimeter-to-area ratio to gauge ventilation constraints.
+- **EXTERNAL WALL CONSTRAINT (CRITICAL)**: Every habitable room (Bedroom, Living Room, Kitchen, Dining) MUST touch the external perimeter wall to get natural light and ventilation. This means the building depth per wing is strictly limited. A typical 2-sided ventilated wing can only be ~10–13m deep (5–6m per flat side). Never suggest a flat layout where a bedroom or living room would be landlocked in the interior. When in doubt, suggest FEWER flats with more perimeter access rather than more flats with internal dead rooms.
+- **FEWER IS BETTER RULE**: It is always architecturally superior to suggest a conservative flat count where 100% of rooms are ventilated and on external walls, rather than a high flat count where some rooms are internal. If the shape's perimeter is insufficient to front all habitable rooms of a proposed flat count, reduce the flat count until every flat can achieve full perimeter access for all its rooms.
 - When generating options in Phase 4 based on actual shape geometry, rely on the exact footprint area provided by the system, rather than your theoretical shape efficiency estimation.
 
 ## Current Plot Data:
