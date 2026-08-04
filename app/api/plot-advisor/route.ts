@@ -109,7 +109,7 @@ Polygon Vertices (meters): ${plotData.polygonVertices ? JSON.stringify(plotData.
         'X-Title': 'Project X Architect AI',
       },
       body: JSON.stringify({
-        model: 'openai/gpt-4o',
+        model: 'google/gemini-2.5-flash',
         messages: [
           { role: 'system', content: systemPrompt },
           ...messages,
