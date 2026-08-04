@@ -36,8 +36,8 @@ async function callFalGeminiEdit(params: {
   const uploadedUrl = await fal.storage.upload(blob);
   console.log(`[edit-floorplan] Uploaded to: ${uploadedUrl}`);
 
-  console.log(`[edit-floorplan] Calling fal-ai/openai/gpt-image-2/edit...`);
-  const result = await fal.subscribe("openai/gpt-image-2/edit", {
+  console.log(`[edit-floorplan] Calling fal-ai/nano-banana-2/edit...`);
+  const result = await fal.subscribe("fal-ai/nano-banana-2/edit", {
     input: {
       prompt: params.translatedPrompt,
       image_urls: [uploadedUrl]
@@ -132,7 +132,7 @@ export async function POST(request: Request) {
     }
     
     let editedFloorPlan: string;
-    let modelUsed = 'fal-ai/gpt-image-2/edit';
+    let modelUsed = 'fal-ai/nano-banana-2/edit';
 
     // Primary: Call fal.ai (GPT Image Edit)
     // Removed Gemini fallback per user request to save costs

@@ -45,19 +45,17 @@ async function urlToFalStorage(url: string): Promise<string> {
   return fal.storage.upload(file);
 }
 
-// ── Workflow model mapping (same as concept generator) ───────────────────────
-
 const WORKFLOWS: Record<string, { stage1: string; stage2?: string; label: string }> = {
-  'grok-gpt':         { stage1: 'xai/grok-imagine-image/edit',                   stage2: 'openai/gpt-image-2/edit', label: 'Grok -> GPT Image 2' },
-  'grok-nano':        { stage1: 'xai/grok-imagine-image/edit',                   stage2: 'fal-ai/nano-banana-pro/edit', label: 'Grok -> Nano Banana' },
+  'grok-gpt':         { stage1: 'xai/grok-imagine-image/edit',                   stage2: 'fal-ai/nano-banana-2/edit', label: 'Grok -> Nano Banana 2' },
+  'grok-nano':        { stage1: 'xai/grok-imagine-image/edit',                   stage2: 'fal-ai/nano-banana-pro/edit', label: 'Grok -> Nano Banana Pro' },
   'grok-kontext':     { stage1: 'xai/grok-imagine-image/edit',                   stage2: 'fal-ai/flux-pro/kontext', label: 'Grok -> FLUX Kontext' },
-  'flux-klein-gpt':   { stage1: 'fal-ai/flux-2/klein/9b/edit',                   stage2: 'openai/gpt-image-2/edit', label: 'FLUX Klein -> GPT Image 2' },
-  'flux-klein-nano':  { stage1: 'fal-ai/flux-2/klein/9b/edit',                   stage2: 'fal-ai/nano-banana-pro/edit', label: 'FLUX Klein -> Nano Banana' },
-  'flux-kontext-gpt': { stage1: 'fal-ai/flux-pro/kontext',                        stage2: 'openai/gpt-image-2/edit', label: 'FLUX Kontext -> GPT Image 2' },
+  'flux-klein-gpt':   { stage1: 'fal-ai/flux-2/klein/9b/edit',                   stage2: 'fal-ai/nano-banana-2/edit', label: 'FLUX Klein -> Nano Banana 2' },
+  'flux-klein-nano':  { stage1: 'fal-ai/flux-2/klein/9b/edit',                   stage2: 'fal-ai/nano-banana-pro/edit', label: 'FLUX Klein -> Nano Banana Pro' },
+  'flux-kontext-gpt': { stage1: 'fal-ai/flux-pro/kontext',                        stage2: 'fal-ai/nano-banana-2/edit', label: 'FLUX Kontext -> Nano Banana 2' },
   'grok-solo':        { stage1: 'xai/grok-imagine-image/edit',                   label: 'Grok only' },
   'flux-klein-solo':  { stage1: 'fal-ai/flux-2/klein/9b/edit',                   label: 'FLUX Klein only' },
   'flux-kontext-solo':{ stage1: 'fal-ai/flux-pro/kontext',                        label: 'FLUX Kontext [pro] only' },
-  'gpt-solo':         { stage1: 'openai/gpt-image-2/edit',                        label: 'GPT Image 2 only' },
+  'gpt-solo':         { stage1: 'fal-ai/nano-banana-2/edit',                      label: 'Nano Banana 2 only' },
   'gemini-solo':      { stage1: 'fal-ai/gemini-3.1-flash-image-preview/edit',     label: 'Gemini only' },
   'flux-canny-solo':  { stage1: 'fal-ai/flux-control-lora-canny',                 label: 'FLUX Canny only' },
 };
