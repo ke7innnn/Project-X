@@ -112,7 +112,15 @@ export default function IdeaGenerationPage() {
   const [isClientMode, setIsClientMode] = useState(false);
   
   // Realtime Logs State
-  const [debugPayload, setDebugPayload] = useState<{ prompt: string; imageBase64?: string } | null>(null);
+  const [debugPayload, setDebugPayload] = useState<{
+    traceBase64?: string;
+    stage1Prompt?: string;
+    stage1OutputUrl?: string;
+    stage2Prompt?: string;
+    stage2OutputUrl?: string;
+    userPrompt?: string;
+    workflow?: string;
+  } | null>(null);
   const [showDebugModal, setShowDebugModal] = useState(false);
 
   // Load project configuration from activeProject config on mount or project switch
@@ -296,10 +304,11 @@ STAGE 2 → Refine interior layout, enforce NBC room sizes, verify room complete
 
 (Full architectural prompt is built server-side and sent to AI model)`;
 
-        // Store the exact payload for the realtime logs UI
+        // Store the initial payload for the realtime logs UI
         setDebugPayload({
-          prompt: promptPreview,
-          imageBase64: strippedBase64
+          traceBase64: strippedBase64,
+          stage1Prompt: promptPreview,
+          workflow: selectedModel,
         });
 
         setLogs(prev => [...prev, `[SYS] PIPELINE: ${selectedModel.toUpperCase()} | ${totalUnits} apartments (${mixParts})`]);
@@ -356,19 +365,16 @@ STAGE 2 → Refine interior layout, enforce NBC room sizes, verify room complete
         }
         setGenerationStep(loadingSteps.length);
 
-        // Update debug payload with the ACTUAL server-built prompts
-        if (resData.systemPrompt || resData.refinementPrompt) {
-          const fullPromptDisplay = [
-            resData.systemPrompt ? `═══ STAGE 1 PROMPT ═══\n${resData.systemPrompt}` : '',
-            resData.refinementPrompt ? `\n═══ STAGE 2 REFINEMENT PROMPT ═══\n${resData.refinementPrompt}` : '',
-            resData.userPrompt ? `\n═══ MODEL INFO ═══\n${resData.userPrompt}` : '',
-          ].filter(Boolean).join('\n');
-          
-          setDebugPayload({
-            prompt: fullPromptDisplay,
-            imageBase64: strippedBase64
-          });
-        }
+        // Update debug payload with the ACTUAL server-built prompts & images for all 4 stages
+        setDebugPayload({
+          traceBase64: strippedBase64,
+          stage1Prompt: resData.systemPrompt || promptPreview,
+          stage1OutputUrl: resData.stage1ImageUrl,
+          stage2Prompt: resData.refinementPrompt,
+          stage2OutputUrl: resData.stage2ImageUrl || resData.url,
+          userPrompt: resData.userPrompt,
+          workflow: selectedModel,
+        });
 
         setLogs((prev) => [...prev, `[SYS] PIPELINE: ${selectedModel.toUpperCase()} — GENERATION COMPLETE.`]);
         if (resData.stage1ImageUrl) {
@@ -960,38 +966,102 @@ STAGE 2 → Refine interior layout, enforce NBC room sizes, verify room complete
         {/* API Payload Logs Modal */}
         {showDebugModal && debugPayload && (
           <div className="fixed inset-0 z-[200] bg-black/80 backdrop-blur-sm flex items-center justify-center p-6 animate-fadeIn">
-            <div className="bg-[#0a0a0f] border border-indigo-500/30 rounded-xl max-w-4xl w-full max-h-[85vh] flex flex-col overflow-hidden shadow-[0_0_50px_rgba(99,102,241,0.15)]">
-              <div className="flex items-center justify-between p-4 border-b border-indigo-500/20 bg-indigo-950/20">
-                <div className="flex items-center gap-2 text-indigo-400">
+            <div className="bg-[#0a0a0f] border border-cyan-500/30 rounded-xl max-w-4xl w-full max-h-[85vh] flex flex-col overflow-hidden shadow-[0_0_50px_rgba(0,240,255,0.15)]">
+              <div className="flex items-center justify-between p-4 border-b border-cyan-500/20 bg-cyan-950/20">
+                <div className="flex items-center gap-2 text-cyan-400">
                   <Terminal className="w-4 h-4" />
-                  <span className="text-xs font-bold tracking-widest uppercase">Raw AI Generation Payload</span>
+                  <span className="text-xs font-bold tracking-widest uppercase">2-Stage AI Generation Pipeline Logs ({debugPayload.workflow || selectedModel})</span>
                 </div>
-                <button onClick={() => setShowDebugModal(false)} className="text-indigo-400/60 hover:text-white p-1 transition-colors">
+                <button onClick={() => setShowDebugModal(false)} className="text-cyan-400/60 hover:text-white p-1 transition-colors">
                   <X className="w-5 h-5" />
                 </button>
               </div>
               
               <div className="flex-1 overflow-y-auto p-6 flex flex-col gap-6">
+                {/* 1. Input Trace Mask */}
                 <div className="flex flex-col gap-2">
-                  <span className="text-[10px] text-indigo-400/60 uppercase tracking-widest font-bold">1. System Prompt (Text-to-Image Layer)</span>
-                  <div className="p-4 bg-black/60 border border-indigo-500/20 rounded-lg text-[11px] text-indigo-200 font-mono whitespace-pre-wrap leading-relaxed shadow-inner">
-                    {debugPayload.prompt}
-                  </div>
-                </div>
-                
-                <div className="flex flex-col gap-2">
-                  <span className="text-[10px] text-indigo-400/60 uppercase tracking-widest font-bold">2. Base64 ControlNet Canvas (Image-to-Image Layer)</span>
-                  {debugPayload.imageBase64 ? (
-                    <div className="p-4 bg-white border border-indigo-500/20 rounded-lg flex items-center justify-center min-h-[300px] bg-[url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyMCIgaGVpZ2h0PSIyMCI+CjxyZWN0IHdpZHRoPSIyMCIgaGVpZ2h0PSIyMCIgZmlsbD0iI2ZmZmZmZiI+PC9yZWN0Pgo8cmVjdCB3aWR0aD0iMTAiIGhlaWdodD0iMTAiIGZpbGw9IiNmM2YzZjMiPjwvcmVjdD4KPHJlY3QgeD0iMTAiIHk9IjEwIiB3aWR0aD0iMTAiIGhlaWdodD0iMTAiIGZpbGw9IiNmM2YzZjMiPjwvcmVjdD4KPC9zdmc+')]">
+                  <span className="text-[10px] text-cyan-400 uppercase tracking-widest font-bold flex items-center gap-1.5">
+                    <span className="w-4 h-4 rounded-full bg-cyan-500/20 border border-cyan-400 flex items-center justify-center text-[9px]">1</span>
+                    EXPORTED TRACE MASK (INPUT BOUNDARY)
+                  </span>
+                  {debugPayload.traceBase64 ? (
+                    <div className="p-3 bg-black/80 border border-cyan-500/20 rounded-lg flex items-center justify-center">
                       <img 
-                        src={`data:image/png;base64,${debugPayload.imageBase64}`} 
-                        alt="Base64 Payload"
-                        className="max-w-full max-h-[400px] object-contain border border-black/10 shadow-lg"
+                        src={`data:image/png;base64,${debugPayload.traceBase64}`} 
+                        alt="Trace Mask"
+                        className="max-w-[240px] max-h-[240px] object-contain border border-cyan-500/30 rounded bg-black shadow-lg"
                       />
                     </div>
                   ) : (
-                    <div className="p-4 bg-black/60 border border-red-500/20 rounded-lg text-[11px] text-red-400 font-mono flex items-center gap-2">
-                      <AlertTriangle className="w-4 h-4" /> NO CANVAS IMAGE ATTACHED (Falling back to Text-Only mode)
+                    <div className="p-3 bg-black/60 border border-red-500/20 rounded-lg text-[11px] text-red-400 font-mono flex items-center gap-2">
+                      <AlertTriangle className="w-4 h-4" /> NO TRACE IMAGE ATTACHED
+                    </div>
+                  )}
+                </div>
+
+                {/* 2. Stage 1 (Grok) Prompt & Base Output */}
+                <div className="flex flex-col gap-3 border-t border-white/10 pt-4">
+                  <span className="text-[10px] text-amber-400 uppercase tracking-widest font-bold flex items-center gap-1.5">
+                    <span className="w-4 h-4 rounded-full bg-amber-500/20 border border-amber-400 flex items-center justify-center text-[9px]">2</span>
+                    STAGE 1 (GROK) PROMPT & GENERATED BASE IMAGE
+                  </span>
+                  
+                  {/* Prompt */}
+                  <div className="p-4 bg-black/60 border border-amber-500/20 rounded-lg text-[11px] text-amber-200/90 font-mono whitespace-pre-wrap leading-relaxed shadow-inner">
+                    <span className="text-amber-400 font-bold block mb-1 text-[10px]">STAGE 1 SYSTEM PROMPT:</span>
+                    {debugPayload.stage1Prompt || 'Waiting...'}
+                  </div>
+
+                  {/* Grok Output Image */}
+                  <div className="flex flex-col gap-1">
+                    <span className="text-[9px] text-amber-400/80 font-bold uppercase tracking-wider">STAGE 1 GENERATED IMAGE (GROK OUTPUT):</span>
+                    {debugPayload.stage1OutputUrl ? (
+                      <div className="p-3 bg-black/80 border border-amber-500/30 rounded-lg flex items-center justify-center">
+                        <img 
+                          src={debugPayload.stage1OutputUrl} 
+                          alt="Grok Stage 1 Output"
+                          className="max-w-full max-h-[350px] object-contain border border-amber-500/30 rounded shadow-lg"
+                        />
+                      </div>
+                    ) : (
+                      <div className="p-4 bg-black/40 border border-amber-500/10 rounded-lg text-[11px] text-amber-500/50 font-mono text-center">
+                        Waiting for Stage 1 generation...
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* 3. Stage 2 (GPT Image 2) Refinement Prompt */}
+                {debugPayload.stage2Prompt && (
+                  <div className="flex flex-col gap-2 border-t border-white/10 pt-4">
+                    <span className="text-[10px] text-purple-400 uppercase tracking-widest font-bold flex items-center gap-1.5">
+                      <span className="w-4 h-4 rounded-full bg-purple-500/20 border border-purple-400 flex items-center justify-center text-[9px]">3</span>
+                      STAGE 2 (GPT IMAGE 2) REFINEMENT PROMPT
+                    </span>
+                    <div className="p-4 bg-black/60 border border-purple-500/20 rounded-lg text-[11px] text-purple-200/90 font-mono whitespace-pre-wrap leading-relaxed shadow-inner">
+                      <span className="text-purple-400 font-bold block mb-1 text-[10px]">STAGE 2 REFINEMENT PROMPT:</span>
+                      {debugPayload.stage2Prompt}
+                    </div>
+                  </div>
+                )}
+
+                {/* 4. Stage 2 (GPT Image 2) Final Generated Output */}
+                <div className="flex flex-col gap-2 border-t border-white/10 pt-4">
+                  <span className="text-[10px] text-emerald-400 uppercase tracking-widest font-bold flex items-center gap-1.5">
+                    <span className="w-4 h-4 rounded-full bg-emerald-500/20 border border-emerald-400 flex items-center justify-center text-[9px]">4</span>
+                    STAGE 2 (GPT IMAGE 2) FINAL SCHEMATIC IMAGE
+                  </span>
+                  {debugPayload.stage2OutputUrl ? (
+                    <div className="p-3 bg-black/80 border border-emerald-500/30 rounded-lg flex items-center justify-center">
+                      <img 
+                        src={debugPayload.stage2OutputUrl} 
+                        alt="GPT Stage 2 Output"
+                        className="max-w-full max-h-[400px] object-contain border border-emerald-500/30 rounded shadow-lg"
+                      />
+                    </div>
+                  ) : (
+                    <div className="p-4 bg-black/40 border border-emerald-500/10 rounded-lg text-[11px] text-emerald-500/50 font-mono text-center">
+                      Waiting for Stage 2 refinement generation...
                     </div>
                   )}
                 </div>

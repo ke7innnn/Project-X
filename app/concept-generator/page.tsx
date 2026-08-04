@@ -563,6 +563,7 @@ export default function SmartPlannerPage() {
   const [debugStep1MaskImage, setDebugStep1MaskImage] = useState<string>('');
   const [debugStep1OutputUrl, setDebugStep1OutputUrl] = useState<string>('');
   const [debugStep2SystemPrompt, setDebugStep2SystemPrompt] = useState<string>('');
+  const [debugStep2RefinementPrompt, setDebugStep2RefinementPrompt] = useState<string>('');
   const [debugStep2UserPrompt, setDebugStep2UserPrompt] = useState<string>('');
   const [debugStep2TraceImage, setDebugStep2TraceImage] = useState<string>('');
   const [debugStep15Schematic, setDebugStep15Schematic] = useState<string>('');
@@ -1715,6 +1716,7 @@ export default function SmartPlannerPage() {
       if (!res.ok || data.error) throw new Error(data.error || 'Concept generation failed');
 
       setDebugStep2SystemPrompt(data.systemPrompt || '');
+      setDebugStep2RefinementPrompt(data.refinementPrompt || '');
       setDebugStep2UserPrompt(data.userPrompt || '');
 
       if (isPipeline && data.stage1ImageUrl) {
@@ -2751,25 +2753,35 @@ export default function SmartPlannerPage() {
               )}
             </div>
             
-            {/* Stage 1 Grok Output */}
+            {/* Stage 1 Grok Prompt & Output */}
             <div className="space-y-2">
-              <h4 className="text-[9px] font-bold text-amber-500/80 uppercase tracking-widest border-b border-amber-900/30 pb-1">2. Stage 1 (Grok) Base Image</h4>
+              <h4 className="text-[9px] font-bold text-amber-500/80 uppercase tracking-widest border-b border-amber-900/30 pb-1">2. Stage 1 (Grok) Prompt & Base Image</h4>
+              {debugStep2SystemPrompt && (
+                <div className="bg-black/60 rounded p-2.5 font-mono text-[9px] whitespace-pre-wrap overflow-x-auto text-amber-300/90 border border-amber-900/30 mb-2">
+                  <span className="text-amber-400 font-bold block mb-1">STAGE 1 PROMPT:</span>
+                  {debugStep2SystemPrompt}
+                </div>
+              )}
               {stage1ImageUrl ? (
-                <img src={stage1ImageUrl} alt="Grok Output" className="w-full border border-blue-900/40 rounded-lg shadow-lg" />
+                <img src={stage1ImageUrl} alt="Grok Output" className="w-full border border-blue-900/40 rounded-lg shadow-lg max-h-[300px] object-contain bg-black" />
               ) : (
                 <div className="text-blue-500/50 text-center py-4 bg-black/40 rounded border border-blue-900/30">Waiting for Grok generation...</div>
               )}
             </div>
 
-            {/* Prompts to GPT */}
+            {/* Stage 2 GPT Prompting */}
             <div className="space-y-2">
-              <h4 className="text-[9px] font-bold text-amber-500/80 uppercase tracking-widest border-b border-amber-900/30 pb-1">3. Stage 2 (GPT) Prompting</h4>
-              <div className="bg-black/60 rounded p-3 font-mono text-[9px] whitespace-pre-wrap overflow-x-auto text-blue-400 border border-blue-900/30">
-                <span className="text-purple-400 font-bold block mb-1">SYSTEM PROMPT:</span>
-                {debugStep2SystemPrompt || 'Waiting...'}
-                <br/><br/>
-                <span className="text-green-400 font-bold block mb-1">USER PROMPT:</span>
-                {debugStep2UserPrompt || 'Waiting...'}
+              <h4 className="text-[9px] font-bold text-purple-400/80 uppercase tracking-widest border-b border-purple-900/30 pb-1">3. Stage 2 (GPT) Prompting</h4>
+              <div className="bg-black/60 rounded p-3 font-mono text-[9px] whitespace-pre-wrap overflow-x-auto text-purple-300 border border-purple-900/30">
+                <span className="text-purple-400 font-bold block mb-1">REFINEMENT PROMPT:</span>
+                {debugStep2RefinementPrompt || debugStep2SystemPrompt || 'Waiting...'}
+                {debugStep2UserPrompt && (
+                  <>
+                    <br/><br/>
+                    <span className="text-green-400 font-bold block mb-1">MODEL PIPELINE:</span>
+                    {debugStep2UserPrompt}
+                  </>
+                )}
               </div>
             </div>
 
