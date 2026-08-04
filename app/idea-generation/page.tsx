@@ -103,7 +103,7 @@ export default function IdeaGenerationPage() {
   const [resultDesc, setResultDesc] = useState('');
 
   // AI Model Selection
-  const [selectedModel, setSelectedModel] = useState('nano-banana-2');
+  const [selectedModel, setSelectedModel] = useState('grok-gpt');
 
   // QA Hardening states
   const [validationError, setValidationError] = useState<string | null>(null);
@@ -261,133 +261,21 @@ export default function IdeaGenerationPage() {
         setResultDesc(`High-rise Floor Plan Core Synthesis: Monolithic tower floor plan.`);
         setIsGenerating(false);
       } else {
-        // Call Fal AI route
-        const totalUnits = units1BHK + units2BHK + units3BHK + units4BHK;
-        const mixBreakdownParts = [
-          units1BHK > 0 ? `${units1BHK} × 1BHK` : null,
-          units2BHK > 0 ? `${units2BHK} × 2BHK` : null,
-          units3BHK > 0 ? `${units3BHK} × 3BHK` : null,
-          units4BHK > 0 ? `${units4BHK} × 4BHK` : null,
-        ].filter(Boolean).join(', ');
-        
-        // Dynamically build unit labels list e.g. F01, F02, ... F10 based on user UI totalUnits
-        const labelList = Array.from({ length: totalUnits }, (_, i) => `F${String(i + 1).padStart(2, '0')}`).join(', ');
-        
-        // Derived flags
-        const hasMasterBedroom = units2BHK > 0 || units3BHK > 0 || units4BHK > 0;
-        const hasMultipleBedrooms = hasMasterBedroom; // 2BHK+ means > 1 bedroom per unit
-        const hasLifts = passengerLifts > 0;
-        const hasStairs = staircases > 0;
-        
-        // Dynamically build room composition — only include BHK types that have units > 0
-        const roomCompLines: string[] = [];
-        if (units1BHK > 0) roomCompLines.push('- 1BHK = 1 bedroom, 1 living room, 1 kitchen, 1 bathroom.');
-        if (units2BHK > 0) roomCompLines.push('- 2BHK = 2 bedrooms (1 master with attached bathroom), 1 living room, 1 kitchen, 2 bathrooms.');
-        if (units3BHK > 0) roomCompLines.push('- 3BHK = 3 bedrooms (1 master with attached bathroom), 1 living room, 1 kitchen, 2 bathrooms.');
-        if (units4BHK > 0) roomCompLines.push('- 4BHK = 4 bedrooms (1 master with attached bathroom), 1 living room, 1 kitchen, 3 bathrooms.');
-        const roomCompBlock = roomCompLines.join('\n');
-        
-        // Build room sizes — only include master bedroom line if 2BHK+ exists
-        const roomSizeLines: string[] = [
-          '- Living room is the largest room in each apartment.',
-        ];
-        if (hasMultipleBedrooms) {
-          roomSizeLines.push('- Bedrooms are medium sized. Master bedroom is larger than other bedrooms.');
-        } else {
-          roomSizeLines.push('- Bedroom is medium sized.');
+        // ── NEW PIPELINE: Send trace canvas + params to 2-stage pipeline ──
+        const traceBase64 = aiOpts?.tracerImageBase64 || fallbackBase64;
+
+        if (!traceBase64) {
+          clearInterval(logInterval);
+          setValidationError('No canvas trace available. Please trace your plot boundary first.');
+          setIsGenerating(false);
+          return;
         }
-        roomSizeLines.push('- Kitchen is small.');
-        roomSizeLines.push('- Bathrooms are the smallest rooms.');
-        const roomSizeBlock = roomSizeLines.join('\n');
-        
-        // Build core spec line — only mention what's > 0
-        const coreSpecs = [];
-        if (hasLifts) coreSpecs.push(`${passengerLifts} lifts`);
-        if (hasStairs) coreSpecs.push(`${staircases} staircases`);
-        const coreSpecStr = coreSpecs.length > 0 ? `- Central core: ${coreSpecs.join(' + ')}, placed at the center of the building.` : '';
-        
-        // Build optional constraint lines
-        const optionalLines: string[] = [];
-        if (vastuCompliant) {
-          const vastuParts = ['kitchens SE'];
-          if (hasMasterBedroom) vastuParts.push('master bedrooms SW');
-          vastuParts.push('entrance NE');
-          optionalLines.push(`- Vaastu: ${vastuParts.join(', ')}.`);
-        }
-        if (fireSafetyCode) optionalLines.push('- Fire safety: two independent escape routes per floor.');
-        if (customPrompt) optionalLines.push(`- Notes: ${customPrompt}`);
-        const optionalBlock = optionalLines.length > 0 ? optionalLines.join('\n') + '\n' : '';
-
-        // Build drawing style CAD symbol lines — only include what's present
-        const symbolLines: string[] = [
-          '- Draw doors as arcs, windows as thin gaps on outer walls.',
-        ];
-        if (hasLifts) symbolLines.push('- Draw lifts as small squares with X inside.');
-        if (hasStairs) symbolLines.push('- Draw staircases as parallel diagonal lines.');
-        const symbolBlock = symbolLines.join('\n');
-        
-        // Build corridor line — only mention lifts/stairs if they exist
-        const corridorTarget = coreSpecs.length > 0 ? 'the lift/stair core' : 'the central core';
-        
-        const promptText = `Generate a top-down 2D architectural CAD floor plan viewed from above.
-
-BUILDING SPEC:
-- Residential tower, ${overallWidth}m x ${overallLength}m footprint.
-- ${totalUnits} apartments: ${mixBreakdownParts}.
-\${coreSpecStr}
-
-ROOM COMPOSITION:
-${roomCompBlock}
-- Every room listed above MUST appear in each apartment. Do not skip any room.
-
-ROOM SIZES (relative):
-${roomSizeBlock}
-
-SPATIAL FLOW (inside each apartment):
-- Entrance door leads into living/dining area first (public zone near corridor).
-- Kitchen is next to the living area.
-- Bedrooms are on the opposite side from the entrance (private zone near facade).
-- Each bathroom is attached to or directly adjacent to a bedroom.
-
-STRICT LAYOUT RULES:
-- The input image has an existing floor plan inside a thick RED border. The RED border is the fixed building boundary.
-- DO NOT modify, move, reshape, or remove the RED border.
-- ONLY edit the interior layout INSIDE the RED border. Everything outside the RED border must remain plain white.
-- ALL Living Rooms and Bedrooms MUST be placed along the outer edge (RED border) with at least one window on the outer wall. No living room or bedroom may be placed in the interior without a window.
-- ALL Kitchens MUST be placed along the outer edge with a window, OR next to a vertical exhaust duct shaft.
-- ALL Bathrooms MUST be placed along the outer edge with a window, OR next to a vertical ventilation duct shaft. Draw duct shafts as small labeled rectangles near the core.
-- No room in any apartment may be fully enclosed without either a window to the outside or a connection to a duct shaft.
-- Each apartment has exactly one entrance door opening onto the corridor.
-- A central corridor connects all apartment entrances to ${corridorTarget}.
-${optionalBlock}
-DRAWING STYLE:
-- Black-and-white CAD linework only. Keep the existing RED border as-is.
-- Outer walls: thick lines. Inner partition walls: thin lines.
-${symbolBlock}
-- CRITICAL: Do NOT draw any furniture, textures, shadows, 3D views, perspective drawings, people, or colored fills.
-- CRITICAL: Do NOT write any room names, dimensions, or legends. Rooms must be completely empty boxes.
-- Label each apartment: ${labelList}. ONLY these exact labels are allowed. One label per apartment, NO room labels.`;
 
         // Store the exact payload for the realtime logs UI
         setDebugPayload({
-          prompt: promptText,
-          imageBase64: aiOpts?.tracerImageBase64 || fallbackBase64
+          prompt: `[Pipeline: ${selectedModel}] Units: ${units1BHK}×1BHK, ${units2BHK}×2BHK, ${units3BHK}×3BHK, ${units4BHK}×4BHK | Lifts: ${passengerLifts} | Stairs: ${staircases}`,
+          imageBase64: traceBase64
         });
-
-        const activePreset = FOOTPRINT_PRESETS.find(f => f.id === footprintShape);
-        
-        let dynamicImageSize = 'square_hd';
-        const cDim = advisorRef.current?.getCanvasDimensions();
-        const finalW = aiOpts?.canvasW || cDim?.w || 1024;
-        const finalH = aiOpts?.canvasH || cDim?.h || 1024;
-        
-        if (finalW && finalH) {
-          const ratio = finalW / finalH;
-          if (ratio > 1.2) dynamicImageSize = 'landscape_16_9';
-          else if (ratio < 0.8) dynamicImageSize = 'portrait_16_9';
-        }
-
-        const imageSize = (aiOpts?.tracerImageBase64 || fallbackBase64) ? dynamicImageSize : (activePreset?.recommendedImageSize || 'square_hd');
 
         setResultImage(null);
 
@@ -397,19 +285,21 @@ ${symbolBlock}
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            prompt: promptText,
-            style: styleName,
-            imageSize,
-            apiKey: apiKey || undefined,
-            inputImageBase64: aiOpts?.tracerImageBase64 || fallbackBase64,
-            canvasW: aiOpts?.canvasW,
-            canvasH: aiOpts?.canvasH,
-            modelId: selectedModel,
+            traceCanvasBase64: traceBase64,
+            workflow: selectedModel,
+            units1BHK,
+            units2BHK,
+            units3BHK,
+            units4BHK,
+            passengerLifts,
+            staircases,
+            useVaastu: vastuCompliant,
+            useFireSafety: fireSafetyCode,
           }),
         }).then(async (res) => {
           const data = await res.json();
           if (!res.ok) {
-            throw new Error(data.error || 'Fal AI generation request failed');
+            throw new Error(data.error || 'Pipeline generation failed');
           }
           return data;
         });
@@ -431,13 +321,13 @@ ${symbolBlock}
         }
         setGenerationStep(loadingSteps.length);
 
-        setLogs((prev) => [...prev, `[SYS] MODEL: ${selectedModel.toUpperCase()} — GENERATION COMPLETE.`]);
+        setLogs((prev) => [...prev, `[SYS] PIPELINE: ${selectedModel.toUpperCase()} — GENERATION COMPLETE.`]);
         
         const finalResultImg = resData.url || null;
         setResultImage(finalResultImg);
 
         setResultTitle(`${styleName} TOWER PLAN SCHEMATIC`);
-        setResultDesc(`Generated with ${selectedModel} based on a ${styleName} footprint.`);
+        setResultDesc(`Generated with ${selectedModel} pipeline.`);
 
         // Save to variants history
         setVariantsHistory(prev => {

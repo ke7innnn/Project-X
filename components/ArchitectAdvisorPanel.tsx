@@ -414,9 +414,9 @@ const ArchitectAdvisorPanel = forwardRef<ArchitectAdvisorRef, Props>(({ onParams
     { label: '1024×576 (Cinema)', w: 1024, h: 576 },
   ];
 
-  // Export tracer canvas as clean AI input image
-  // Renders the traced polygon (white filled) centered on a white canvas at outputW×outputH
-  // with the suggested building shape overlay in a soft gray
+  // Export tracer canvas as clean black/white trace for AI
+  // Uses the same technique as the Concept Generator: black background + white polygon fill
+  // This format is proven to give AI models the most accurate shape recognition
   const exportForAI = useCallback((): string | null => {
     if (polygon.length < 3 || !isTracingClosed) return null;
     const offscreen = document.createElement('canvas');
@@ -425,152 +425,91 @@ const ArchitectAdvisorPanel = forwardRef<ArchitectAdvisorRef, Props>(({ onParams
     const ctx = offscreen.getContext('2d');
     if (!ctx) return null;
 
-    // White background
-    ctx.fillStyle = '#ffffff';
+    // 1. Solid BLACK background (AI knows: black = don't touch)
+    ctx.fillStyle = '#000000';
     ctx.fillRect(0, 0, outputW, outputH);
 
-    // If a suggested shape is selected, ONLY export the shape itself (for typical floor plan generation)
-    // using the exact aspect ratio and rotation optimized by the physics engine
+    // Determine which polygon to export
+    let activePts: Point[];
     if (suggestedShape && finalShapePolygonsRef.current) {
-      const shapePolygons = finalShapePolygonsRef.current;
-      
-      // Calculate bounding box of the optimized shape
-      const allPts = shapePolygons.flat();
-      const minX = Math.min(...allPts.map(p => p.x));
-      const maxX = Math.max(...allPts.map(p => p.x));
-      const minY = Math.min(...allPts.map(p => p.y));
-      const maxY = Math.max(...allPts.map(p => p.y));
-      const shapeW = maxX - minX;
-      const shapeH = maxY - minY;
-
-      const marginPx = 40;
-      const availW = outputW - (marginPx * 2);
-      const availH = outputH - (marginPx * 2);
-      
-      // Scale up the shape to fill the 1024x1024 canvas while maintaining its exact aspect ratio
-      const scale = Math.min(availW / shapeW, availH / shapeH);
-      const offsetX = (outputW - shapeW * scale) / 2 - minX * scale;
-      const offsetY = (outputH - shapeH * scale) / 2 - minY * scale;
-      
-      const tx = (p: Point) => p.x * scale + offsetX;
-      const ty = (p: Point) => p.y * scale + offsetY;
-      
-      // Build the shape path
-      ctx.beginPath();
-      shapePolygons.forEach(shapePts => {
-        if (shapePts.length < 3) return;
-        ctx.moveTo(tx(shapePts[0]), ty(shapePts[0]));
-        shapePts.slice(1).forEach(p => ctx.lineTo(tx(p), ty(p)));
-        ctx.closePath();
-      });
-
-      // Clip the canvas to only draw inside the boundary
-      ctx.save();
-      ctx.clip();
-
-      // Draw a mock "existing" CAD interior pattern to trick the edit model
-      if (cadPatternImg) {
-        // Tile the real CAD plan inside the shape
-        const pat = ctx.createPattern(cadPatternImg, 'repeat');
-        if (pat) {
-          ctx.fillStyle = pat;
-          ctx.fillRect(0, 0, outputW, outputH);
-        }
-      } else {
-        // Fallback grid if image fails to load
-        ctx.strokeStyle = '#000000';
-        ctx.lineWidth = 1.5;
-        const grid = 80;
-        for (let x = 0; x < outputW; x += grid) {
-          for (let y = 0; y < outputH; y += grid) {
-            ctx.strokeRect(x, y, grid, grid);
-            ctx.beginPath();
-            ctx.moveTo(x + 20, y + grid);
-            ctx.arc(x + 20, y + grid, 20, 0, -Math.PI/2, true);
-            ctx.stroke();
-            ctx.fillStyle = '#000000';
-            ctx.font = 'bold 10px monospace';
-            ctx.fillText('EXISTING', x + 15, y + 35);
-            ctx.fillText('SPACE', x + 25, y + 50);
-          }
-        }
-      }
-
-      ctx.restore();
-
-      // Draw the thick outer RED boundary over the pattern
-      ctx.strokeStyle = '#ff0000';
-      ctx.lineWidth = Math.max(12, outputW / 60);
-      ctx.lineJoin = 'miter';
-      ctx.stroke();
-
-      return offscreen.toDataURL('image/png').replace(/^data:image\/png;base64,/, '');
+      // Use the shape polygons (flatten multi-polygon into single polygon for simplicity)
+      activePts = finalShapePolygonsRef.current.flat();
+    } else {
+      // Use the traced plot boundary
+      activePts = polygon;
     }
 
-    // Fallback: If no suggested shape, export the traced plot boundary
-    const bbox = polygonBBox(polygon);
-    const polyW = bbox.w;
-    const polyH = bbox.h;
+    if (activePts.length < 3) return null;
 
-    // Scale polygon to fit inside outputW × outputH with 6% margin
-    const margin = 0.15;
-    const availW = outputW * (1 - margin * 2);
-    const availH = outputH * (1 - margin * 2);
-    const scale = Math.min(availW / polyW, availH / polyH);
+    // 2. Scale and center the polygon using zoom-to-fit (same as concept generator)
+    let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+    activePts.forEach(p => {
+      if (p.x < minX) minX = p.x;
+      if (p.x > maxX) maxX = p.x;
+      if (p.y < minY) minY = p.y;
+      if (p.y > maxY) maxY = p.y;
+    });
+    const ptsW = maxX - minX;
+    const ptsH = maxY - minY;
+    const padding = 24; // 24px margin — same as concept generator
+    const targetW = Math.max(1, outputW - padding * 2);
+    const targetH = Math.max(1, outputH - padding * 2);
 
-    const scaledPolyW = polyW * scale;
-    const scaledPolyH = polyH * scale;
-    const offsetX = (outputW - scaledPolyW) / 2 - bbox.minX * scale;
-    const offsetY = (outputH - scaledPolyH) / 2 - bbox.minY * scale;
+    const scale = Math.min(targetW / (ptsW || 1), targetH / (ptsH || 1));
+    const offsetX = (outputW / 2) - ((minX + maxX) / 2) * scale;
+    const offsetY = (outputH / 2) - ((minY + maxY) / 2) * scale;
 
-    const scalePt = (p: Point) => ({ x: p.x * scale + offsetX, y: p.y * scale + offsetY });
+    const scaledPts = activePts.map(p => ({
+      x: Math.round(p.x * scale + offsetX),
+      y: Math.round(p.y * scale + offsetY)
+    }));
 
-    // Clip the canvas to only draw inside the plot boundary
-    const scaledPts = polygon.map(scalePt);
+    // 3. Fill polygon with WHITE (AI knows: white = draw floor plan here)
+    ctx.fillStyle = '#ffffff';
     ctx.beginPath();
     ctx.moveTo(scaledPts[0].x, scaledPts[0].y);
-    scaledPts.slice(1).forEach(p => ctx.lineTo(p.x, p.y));
+    for (let i = 1; i < scaledPts.length; i++) {
+      ctx.lineTo(scaledPts[i].x, scaledPts[i].y);
+    }
     ctx.closePath();
+    ctx.fill();
 
+    // 4. Draw room-hint grid boxes inside the polygon (same technique as concept generator)
+    // These tiny boxes give the AI a visual cue that small rooms are expected
     ctx.save();
+    ctx.beginPath();
+    ctx.moveTo(scaledPts[0].x, scaledPts[0].y);
+    for (let i = 1; i < scaledPts.length; i++) {
+      ctx.lineTo(scaledPts[i].x, scaledPts[i].y);
+    }
+    ctx.closePath();
     ctx.clip();
 
-    // Draw a mock "existing" CAD interior pattern to trick the edit model
-    if (cadPatternImg) {
-      const pat = ctx.createPattern(cadPatternImg, 'repeat');
-      if (pat) {
-        ctx.fillStyle = pat;
-        ctx.fillRect(0, 0, outputW, outputH);
-      }
-    } else {
-      ctx.strokeStyle = '#000000';
-      ctx.lineWidth = 1.5;
-      const grid = 80;
-      for (let x = 0; x < outputW; x += grid) {
-        for (let y = 0; y < outputH; y += grid) {
-          ctx.strokeRect(x, y, grid, grid);
-          ctx.beginPath();
-          ctx.moveTo(x + 20, y + grid);
-          ctx.arc(x + 20, y + grid, 20, 0, -Math.PI/2, true);
-          ctx.stroke();
-          ctx.fillStyle = '#000000';
-          ctx.font = 'bold 10px monospace';
-          ctx.fillText('EXISTING', x + 15, y + 35);
-          ctx.fillText('SPACE', x + 25, y + 50);
-        }
+    // Calculate grid cell size — aim for ~50px cells (room-sized hints)
+    let sMinX = Infinity, sMaxX = -Infinity, sMinY = Infinity, sMaxY = -Infinity;
+    scaledPts.forEach(p => {
+      if (p.x < sMinX) sMinX = p.x;
+      if (p.x > sMaxX) sMaxX = p.x;
+      if (p.y < sMinY) sMinY = p.y;
+      if (p.y > sMaxY) sMaxY = p.y;
+    });
+    const gridCellSize = 50;
+    ctx.strokeStyle = 'rgba(0, 0, 0, 0.2)';
+    ctx.lineWidth = 0.5;
+
+    for (let gy = Math.floor(sMinY / gridCellSize) * gridCellSize; gy <= sMaxY; gy += gridCellSize) {
+      const rowOffset = (Math.random() - 0.5) * gridCellSize;
+      for (let gx = Math.floor(sMinX / gridCellSize) * gridCellSize; gx <= sMaxX; gx += gridCellSize) {
+        const w = gridCellSize * (0.6 + Math.random() * 1.0);
+        const h = gridCellSize * (0.6 + Math.random() * 1.0);
+        const yScatter = (Math.random() - 0.5) * 10;
+        ctx.strokeRect(gx + rowOffset, gy + yScatter, w, h);
       }
     }
-
     ctx.restore();
 
-    // Draw plot boundary stroke over the pattern in RED
-    ctx.strokeStyle = '#ff0000';
-    ctx.lineWidth = Math.max(12, outputW / 60);
-    ctx.lineJoin = 'miter';
-    ctx.stroke();
-
-    // Return base64 (strip the data:image/png;base64, prefix)
-    return offscreen.toDataURL('image/png').replace(/^data:image\/png;base64,/, '');
+    // Return full data URL (NOT stripped — the API route handles stripping)
+    return offscreen.toDataURL('image/png');
   }, [polygon, isTracingClosed, suggestedShape, outputW, outputH]);
 
   const handleGenerateTrigger = useCallback(() => {
@@ -1845,17 +1784,27 @@ Use these measurements to determine which apartment types can physically fit in 
               </div>
             </div>
 
-            {/* AI Model Selector inline for convenience */}
+            {/* AI Workflow Pipeline Selector */}
             <div className="flex flex-col gap-1 bg-black/20 p-2 rounded-lg border border-white/5">
-              <span className="text-[9px] font-bold text-cyan-500/60 uppercase tracking-wider block">AI MODEL ENGINE:</span>
+              <span className="text-[9px] font-bold text-cyan-500/60 uppercase tracking-wider block">AI PIPELINE:</span>
               <select
                 value={selectedModel}
                 onChange={(e) => onModelChange(e.target.value)}
                 className="w-full bg-black/40 border border-white/10 focus:border-cyan-400 focus:outline-none rounded px-2 py-1.5 text-[11px] text-cyan-400 cursor-pointer"
               >
-                <option value="nano-banana-pro" className="bg-[#0a0a0f] text-cyan-400">Nano Banana Pro (Fast)</option>
-                <option value="nano-banana-2" className="bg-[#0a0a0f] text-cyan-400">Nano Banana 2 (Balanced)</option>
-                <option value="gpt-image-2" className="bg-[#0a0a0f] text-cyan-400">GPT Image 2 — Medium (Best Quality)</option>
+                <optgroup label="2-Stage Pipelines (Recommended)" className="bg-[#0a0a0f]">
+                  <option value="grok-gpt" className="bg-[#0a0a0f] text-cyan-400">Grok → GPT Image 2 (Best)</option>
+                  <option value="grok-nano" className="bg-[#0a0a0f] text-cyan-400">Grok → Nano Banana Pro</option>
+                  <option value="grok-kontext" className="bg-[#0a0a0f] text-cyan-400">Grok → FLUX Kontext</option>
+                  <option value="flux-klein-gpt" className="bg-[#0a0a0f] text-cyan-400">FLUX Klein → GPT Image 2</option>
+                  <option value="flux-kontext-gpt" className="bg-[#0a0a0f] text-cyan-400">FLUX Kontext → GPT Image 2</option>
+                </optgroup>
+                <optgroup label="Single Model" className="bg-[#0a0a0f]">
+                  <option value="grok-solo" className="bg-[#0a0a0f] text-cyan-400">Grok Only (Fast)</option>
+                  <option value="gpt-solo" className="bg-[#0a0a0f] text-cyan-400">GPT Image 2 Only</option>
+                  <option value="flux-klein-solo" className="bg-[#0a0a0f] text-cyan-400">FLUX Klein Only</option>
+                  <option value="gemini-solo" className="bg-[#0a0a0f] text-cyan-400">Gemini Only</option>
+                </optgroup>
               </select>
             </div>
 
