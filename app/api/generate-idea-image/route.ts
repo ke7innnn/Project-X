@@ -125,6 +125,8 @@ DOOR LOGIC — HOW DOORS CONNECT:
 - Bedroom → [Door] → Ensuite Bathroom
 - Common hallway → [Door] → Common Bathroom (if applicable)
 Every door must have a clearly drawn swing arc. No doorless rooms.
+All interior walls must be straight and meet at 90-degree angles — every room is a clean rectangle or L-shape, no diagonal partitions.
+
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 FLAT SEPARATION — MANDATORY
