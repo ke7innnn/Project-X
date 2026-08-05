@@ -250,7 +250,11 @@ export async function POST(req: Request) {
       });
 
       console.log(`[IdeaGenerator] Stage 1: ${stage1Model} — drawing ${numFlats} empty flat zones...`);
-      const stage1Input = { image_url: uploadedTraceUrl, prompt: stage1Prompt };
+      // Grok, FLUX Klein, and Gemini all use image_urls (array); FLUX Canny uses control_image_url
+      const isFluxCanny = stage1Model.includes('flux-control-lora-canny');
+      const stage1Input = isFluxCanny
+        ? { control_image_url: uploadedTraceUrl, control_lora_image_url: uploadedTraceUrl, prompt: stage1Prompt, num_inference_steps: 28, guidance_scale: 3.5, controlnet_conditioning_scale: 1.0 }
+        : { image_urls: [uploadedTraceUrl], prompt: stage1Prompt };
       const stage1Url = await runModel(stage1Model, stage1Input);
       console.log('[IdeaGenerator] Stage 1 output:', stage1Url);
 
