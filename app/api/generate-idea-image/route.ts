@@ -240,6 +240,8 @@ export async function POST(req: Request) {
       staircases = 2,
       useVaastu = true,
       useFireSafety = true,
+      shapeW,
+      shapeH,
       // Legacy single-model fallback fields
       prompt,
       inputImageBase64,
@@ -249,6 +251,18 @@ export async function POST(req: Request) {
       canvasW,
       canvasH,
     } = await req.json();
+
+    // ── Determine image size from shape bounding box ──────────────────────────
+    // If shapeH > shapeW → portrait. If shapeW > shapeH → landscape. Otherwise square.
+    function pickImageSize(w?: number, h?: number): string {
+      if (!w || !h || w === 0 || h === 0) return 'square_hd';
+      const ratio = h / w;
+      if (ratio > 1.15) return 'portrait_4_3';     // tall shape  → portrait
+      if (ratio < 0.87) return 'landscape_4_3';    // wide shape  → landscape
+      return 'square_hd';                           // near-square → square HD
+    }
+    const detectedImageSize = pickImageSize(shapeW, shapeH);
+    console.log(`[IdeaGenerator] Shape bounding box: ${shapeW}×${shapeH}px → image_size: ${detectedImageSize}`);
 
     // ── NEW PIPELINE PATH: if traceCanvasBase64 is provided ──────────────────
     if (traceCanvasBase64) {
@@ -282,7 +296,7 @@ export async function POST(req: Request) {
       const isFluxCanny = stage1Model.includes('flux-control-lora-canny');
       const stage1Input = isFluxCanny
         ? { control_image_url: uploadedTraceUrl, control_lora_image_url: uploadedTraceUrl, prompt: stage1Prompt, num_inference_steps: 28, guidance_scale: 3.5, controlnet_conditioning_scale: 1.0 }
-        : { image_urls: [uploadedTraceUrl], prompt: stage1Prompt };
+        : { image_urls: [uploadedTraceUrl], prompt: stage1Prompt, image_size: detectedImageSize };
       const stage1Url = await runModel(stage1Model, stage1Input);
       console.log('[IdeaGenerator] Stage 1 output:', stage1Url);
 
@@ -331,6 +345,7 @@ export async function POST(req: Request) {
         image_urls: imageUrls,
         prompt: refinementPrompt,
         quality: 'high',
+        image_size: detectedImageSize,
       };
 
       const stage2Url = await runModel(stage2Model, stage2Input);

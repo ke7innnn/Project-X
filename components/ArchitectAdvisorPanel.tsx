@@ -63,7 +63,7 @@ export interface ArchitectAdvisorRef {
 
 interface Props {
   onParamsApplied: (params: FormParams) => void;
-  onGenerateTrigger: (opts: { tracerImageBase64?: string; canvasW?: number; canvasH?: number; isShapeModified?: boolean }) => void;
+  onGenerateTrigger: (opts: { tracerImageBase64?: string; canvasW?: number; canvasH?: number; shapeW?: number; shapeH?: number; isShapeModified?: boolean }) => void;
   selectedModel: string;
   onModelChange: (modelId: string) => void;
 }
@@ -507,8 +507,28 @@ const ArchitectAdvisorPanel = forwardRef<ArchitectAdvisorRef, Props>(({ onParams
 
   const handleGenerateTrigger = useCallback(() => {
     const base64 = exportForAI();
-    onGenerateTrigger({ tracerImageBase64: base64 || undefined, canvasW: outputW, canvasH: outputH, isShapeModified: shapeWasModified });
-  }, [exportForAI, onGenerateTrigger, outputW, outputH, shapeWasModified]);
+
+    // Compute the actual shape bounding box from polygon vertices
+    // This tells the API whether the shape is portrait, landscape, or square
+    let shapeW: number | undefined;
+    let shapeH: number | undefined;
+    const activePts = (suggestedShape && finalShapePolygonsRef.current)
+      ? finalShapePolygonsRef.current.flat()
+      : polygon;
+    if (activePts && activePts.length >= 3) {
+      let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+      activePts.forEach((p: Point) => {
+        if (p.x < minX) minX = p.x;
+        if (p.x > maxX) maxX = p.x;
+        if (p.y < minY) minY = p.y;
+        if (p.y > maxY) maxY = p.y;
+      });
+      shapeW = maxX - minX;
+      shapeH = maxY - minY;
+    }
+
+    onGenerateTrigger({ tracerImageBase64: base64 || undefined, canvasW: outputW, canvasH: outputH, shapeW, shapeH, isShapeModified: shapeWasModified });
+  }, [exportForAI, onGenerateTrigger, outputW, outputH, shapeWasModified, polygon, suggestedShape]);
 
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
