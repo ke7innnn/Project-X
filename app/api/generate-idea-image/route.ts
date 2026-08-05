@@ -88,35 +88,42 @@ function buildStage1Prompt(opts: {
 }): string {
   const { numFlats } = opts;
 
-  return `You are a strict architectural zoning grid generator. Your ONLY job is to divide a building footprint into EXACTLY ${numFlats} equal-area flat zones around a central core block labeled "CORE".
+  return `You are a strict architectural zoning grid generator. Your ONLY job is to divide a building footprint into EXACTLY ${numFlats} equal-area flat zones around a central core box labeled "CORE".
 
 INPUT: The uploaded image shows a WHITE polygon on a BLACK background (building footprint).
 
 CRITICAL RULE 1 — IMMUTABLE FOOTPRINT:
 The white polygon is the exact building boundary. Never draw outside it.
 
-CRITICAL RULE 2 — SIMPLE CENTRAL CORE (NO LIFTS, NO STAIRS):
-Draw ONE solid black rectangle at the geometric center of the footprint. Print the text "CORE" in white inside it.
-⛔ DO NOT draw any elevator shafts, lift doors, staircases, steps, or internal cutouts inside the core. It must be a simple, solid dark box labeled "CORE".
+CRITICAL RULE 2 — SIMPLE CENTRAL CORE (WHITE BOX WITH BLACK BORDER):
+Draw ONE central rectangular box at the geometric center of the footprint.
+- Outline: Thin black outline. Inside: White background (SAME as the flat zones).
+- Label: Print the text "CORE" in black text inside it.
+⛔ DO NOT fill the core with solid black paint.
+⛔ DO NOT draw any elevator shafts, lift doors, staircases, steps, or internal lines inside the core. It is a simple white box with black outline containing the text "CORE".
 
 CRITICAL RULE 3 — EXACTLY ${numFlats} EQUAL-AREA FLAT ZONES:
-Partition the white area around the central CORE into EXACTLY ${numFlats} flat zones.
-- ZONE COUNT: There must be EXACTLY ${numFlats} zones in total. Not ${numFlats - 1}, not ${numFlats + 1}. Count them before rendering: F1, F2${numFlats > 2 ? `, ... F${numFlats}` : ''}.
+Partition the white space around the central CORE box into EXACTLY ${numFlats} flat zones.
+- ZONE COUNT: There must be EXACTLY ${numFlats} zones in total. Count them before rendering: F1, F2${numFlats > 2 ? `, ... F${numFlats}` : ''}.
 - EQUAL SIZES: Every zone MUST be equal in area (equal width/length). All ${numFlats} zones must look identical in size.
 - NO EXTRA BOXES: Do not draw additional unlabelled boxes, corridors, or sub-boxes.
 
-CRITICAL RULE 4 — STRICT ZONE LABELS (F1 TO F${numFlats}):
-Label each zone ONCE with its exact flat number: F1, F2, F3... up to F${numFlats}.
-- Do NOT duplicate any label (e.g. never write F4 twice).
-- Do NOT skip any number in the sequence F1 to F${numFlats}.
-- Place the label clearly inside the zone.
+CRITICAL RULE 4 — STRICT UNIQUE ZONE LABELS (F1 TO F${numFlats}):
+Label each zone ONCE with its unique flat number: F1, F2, F3... up to F${numFlats}.
+- Strictly NO DUPLICATE LABELS: Every number from F1 to F${numFlats} must be used EXACTLY ONCE. (e.g. if numFlats is 5, you MUST output F1, F2, F3, F4, F5 — NEVER repeat F4 or any other label).
+- Do NOT skip any number in the sequence.
+- Place the black text label clearly inside each zone.
 
 CRITICAL RULE 5 — COMPLETELY BLANK ZONE INTERIORS:
-Each zone (F1 to F${numFlats}) must be a completely blank white rectangle with ONLY its label (e.g. F1).
+Each zone (F1 to F${numFlats}) must be a completely blank white rectangle with ONLY its black text label (e.g. F1).
 - DO NOT draw internal walls, room dividers, doors, windows, or furniture inside the zones.
 
+CRITICAL RULE 6 — CORRIDOR VENTILATION ACCESS TO EXTERIOR FAÇADE:
+- Extend the central "CORE" box or draw a straight access corridor line from the CORE box to touch at least ONE exterior perimeter wall.
+- This creates an exterior window opening for the central corridor (providing natural light and fresh air ventilation).
+
 OUTPUT SPECIFICATION:
-Top-down 2D CAD diagram showing a white building footprint, divided into EXACTLY ${numFlats} equal-sized blank zones (F1–F${numFlats}) around a central solid block labeled "CORE". Black straight lines only, white background.`;
+Top-down 2D CAD diagram showing a white building footprint on a white canvas with black line drawings only: EXACTLY ${numFlats} equal-sized blank zones labeled F1 to F${numFlats} in black text around a central white box labeled "CORE" in black text, with a corridor extending to an exterior wall. Crisp black line work on clean white background.`;
 }
 
 // ── Stage 2: GPT Image 2 prompt — fill zones using BHK reference ──────────────
@@ -124,11 +131,19 @@ Top-down 2D CAD diagram showing a white building footprint, divided into EXACTLY
 function buildStage2Prompt(opts: {
   numFlats: number;
   bhkType: string;
+  passengerLifts: number;
+  staircases: number;
   hasReferenceImage: boolean;
 }): string {
-  const { numFlats, bhkType, hasReferenceImage } = opts;
+  const { numFlats, bhkType, passengerLifts, staircases, hasReferenceImage } = opts;
 
   const bhkLabel = bhkType.toUpperCase().replace('BHK', ' BHK');
+
+  const coreDetailStr = [
+    passengerLifts > 0 ? `${passengerLifts} lift/elevator shaft(s) (drawn as rectangular shafts)` : null,
+    staircases > 0 ? `${staircases} staircase(s) (drawn with parallel step lines)` : null,
+    'a shared corridor connecting to every flat entry door',
+  ].filter(Boolean).join(', ');
 
   return `You are a senior architectural drafter producing a professional 2D CAD floor plan.
 
@@ -137,15 +152,15 @@ You have been provided with ${hasReferenceImage ? 'TWO' : 'ONE'} image(s):
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 IMAGE 1 — BASE ZONE LAYOUT (TO BE EDITED)
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-IMAGE 1 shows a top-down 2D floor plan with ${numFlats} empty flat zones (F1–F${numFlats}) surrounding a solid central circulation core block.
+IMAGE 1 shows a top-down 2D floor plan with ${numFlats} empty flat zones (F1–F${numFlats}) surrounding a central circulation core box (labeled "CORE").
 
-⛔ IMMUTABLE ELEMENTS — DO NOT TOUCH UNDER ANY CIRCUMSTANCE:
+⛔ IMMUTABLE ELEMENTS — DO NOT ALTER BOUNDARIES:
 1. THE OUTER BUILDING BOUNDARY — Do NOT redraw, shrink, expand, or alter the building perimeter in any way.
-2. THE CENTRAL CORE BLOCK — Do NOT draw inside it, do NOT remove it, do NOT resize or relocate it. Reproduce it exactly as a solid block. It is the staircase/lift core and must remain untouched.
-3. THE FLAT ZONE BOUNDARIES — The partition lines dividing F1–F${numFlats} are fixed. Do NOT move, merge, or remove any zone boundary wall.
+2. THE FLAT ZONE BOUNDARIES — The partition lines dividing F1–F${numFlats} are fixed. Do NOT move, merge, or remove any zone boundary wall.
 
-✅ WHAT YOU ARE ALLOWED TO MODIFY:
-ONLY the empty white interior of each flat zone (F1–F${numFlats}). You may add internal room partition walls, doors, and windows strictly inside each zone's boundary. Nothing else changes.
+✅ WHAT YOU ARE MODIFYING AND DRAWING:
+1. CENTRAL CORE INTERIOR: Inside the central "CORE" box from IMAGE 1, draw the exact core circulation elements: ${coreDetailStr}.
+2. FLAT ZONE INTERIORS: Inside the empty white interior of each flat zone (F1–F${numFlats}), draw the complete room layout of a ${bhkLabel} apartment.
 
 ${hasReferenceImage ? `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 IMAGE 2 — REFERENCE COMPOSITION (GUIDE ONLY — DO NOT COPY LITERALLY)
@@ -157,16 +172,19 @@ STEP 2: Select the variant whose proportions and shape best match the flat zones
 STEP 3: Apply that selected composition strategy inside each flat zone. Adapt it to fit — do not force-copy exact dimensions.` : ''}
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-YOUR TASK — FILL THE FLAT ZONES WITH ROOMS
+YOUR TASK — FILL THE CORE & FLAT ZONES
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-Inside each empty flat zone from IMAGE 1, draw the complete internal floor plan of a ${bhkLabel} apartment.
+1. CORE DRAWING & CORRIDOR VENTILATION (CRITICAL):
+   - Inside the central CORE box, draw ${passengerLifts > 0 ? `${passengerLifts} lift shaft(s)` : ''}${passengerLifts > 0 && staircases > 0 ? ' and ' : ''}${staircases > 0 ? `${staircases} staircase flight(s)` : ''}.
+   - Draw a common access corridor extending from the central core to the entrance door of every flat.
+   - FACADE VENTILATION: Extend the central corridor/lobby so it reaches an external perimeter wall with an exterior window tick. This provides natural light, fresh air ventilation, and smoke evacuation for the common corridor.
 
-Room composition (in order from entry to back):
-1. ENTRY DOOR: Opens from the shared corridor (central core side). At the zone boundary wall facing the core.
-2. LIVING ROOM: First room past entry. MUST touch an external perimeter wall with a window tick. Largest room.
-3. KITCHEN + DINING: Adjacent to Living Room. Kitchen MUST touch an external wall with a window tick.
-4. BEDROOMS: Deepest in the flat, furthest from entry. Every bedroom MUST touch an external wall with its own window. Master Bedroom is the largest.
-5. BATHROOMS: Connect directly to a bedroom (ensuite) or internal hallway. NEVER open into Living Room, Kitchen, or Dining.
+2. FLAT ROOM COMPOSITION (in order from entry to back):
+   - ENTRY DOOR: Opens from the core corridor into the flat.
+   - LIVING ROOM: First room past entry. MUST touch an external perimeter wall with a window tick. Largest room.
+   - KITCHEN + DINING: Adjacent to Living Room. Kitchen MUST touch an external wall with a window tick.
+   - BEDROOMS: Deepest in the flat, furthest from entry. Every bedroom MUST touch an external wall with its own window. Master Bedroom is the largest.
+   - BATHROOMS: Connect directly to a bedroom (ensuite) or internal hallway. NEVER open into Living Room, Kitchen, or Dining.
 
 Door logic (follow exactly):
 - Corridor → [Entry Door + swing arc] → Living Room/Foyer
@@ -185,7 +203,7 @@ Flat separation (non-negotiable):
 DRAWING RULES — STRICT
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 - ALL ROOM INTERIORS MUST BE EMPTY. No room names, no text, no dimensions inside any room.
-- Place only flat numbers (F1, F2, F3…) once near each flat's entry door. No other text.
+- Place only flat numbers (F1, F2, F3…) once near each flat's entry door. No other text inside flat rooms.
 - All walls perfectly straight at 90-degree angles. No diagonal or wavy lines.
 - Every door shown with a quarter-circle swing arc.
 - Window ticks on external perimeter walls only.
@@ -197,7 +215,7 @@ FINAL SELF-CHECK BEFORE OUTPUTTING
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 Before rendering, verify:
 ☑ The outer building boundary matches IMAGE 1 exactly — not shrunk, not expanded.
-☑ The central core block is still present, solid, and unchanged.
+☑ Central core contains ${passengerLifts} lift(s), ${staircases} staircase(s), and shared corridor.
 ☑ All ${numFlats} flat zone boundary walls are still intact and unchanged.
 ☑ Every flat zone has been filled with a complete ${bhkLabel} room layout.
 ☑ Every habitable room (Living, Bedroom, Kitchen) touches an external wall with a window.
@@ -294,6 +312,8 @@ export async function POST(req: Request) {
       const refinementPrompt = buildStage2Prompt({
         numFlats,
         bhkType: dominantBHK,
+        passengerLifts,
+        staircases,
         hasReferenceImage,
       });
 
