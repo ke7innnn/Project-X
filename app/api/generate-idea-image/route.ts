@@ -127,13 +127,13 @@ STEP 4 — ZONE PROPORTIONS ADAPT TO SHAPE (NOT FORCED EQUAL RECTANGLES):
 - NO zone may be fully interior/landlocked.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-STRICT ZONE LABELS — NON-NEGOTIABLE
+STRICT ZONE LABELS — ZERO DUPLICATES ALLOWED
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-The exact labels to use are: ${flatLabels}.
-- Assign each label to EXACTLY ONE zone. No duplicates. No skips. No extras.
-- Go clockwise from F1 (top or top-left zone) to F${numFlats}.
-- Write each label clearly in black inside its zone.
-- SELF-CHECK: Count your zones before rendering. If you drew ${numFlats} zones, you must have used each of these labels exactly once: ${flatLabels}.
+You MUST assign these exact ${numFlats} labels: ${flatLabels}.
+- Mandatory sequence: Start at top-left with F1, and go strictly clockwise: F1, F2, F3, F4... F${numFlats}.
+- NO DUPLICATE LABELS: Every single label from F1 to F${numFlats} MUST be used EXACTLY ONCE.
+⛔ NEVER repeat a label (e.g. NEVER print F2 twice or F3 twice).
+- Count your zones before rendering: if you drew ${numFlats} zones, you must have all ${numFlats} distinct labels: ${flatLabels}. Write each label in black text inside its zone.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 BLANK ZONE RULE

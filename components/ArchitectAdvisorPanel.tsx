@@ -412,29 +412,16 @@ const ArchitectAdvisorPanel = forwardRef<ArchitectAdvisorRef, Props>(({ onParams
   // This format is proven to give AI models the most accurate shape recognition
   const exportForAI = useCallback((): string | null => {
     if (polygon.length < 3 || !isTracingClosed) return null;
-    const offscreen = document.createElement('canvas');
-    offscreen.width = outputW;
-    offscreen.height = outputH;
-    const ctx = offscreen.getContext('2d');
-    if (!ctx) return null;
-
-    // 1. Solid BLACK background (AI knows: black = don't touch)
-    ctx.fillStyle = '#000000';
-    ctx.fillRect(0, 0, outputW, outputH);
-
-    // Determine which polygon to export
+    // Determine active polygon and bounding box
     let activePts: Point[];
     if (suggestedShape && finalShapePolygonsRef.current) {
-      // Use the shape polygons (flatten multi-polygon into single polygon for simplicity)
       activePts = finalShapePolygonsRef.current.flat();
     } else {
-      // Use the traced plot boundary
       activePts = polygon;
     }
 
     if (activePts.length < 3) return null;
 
-    // 2. Scale and center the polygon using zoom-to-fit (same as concept generator)
     let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
     activePts.forEach(p => {
       if (p.x < minX) minX = p.x;
@@ -442,15 +429,42 @@ const ArchitectAdvisorPanel = forwardRef<ArchitectAdvisorRef, Props>(({ onParams
       if (p.y < minY) minY = p.y;
       if (p.y > maxY) maxY = p.y;
     });
-    const ptsW = maxX - minX;
-    const ptsH = maxY - minY;
-    const padding = 24; // 24px margin — same as concept generator
-    const targetW = Math.max(1, outputW - padding * 2);
-    const targetH = Math.max(1, outputH - padding * 2);
+    const ptsW = Math.max(1, maxX - minX);
+    const ptsH = Math.max(1, maxY - minY);
 
-    const scale = Math.min(targetW / (ptsW || 1), targetH / (ptsH || 1));
-    const offsetX = (outputW / 2) - ((minX + maxX) / 2) * scale;
-    const offsetY = (outputH / 2) - ((minY + maxY) / 2) * scale;
+    // Dynamic offscreen canvas aspect ratio matching image_size selection:
+    // ratio > 1.15 → Portrait (768 x 1024)
+    // ratio < 0.87 → Landscape (1024 x 768)
+    // Otherwise   → Square (1024 x 1024)
+    const ratio = ptsH / ptsW;
+    let expW = 1024;
+    let expH = 1024;
+    if (ratio > 1.15) {
+      expW = 768;
+      expH = 1024;
+    } else if (ratio < 0.87) {
+      expW = 1024;
+      expH = 768;
+    }
+
+    const offscreen = document.createElement('canvas');
+    offscreen.width = expW;
+    offscreen.height = expH;
+    const ctx = offscreen.getContext('2d');
+    if (!ctx) return null;
+
+    // 1. Solid BLACK background
+    ctx.fillStyle = '#000000';
+    ctx.fillRect(0, 0, expW, expH);
+
+    // 2. Scale and center the polygon using zoom-to-fit inside dynamic aspect canvas
+    const padding = 24;
+    const targetW = Math.max(1, expW - padding * 2);
+    const targetH = Math.max(1, expH - padding * 2);
+
+    const scale = Math.min(targetW / ptsW, targetH / ptsH);
+    const offsetX = (expW / 2) - ((minX + maxX) / 2) * scale;
+    const offsetY = (expH / 2) - ((minY + maxY) / 2) * scale;
 
     const scaledPts = activePts.map(p => ({
       x: Math.round(p.x * scale + offsetX),
