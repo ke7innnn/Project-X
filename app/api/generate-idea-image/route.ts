@@ -149,52 +149,74 @@ You have been provided with ${hasReferenceImage ? 'TWO' : 'ONE'} image(s):
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 IMAGE 1 — BASE ZONE LAYOUT (TO BE EDITED)
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-IMAGE 1 shows a top-down 2D floor plan with ${numFlats} empty flat zones (F1–F${numFlats}) surrounding a central circulation core. This is your base canvas. The outer building boundary, the central core position, and the flat zone boundaries are IMMUTABLE — you must not alter, shrink, expand, or distort them in any way. Only the interiors of the flat zones may be modified.
+IMAGE 1 shows a top-down 2D floor plan with ${numFlats} empty flat zones (F1–F${numFlats}) surrounding a solid central circulation core block.
+
+⛔ IMMUTABLE ELEMENTS — DO NOT TOUCH UNDER ANY CIRCUMSTANCE:
+1. THE OUTER BUILDING BOUNDARY — Do NOT redraw, shrink, expand, or alter the building perimeter in any way.
+2. THE CENTRAL CORE BLOCK — Do NOT draw inside it, do NOT remove it, do NOT resize or relocate it. Reproduce it exactly as a solid block. It is the staircase/lift core and must remain untouched.
+3. THE FLAT ZONE BOUNDARIES — The partition lines dividing F1–F${numFlats} are fixed. Do NOT move, merge, or remove any zone boundary wall.
+
+✅ WHAT YOU ARE ALLOWED TO MODIFY:
+ONLY the empty white interior of each flat zone (F1–F${numFlats}). You may add internal room partition walls, doors, and windows strictly inside each zone's boundary. Nothing else changes.
 
 ${hasReferenceImage ? `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-IMAGE 2 — REFERENCE COMPOSITION (DO NOT COPY, USE AS GUIDE)
+IMAGE 2 — REFERENCE COMPOSITION (GUIDE ONLY — DO NOT COPY LITERALLY)
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-IMAGE 2 is an architectural reference sheet showing 2–3 different ${bhkLabel} apartment layout compositions. Each composition demonstrates the ideal internal room arrangement for a ${bhkLabel} flat — showing where rooms should be placed, how doors connect, and how to achieve natural light and ventilation on external walls.
+IMAGE 2 is an architectural reference sheet showing 2–3 different ${bhkLabel} apartment layout compositions. Each demonstrates the ideal internal room arrangement for a ${bhkLabel} flat — room positions, door connections, and external ventilation windows.
 
-FROM IMAGE 2, select the composition variant that best fits the shape and proportions of the flat zones in IMAGE 1. Apply that room arrangement strategy into every flat zone.` : ''}
+STEP 1: Study all composition variants in IMAGE 2.
+STEP 2: Select the variant whose proportions and shape best match the flat zones in IMAGE 1.
+STEP 3: Apply that selected composition strategy inside each flat zone. Adapt it to fit — do not force-copy exact dimensions.` : ''}
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-YOUR TASK — FILL THE FLAT ZONES
+YOUR TASK — FILL THE FLAT ZONES WITH ROOMS
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-Inside each empty flat zone from IMAGE 1, draw the complete internal floor plan of a ${bhkLabel} apartment using the composition logic from ${hasReferenceImage ? 'IMAGE 2' : 'standard architectural principles'} as your guide.
+Inside each empty flat zone from IMAGE 1, draw the complete internal floor plan of a ${bhkLabel} apartment.
 
-Room composition rules:
-1. ENTRY: Each flat's entrance door must open from the shared corridor (central core side). Place the entry door at the zone boundary facing the core.
-2. LIVING ROOM: First room past the entry. MUST touch an external perimeter wall with a window tick for natural light. It is the largest open room in the flat.
-3. KITCHEN + DINING: Adjacent to the Living Room. Kitchen must touch an external wall with a window. Dining may be open-plan with the kitchen or living.
-4. BEDROOMS: Placed deepest in the flat, furthest from the entry door. Every bedroom touches an external wall and has its own external window tick. Master Bedroom is the largest.
-5. BATHROOMS: Each bathroom connects directly to a bedroom (ensuite) or to an internal hallway. Bathroom doors NEVER open directly into the Living Room, Kitchen, or Dining Room.
+Room composition (in order from entry to back):
+1. ENTRY DOOR: Opens from the shared corridor (central core side). At the zone boundary wall facing the core.
+2. LIVING ROOM: First room past entry. MUST touch an external perimeter wall with a window tick. Largest room.
+3. KITCHEN + DINING: Adjacent to Living Room. Kitchen MUST touch an external wall with a window tick.
+4. BEDROOMS: Deepest in the flat, furthest from entry. Every bedroom MUST touch an external wall with its own window. Master Bedroom is the largest.
+5. BATHROOMS: Connect directly to a bedroom (ensuite) or internal hallway. NEVER open into Living Room, Kitchen, or Dining.
 
-Door logic chain (follow strictly):
+Door logic (follow exactly):
 - Corridor → [Entry Door + swing arc] → Living Room/Foyer
-- Living Room → [door/opening] → Kitchen/Dining
+- Living Room → [opening or door] → Kitchen/Dining
 - Hallway or Living → [door + swing arc] → Bedroom 1
 - Hallway or Living → [door + swing arc] → Bedroom 2 (if applicable)
 - Bedroom → [door + swing arc] → Ensuite Bathroom
 - Hallway → [door + swing arc] → Common Bathroom
 
-Flat separation rules:
-- Thick party walls between every adjacent flat zone — no rooms cross flat boundaries.
-- Each flat has exactly ONE entrance door from the corridor.
-- All rooms of a flat are contained strictly inside its zone boundary.
+Flat separation (non-negotiable):
+- Thick party walls between every adjacent flat zone — no room crosses a zone boundary.
+- Each flat has exactly ONE entrance door from the corridor side.
+- Every room of a flat is strictly contained inside its own zone boundary.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 DRAWING RULES — STRICT
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-- ALL ROOM INTERIORS MUST BE EMPTY. No room names, no text, no dimensions inside any room box.
+- ALL ROOM INTERIORS MUST BE EMPTY. No room names, no text, no dimensions inside any room.
 - Place only flat numbers (F1, F2, F3…) once near each flat's entry door. No other text.
-- All walls must be perfectly straight, meeting at 90-degree angles. No diagonal or wavy lines.
+- All walls perfectly straight at 90-degree angles. No diagonal or wavy lines.
 - Every door shown with a quarter-circle swing arc.
-- Window ticks drawn on external perimeter walls only.
+- Window ticks on external perimeter walls only.
 - Thick black exterior walls. Thinner interior partition walls. Visible party walls between flats.
 - White background. Clean professional 2D CAD style. Black and white only.
 
-Output: a complete professional 2D CAD floor plan with all ${numFlats} flats fully designed inside the zone boundaries from IMAGE 1.`;
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FINAL SELF-CHECK BEFORE OUTPUTTING
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Before rendering, verify:
+☑ The outer building boundary matches IMAGE 1 exactly — not shrunk, not expanded.
+☑ The central core block is still present, solid, and unchanged.
+☑ All ${numFlats} flat zone boundary walls are still intact and unchanged.
+☑ Every flat zone has been filled with a complete ${bhkLabel} room layout.
+☑ Every habitable room (Living, Bedroom, Kitchen) touches an external wall with a window.
+☑ No rooms exist outside the flat zone boundaries.
+☑ No text inside room boxes — only flat numbers at entry doors.
+
+Output: a complete professional 2D CAD floor plan with all ${numFlats} flats fully designed inside their zone boundaries from IMAGE 1.`;
 }
 
 // ── Route Handler ─────────────────────────────────────────────────────────────
