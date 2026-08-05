@@ -112,7 +112,7 @@ export async function POST(req: Request) {
     const prompt = buildFloorPlanPrompt(roomSchedule, sitePolygonPoints, circulationCoreLocation);
 
     // 4. Call GPT-Image-2 (Step 1)
-    const result = await fal.subscribe('fal-ai/nano-banana-2/edit', {
+    const result = await fal.subscribe('openai/gpt-image-2/edit', {
       input: {
         image_urls: [uploadedUrl],
         prompt,
