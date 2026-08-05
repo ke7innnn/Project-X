@@ -109,9 +109,10 @@ Partition the white space around the central CORE box into EXACTLY ${numFlats} f
 - NO EXTRA BOXES: Do not draw additional unlabelled boxes, corridors, or sub-boxes.
 
 CRITICAL RULE 4 — STRICT UNIQUE ZONE LABELS (F1 TO F${numFlats}):
-Label each zone ONCE with its unique flat number: F1, F2, F3... up to F${numFlats}.
-- Strictly NO DUPLICATE LABELS: Every number from F1 to F${numFlats} must be used EXACTLY ONCE. (e.g. if numFlats is 5, you MUST output F1, F2, F3, F4, F5 — NEVER repeat F4 or any other label).
-- Do NOT skip any number in the sequence.
+The zone labels to assign are EXACTLY: ${Array.from({length: numFlats}, (_, i) => `F${i+1}`).join(', ')}.
+- Assign each label to exactly ONE zone. No label may be used more than once.
+- Do NOT skip any number. Do NOT add any extra labels.
+- Count your zones before labeling: if you have ${numFlats} zones, you must use all ${numFlats} labels above, each ONCE.
 - Place the black text label clearly inside each zone.
 
 CRITICAL RULE 5 — COMPLETELY BLANK ZONE INTERIORS:
@@ -179,10 +180,15 @@ YOUR TASK — FILL THE CORE & FLAT ZONES
    - Draw a common access corridor extending from the central core to the entrance door of every flat.
    - FACADE VENTILATION: Extend the central corridor/lobby so it reaches an external perimeter wall with an exterior window tick. This provides natural light, fresh air ventilation, and smoke evacuation for the common corridor.
 
-2. FLAT ROOM COMPOSITION (in order from entry to back):
+2. FLAT ROOM COMPOSITION — STRICT ${bhkLabel} ROOM COUNT:
+
+⛔ EXACT ROOM COUNT — NON-NEGOTIABLE:
+${bhkType === '1bhk' ? '- 1x LIVING ROOM\n- 1x KITCHEN\n- EXACTLY 1 BEDROOM (no more, no less)\n- 1x BATHROOM\nDO NOT draw 2 or more bedrooms. This is 1BHK.' : bhkType === '2bhk' ? '- 1x LIVING ROOM\n- 1x KITCHEN\n- EXACTLY 2 BEDROOMS: MASTER BEDROOM + BEDROOM 2 (no more, no less)\n- 2x BATHROOMS\nDO NOT draw 3 or more bedrooms. This is 2BHK.' : bhkType === '3bhk' ? '- 1x LIVING ROOM\n- 1x KITCHEN\n- EXACTLY 3 BEDROOMS: MASTER BEDROOM + BEDROOM 2 + BEDROOM 3 (no more, no less)\n- 3x BATHROOMS\nDO NOT draw 4 or more bedrooms. This is 3BHK.' : '- 1x LIVING ROOM\n- 1x KITCHEN + DINING\n- EXACTLY 4 BEDROOMS: MASTER BEDROOM + BEDROOM 2 + BEDROOM 3 + BEDROOM 4 (no more, no less)\n- 4x BATHROOMS\nDO NOT draw 5 or more bedrooms. This is 4BHK.'}
+
+Room placement order (entry to back):
    - ENTRY DOOR: Opens from the core corridor into the flat.
    - LIVING ROOM: First room past entry. MUST touch an external perimeter wall with a window tick. Largest room.
-   - KITCHEN + DINING: Adjacent to Living Room. Kitchen MUST touch an external wall with a window tick.
+   - KITCHEN: Adjacent to Living Room. MUST touch an external wall with a window tick.
    - BEDROOMS: Deepest in the flat, furthest from entry. Every bedroom MUST touch an external wall with its own window. Master Bedroom is the largest.
    - BATHROOMS: Connect directly to a bedroom (ensuite) or internal hallway. NEVER open into Living Room, Kitchen, or Dining.
 
@@ -218,6 +224,7 @@ Before rendering, verify:
 ☑ Central core contains ${passengerLifts} lift(s), ${staircases} staircase(s), and shared corridor.
 ☑ All ${numFlats} flat zone boundary walls are still intact and unchanged.
 ☑ Every flat zone has been filled with a complete ${bhkLabel} room layout.
+☑ BEDROOM COUNT: Every flat has EXACTLY ${bhkType === '1bhk' ? '1' : bhkType === '2bhk' ? '2' : bhkType === '3bhk' ? '3' : '4'} bedroom(s) — count them before finishing.
 ☑ Every habitable room (Living, Bedroom, Kitchen) touches an external wall with a window.
 ☑ No rooms exist outside the flat zone boundaries.
 ☑ No text inside room boxes — only flat numbers at entry doors.
