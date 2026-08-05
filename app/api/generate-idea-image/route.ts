@@ -86,49 +86,37 @@ function buildStage1Prompt(opts: {
   staircases: number;
   useFireSafety: boolean;
 }): string {
-  const { numFlats, passengerLifts, staircases, useFireSafety } = opts;
+  const { numFlats } = opts;
 
-  const coreContents = [
-    passengerLifts > 0 ? `${passengerLifts} elevator shaft(s)` : null,
-    staircases > 0 ? `${staircases} staircase(s)` : null,
-    'shared corridor',
-  ].filter(Boolean).join(', ');
+  return `You are a strict architectural zoning grid generator. Your ONLY job is to divide a building footprint into EXACTLY ${numFlats} equal-area flat zones around a central core block labeled "CORE".
 
-  return `You are a precise architectural zoning tool. Your ONLY job is to divide a building footprint into flat zones and draw a central core. Do NOT design any room interiors.
+INPUT: The uploaded image shows a WHITE polygon on a BLACK background (building footprint).
 
-INPUT: The uploaded image shows a WHITE polygon on a BLACK background. The white polygon is the building footprint boundary.
+CRITICAL RULE 1 — IMMUTABLE FOOTPRINT:
+The white polygon is the exact building boundary. Never draw outside it.
 
-THE WHITE BOUNDARY IS IMMUTABLE — never draw anything outside it.
+CRITICAL RULE 2 — SIMPLE CENTRAL CORE (NO LIFTS, NO STAIRS):
+Draw ONE solid black rectangle at the geometric center of the footprint. Print the text "CORE" in white inside it.
+⛔ DO NOT draw any elevator shafts, lift doors, staircases, steps, or internal cutouts inside the core. It must be a simple, solid dark box labeled "CORE".
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-YOUR ONLY TASK — ZONE DIVISION
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+CRITICAL RULE 3 — EXACTLY ${numFlats} EQUAL-AREA FLAT ZONES:
+Partition the white area around the central CORE into EXACTLY ${numFlats} flat zones.
+- ZONE COUNT: There must be EXACTLY ${numFlats} zones in total. Not ${numFlats - 1}, not ${numFlats + 1}. Count them before rendering: F1, F2${numFlats > 2 ? `, ... F${numFlats}` : ''}.
+- EQUAL SIZES: Every zone MUST be equal in area (equal width/length). All ${numFlats} zones must look identical in size.
+- NO EXTRA BOXES: Do not draw additional unlabelled boxes, corridors, or sub-boxes.
 
-STEP 1 — CENTRAL CORE:
-Draw one solid filled rectangle at the geometric center of the white building footprint. This is the central circulation core (${coreContents}). It must be clearly visible as a solid dark block.
+CRITICAL RULE 4 — STRICT ZONE LABELS (F1 TO F${numFlats}):
+Label each zone ONCE with its exact flat number: F1, F2, F3... up to F${numFlats}.
+- Do NOT duplicate any label (e.g. never write F4 twice).
+- Do NOT skip any number in the sequence F1 to F${numFlats}.
+- Place the label clearly inside the zone.
 
-STEP 2 — FLAT ZONES:
-Divide the remaining white space (surrounding the central core) into exactly ${numFlats} flat zones. Each zone must:
-- Be roughly equal in area to all other zones.
-- Be a clean rectangular or L-shaped polygon.
-- Touch or be accessible from the central core.
-- Be completely EMPTY inside — no internal walls, no partitions, no rooms, no doors, no windows, no furniture.
+CRITICAL RULE 5 — COMPLETELY BLANK ZONE INTERIORS:
+Each zone (F1 to F${numFlats}) must be a completely blank white rectangle with ONLY its label (e.g. F1).
+- DO NOT draw internal walls, room dividers, doors, windows, or furniture inside the zones.
 
-STEP 3 — ZONE LABELS:
-Label each zone with a single flat number only: F1, F2, F3... placed small, near the zone boundary. No other text anywhere.
-
-${useFireSafety && numFlats >= 3 ? 'FIRE SAFETY: The central core must contain two staircase blocks placed at opposite ends of the core.' : ''}
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-STRICT DRAWING RULES
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-- All partition lines are straight, clean, 90-degree black lines.
-- No diagonal walls, no jagged lines, no curved partitions.
-- Do NOT draw any internal room walls inside the flat zones.
-- Do NOT draw doors, windows, or furniture inside zones.
-- Zone interiors must be completely blank white space.
-- White background. Clean 2D top-down view. Black partition lines only.
-- Output: the building footprint divided into ${numFlats} clean empty flat zones around a central solid core block.`;
+OUTPUT SPECIFICATION:
+Top-down 2D CAD diagram showing a white building footprint, divided into EXACTLY ${numFlats} equal-sized blank zones (F1–F${numFlats}) around a central solid block labeled "CORE". Black straight lines only, white background.`;
 }
 
 // ── Stage 2: GPT Image 2 prompt — fill zones using BHK reference ──────────────
