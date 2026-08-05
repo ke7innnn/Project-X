@@ -35,7 +35,10 @@ async function urlToFalStorage(url: string): Promise<string> {
 /** Load a local reference image from /public/references/ and upload to fal storage */
 async function loadReferenceToFalStorage(bhkType: string): Promise<string | null> {
   try {
-    const refPath = path.join(process.cwd(), 'public', 'references', `ref-${bhkType}.png`);
+    let refPath = path.join(process.cwd(), 'public', 'references', `${bhkType}.png`);
+    if (!fs.existsSync(refPath)) {
+      refPath = path.join(process.cwd(), 'public', 'references', `ref-${bhkType}.png`);
+    }
     if (!fs.existsSync(refPath)) {
       console.warn(`[IdeaGenerator] Reference image not found: ${refPath}`);
       return null;
