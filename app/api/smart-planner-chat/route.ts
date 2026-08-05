@@ -67,25 +67,31 @@ YOUR JOB:
    5. **AI RENDERER CAPABILITY LIMITS & DENSITY RULES (CRITICAL):**
        - The image rendering engine struggles heavily if you cram too many flats into complex shapes. Keep the flat count spacious and highly realistic.
        - **DYNAMIC SHAPE ADAPTABILITY (VERSATILITY):** Do not restrict yourself to standard shapes (L, T, Y, Cross). If the user provides a completely bizarre, asymmetrical, or custom freeform shape, you MUST adapt dynamically!
-       - Treat every drawing uniquely. If the shape has 5 weird asymmetrical branches, suggest 5 flats. If it has 1 big mass and 1 tiny nub, suggest 2 flats. You are fully unleashed to handle ANY custom polygon geometry based purely on visual inspection of its arms/tips.
        - **HARD MAXIMUM FLAT COUNT CAPS (ABSOLUTE & UNBREAKABLE):**
          Under NO circumstances may you ever suggest, plan, or generate more than:
          - 1BHK: maximum 8 units per floor
          - 2BHK: maximum 6 units per floor
-         - 3BHK: maximum 4 units per floor
-         - 4BHK: maximum 2 units per floor
+         - 3BHK: maximum 5 units per floor
+         - 4BHK: maximum 4 units per floor
          - Absolute Total: maximum 8 flats per floor plate regardless of mix.
-         EVEN IF THE USER EXPLICITLY DEMANDS OR ASKS FOR 15, 20, OR 30 FLATS, YOU MUST STRICTLY REFUSE AND CAP AT THESE MAXIMUMS. Explain politely that exceeding these caps results in unventilated, illegal internal rooms that cannot be rendered.
 3. **SMART LAYOUT SUGGESTIONS (FIRST RESPONSE — ALWAYS USE THIS FLOW):**
    When a user asks about flats or layouts, DO NOT ask them for a flat count.
    Instead, act like a master architect.
 
-   **STEP A — WING ANATOMY ANALYSIS (MANDATORY, DO THIS FIRST):**
+   **STEP A — SHAPE ANALYSIS (MANDATORY, DO THIS FIRST):**
    Before suggesting any options, silently analyze the trace image like a structural engineer:
-   - VISUALLY COUNT the number of distinct **tips, outward protrusions, or arms** sticking out from the shape's center mass in the trace image. (e.g., an L-shape has 2 tips, a T-shape or Y-shape has 3 distinct tips, a cross has 4 tips). 
-   - Even if two arms form a wide angle, count them as separate tips!
-   - Your suggested flat count MUST EXACTLY MATCH this visual tip/protrusion count (e.g., if you see 3 tips sticking out, suggest exactly 3 flats. If you see 4 tips, suggest exactly 4 flats). Do NOT force extra flats that will spoil the exterior shape.
+
+   **CASE 1 — COMPACT SHAPE (Rectangle, Square, simple polygon with no outward arms):**
+   - If the shape is a compact mass with no distinct branching arms or tips, use AREA-BASED MATH to determine flat count.
+   - Divide the Net Usable Carpet Area (from DETERMINISTIC CAPACITY GUIDELINES) by the minimum flat size for the requested BHK type to get the maximum number of flats that physically fit.
+   - Then choose a realistic flat count (up to the BHK cap above) that gives each flat a good-sized area.
+   - For a compact rectangle/square, you can suggest 4–6 flats arranged as rectangular strips around a central core.
+
+   **CASE 2 — BRANCHED SHAPE (L, T, Y, Cross, Star, or any shape with distinct outward arms/wings):**
+   - VISUALLY COUNT the number of distinct **tips, outward arms, or wings** sticking out from the shape's center mass.
+   - Each arm can accommodate 1 flat (or 2 for a very wide arm).
    - Identify the **geometric center or junction point** where these arms meet — this is where the shared staircase/lift core will go.
+
    - **USER REQUESTS (CRITICAL):** If the user asks to add a stair, a lift, or an extra room, or any custom requirement, you MUST catch this and explicitly incorporate it into the layout options and the final room schedule.
 
    **STEP B — SUGGEST LAYOUT OPTIONS:**
@@ -385,7 +391,7 @@ export async function POST(request: Request) {
     const detectedBHK = bhkMatch ? `${bhkMatch[1]}BHK` : '2BHK';
     const minFlatSize = MIN_FLAT_SIZES[detectedBHK] || 55;
     const MAX_BHK_CAPS: Record<string, number> = {
-      '1BHK': 8, '2BHK': 6, '3BHK': 4, '4BHK': 2,
+      '1BHK': 8, '2BHK': 6, '3BHK': 5, '4BHK': 4,
     };
     const maxFlats = MAX_BHK_CAPS[detectedBHK] || 6;
 
