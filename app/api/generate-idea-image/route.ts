@@ -281,17 +281,16 @@ export async function POST(req: Request) {
       canvasH,
     } = await req.json();
 
-    // ── Determine image size from shape bounding box ──────────────────────────
-    // If shapeH > shapeW → portrait. If shapeW > shapeH → landscape. Otherwise square.
-    function pickImageSize(w?: number, h?: number): string {
-      if (!w || !h || w === 0 || h === 0) return 'square_hd';
+    // ── Determine image size and aspect ratio from shape bounding box ──────────
+    function pickDimensions(w?: number, h?: number): { image_size: string; aspect_ratio: string } {
+      if (!w || !h || w === 0 || h === 0) return { image_size: 'square_hd', aspect_ratio: '1:1' };
       const ratio = h / w;
-      if (ratio > 1.15) return 'portrait_4_3';     // tall shape  → portrait
-      if (ratio < 0.87) return 'landscape_4_3';    // wide shape  → landscape
-      return 'square_hd';                           // near-square → square HD
+      if (ratio > 1.15) return { image_size: 'portrait_4_3', aspect_ratio: '3:4' };     // tall shape  → portrait
+      if (ratio < 0.87) return { image_size: 'landscape_4_3', aspect_ratio: '4:3' };    // wide shape  → landscape
+      return { image_size: 'square_hd', aspect_ratio: '1:1' };                           // near-square → square HD
     }
-    const detectedImageSize = pickImageSize(shapeW, shapeH);
-    console.log(`[IdeaGenerator] Shape bounding box: ${shapeW}×${shapeH}px → image_size: ${detectedImageSize}`);
+    const { image_size: detectedImageSize, aspect_ratio: detectedAspectRatio } = pickDimensions(shapeW, shapeH);
+    console.log(`[IdeaGenerator] Shape bounding box: ${shapeW}×${shapeH}px → image_size: ${detectedImageSize}, aspect_ratio: ${detectedAspectRatio}`);
 
     // ── NEW PIPELINE PATH: if traceCanvasBase64 is provided ──────────────────
     if (traceCanvasBase64) {
@@ -325,7 +324,7 @@ export async function POST(req: Request) {
       const isFluxCanny = stage1Model.includes('flux-control-lora-canny');
       const stage1Input = isFluxCanny
         ? { control_image_url: uploadedTraceUrl, control_lora_image_url: uploadedTraceUrl, prompt: stage1Prompt, num_inference_steps: 28, guidance_scale: 3.5, controlnet_conditioning_scale: 1.0 }
-        : { image_urls: [uploadedTraceUrl], prompt: stage1Prompt, image_size: detectedImageSize };
+        : { image_urls: [uploadedTraceUrl], prompt: stage1Prompt, image_size: detectedImageSize, aspect_ratio: detectedAspectRatio };
       const stage1Url = await runModel(stage1Model, stage1Input);
       console.log('[IdeaGenerator] Stage 1 output:', stage1Url);
 
@@ -375,6 +374,7 @@ export async function POST(req: Request) {
         prompt: refinementPrompt,
         quality: 'high',
         image_size: detectedImageSize,
+        aspect_ratio: detectedAspectRatio,
       };
 
       const stage2Url = await runModel(stage2Model, stage2Input);
