@@ -111,20 +111,23 @@ STEP 2 — DRAW A NARROW CORRIDOR RING AROUND THE CORE:
 Add a thin corridor (access spine) that wraps around the CORE and connects to each flat's entry point.
 - Also extend one straight corridor arm from the CORE outward to touch the exterior perimeter wall (for ventilation).
 
-STEP 3 — DIVIDE THE EXTERIOR PERIMETER INTO ${numFlats} EQUAL SEGMENTS:
-Imagine the exterior perimeter of the white footprint as a track.
-- Walk clockwise around this track and mark ${numFlats} equally-spaced division points on the perimeter.
-- At each division point, draw ONE straight wall from that point on the exterior boundary, projecting inward perpendicular to the perimeter, until it meets the corridor ring around the CORE.
-- This creates EXACTLY ${numFlats} flat zones — like pizza slices or wheel spokes radiating from the CORE to the exterior wall.
+STEP 3 — DIVIDE THE FOOTPRINT INTO ${numFlats} RECTANGULAR STRIP ZONES:
+An architect NEVER makes pizza-slice or spoke-shaped zones (triangular wedges). Instead:
+- Identify the LONGEST exterior wall of the building footprint.
+- Draw ${numFlats - 1} straight PARALLEL party walls running PERPENDICULAR to that longest exterior wall, from the exterior perimeter inward to the corridor ring around the CORE.
+- This creates EXACTLY ${numFlats} rectangular strip zones — like slices of bread side by side — each flat zone being a clean rectangle or near-rectangle strip.
+- The party walls between flats are PARALLEL to each other. They are NOT angled, wedged, or triangular.
+- Each zone's entry side (facing the corridor) must be AT LEAST 3 metres wide — no narrow triangle tips at the entry.
 
-STEP 4 — ZONE PROPORTIONS ADAPT TO SHAPE (NOT FORCED EQUAL RECTANGLES):
-- DO NOT draw identical rectangular boxes of equal width. The shape decides the zone width.
-- A flat at a CORNER of the building will naturally be wider (2 exterior walls) — this is architecturally correct and intentional.
-- A flat on a STRAIGHT wall will be narrower. This is correct.
-- Each zone is a natural wedge/trapezoid/strip shape determined by where the perimeter dividers land.
+STEP 4 — ZONE PROPORTIONS ADAPT TO SHAPE (RECTANGLE STRIPS, NOT WEDGES):
+- Each flat zone is a rectangular strip: wide entry, parallel side walls, exterior wall on the opposite side.
+- A flat at a CORNER of the building will naturally have 2 exterior walls — this is architecturally correct.
+- A flat on a STRAIGHT wall will be a simple rectangular strip.
+- The width of each strip along the exterior wall may vary slightly based on total perimeter length, but the zone shape is ALWAYS a rectangle or near-rectangle — NEVER a triangle or sharp wedge.
 - Every zone MUST touch the exterior wall on at least 1 side.
-- Every zone MUST touch the corridor on 1 side (entry side).
+- Every zone MUST touch the corridor ring on its entry side (the opposite side).
 - NO zone may be fully interior/landlocked.
+- NO party wall should converge to a point (no triangular zones).
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 STRICT ZONE LABELS — ZERO DUPLICATES ALLOWED
@@ -189,16 +192,22 @@ IMAGE 1 shows a top-down 2D floor plan with ${numFlats} empty flat zones (F1–F
 2. FLAT ZONE INTERIORS: Inside the empty white interior of each flat zone (F1–F${numFlats}), draw the complete room layout of a ${bhkLabel} apartment.
 
 ${hasReferenceImage ? `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-IMAGE 2 — PRIMARY COMPOSITION PATTERN (FOLLOW THIS LAYOUT)
+IMAGE 2 — PRIMARY COMPOSITION PATTERN (FOLLOW THIS LAYOUT EXACTLY)
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 IMAGE 2 is an architectural reference sheet showing 2 distinct ${bhkLabel} apartment layout compositions (VARIANT A = rectangular zone, VARIANT B = square zone).
-- Notice the thick RED line marked "EXTERIOR" in IMAGE 2 — this represents the building perimeter wall.
-- Notice how ALL habitable rooms (Living Room, Kitchen, and all Bedrooms) touch that RED exterior wall to get natural light and windows. Only Bathrooms are placed internally.
+
+KEY PATTERNS TO COPY FROM IMAGE 2:
+1. RED EXTERIOR LINE: The thick red line is the exterior facade. ALL habitable rooms (Living Room, Kitchen, ALL Bedrooms) touch this red line and have window ticks on it. Only Bathrooms are internal.
+2. INTERNAL FLAT CORRIDOR: Each unit has a thin internal corridor/spine running from the ENTRY DOOR all the way to the EXTERIOR wall. This corridor is the internal access spine of the flat.
+3. ROOM ARRANGEMENT: All rooms open OFF this internal corridor — rooms branch left and right from the corridor spine to reach the exterior walls.
+4. ENTRY: The flat entry door is on the side OPPOSITE to the red exterior line (entry from the CORE corridor).
+5. BATHROOMS: Placed internally adjacent to bedrooms, never touching the exterior.
 
 HOW TO APPLY IMAGE 2 TO EACH ZONE IN IMAGE 1:
-STEP 1: Check the shape of the flat zone in IMAGE 1. If it is wider/rectangular, use VARIANT A from IMAGE 2. If it is squarish/deep, use VARIANT B from IMAGE 2.
-STEP 2: Map the RED EXTERIOR wall from IMAGE 2 to the outer perimeter wall of the flat zone in IMAGE 1.
-STEP 3: Reproduce the exact room arrangement, wall dividers, and door arcs from that VARIANT inside the zone.` : ''}
+STEP 1: Check the shape of the flat zone in IMAGE 1. If it is wider/rectangular (corridor runs along short side), use VARIANT A. If it is squarish/deep (corridor runs along long side), use VARIANT B.
+STEP 2: Map the RED EXTERIOR wall from IMAGE 2 to the outer perimeter wall of that flat zone in IMAGE 1. Map the ENTRY DOOR to the corridor side of the zone.
+STEP 3: Draw the thin internal corridor spine from entry to exterior inside the zone. Then draw all rooms branching off this corridor to touch the exterior perimeter.
+STEP 4: Reproduce the exact room count, wall dividers, and door arcs from that VARIANT inside the zone.` : ''}
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 YOUR TASK — FILL THE CORE & FLAT ZONES
