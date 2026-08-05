@@ -78,7 +78,7 @@ function detectDominantBHK(units1BHK: number, units2BHK: number, units3BHK: numb
   return '1bhk';
 }
 
-// ── Stage 1: Grok prompt — N empty equal flat zones + central core ────────────
+// ── Stage 1: Grok prompt — N proportional flat zones + central core ───────────
 
 function buildStage1Prompt(opts: {
   numFlats: number;
@@ -87,44 +87,66 @@ function buildStage1Prompt(opts: {
   useFireSafety: boolean;
 }): string {
   const { numFlats } = opts;
+  const flatLabels = Array.from({ length: numFlats }, (_, i) => `F${i + 1}`).join(', ');
 
-  return `You are a strict architectural zoning grid generator. Your ONLY job is to divide a building footprint into EXACTLY ${numFlats} equal-area flat zones around a central core box labeled "CORE".
+  return `You are a senior architectural zoning drafter. Your ONLY job is to divide a building footprint into EXACTLY ${numFlats} flat zones around a central CORE box — the way a real architect would do it.
 
-INPUT: The uploaded image shows a WHITE polygon on a BLACK background (building footprint).
+INPUT: The uploaded image shows a WHITE polygon on a BLACK background. The white area is the building footprint. Work entirely within it.
 
-CRITICAL RULE 1 — IMMUTABLE FOOTPRINT:
-The white polygon is the exact building boundary. Never draw outside it.
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+HOW AN ARCHITECT DIVIDES A FLOOR PLATE
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Follow these steps exactly as an architect would:
 
-CRITICAL RULE 2 — SIMPLE CENTRAL CORE (WHITE BOX WITH BLACK BORDER):
-Draw ONE central rectangular box at the geometric center of the footprint.
-- Outline: Thin black outline. Inside: White background (SAME as the flat zones).
-- Label: Print the text "CORE" in black text inside it.
-⛔ DO NOT fill the core with solid black paint.
-⛔ DO NOT draw any elevator shafts, lift doors, staircases, steps, or internal lines inside the core. It is a simple white box with black outline containing the text "CORE".
+STEP 1 — PLACE THE CORE AT THE CENTROID:
+Draw one compact rectangular box labeled "CORE" at the geometric center (centroid) of the white footprint.
+- Simple white box, thin black outline, "CORE" text inside. Nothing else inside the CORE box.
+- Size: roughly 20–25% of the total footprint area.
+⛔ DO NOT fill core black. DO NOT draw lifts/stairs/steps inside it at this stage.
 
-CRITICAL RULE 3 — EXACTLY ${numFlats} EQUAL-AREA FLAT ZONES:
-Partition the white space around the central CORE box into EXACTLY ${numFlats} flat zones.
-- ZONE COUNT: There must be EXACTLY ${numFlats} zones in total. Count them before rendering: F1, F2${numFlats > 2 ? `, ... F${numFlats}` : ''}.
-- EQUAL SIZES: Every zone MUST be equal in area (equal width/length). All ${numFlats} zones must look identical in size.
-- NO EXTRA BOXES: Do not draw additional unlabelled boxes, corridors, or sub-boxes.
+STEP 2 — DRAW A NARROW CORRIDOR RING AROUND THE CORE:
+Add a thin corridor (access spine) that wraps around the CORE and connects to each flat's entry point.
+- Also extend one straight corridor arm from the CORE outward to touch the exterior perimeter wall (for ventilation).
 
-CRITICAL RULE 4 — STRICT UNIQUE ZONE LABELS (F1 TO F${numFlats}):
-The zone labels to assign are EXACTLY: ${Array.from({length: numFlats}, (_, i) => `F${i+1}`).join(', ')}.
-- Assign each label to exactly ONE zone. No label may be used more than once.
-- Do NOT skip any number. Do NOT add any extra labels.
-- Count your zones before labeling: if you have ${numFlats} zones, you must use all ${numFlats} labels above, each ONCE.
-- Place the black text label clearly inside each zone.
+STEP 3 — DIVIDE THE EXTERIOR PERIMETER INTO ${numFlats} EQUAL SEGMENTS:
+Imagine the exterior perimeter of the white footprint as a track.
+- Walk clockwise around this track and mark ${numFlats} equally-spaced division points on the perimeter.
+- At each division point, draw ONE straight wall from that point on the exterior boundary, projecting inward perpendicular to the perimeter, until it meets the corridor ring around the CORE.
+- This creates EXACTLY ${numFlats} flat zones — like pizza slices or wheel spokes radiating from the CORE to the exterior wall.
 
-CRITICAL RULE 5 — COMPLETELY BLANK ZONE INTERIORS:
-Each zone (F1 to F${numFlats}) must be a completely blank white rectangle with ONLY its black text label (e.g. F1).
-- DO NOT draw internal walls, room dividers, doors, windows, or furniture inside the zones.
+STEP 4 — ZONE PROPORTIONS ADAPT TO SHAPE (NOT FORCED EQUAL RECTANGLES):
+- DO NOT draw identical rectangular boxes of equal width. The shape decides the zone width.
+- A flat at a CORNER of the building will naturally be wider (2 exterior walls) — this is architecturally correct and intentional.
+- A flat on a STRAIGHT wall will be narrower. This is correct.
+- Each zone is a natural wedge/trapezoid/strip shape determined by where the perimeter dividers land.
+- Every zone MUST touch the exterior wall on at least 1 side.
+- Every zone MUST touch the corridor on 1 side (entry side).
+- NO zone may be fully interior/landlocked.
 
-CRITICAL RULE 6 — CORRIDOR VENTILATION ACCESS TO EXTERIOR FAÇADE:
-- Extend the central "CORE" box or draw a straight access corridor line from the CORE box to touch at least ONE exterior perimeter wall.
-- This creates an exterior window opening for the central corridor (providing natural light and fresh air ventilation).
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+STRICT ZONE LABELS — NON-NEGOTIABLE
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+The exact labels to use are: ${flatLabels}.
+- Assign each label to EXACTLY ONE zone. No duplicates. No skips. No extras.
+- Go clockwise from F1 (top or top-left zone) to F${numFlats}.
+- Write each label clearly in black inside its zone.
+- SELF-CHECK: Count your zones before rendering. If you drew ${numFlats} zones, you must have used each of these labels exactly once: ${flatLabels}.
 
-OUTPUT SPECIFICATION:
-Top-down 2D CAD diagram showing a white building footprint on a white canvas with black line drawings only: EXACTLY ${numFlats} equal-sized blank zones labeled F1 to F${numFlats} in black text around a central white box labeled "CORE" in black text, with a corridor extending to an exterior wall. Crisp black line work on clean white background.`;
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+BLANK ZONE RULE
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Each flat zone (F1 to F${numFlats}) must be COMPLETELY BLANK inside — white fill, only the label text.
+- DO NOT draw any rooms, walls, doors, windows, or furniture inside the zones at this stage.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+DRAWING RULES
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+- Black and white only. No grey, no colour.
+- All dividing walls are straight lines. No curves, no diagonals unless the perimeter itself is curved.
+- Clean crisp CAD line weight. White background.
+- Stay within the white footprint boundary. Never draw outside it.
+
+OUTPUT: A top-down 2D CAD zoning diagram showing the white footprint divided into exactly ${numFlats} proportional flat zones (${flatLabels}) around a central CORE box, with corridor ventilation access to the exterior wall. Crisp architectural line work, clean white background.`;
 }
 
 // ── Stage 2: GPT Image 2 prompt — fill zones using BHK reference ──────────────
