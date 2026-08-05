@@ -189,13 +189,16 @@ IMAGE 1 shows a top-down 2D floor plan with ${numFlats} empty flat zones (F1–F
 2. FLAT ZONE INTERIORS: Inside the empty white interior of each flat zone (F1–F${numFlats}), draw the complete room layout of a ${bhkLabel} apartment.
 
 ${hasReferenceImage ? `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-IMAGE 2 — REFERENCE COMPOSITION (GUIDE ONLY — DO NOT COPY LITERALLY)
+IMAGE 2 — PRIMARY COMPOSITION PATTERN (FOLLOW THIS LAYOUT)
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-IMAGE 2 is an architectural reference sheet showing 2–3 different ${bhkLabel} apartment layout compositions. Each demonstrates the ideal internal room arrangement for a ${bhkLabel} flat — room positions, door connections, and external ventilation windows.
+IMAGE 2 is an architectural reference sheet showing 2 distinct ${bhkLabel} apartment layout compositions (VARIANT A = rectangular zone, VARIANT B = square zone).
+- Notice the thick RED line marked "EXTERIOR" in IMAGE 2 — this represents the building perimeter wall.
+- Notice how ALL habitable rooms (Living Room, Kitchen, and all Bedrooms) touch that RED exterior wall to get natural light and windows. Only Bathrooms are placed internally.
 
-STEP 1: Study all composition variants in IMAGE 2.
-STEP 2: Select the variant whose proportions and shape best match the flat zones in IMAGE 1.
-STEP 3: Apply that selected composition strategy inside each flat zone. Adapt it to fit — do not force-copy exact dimensions.` : ''}
+HOW TO APPLY IMAGE 2 TO EACH ZONE IN IMAGE 1:
+STEP 1: Check the shape of the flat zone in IMAGE 1. If it is wider/rectangular, use VARIANT A from IMAGE 2. If it is squarish/deep, use VARIANT B from IMAGE 2.
+STEP 2: Map the RED EXTERIOR wall from IMAGE 2 to the outer perimeter wall of the flat zone in IMAGE 1.
+STEP 3: Reproduce the exact room arrangement, wall dividers, and door arcs from that VARIANT inside the zone.` : ''}
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 YOUR TASK — FILL THE CORE & FLAT ZONES
@@ -210,20 +213,14 @@ YOUR TASK — FILL THE CORE & FLAT ZONES
 ⛔ EXACT ROOM COUNT — NON-NEGOTIABLE:
 ${bhkType === '1bhk' ? '- 1x LIVING ROOM\n- 1x KITCHEN\n- EXACTLY 1 BEDROOM (no more, no less)\n- 1x BATHROOM\nDO NOT draw 2 or more bedrooms. This is 1BHK.' : bhkType === '2bhk' ? '- 1x LIVING ROOM\n- 1x KITCHEN\n- EXACTLY 2 BEDROOMS: MASTER BEDROOM + BEDROOM 2 (no more, no less)\n- 2x BATHROOMS\nDO NOT draw 3 or more bedrooms. This is 2BHK.' : bhkType === '3bhk' ? '- 1x LIVING ROOM\n- 1x KITCHEN\n- EXACTLY 3 BEDROOMS: MASTER BEDROOM + BEDROOM 2 + BEDROOM 3 (no more, no less)\n- 3x BATHROOMS\nDO NOT draw 4 or more bedrooms. This is 3BHK.' : '- 1x LIVING ROOM\n- 1x KITCHEN + DINING\n- EXACTLY 4 BEDROOMS: MASTER BEDROOM + BEDROOM 2 + BEDROOM 3 + BEDROOM 4 (no more, no less)\n- 4x BATHROOMS\nDO NOT draw 5 or more bedrooms. This is 4BHK.'}
 
-Room placement order (entry to back):
-   - ENTRY DOOR: Opens from the core corridor into the flat.
-   - LIVING ROOM: First room past entry. MUST touch an external perimeter wall with a window tick. Largest room.
-   - KITCHEN: Adjacent to Living Room. MUST touch an external wall with a window tick.
-   - BEDROOMS: Deepest in the flat, furthest from entry. Every bedroom MUST touch an external wall with its own window. Master Bedroom is the largest.
-   - BATHROOMS: Connect directly to a bedroom (ensuite) or internal hallway. NEVER open into Living Room, Kitchen, or Dining.
+ROOM ARRANGEMENT & VENTILATION:
+- Arrange the rooms inside each zone to MATCH the selected VARIANT from IMAGE 2.
+- EXTERIOR VENTILATION: Every Living Room, Kitchen, and Bedroom MUST touch the outer building perimeter wall of its zone and have a window tick on that exterior wall.
+- INTERNAL ROOMS: Bathrooms are placed internally toward the corridor/entry side.
 
 Door logic (follow exactly):
-- Corridor → [Entry Door + swing arc] → Living Room/Foyer
-- Living Room → [opening or door] → Kitchen/Dining
-- Hallway or Living → [door + swing arc] → Bedroom 1
-- Hallway or Living → [door + swing arc] → Bedroom 2 (if applicable)
-- Bedroom → [door + swing arc] → Ensuite Bathroom
-- Hallway → [door + swing arc] → Common Bathroom
+- Corridor → [Entry Door + swing arc] → Flat Entry/Living Room
+- Internal doors connect bedrooms and bathrooms as shown in IMAGE 2. Every door must have a quarter-circle swing arc.
 
 Flat separation (non-negotiable):
 - Thick party walls between every adjacent flat zone — no room crosses a zone boundary.
