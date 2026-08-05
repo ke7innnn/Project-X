@@ -112,22 +112,19 @@ Add a thin corridor (access spine) that wraps around the CORE and connects to ea
 - Also extend one straight corridor arm from the CORE outward to touch the exterior perimeter wall (for ventilation).
 
 STEP 3 — DIVIDE THE FOOTPRINT INTO ${numFlats} RECTANGULAR STRIP ZONES:
-An architect NEVER makes pizza-slice or spoke-shaped zones (triangular wedges). Instead:
 - Identify the LONGEST exterior wall of the building footprint.
 - Draw ${numFlats - 1} straight PARALLEL party walls running PERPENDICULAR to that longest exterior wall, from the exterior perimeter inward to the corridor ring around the CORE.
-- This creates EXACTLY ${numFlats} rectangular strip zones — like slices of bread side by side — each flat zone being a clean rectangle or near-rectangle strip.
-- The party walls between flats are PARALLEL to each other. They are NOT angled, wedged, or triangular.
-- Each zone's entry side (facing the corridor) must be AT LEAST 3 metres wide — no narrow triangle tips at the entry.
+- This creates EXACTLY ${numFlats} rectangular strip zones — each flat zone is a clean rectangle.
+- The party walls between flats are PARALLEL to each other.
+- Each zone's entry side (facing the corridor) must be AT LEAST 3 metres wide.
 
-STEP 4 — ZONE PROPORTIONS ADAPT TO SHAPE (RECTANGLE STRIPS, NOT WEDGES):
-- Each flat zone is a rectangular strip: wide entry, parallel side walls, exterior wall on the opposite side.
+STEP 4 — ZONE PROPORTIONS:
+- Each flat zone is a rectangular strip with: a wide entry side facing the corridor, two parallel side walls, and one exterior wall on the far side.
 - A flat at a CORNER of the building will naturally have 2 exterior walls — this is architecturally correct.
 - A flat on a STRAIGHT wall will be a simple rectangular strip.
-- The width of each strip along the exterior wall may vary slightly based on total perimeter length, but the zone shape is ALWAYS a rectangle or near-rectangle — NEVER a triangle or sharp wedge.
 - Every zone MUST touch the exterior wall on at least 1 side.
-- Every zone MUST touch the corridor ring on its entry side (the opposite side).
+- Every zone MUST touch the corridor ring on its entry side.
 - NO zone may be fully interior/landlocked.
-- NO party wall should converge to a point (no triangular zones).
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 STRICT ZONE LABELS — ZERO DUPLICATES ALLOWED
@@ -228,8 +225,9 @@ ROOM ARRANGEMENT & VENTILATION:
 - INTERNAL ROOMS: Bathrooms are placed internally toward the corridor/entry side.
 
 Door logic (follow exactly):
-- Corridor → [Entry Door + swing arc] → Flat Entry/Living Room
-- Internal doors connect bedrooms and bathrooms as shown in IMAGE 2. Every door must have a quarter-circle swing arc.
+- Core corridor → [Entry Door + swing arc] → Flat's internal corridor spine
+- From the internal corridor spine: doors lead into each room (Living Room, Bedrooms, Kitchen) with quarter-circle swing arcs.
+- Bathroom doors open from inside bedrooms or off the internal corridor. Every door must have a quarter-circle swing arc.
 
 Flat separation (non-negotiable):
 - Thick party walls between every adjacent flat zone — no room crosses a zone boundary.
