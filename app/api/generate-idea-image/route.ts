@@ -173,13 +173,21 @@ function buildStage2Prompt(opts: {
   const flatLabelsArray = Array.from({ length: numFlats }, (_, i) => `F${i + 1}`);
   const flatLabels = flatLabelsArray.join(', ');
 
-  const roomItems = bhkType === '1bhk'
-    ? '- 1 Living Room & Dining area\n- 1 Kitchen\n- 1 Bedroom\n- 1 Bathroom'
+  const roomItemsBullet = bhkType === '1bhk'
+    ? '* 1 Living + Dining\n* 1 Kitchen\n* 1 Bedroom\n* 1 Bathroom'
     : bhkType === '2bhk'
-    ? '- 1 Living Room & Dining area\n- 1 Kitchen\n- 2 Bedrooms (Master Bedroom + Bedroom 2)\n- 2 Bathrooms'
+    ? '* 1 Living + Dining\n* 1 Kitchen\n* 2 Bedrooms (Master Bedroom + Bedroom 2)\n* 2 Bathrooms'
     : bhkType === '3bhk'
-    ? '- 1 Living Room & Dining area\n- 1 Kitchen\n- 3 Bedrooms (Master + Bed 2 + Bed 3)\n- 3 Bathrooms'
-    : '- 1 Living Room & Dining area\n- 1 Kitchen\n- 4 Bedrooms (Master + Bed 2 + Bed 3 + Bed 4)\n- 4 Bathrooms';
+    ? '* 1 Living + Dining\n* 1 Kitchen\n* 3 Bedrooms (Master + Bed 2 + Bed 3)\n* 3 Bathrooms'
+    : '* 1 Living + Dining\n* 1 Kitchen\n* 4 Bedrooms (Master + Bed 2 + Bed 3 + Bed 4)\n* 4 Bathrooms';
+
+  const validationRoomStr = bhkType === '1bhk'
+    ? '1 Living/Dining + 1 Kitchen + 1 Bedroom + 1 Bathroom'
+    : bhkType === '2bhk'
+    ? '1 Living/Dining + 1 Kitchen + 2 Bedrooms + 2 Bathrooms'
+    : bhkType === '3bhk'
+    ? '1 Living/Dining + 1 Kitchen + 3 Bedrooms + 3 Bathrooms'
+    : '1 Living/Dining + 1 Kitchen + 4 Bedrooms + 4 Bathrooms';
 
   const liftsStr = passengerLifts > 0 ? `${passengerLifts} rectangular elevator shaft(s)` : '1 rectangular elevator shaft';
   const stairsStr = staircases > 0 ? `${staircases} staircase flight(s)` : '2 staircase flights';
@@ -199,11 +207,29 @@ Keep the outer building footprint shape, central CORE position, and all flat zon
 2. INSIDE THE CORE BOX:
 Draw ${liftsStr} and ${stairsStr}.
 
-3. INSIDE EACH FLAT ZONE (${flatLabels}):
-Fill the empty white space inside EACH zone with a complete ${bhkLabel} 2D CAD apartment layout containing:
-${roomItems}
-- Door swing arcs and exterior window lines
-- Ventilation & Ducts: Living room, Kitchen & Bedrooms MUST touch exterior perimeter wall for windows. Internal bathrooms or landlocked areas must include small rectangular ventilation shafts (labeled "DUCT").
+3. INSIDE EACH FLAT ZONE (${flatLabels})
+
+Inside **EACH zone**, create one complete, functional **${bhkLabel} 2D CAD apartment layout**, adapted to that zone's exact irregular shape.
+
+**Each flat must contain exactly:**
+
+${roomItemsBullet}
+* Internal circulation
+* Door swings + window lines
+* \`DUCT\` ventilation shafts where required
+
+**Planning constraints:**
+
+* All rooms and partitions must remain completely inside their assigned zone.
+* **Living, Kitchen, and Bedroom MUST each touch a wall that forms the OUTER EDGE OF THE BUILDING (the building's outside-facing boundary), and each must have a window directly on that wall.**
+* Bathroom may be internal. If it does not touch the building's outside-facing boundary, provide a small ventilation shaft labeled **\`DUCT\`**.
+* Arrange rooms logically with practical adjacency and minimal circulation.
+* Bedroom should have privacy; Kitchen should connect directly to Living/Dining; Bathroom should preferably open from common circulation.
+* Adapt the layout to each zone's **irregular geometry**; do not force identical or purely rectangular layouts.
+* Use realistic wall thicknesses, door swings, window lines, and room proportions.
+* **Any remaining awkward, narrow, or unusable leftover space should remain EMPTY and may be used as ventilation/duct space. Do NOT create additional rooms or force partitions into these areas.**
+
+**Validation:** Every ${flatLabels} must contain exactly **${validationRoomStr}**. Living, Kitchen, and Bedroom must each have a window directly on the **building's outside-facing boundary wall**. Any internal Bathroom must have a \`DUCT\`.
 
 4. GRAPHIC STYLE (STRICT):
 Pure 2D black lines on a solid white background only. ABSOLUTELY NO COLOR, NO WOOD TEXTURES, NO GREY SHADING, NO 3D RENDERING.
