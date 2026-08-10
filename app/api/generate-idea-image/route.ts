@@ -313,6 +313,8 @@ export async function POST(req: Request) {
 
       let stage1Input: Record<string, any>;
 
+      const stage1TargetSeed = Math.floor(Math.random() * 2147483647);
+
       if (isFluxCanny) {
         stage1Input = {
           control_image_url: uploadedTraceUrl,
@@ -321,6 +323,7 @@ export async function POST(req: Request) {
           num_inference_steps: 28,
           guidance_scale: 3.5,
           controlnet_conditioning_scale: 1.0,
+          seed: stage1TargetSeed,
         };
       } else if (isGrok) {
         // Grok quality edit accepts multiple image_urls (trace + multi-shape reference)
@@ -329,6 +332,7 @@ export async function POST(req: Request) {
           image_urls: stage1ImageUrls,
           prompt: stage1Prompt,
           resolution: '1k',
+          seed: stage1TargetSeed,
         };
       } else {
         stage1Input = {
@@ -336,9 +340,11 @@ export async function POST(req: Request) {
           prompt: stage1Prompt,
           image_size: detectedImageSize,
           aspect_ratio: detectedAspectRatio,
+          seed: stage1TargetSeed,
         };
       }
-      const { url: stage1Url, seed: stage1Seed } = await runModel(stage1Model, stage1Input);
+      const { url: stage1Url, seed: returnedStage1Seed } = await runModel(stage1Model, stage1Input);
+      const stage1Seed = returnedStage1Seed ?? stage1TargetSeed;
       console.log(`[IdeaGenerator] Stage 1 output (seed: ${stage1Seed}):`, stage1Url);
 
       const stage1Base64 = await fetchToBase64(stage1Url);
