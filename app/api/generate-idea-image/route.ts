@@ -184,10 +184,17 @@ function buildStage2Prompt(opts: {
   const liftsStr = passengerLifts > 0 ? `${passengerLifts} rectangular elevator shaft(s)` : '1 rectangular elevator shaft';
   const stairsStr = staircases > 0 ? `${staircases} staircase flight(s)` : '2 staircase flights';
 
-  return `You are a 2D CAD floor-plan drafter. EDIT THE UPLOADED IMAGE ONLY.
+  return `You are a 2D CAD floor-plan drafter. EDIT THE FIRST UPLOADED IMAGE ONLY.
+
+${hasReferenceImage ? `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+IMAGE ROLES — EXTREMELY IMPORTANT
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+• IMAGE 1 = MASTER ZONING DIAGRAM (EDIT THIS IMAGE).
+• IMAGE 2 = ARCHITECTURAL STYLE & COMPOSITION REFERENCE ONLY.
+Do NOT copy the shape, dimensions, or footprint of IMAGE 2. Use IMAGE 2 ONLY for 2D CAD line art style and room layout inspiration inside IMAGE 1.` : ''}
 
 1. PRESERVE GEOMETRY (LOCKED):
-Keep the outer building footprint shape, central CORE position, and all flat zone partition walls (${flatLabels}) EXACTLY as they appear in the uploaded image. Do NOT move, merge, or remove any main wall.
+Keep the outer building footprint shape, central CORE position, and all flat zone partition walls (${flatLabels}) from IMAGE 1 EXACTLY as they appear. Do NOT move, merge, or remove any main wall.
 
 2. INSIDE THE CORE BOX:
 Draw ${liftsStr} and ${stairsStr}.
@@ -203,7 +210,7 @@ Pure 2D black lines on a solid white background only. ABSOLUTELY NO COLOR, NO WO
 NO ROOM NAMES OR TEXT INSIDE ROOMS. Keep room interiors completely clean of text.
 Keep ONLY the flat labels (${flatLabels}) near entry doors.
 
-Output a complete 2D CAD blueprint floor plan with rooms designed inside the preserved flat zones.`;
+Output a complete 2D CAD blueprint floor plan with rooms designed inside the preserved flat zones of IMAGE 1.`;
 }
 
 // ── Route Handler ─────────────────────────────────────────────────────────────
