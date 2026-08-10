@@ -211,7 +211,14 @@ The FIRST uploaded image is the MASTER ZONING PLAN.
 
 ${hasReferenceImage ? 'The SECOND uploaded image is an ARCHITECTURAL REFERENCE IMAGE showing examples of well-designed residential apartment floor plans.' : ''}
 
-Your task is to transform the existing zoning diagram into a realistic, professionally designed residential apartment floor plan.
+Your task is to transform the existing zoning diagram into a realistic, professionally designed 2D CAD residential apartment floor plan.
+
+⛔ GRAPHIC STYLE MANDATE — READ FIRST:
+- PURE BLACK 2D LINEWORK ON SOLID WHITE BACKGROUND ONLY.
+- ABSOLUTELY NO COLOR FILLS, NO WOOD TEXTURES, NO GREY SHADING, NO 3D RENDERING.
+- ABSOLUTELY NO ROOM NAMES OR TEXT INSIDE ROOMS (no "MASTER BEDROOM", "KITCHEN", "LIVING", "TOILET" text).
+- KEEP ROOM INTERIORS CLEAN OF TEXT. ONLY KEEP FLAT LABELS (${flatLabels}) NEAR ENTRY DOORS.
+- DO NOT MERGE OR SKIP ANY ZONE. All ${numFlats} flat zones (${flatLabels}) MUST be drawn independently.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 IMAGE ROLES — EXTREMELY IMPORTANT
@@ -663,24 +670,36 @@ FIX THE INTERIOR LAYOUT.
 DO NOT CHANGE THE ZONE.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+GRAPHIC STYLE — STRICT 2D BLACK & WHITE CAD BLUEPRINT ONLY
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+• PURE BLACK CAD LINEWORK ON A SOLID WHITE BACKGROUND ONLY.
+• ABSOLUTELY NO COLOR FILLS.
+• ABSOLUTELY NO WOOD FLOORING TEXTURES OR BEIGE FILLS.
+• ABSOLUTELY NO GREY SHADING OR 3D RENDERING.
+• ABSOLUTELY NO ROOM NAMES OR TEXT INSIDE ROOMS. Do NOT write "MASTER BEDROOM", "KITCHEN", "LIVING & DINING", "TOILET", or room names inside the room boxes. Keep all room interiors completely clean of text.
+• Keep ONLY the flat labels (${flatLabels}) near entry doors.
+• Draw all internal partition walls, doors (with quarter-circle swing arcs), window ticks, and minimal 2D CAD furniture outlines in SIMPLE 2D BLACK LINES ONLY.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 FINAL OUTPUT
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-Produce a professional top-down 2D residential architectural floor plan.
+Produce a professional top-down 2D residential architectural CAD blueprint floor plan in PURE BLACK AND WHITE.
 
 Maintain the original zoning geometry exactly.
 
-Fill each locked ${flatLabels} apartment zone with a realistic, functional, well-composed ${bhkLabel} residential floor plan${hasReferenceImage ? ' inspired by the SECOND reference image' : ''}.
+Fill each locked ${flatLabels} apartment zone independently with a realistic, functional, well-composed ${bhkLabel} residential floor plan${hasReferenceImage ? ' inspired by the SECOND reference image' : ''}.
 
-The final result should look like a real architect designed the apartments inside the pre-approved zoning boxes.
+DO NOT MERGE OR SKIP ANY ZONE. All ${numFlats} flat zones (${flatLabels}) MUST be present and designed.
+
+The final result should look like a real 2D architectural CAD drawing created in AutoCAD.
 
 MOST IMPORTANT:
 
 THE ZONES ARE FIXED.
-
 THE ROOMS MUST ADAPT TO THE ZONES.
-
-NEVER MAKE THE ZONES ADAPT TO THE ROOMS.`;
+BLACK AND WHITE 2D LINE ART ONLY — NO COLOR, NO WOOD TEXTURE, NO ROOM TEXT.`;
 }
 
 // ── Route Handler ─────────────────────────────────────────────────────────────
