@@ -356,28 +356,20 @@ export async function POST(req: Request) {
       // Upload stage1 output to fal storage
       const stage1StorageUrl = await urlToFalStorage(stage1Url);
 
-      // Load the BHK reference image and upload to fal storage
-      const referenceStorageUrl = await loadReferenceToFalStorage(dominantBHK);
-      const hasReferenceImage = !!referenceStorageUrl;
-
-      // Build the stage 2 prompt
+      // Build the stage 2 prompt (no reference image passed to Nano Banana)
+      const hasReferenceImage = false;
       const refinementPrompt = buildStage2Prompt({
         numFlats,
         bhkType: dominantBHK,
         passengerLifts,
         staircases,
-        hasReferenceImage,
+        hasReferenceImage: false,
       });
 
-      // Build image_urls array:
-      // [0] = Stage 1 output (the base zone layout to edit)
-      // [1] = BHK reference image (composition guide, if available)
+      // Stage 2 receives ONLY 1 image: Stage 1 output (the base zone layout to edit)
       const imageUrls: string[] = [stage1StorageUrl];
-      if (referenceStorageUrl) {
-        imageUrls.push(referenceStorageUrl);
-      }
 
-      console.log(`[IdeaGenerator] Stage 2 image_urls count: ${imageUrls.length} (base + ${hasReferenceImage ? '1 reference' : 'no reference'})`);
+      console.log(`[IdeaGenerator] Stage 2 image_urls count: 1 (Stage 1 output layout only)`);
 
       const stage2Input: Record<string, any> = {
         image_urls: imageUrls,
