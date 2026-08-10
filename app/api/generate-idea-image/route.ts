@@ -9,11 +9,13 @@ fal.config({ credentials: process.env.FAL_KEY });
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-async function runModel(falModel: string, input: Record<string, any>): Promise<string> {
+async function runModel(falModel: string, input: Record<string, any>): Promise<{ url: string; seed?: number }> {
   const result = await fal.subscribe(falModel, { input });
-  const images = (result as any)?.images || (result.data as any)?.images;
+  const data = (result as any)?.data || result;
+  const images = data?.images;
   if (!images || images.length === 0) throw new Error(`${falModel} returned no images`);
-  return images[0].url;
+  const seed = data?.seed ?? (result as any)?.seed;
+  return { url: images[0].url, seed };
 }
 
 async function fetchToBase64(url: string): Promise<string> {
@@ -335,8 +337,8 @@ export async function POST(req: Request) {
           aspect_ratio: detectedAspectRatio,
         };
       }
-      const stage1Url = await runModel(stage1Model, stage1Input);
-      console.log('[IdeaGenerator] Stage 1 output:', stage1Url);
+      const { url: stage1Url, seed: stage1Seed } = await runModel(stage1Model, stage1Input);
+      console.log(`[IdeaGenerator] Stage 1 output (seed: ${stage1Seed}):`, stage1Url);
 
       const stage1Base64 = await fetchToBase64(stage1Url);
 
@@ -345,6 +347,7 @@ export async function POST(req: Request) {
           url: stage1Base64,
           imageUrls: [stage1Base64],
           stage1ImageUrl: stage1Base64,
+          stage1Seed,
           systemPrompt: stage1Prompt,
           userPrompt: `STAGE 1 only | MODEL: ${stage1Model}`,
         });
@@ -367,8 +370,8 @@ export async function POST(req: Request) {
         quality: 'high',
       };
 
-      const stage2Url = await runModel(stage2Model, stage2Input);
-      console.log('[IdeaGenerator] Stage 2 output:', stage2Url);
+      const { url: stage2Url, seed: stage2Seed } = await runModel(stage2Model, stage2Input);
+      console.log(`[IdeaGenerator] Stage 2 output (seed: ${stage2Seed}):`, stage2Url);
 
       const stage2Base64 = await fetchToBase64(stage2Url);
 
@@ -377,6 +380,8 @@ export async function POST(req: Request) {
         imageUrls: [stage2Base64],
         stage1ImageUrl: stage1Base64,
         stage2ImageUrl: stage2Base64,
+        stage1Seed,
+        stage2Seed,
         systemPrompt: stage1Prompt,
         refinementPrompt,
         userPrompt: `PIPELINE | Stage1: ${stage1Model} -> Stage2: ${stage2Model} | BHK: ${dominantBHK}`,

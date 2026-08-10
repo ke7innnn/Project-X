@@ -367,13 +367,15 @@ STAGE 2 → Refine interior layout, enforce NBC room sizes, verify room complete
         }
         setGenerationStep(loadingSteps.length);
 
-        // Update debug payload with the ACTUAL server-built prompts & images for all 4 stages
+        // Update debug payload with the ACTUAL server-built prompts, seeds & images for all stages
         setDebugPayload({
           traceBase64: strippedBase64,
           stage1Prompt: resData.systemPrompt || promptPreview,
           stage1OutputUrl: resData.stage1ImageUrl,
+          stage1Seed: resData.stage1Seed,
           stage2Prompt: resData.refinementPrompt,
           stage2OutputUrl: resData.stage2ImageUrl || resData.url,
+          stage2Seed: resData.stage2Seed,
           userPrompt: resData.userPrompt,
           workflow: selectedModel,
         });
@@ -1016,7 +1018,14 @@ STAGE 2 → Refine interior layout, enforce NBC room sizes, verify room complete
 
                   {/* Grok Output Image */}
                   <div className="flex flex-col gap-1">
-                    <span className="text-[9px] text-amber-400/80 font-bold uppercase tracking-wider">STAGE 1 GENERATED IMAGE (GROK OUTPUT):</span>
+                    <div className="flex items-center justify-between">
+                      <span className="text-[9px] text-amber-400/80 font-bold uppercase tracking-wider">STAGE 1 GENERATED IMAGE (GROK OUTPUT):</span>
+                      {debugPayload.stage1Seed !== undefined && (
+                        <span className="text-[9px] font-mono px-2 py-0.5 rounded bg-amber-500/10 border border-amber-500/30 text-amber-300">
+                          SEED: {debugPayload.stage1Seed}
+                        </span>
+                      )}
+                    </div>
                     {debugPayload.stage1OutputUrl ? (
                       <div className="p-3 bg-black/80 border border-amber-500/30 rounded-lg flex items-center justify-center">
                         <img 
@@ -1049,10 +1058,17 @@ STAGE 2 → Refine interior layout, enforce NBC room sizes, verify room complete
 
                 {/* 4. Stage 2 (Nano Banana 2) Final Generated Output */}
                 <div className="flex flex-col gap-2 border-t border-white/10 pt-4">
-                  <span className="text-[10px] text-emerald-400 uppercase tracking-widest font-bold flex items-center gap-1.5">
-                    <span className="w-4 h-4 rounded-full bg-emerald-500/20 border border-emerald-400 flex items-center justify-center text-[9px]">4</span>
-                    STAGE 2 (NANO BANANA 2) FINAL SCHEMATIC IMAGE
-                  </span>
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] text-emerald-400 uppercase tracking-widest font-bold flex items-center gap-1.5">
+                      <span className="w-4 h-4 rounded-full bg-emerald-500/20 border border-emerald-400 flex items-center justify-center text-[9px]">4</span>
+                      STAGE 2 (NANO BANANA 2) FINAL SCHEMATIC IMAGE
+                    </span>
+                    {debugPayload.stage2Seed !== undefined && (
+                      <span className="text-[9px] font-mono px-2 py-0.5 rounded bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 font-bold">
+                        SEED: {debugPayload.stage2Seed}
+                      </span>
+                    )}
+                  </div>
                   {debugPayload.stage2OutputUrl ? (
                     <div className="p-3 bg-black/80 border border-emerald-500/30 rounded-lg flex items-center justify-center">
                       <img 
