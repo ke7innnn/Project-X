@@ -196,6 +196,7 @@ Draw ${liftsStr} and ${stairsStr}.
 Fill the empty white space inside EACH zone with a complete ${bhkLabel} 2D CAD apartment layout containing:
 ${roomItems}
 - Door swing arcs and exterior window lines
+- Ventilation: Living room, Kitchen & Bedrooms MUST touch exterior perimeter wall for windows. Bathrooms placed internally.
 
 4. GRAPHIC STYLE (STRICT):
 Pure 2D black lines on a solid white background only. ABSOLUTELY NO COLOR, NO WOOD TEXTURES, NO GREY SHADING, NO 3D RENDERING.
