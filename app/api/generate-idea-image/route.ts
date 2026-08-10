@@ -167,7 +167,7 @@ function buildStage2Prompt(opts: {
   staircases: number;
   hasReferenceImage: boolean;
 }): string {
-  const { numFlats, bhkType, passengerLifts, staircases } = opts;
+  const { numFlats, bhkType, passengerLifts, staircases, hasReferenceImage } = opts;
 
   const bhkLabel = bhkType.toUpperCase().replace('BHK', ' BHK');
   const flatLabelsArray = Array.from({ length: numFlats }, (_, i) => `F${i + 1}`);
