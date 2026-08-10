@@ -113,221 +113,63 @@ function buildStage1Prompt(opts: {
   hasZoningRefImage?: boolean;
 }): string {
   const { numFlats, hasZoningRefImage } = opts;
-  const flatLabels = Array.from({ length: numFlats }, (_, i) => `F${i + 1}`).join(', ');
+  const flatLabelsArray = Array.from({ length: numFlats }, (_, i) => `F${i + 1}`);
+  const flatLabels = flatLabelsArray.join(', ');
+  const uniqueLabelLines = flatLabelsArray.map(label => `• ${label} (use once)`).join('\n');
 
   return `You are a senior architectural floor-plan and zoning drafter.
 
-You have been provided with ${hasZoningRefImage ? 'TWO' : 'ONE'} image(s):
+EDIT THE UPLOADED IMAGE ONLY.
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-IMAGE 1 — EDITING TARGET (BUILDING FOOTPRINT OUTLINE)
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-The uploaded IMAGE 1 shows a WHITE irregular polygon on a BLACK background.
-- The WHITE polygon is the complete building footprint to edit.
-- Use the uploaded footprint as the exact outer boundary.
-- Work entirely inside the WHITE footprint polygon.
+The uploaded image shows a WHITE building footprint polygon on a BLACK background. Ignore any faint background texture — treat the entire WHITE polygon area as a SINGLE EMPTY CANVAS.
+
+Use the uploaded footprint as the exact outer boundary. Work entirely inside the WHITE footprint polygon.
+
+Your ONLY task is to divide this building footprint into EXACTLY ${numFlats} clean, proportional apartment/flat zones (${flatLabels}) around a properly sized central rectangular CORE.
 
 ${hasZoningRefImage ? `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 IMAGE 2 — ZONING REFERENCE PATTERN (MULTI-SHAPE REFERENCE SHEET)
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-IMAGE 2 is a multi-shape architectural zoning reference sheet showing 6 building footprint examples (Rectangle, Stepped-L, Hexagon, Y-Shape, Triangle, T-Shape).
+IMAGE 2 is a multi-shape architectural zoning reference sheet showing building footprint examples (Rectangle, Stepped-L, Hexagon, Y-Shape, Triangle, T-Shape).
 - Look at how an architect handles the matching or similar footprint shape in IMAGE 2:
   • Central rectangular CORE (20–25% area) placed at the geometric center or wing junction.
   • Wrapping access corridor ring.
-  • Footprint divided into clean SQUARE or RECTANGULAR flat zones (F1, F2, F3...) using straight parallel party walls.
+  • Footprint divided into clean SQUARE or RECTANGULAR flat zones (${flatLabels}) using straight parallel party walls.
 - Use IMAGE 2 as your visual architectural reference for CAD linework, core placement, and clean rectangular flat box arrangement.` : ''}
 
-Your ONLY task is to divide this building footprint into EXACTLY ${numFlats} clean, proportional apartment/flat zones (${flatLabels}) around a properly sized central rectangular CORE, using realistic architectural floor-planning logic.
-
-The final result must look like a professional preliminary ARCHITECTURAL CAD FLOOR-PLATE ZONING PLAN.
-
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-MOST IMPORTANT DESIGN INTENT
+CRITICAL LABELING RULE — UNIQUE LABELS ONLY
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-I want a conventional architect-designed apartment floor plate.
+You must use EACH label EXACTLY ONCE:
+${uniqueLabelLines}
 
-The result MUST contain:
-• ONE properly sized rectangular/square CORE
-• ONE compact conventional corridor/access system
-• EXACTLY ${numFlats} apartment zones (${flatLabels})
-• ${numFlats} clean SQUARE or RECTANGULAR apartment boxes
-• Straight architectural walls
-• Parallel apartment partition walls
-• Consistent orthogonal planning grid
-• Balanced and proportional apartment sizes
-• Logical access from the corridor to every apartment
-
-The apartments must look like NORMAL RECTANGULAR/SQUARE BOXES.
-
-DO NOT create a pizza-slice layout.
-DO NOT create radial apartments.
-DO NOT create triangular apartments.
-DO NOT create wedge-shaped apartments.
-DO NOT create fan-shaped apartments.
-DO NOT create apartment walls that converge toward the CORE.
-DO NOT make the CORE the origin point from which apartment walls radiate.
-
-Think like a real architect designing a conventional apartment floor plate.
+DO NOT DUPLICATE LABELS.
+DO NOT write any label twice.
+There are EXACTLY ${numFlats} apartments, so there must be EXACTLY ${numFlats} unique labels.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-STEP 1 — ESTABLISH THE ARCHITECTURAL GRID
+NO INTERNAL GRID LINES
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-Before dividing the floor plate, establish ONE consistent ORTHOGONAL architectural planning grid inside the irregular building footprint.
-
-The internal planning grid should be based on:
-• horizontal lines
-• vertical lines
-• parallel walls
-• perpendicular walls
-• conventional rectangular proportions
-
-ALL apartment walls must follow this same architectural grid.
-Do NOT independently rotate the apartments according to the irregular exterior perimeter.
-The exterior footprint may remain irregular, but the INTERNAL APARTMENT ZONES must remain clean and rectangular/square.
-The irregular perimeter must NOT force the apartment zones to become triangular or wedge-shaped.
+• Do NOT draw any internal grid lines, sub-boxes, or mesh lines inside the apartment zones.
+• The interior of each flat box (${flatLabels}) must be 100% SOLID BLANK WHITE.
+• The ONLY lines inside the building must be:
+  1. The outer CORE rectangular box
+  2. The corridor ring around the CORE
+  3. The main straight partition walls separating ${flatLabels} from each other.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-STEP 2 — PLACE THE CENTRAL CORE
+DESIGN INTENT
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-Place ONE substantial rectangular CORE close to the geometric centroid of the building footprint.
-
-The CORE must be clearly visible and significantly larger than a tiny core box.
-
-CORE SIZE:
-Approximately 20–25% of the usable floor-plate area.
-The core should have realistic architectural proportions.
-
-Use a compact RECTANGLE or NEAR-SQUARE.
-
-The CORE must be a simple rectangular box.
-Draw ONE outer rectangular CORE box.
-Inside it, place the label: CORE
-
-DO NOT draw lifts, stairs, toilets, rooms, or furniture inside the CORE at this stage. Keep it as one clean architectural rectangular box labeled CORE.
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-STEP 3 — CREATE THE CORRIDOR
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-Create a narrow but clearly readable conventional apartment corridor around or immediately adjacent to the CORE.
-
-The corridor must provide access to all ${numFlats} apartments.
-The corridor should use straight ORTHOGONAL geometry (horizontal and vertical corridor segments, 90-degree connections).
-Provide clear apartment entry connections from the corridor.
-One straight corridor/access arm may extend toward an exterior wall for natural ventilation/access.
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-STEP 4 — CREATE EXACTLY ${numFlats} APARTMENT ZONES
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-Create EXACTLY ${numFlats} apartment zones.
-The zones MUST be assigned these exact unique labels: ${flatLabels}.
-
-Every apartment must be a clean SQUARE or RECTANGULAR BOX.
-Each apartment should visually read as a conventional architectural rectangle.
-
-Each apartment should have:
-• straight walls
-• rectangular or square geometry
-• two substantially parallel side walls
-• one broad corridor-facing entry side
-• at least one exterior facade side
-• usable proportions
-• direct access to the corridor
-
-Every apartment MUST touch the exterior building perimeter.
-Every apartment MUST touch the corridor/access system.
-NO apartment may be landlocked.
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-STEP 5 — APARTMENT PARTITION WALLS
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-All apartment party walls must be:
-• STRAIGHT
-• PARALLEL TO EACH OTHER
-• BASED ON THE SAME ORTHOGONAL GRID
-• ARCHITECTURALLY LOGICAL
-
-Do NOT make them radiate from the CORE.
-Do NOT make them converge toward the CORE.
-Do NOT make them fan outward.
-Do NOT rotate each party wall independently.
-
-The apartment divisions should read as conventional parallel rectangular bays (${Array.from({ length: numFlats }, () => 'RECTANGLE').join(' + ')}).
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-STEP 6 — DEALING WITH THE IRREGULAR EXTERIOR FOOTPRINT
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-PRESERVE THE IRREGULAR EXTERIOR BOUNDARY from IMAGE 1.
-However, DO NOT allow the irregular boundary to distort the apartment geometry.
-The internal apartments should remain as rectangular/square as realistically possible.
-
-If an angled portion of the exterior footprint cannot be completely occupied by a rectangular apartment, allow the remaining irregular portion to become circulation or leftover common space.
-DO NOT turn an apartment into a triangle simply to fill an angled corner.
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-STEP 7 — APARTMENT PROPORTIONS
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-The ${numFlats} apartments should be approximately proportional in area.
-Each apartment should have a comfortable rectangular proportion similar to a realistic apartment floor plate.
-Corner apartments may naturally have two exterior facade sides.
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-STEP 8 — APARTMENT ENTRIES
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-Each apartment must have a clear entry side facing the corridor.
-The corridor-facing entry edge should be broad enough to represent a realistic apartment entrance zone.
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-STEP 9 — STRICT LABEL SYSTEM
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-Use EXACTLY these ${numFlats} labels: ${flatLabels}.
-Each label MUST appear EXACTLY ONCE.
-NO duplicate labels. NO missing labels.
-
-Arrange the apartment labels clockwise beginning from the top-left apartment:
-${flatLabels.split(', ').join(' → ')}
-
-Place each label approximately in the visual center of its corresponding apartment zone.
-Do not place labels inside the CORE. The CORE must be labeled only: CORE.
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-STEP 10 — BLANK APARTMENT INTERIORS
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-Every apartment zone must remain COMPLETELY BLANK inside.
-Inside ${flatLabels}: NO rooms, NO internal walls, NO kitchens, NO bathrooms, NO bedrooms, NO furniture, NO doors, NO windows.
-Only the apartment label.
-The apartments should appear as clean empty white zones bounded by black architectural lines.
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-STEP 11 — GRAPHIC / CAD STYLE
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-Output must be a clean TOP-DOWN 2D architectural CAD zoning diagram.
-Use ONLY BLACK and WHITE. No grey, no color, no shading, no 3D rendering.
-Crisp, thin, consistent architectural linework. White background. Black outlines.
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-FINAL ARCHITECTURAL CHECK
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-Before producing the final image, verify:
-1. There are EXACTLY ${numFlats} apartments labeled: ${flatLabels} (each label used exactly once).
-2. The CORE is a substantial rectangular/square box (20-25% of usable floor plate).
-3. The apartments are primarily rectangular or square boxes.
-4. The apartment party walls are straight and follow one consistent orthogonal grid (NOT radiating from core).
-5. Every apartment connects to the corridor and touches the exterior perimeter.
-6. The apartment interiors are completely blank.
-7. The irregular exterior footprint is preserved.
+• ONE central rectangular CORE (20-25% area)
+• ONE corridor ring wrapping around the CORE
+• EXACTLY ${numFlats} clean RECTANGULAR or SQUARE apartment boxes (${flatLabels})
+• All partition walls straight at 90 degrees
+• Every flat touches an exterior perimeter wall for windows
+• SOLID WHITE background inside all flat boxes
+• Pure 2D black & white CAD linework only
 
 OUTPUT ONLY THE FINAL CLEAN TOP-DOWN 2D CAD ZONING DIAGRAM.`;
 }
