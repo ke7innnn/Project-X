@@ -124,7 +124,16 @@ The uploaded image shows a WHITE building footprint polygon on a BLACK backgroun
 
 Use the uploaded footprint as the exact outer boundary. Work entirely inside the WHITE footprint polygon.
 
-Your ONLY task is to divide this building footprint into EXACTLY ${numFlats} clean, proportional apartment/flat zones (${flatLabels}) around a central rectangular CORE.
+Your ONLY task is to divide this building footprint into EXACTLY ${numFlats} clean, proportional apartment/flat zones (${flatLabels}) around an optimally positioned circulation CORE.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+CIRCULATION CORE POSITIONING (DYNAMIC & ACCESSIBLE)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+• THE CORE DOES NOT HAVE TO BE AT THE EXACT GEOMETRIC CENTER.
+• Position the circulation CORE (elevator shaft & stairs) in the MOST EFFICIENT and ACCESSIBLE location tailored to the specific footprint shape (e.g. at the junction of wings in L/Y/T shapes, along the central spine, or where it minimizes corridor walking distance to all flat units).
+• The CORE must take approximately 18–25% of the total floor area.
+• Provide a short, direct entrance corridor connecting the CORE to the building's outer perimeter wall for main building entrance access.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 EXACT DIVISION COUNT & ZERO DUPLICATES (CRITICAL)
@@ -147,18 +156,18 @@ NO INTERNAL GRID LINES & ENTRANCE CORRIDOR
 • Do NOT draw any internal grid lines, sub-boxes, or mesh lines inside the apartment zones.
 • The interior of each flat box (${flatLabels}) must be 100% SOLID BLANK WHITE.
 • The ONLY lines inside the building must be:
-  1. The outer CORE rectangular box
+  1. The outer CORE rectangular box (placed in the most accessible position for the shape)
   2. The corridor ring around the CORE
-  3. ONE thin straight main entrance corridor connecting the central CORE to the outer building perimeter wall for building access.
+  3. ONE thin straight main entrance corridor connecting the CORE to the outer building perimeter wall for main building access
   4. The main straight partition walls separating ${flatLabels} from each other.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 DESIGN INTENT
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-• ONE central rectangular CORE (20-25% area)
+• ONE rectangular CORE placed in the most accessible location for the footprint shape
 • ONE corridor ring wrapping around the CORE
-• ONE thin main entrance pathway connecting the central CORE to the exterior boundary for entrance access
+• ONE thin main entrance pathway connecting the CORE to the exterior boundary for entrance access
 • EXACTLY ${numFlats} clean RECTANGULAR or SQUARE apartment boxes (${flatLabels})
 • All partition walls straight at 90 degrees
 • Every flat touches an exterior perimeter wall for windows
