@@ -141,7 +141,7 @@ DO NOT CREATE EXTRA UNLABELED BOXES OR SPARE ZONES.
 There are EXACTLY ${numFlats} apartments requested, so there must be EXACTLY ${numFlats} flat zones (${flatLabels}).
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-NO INTERNAL GRID LINES
+NO INTERNAL GRID LINES & ENTRANCE CORRIDOR
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 • Do NOT draw any internal grid lines, sub-boxes, or mesh lines inside the apartment zones.
@@ -149,7 +149,8 @@ NO INTERNAL GRID LINES
 • The ONLY lines inside the building must be:
   1. The outer CORE rectangular box
   2. The corridor ring around the CORE
-  3. The main straight partition walls separating ${flatLabels} from each other.
+  3. ONE thin straight main entrance corridor connecting the central CORE to the outer building perimeter wall for building access.
+  4. The main straight partition walls separating ${flatLabels} from each other.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 DESIGN INTENT
@@ -157,6 +158,7 @@ DESIGN INTENT
 
 • ONE central rectangular CORE (20-25% area)
 • ONE corridor ring wrapping around the CORE
+• ONE thin main entrance pathway connecting the central CORE to the exterior boundary for entrance access
 • EXACTLY ${numFlats} clean RECTANGULAR or SQUARE apartment boxes (${flatLabels})
 • All partition walls straight at 90 degrees
 • Every flat touches an exterior perimeter wall for windows
