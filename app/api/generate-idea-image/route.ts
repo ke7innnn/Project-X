@@ -117,7 +117,7 @@ function buildStage1Prompt(opts: {
 
   return `You are a senior architectural floor-plan and zoning drafter.
 
-You have been provided with ${hasZoningRefImage ? 'TWO' : 'ONE'} image(s):
+You have been provided with ONE image:
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 IMAGE 1 — EDITING TARGET (BUILDING FOOTPRINT OUTLINE)
@@ -126,16 +126,6 @@ The uploaded IMAGE 1 shows a WHITE irregular polygon on a BLACK background.
 - The WHITE polygon is the complete building footprint to edit.
 - Use the uploaded footprint as the exact outer boundary.
 - Work entirely inside the WHITE footprint polygon.
-
-${hasZoningRefImage ? `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-IMAGE 2 — ZONING REFERENCE PATTERN (MULTI-SHAPE REFERENCE SHEET)
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-IMAGE 2 is a multi-shape architectural zoning reference sheet showing 6 building footprint examples (Rectangle, Stepped-L, Hexagon, Y-Shape, Triangle, T-Shape).
-- Look at how an architect handles the matching or similar footprint shape in IMAGE 2:
-  • Central rectangular CORE (20–25% area) placed at the geometric center or wing junction.
-  • Wrapping access corridor ring.
-  • Footprint divided into clean SQUARE or RECTANGULAR flat zones (F1, F2, F3...) using straight parallel party walls.
-- Use IMAGE 2 as your visual architectural reference for CAD linework, core placement, and clean rectangular flat box arrangement.` : ''}
 
 Your ONLY task is to divide this building footprint into EXACTLY ${numFlats} clean, proportional apartment/flat zones (${flatLabels}) around a properly sized central rectangular CORE, using realistic architectural floor-planning logic.
 
@@ -930,9 +920,8 @@ export async function POST(req: Request) {
       console.log(`[IdeaGenerator] Stage 1: ${stage1Model} — drawing ${numFlats} empty flat zones (zoningRef: ${hasZoningRefImage ? 'YES' : 'NO'})...`);
 
       const stage1ImageUrls: string[] = [uploadedTraceUrl];
-      if (grokZoningRefUrl) {
-        stage1ImageUrls.push(grokZoningRefUrl);
-      }
+      // Grok on fal.ai only supports 1 image in the image_urls array
+      // Sending 2 images causes a 422 Unprocessable Entity error
 
       // Grok, FLUX Klein, and Gemini all use image_urls (array); FLUX Canny uses control_image_url
       const isFluxCanny = stage1Model.includes('flux-control-lora-canny');
