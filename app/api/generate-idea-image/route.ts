@@ -206,8 +206,14 @@ ${hasReferenceImage ? `━━━━━━━━━━━━━━━━━━━
 IMAGE ROLES — EXTREMELY IMPORTANT
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 • IMAGE 1 = MASTER ZONING DIAGRAM (EDIT THIS IMAGE).
-• IMAGE 2 = ARCHITECTURAL STYLE & COMPOSITION REFERENCE ONLY.
-Do NOT copy the shape, dimensions, or footprint of IMAGE 2. Use IMAGE 2 ONLY for 2D CAD line art style and room layout inspiration inside IMAGE 1.` : ''}
+  Keep 100% of the outer building footprint shape, central CORE position, and flat zone partition walls from IMAGE 1.
+
+• IMAGE 2 = ROOM POSITIONING & FACADE VENTILATION REFERENCE ONLY.
+  Do NOT copy the shape, dimensions, or footprint of IMAGE 2.
+  Use IMAGE 2 EXCLUSIVELY as a reference for:
+  1. ROOM POSITIONING & FLOW: How rooms (Living Room, Kitchen, Bedrooms, Bathrooms) are connected and arranged inside each flat.
+  2. EXTERIOR FACADE VENTILATION: How Living Room, Kitchen, and ALL Bedrooms are positioned along outer building exterior walls so every habitable room connects to the outside for natural sunlight and ventilation.
+  3. INTERNAL BATHROOM DUCTS: How internal Bathrooms use small ventilation shafts labeled "DUCT".` : ''}
 
 1. PRESERVE GEOMETRY (LOCKED):
 Keep the outer building footprint shape, central CORE position, and all flat zone partition walls (${flatLabels}) from IMAGE 1 EXACTLY as they appear. Do NOT move, merge, or remove any main wall.
