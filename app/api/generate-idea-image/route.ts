@@ -124,6 +124,15 @@ The uploaded image shows a WHITE building footprint polygon on a BLACK backgroun
 
 Use the uploaded footprint as the exact outer boundary. Work entirely inside the WHITE footprint polygon.
 
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+IMMUTABLE OUTER BOUNDARY — 100% INSIDE ONLY
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+• WORK 100% ENTIRELY INSIDE THE WHITE FOOTPRINT POLYGON.
+• DO NOT DRAW ANY LINE, PATHWAY, OR CORRIDOR EXTENDING OUTSIDE THE WHITE BUILDING BOUNDARY INTO THE BLACK BACKGROUND.
+• The main entrance corridor must START at the central CORE and END at the INNER FACE of the outer building boundary wall.
+• ABSOLUTELY NO LINE OR BOX MAY BLEED OR EXTEND OUTSIDE THE WHITE POLYGON FACADE WALL.
+
 Your ONLY task is to divide this building footprint into EXACTLY ${numFlats} clean, proportional apartment/flat zones (${flatLabels}) around an optimally positioned circulation CORE.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
