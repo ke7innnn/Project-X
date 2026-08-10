@@ -80,13 +80,13 @@ async function loadGrokZoningReferenceToFalStorage(): Promise<string | null> {
 // ── Workflow model mapping ────────────────────────────────────────────────────
 
 const WORKFLOWS: Record<string, { stage1: string; stage2?: string; label: string }> = {
-  'grok-gpt':         { stage1: 'xai/grok-imagine-image/edit',                   stage2: 'openai/gpt-image-2/edit', label: 'Grok -> GPT Image 2' },
-  'grok-nano':        { stage1: 'xai/grok-imagine-image/edit',                   stage2: 'fal-ai/nano-banana-pro/edit', label: 'Grok -> Nano Banana Pro' },
-  'grok-kontext':     { stage1: 'xai/grok-imagine-image/edit',                   stage2: 'fal-ai/flux-pro/kontext', label: 'Grok -> FLUX Kontext' },
+  'grok-gpt':         { stage1: 'xai/grok-imagine-image/quality/edit',           stage2: 'openai/gpt-image-2/edit', label: 'Grok [Quality] -> GPT Image 2' },
+  'grok-nano':        { stage1: 'xai/grok-imagine-image/quality/edit',           stage2: 'fal-ai/nano-banana-pro/edit', label: 'Grok [Quality] -> Nano Banana Pro' },
+  'grok-kontext':     { stage1: 'xai/grok-imagine-image/quality/edit',           stage2: 'fal-ai/flux-pro/kontext', label: 'Grok [Quality] -> FLUX Kontext' },
   'flux-klein-gpt':   { stage1: 'fal-ai/flux-2/klein/9b/edit',                   stage2: 'openai/gpt-image-2/edit', label: 'FLUX Klein -> GPT Image 2' },
   'flux-klein-nano':  { stage1: 'fal-ai/flux-2/klein/9b/edit',                   stage2: 'fal-ai/nano-banana-pro/edit', label: 'FLUX Klein -> Nano Banana Pro' },
   'flux-kontext-gpt': { stage1: 'fal-ai/flux-pro/kontext',                        stage2: 'openai/gpt-image-2/edit', label: 'FLUX Kontext -> GPT Image 2' },
-  'grok-solo':        { stage1: 'xai/grok-imagine-image/edit',                   label: 'Grok only' },
+  'grok-solo':        { stage1: 'xai/grok-imagine-image/quality/edit',           label: 'Grok [Quality] only' },
   'flux-klein-solo':  { stage1: 'fal-ai/flux-2/klein/9b/edit',                   label: 'FLUX Klein only' },
   'flux-kontext-solo':{ stage1: 'fal-ai/flux-pro/kontext',                        label: 'FLUX Kontext [pro] only' },
   'gpt-solo':         { stage1: 'openai/gpt-image-2/edit',                        label: 'GPT Image 2 only' },
@@ -117,7 +117,7 @@ function buildStage1Prompt(opts: {
 
   return `You are a senior architectural floor-plan and zoning drafter.
 
-You have been provided with ONE image:
+You have been provided with ${hasZoningRefImage ? 'TWO' : 'ONE'} image(s):
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 IMAGE 1 — EDITING TARGET (BUILDING FOOTPRINT OUTLINE)
@@ -126,6 +126,16 @@ The uploaded IMAGE 1 shows a WHITE irregular polygon on a BLACK background.
 - The WHITE polygon is the complete building footprint to edit.
 - Use the uploaded footprint as the exact outer boundary.
 - Work entirely inside the WHITE footprint polygon.
+
+${hasZoningRefImage ? `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+IMAGE 2 — ZONING REFERENCE PATTERN (MULTI-SHAPE REFERENCE SHEET)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+IMAGE 2 is a multi-shape architectural zoning reference sheet showing 6 building footprint examples (Rectangle, Stepped-L, Hexagon, Y-Shape, Triangle, T-Shape).
+- Look at how an architect handles the matching or similar footprint shape in IMAGE 2:
+  • Central rectangular CORE (20–25% area) placed at the geometric center or wing junction.
+  • Wrapping access corridor ring.
+  • Footprint divided into clean SQUARE or RECTANGULAR flat zones (F1, F2, F3...) using straight parallel party walls.
+- Use IMAGE 2 as your visual architectural reference for CAD linework, core placement, and clean rectangular flat box arrangement.` : ''}
 
 Your ONLY task is to divide this building footprint into EXACTLY ${numFlats} clean, proportional apartment/flat zones (${flatLabels}) around a properly sized central rectangular CORE, using realistic architectural floor-planning logic.
 
@@ -920,14 +930,40 @@ export async function POST(req: Request) {
       console.log(`[IdeaGenerator] Stage 1: ${stage1Model} — drawing ${numFlats} empty flat zones (zoningRef: ${hasZoningRefImage ? 'YES' : 'NO'})...`);
 
       const stage1ImageUrls: string[] = [uploadedTraceUrl];
-      // Grok on fal.ai only supports 1 image in the image_urls array
-      // Sending 2 images causes a 422 Unprocessable Entity error
+      if (grokZoningRefUrl) {
+        stage1ImageUrls.push(grokZoningRefUrl);
+      }
 
-      // Grok, FLUX Klein, and Gemini all use image_urls (array); FLUX Canny uses control_image_url
       const isFluxCanny = stage1Model.includes('flux-control-lora-canny');
-      const stage1Input = isFluxCanny
-        ? { control_image_url: uploadedTraceUrl, control_lora_image_url: uploadedTraceUrl, prompt: stage1Prompt, num_inference_steps: 28, guidance_scale: 3.5, controlnet_conditioning_scale: 1.0 }
-        : { image_urls: stage1ImageUrls, prompt: stage1Prompt, image_size: detectedImageSize, aspect_ratio: detectedAspectRatio };
+      const isGrok = stage1Model.includes('grok');
+
+      let stage1Input: Record<string, any>;
+
+      if (isFluxCanny) {
+        stage1Input = {
+          control_image_url: uploadedTraceUrl,
+          control_lora_image_url: uploadedTraceUrl,
+          prompt: stage1Prompt,
+          num_inference_steps: 28,
+          guidance_scale: 3.5,
+          controlnet_conditioning_scale: 1.0,
+        };
+      } else if (isGrok) {
+        // Grok quality edit accepts multiple image_urls (trace + multi-shape reference)
+        // We DO NOT pass image_size or aspect_ratio to prevent 422 Unprocessable Entity
+        stage1Input = {
+          image_urls: stage1ImageUrls,
+          prompt: stage1Prompt,
+          resolution: '1k',
+        };
+      } else {
+        stage1Input = {
+          image_urls: stage1ImageUrls,
+          prompt: stage1Prompt,
+          image_size: detectedImageSize,
+          aspect_ratio: detectedAspectRatio,
+        };
+      }
       const stage1Url = await runModel(stage1Model, stage1Input);
       console.log('[IdeaGenerator] Stage 1 output:', stage1Url);
 
