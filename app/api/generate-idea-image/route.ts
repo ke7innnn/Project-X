@@ -103,16 +103,10 @@ function detectDominantBHK(units1BHK: number, units2BHK: number, units3BHK: numb
   return '1bhk';
 }
 
-// ── Stage 1: Grok prompt — N proportional flat zones + central core ───────────
-
 function buildStage1Prompt(opts: {
   numFlats: number;
-  passengerLifts: number;
-  staircases: number;
-  useFireSafety: boolean;
-  hasZoningRefImage?: boolean;
 }): string {
-  const { numFlats, hasZoningRefImage } = opts;
+  const { numFlats } = opts;
   const flatLabelsArray = Array.from({ length: numFlats }, (_, i) => `F${i + 1}`);
   const flatLabels = flatLabelsArray.join(', ');
   const uniqueLabelLines = flatLabelsArray.map(label => `• ${label} (use once)`).join('\n');
@@ -126,16 +120,6 @@ The uploaded image shows a WHITE building footprint polygon on a BLACK backgroun
 Use the uploaded footprint as the exact outer boundary. Work entirely inside the WHITE footprint polygon.
 
 Your ONLY task is to divide this building footprint into EXACTLY ${numFlats} clean, proportional apartment/flat zones (${flatLabels}) around a properly sized central rectangular CORE.
-
-${hasZoningRefImage ? `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-IMAGE 2 — ZONING REFERENCE PATTERN (MULTI-SHAPE REFERENCE SHEET)
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-IMAGE 2 is a multi-shape architectural zoning reference sheet showing building footprint examples (Rectangle, Stepped-L, Hexagon, Y-Shape, Triangle, T-Shape).
-- Look at how an architect handles the matching or similar footprint shape in IMAGE 2:
-  • Central rectangular CORE (20–25% area) placed at the geometric center or wing junction.
-  • Wrapping access corridor ring.
-  • Footprint divided into clean SQUARE or RECTANGULAR flat zones (${flatLabels}) using straight parallel party walls.
-- Use IMAGE 2 as your visual architectural reference for CAD linework, core placement, and clean rectangular flat box arrangement.` : ''}
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 CRITICAL LABELING RULE — UNIQUE LABELS ONLY
@@ -756,25 +740,14 @@ export async function POST(req: Request) {
       const numFlats = Math.max(1, totalUnits);
       const dominantBHK = detectDominantBHK(units1BHK, units2BHK, units3BHK, units4BHK);
 
-      // Load Grok zoning reference image
-      const grokZoningRefUrl = await loadGrokZoningReferenceToFalStorage();
-      const hasZoningRefImage = !!grokZoningRefUrl;
-
       // ── STAGE 1 — Grok: Generate N empty flat zone boxes + central core ────
       const stage1Prompt = buildStage1Prompt({
         numFlats,
-        passengerLifts,
-        staircases,
-        useFireSafety,
-        hasZoningRefImage,
       });
 
-      console.log(`[IdeaGenerator] Stage 1: ${stage1Model} — drawing ${numFlats} empty flat zones (zoningRef: ${hasZoningRefImage ? 'YES' : 'NO'})...`);
+      console.log(`[IdeaGenerator] Stage 1: ${stage1Model} — drawing ${numFlats} empty flat zones...`);
 
       const stage1ImageUrls: string[] = [uploadedTraceUrl];
-      if (grokZoningRefUrl) {
-        stage1ImageUrls.push(grokZoningRefUrl);
-      }
 
       const isFluxCanny = stage1Model.includes('flux-control-lora-canny');
       const isGrok = stage1Model.includes('grok');
