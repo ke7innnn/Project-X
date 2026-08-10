@@ -36,7 +36,10 @@ async function urlToFalStorage(url: string): Promise<string> {
 
 async function loadReferenceToFalStorage(bhkType: string): Promise<string | null> {
   try {
-    let refPath = path.join(process.cwd(), 'public', 'references', `${bhkType}.png`);
+    let refPath = path.join(process.cwd(), 'public', 'references', 'master_cad_ref.png');
+    if (!fs.existsSync(refPath)) {
+      refPath = path.join(process.cwd(), 'public', 'references', `${bhkType}.png`);
+    }
     if (!fs.existsSync(refPath)) {
       refPath = path.join(process.cwd(), 'public', 'references', `ref-${bhkType}.png`);
     }
@@ -46,12 +49,12 @@ async function loadReferenceToFalStorage(bhkType: string): Promise<string | null
     }
     const buffer = fs.readFileSync(refPath);
     const blob = new Blob([buffer], { type: 'image/png' });
-    const file = new File([blob], `ref-${bhkType}.png`, { type: 'image/png' });
+    const file = new File([blob], 'master_cad_ref.png', { type: 'image/png' });
     const url = await fal.storage.upload(file);
-    console.log(`[IdeaGenerator] Uploaded ${bhkType} reference to fal storage: ${url}`);
+    console.log(`[IdeaGenerator] Uploaded master CAD reference to fal storage: ${url}`);
     return url;
   } catch (err: any) {
-    console.warn(`[IdeaGenerator] Failed to load reference image for ${bhkType}:`, err.message);
+    console.warn(`[IdeaGenerator] Failed to load reference image:`, err.message);
     return null;
   }
 }
@@ -364,20 +367,29 @@ export async function POST(req: Request) {
       }
 
       // ── STAGE 2 — GPT Image 2: Fill zones using BHK reference image ────────
-      console.log(`[IdeaGenerator] Stage 2: ${stage2Model} — filling zones with ${dominantBHK} composition...`);
+      // Load master CAD reference image and upload to fal storage
+      const referenceStorageUrl = await loadReferenceToFalStorage(dominantBHK);
+      const hasReferenceImage = !!referenceStorageUrl;
 
       const refinementPrompt = buildStage2Prompt({
         numFlats,
         bhkType: dominantBHK,
         passengerLifts,
         staircases,
-        hasReferenceImage: false,
+        hasReferenceImage,
       });
+
+      const imageUrls: string[] = [stage1Url];
+      if (referenceStorageUrl) {
+        imageUrls.push(referenceStorageUrl);
+      }
+
+      console.log(`[IdeaGenerator] Stage 2 image_urls count: ${imageUrls.length} (Stage 1 footprint + ${hasReferenceImage ? 'Master CAD reference' : 'no reference'})`);
 
       const targetSeed = reqSeed ? Number(reqSeed) : Math.floor(Math.random() * 2147483647);
 
       const stage2Input: Record<string, any> = {
-        image_urls: [stage1Url],
+        image_urls: imageUrls,
         prompt: refinementPrompt,
         quality: 'high',
         seed: targetSeed,
