@@ -116,8 +116,10 @@ export default function IdeaGenerationPage() {
     traceBase64?: string;
     stage1Prompt?: string;
     stage1OutputUrl?: string;
+    stage1Seed?: number;
     stage2Prompt?: string;
     stage2OutputUrl?: string;
+    stage2Seed?: number;
     userPrompt?: string;
     workflow?: string;
   } | null>(null);

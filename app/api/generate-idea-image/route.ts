@@ -266,6 +266,7 @@ export async function POST(req: Request) {
       apiKey,
       canvasW,
       canvasH,
+      seed: reqSeed,
     } = await req.json();
 
     // ── Determine image size and aspect ratio from shape bounding box ──────────
@@ -364,13 +365,17 @@ export async function POST(req: Request) {
         hasReferenceImage: false,
       });
 
+      const targetSeed = reqSeed ? Number(reqSeed) : Math.floor(Math.random() * 2147483647);
+
       const stage2Input: Record<string, any> = {
         image_urls: [stage1Url],
         prompt: refinementPrompt,
         quality: 'high',
+        seed: targetSeed,
       };
 
-      const { url: stage2Url, seed: stage2Seed } = await runModel(stage2Model, stage2Input);
+      const { url: stage2Url, seed: returnedSeed } = await runModel(stage2Model, stage2Input);
+      const stage2Seed = returnedSeed ?? targetSeed;
       console.log(`[IdeaGenerator] Stage 2 output (seed: ${stage2Seed}):`, stage2Url);
 
       const stage2Base64 = await fetchToBase64(stage2Url);
