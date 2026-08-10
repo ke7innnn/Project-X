@@ -379,7 +379,7 @@ export async function POST(req: Request) {
         stage2ImageUrl: stage2Base64,
         systemPrompt: stage1Prompt,
         refinementPrompt,
-        userPrompt: `PIPELINE | Stage1: ${stage1Model} -> Stage2: ${stage2Model} | BHK: ${dominantBHK} | Reference: ${hasReferenceImage ? 'YES' : 'NO'}`,
+        userPrompt: `PIPELINE | Stage1: ${stage1Model} -> Stage2: ${stage2Model} | BHK: ${dominantBHK}`,
       });
     }
 
