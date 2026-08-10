@@ -117,22 +117,25 @@ function buildStage1Prompt(opts: {
 
 EDIT THE UPLOADED IMAGE ONLY.
 
-The uploaded image shows a WHITE building footprint polygon on a BLACK background. Ignore any faint background texture — treat the entire WHITE polygon area as a SINGLE EMPTY CANVAS.
+The uploaded image shows a WHITE building footprint polygon on a BLACK background. Treat the entire WHITE polygon area as a SINGLE EMPTY CANVAS.
 
 Use the uploaded footprint as the exact outer boundary. Work entirely inside the WHITE footprint polygon.
 
-Your ONLY task is to divide this building footprint into EXACTLY ${numFlats} clean, proportional apartment/flat zones (${flatLabels}) around a properly sized central rectangular CORE.
+Your ONLY task is to divide this building footprint into EXACTLY ${numFlats} clean, proportional apartment/flat zones (${flatLabels}) around a central rectangular CORE.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-CRITICAL LABELING RULE — UNIQUE LABELS ONLY
+EXACT DIVISION COUNT & ZERO DUPLICATES (CRITICAL)
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-You must use EACH label EXACTLY ONCE:
+• DIVIDE THE FOOTPRINT INTO EXACTLY ${numFlats} SEPARATE FLAT ZONES — NO MORE, NO LESS.
+• YOU MUST DRAW EXACTLY ${numFlats} BOXES/ZONES inside the footprint.
+• YOU MUST USE EACH LABEL (${flatLabels}) EXACTLY ONCE:
 ${uniqueLabelLines}
 
-DO NOT DUPLICATE LABELS.
-DO NOT write any label twice.
-There are EXACTLY ${numFlats} apartments, so there must be EXACTLY ${numFlats} unique labels.
+ABSOLUTELY NO DUPLICATE LABELS.
+DO NOT WRITE ANY LABEL TWICE.
+DO NOT CREATE EXTRA UNLABELED BOXES OR SPARE ZONES.
+There are EXACTLY ${numFlats} apartments requested, so there must be EXACTLY ${numFlats} flat zones (${flatLabels}).
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 NO INTERNAL GRID LINES
@@ -157,7 +160,7 @@ DESIGN INTENT
 • SOLID WHITE background inside all flat boxes
 • Pure 2D black & white CAD linework only
 
-OUTPUT ONLY THE FINAL CLEAN TOP-DOWN 2D CAD ZONING DIAGRAM.`;
+OUTPUT ONLY THE FINAL CLEAN TOP-DOWN 2D CAD ZONING DIAGRAM WITH EXACTLY ${numFlats} FLAT ZONES.`;
 }
 
 // ── Stage 2: GPT Image 2 prompt — fill zones using BHK reference ──────────────
@@ -371,7 +374,7 @@ export async function POST(req: Request) {
         hasReferenceImage: false,
       });
 
-      const targetSeed = reqSeed ? Number(reqSeed) : Math.floor(Math.random() * 2147483647);
+      const targetSeed = reqSeed ? Number(reqSeed) : 2002379373;
 
       const stage2Input: Record<string, any> = {
         image_urls: [stage1Url],
