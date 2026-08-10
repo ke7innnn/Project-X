@@ -374,7 +374,7 @@ export async function POST(req: Request) {
         hasReferenceImage: false,
       });
 
-      const targetSeed = reqSeed ? Number(reqSeed) : 2002379373;
+      const targetSeed = reqSeed ? Number(reqSeed) : Math.floor(Math.random() * 2147483647);
 
       const stage2Input: Record<string, any> = {
         image_urls: [stage1Url],
