@@ -353,11 +353,6 @@ export async function POST(req: Request) {
       // ── STAGE 2 — GPT Image 2: Fill zones using BHK reference image ────────
       console.log(`[IdeaGenerator] Stage 2: ${stage2Model} — filling zones with ${dominantBHK} composition...`);
 
-      // Upload stage1 output to fal storage
-      const stage1StorageUrl = await urlToFalStorage(stage1Url);
-
-      // Build the stage 2 prompt (no reference image passed to Nano Banana)
-      const hasReferenceImage = false;
       const refinementPrompt = buildStage2Prompt({
         numFlats,
         bhkType: dominantBHK,
@@ -366,17 +361,10 @@ export async function POST(req: Request) {
         hasReferenceImage: false,
       });
 
-      // Stage 2 receives ONLY 1 image: Stage 1 output (the base zone layout to edit)
-      const imageUrls: string[] = [stage1StorageUrl];
-
-      console.log(`[IdeaGenerator] Stage 2 image_urls count: 1 (Stage 1 output layout only)`);
-
       const stage2Input: Record<string, any> = {
-        image_urls: imageUrls,
+        image_urls: [stage1Url],
         prompt: refinementPrompt,
         quality: 'high',
-        image_size: detectedImageSize,
-        aspect_ratio: detectedAspectRatio,
       };
 
       const stage2Url = await runModel(stage2Model, stage2Input);
