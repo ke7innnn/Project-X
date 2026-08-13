@@ -491,24 +491,24 @@ ROOM ADJACENCY (PROFESSIONAL STANDARD):
 • No dead-end rooms that require crossing another habitable room to exit.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-STEP 2 — REDESIGN ANY NON-COMPLIANT FLAT
+STEP 2 — REDESIGN FLAT INTERNAL ROOM LAYOUTS
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-If any flat fails the above checks, REDESIGN the internal room partitions of THAT FLAT ONLY to fix it.
-• The flat's outer boundary wall shape MUST remain 100% identical — do not alter the perimeter of the flat zone.
-• ONLY redraw internal partitions, internal doors, and room positions inside the flat zone.
-• The corrected flat must fit entirely within its original boundary shape.
+REDESIGN internal room partitions inside each flat zone (${flatLabelsList}) to create an architectural layout of perfection.
+• Do NOT preserve the original internal room positions. You have full freedom to completely reorganize, resize, and reposition every room to create a much better architectural layout.
+• The flat's outer boundary wall shape MUST remain 100% identical — do not alter the outer perimeter of any flat zone.
+• Redraw internal partitions, internal doors, and room positions inside each flat zone for optimal room proportions, direct window contact, and smooth circulation.
+• The newly organized flat layouts must fit entirely within their original flat boundary shapes.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-STEP 3 — PRESERVE WHAT IS CORRECT
+STEP 3 — PRESERVE LOCKED STRUCTURES ONLY
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-• Keep all correctly designed flats completely unchanged — internal partitions, doors, and all.
-• Do NOT touch the outer building boundary, flat zone boundaries, CORE block, or shared corridor.
+• Do NOT touch the outer building boundary, flat zone boundaries, CORE block, or shared corridor ring.
 • Pure 2D black lines on white background only. No colors, no textures, no 3D. No people.
 • DO NOT ADD ANY OVERLAY ANNOTATIONS — No airflow arrows, no ventilation callout labels, no legend boxes, no compass roses, no color-coded zones. Output a clean corrected CAD plan ONLY.
 
-OUTPUT: A complete, architecturally corrected 2D CAD floor plan where EVERY flat has proper exterior ventilation for all habitable rooms and clean internal circulation — with the building shape and all flat boundaries 100% preserved.`;
+OUTPUT: A complete, architecturally corrected 2D CAD floor plan where EVERY flat has proper exterior ventilation for all habitable rooms and clean internal circulation — with the building shape and all flat boundaries 100% preserved, but internal rooms completely reorganized for architectural perfection.`;
 
       const stage3Input: Record<string, any> = {
         image_urls: [stage2FalUrl],
