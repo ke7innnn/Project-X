@@ -85,12 +85,12 @@ async function loadGrokZoningReferenceToFalStorage(): Promise<string | null> {
 // ── Workflow model mapping ────────────────────────────────────────────────────
 
 const WORKFLOWS: Record<string, { stage1: string; stage2?: string; label: string }> = {
-  'grok-gpt':         { stage1: 'xai/grok-imagine-image/quality/edit',           stage2: 'fal-ai/nano-banana-2/edit', label: 'Grok [Quality] -> Nano Banana 2' },
-  'grok-nano':        { stage1: 'xai/grok-imagine-image/quality/edit',           stage2: 'fal-ai/nano-banana-2/edit', label: 'Grok [Quality] -> Nano Banana 2' },
+  'grok-gpt':         { stage1: 'xai/grok-imagine-image/quality/edit',           stage2: 'openai/gpt-image-2/edit', label: 'Grok [Quality] -> GPT Image 2' },
+  'grok-nano':        { stage1: 'xai/grok-imagine-image/quality/edit',           stage2: 'openai/gpt-image-2/edit', label: 'Grok [Quality] -> GPT Image 2' },
   'grok-kontext':     { stage1: 'xai/grok-imagine-image/quality/edit',           stage2: 'fal-ai/flux-pro/kontext', label: 'Grok [Quality] -> FLUX Kontext' },
-  'flux-klein-gpt':   { stage1: 'fal-ai/flux-2/klein/9b/edit',                   stage2: 'fal-ai/nano-banana-2/edit', label: 'FLUX Klein -> Nano Banana 2' },
-  'flux-klein-nano':  { stage1: 'fal-ai/flux-2/klein/9b/edit',                   stage2: 'fal-ai/nano-banana-2/edit', label: 'FLUX Klein -> Nano Banana 2' },
-  'flux-kontext-gpt': { stage1: 'fal-ai/flux-pro/kontext',                        stage2: 'fal-ai/nano-banana-2/edit', label: 'FLUX Kontext -> Nano Banana 2' },
+  'flux-klein-gpt':   { stage1: 'fal-ai/flux-2/klein/9b/edit',                   stage2: 'openai/gpt-image-2/edit', label: 'FLUX Klein -> GPT Image 2' },
+  'flux-klein-nano':  { stage1: 'fal-ai/flux-2/klein/9b/edit',                   stage2: 'openai/gpt-image-2/edit', label: 'FLUX Klein -> GPT Image 2' },
+  'flux-kontext-gpt': { stage1: 'fal-ai/flux-pro/kontext',                        stage2: 'openai/gpt-image-2/edit', label: 'FLUX Kontext -> GPT Image 2' },
   'grok-solo':        { stage1: 'xai/grok-imagine-image/quality/edit',           label: 'Grok [Quality] only' },
   'flux-klein-solo':  { stage1: 'fal-ai/flux-2/klein/9b/edit',                   label: 'FLUX Klein only' },
   'flux-kontext-solo':{ stage1: 'fal-ai/flux-pro/kontext',                        label: 'FLUX Kontext [pro] only' },
@@ -412,17 +412,14 @@ export async function POST(req: Request) {
 
       console.log(`[IdeaGenerator] Stage 2 image_urls count: ${imageUrls.length} (Stage 1 footprint + ${hasReferenceImage ? 'Master CAD reference' : 'no reference'})`);
 
-      const targetSeed = reqSeed ? Number(reqSeed) : Math.floor(Math.random() * 2147483647);
-
       const stage2Input: Record<string, any> = {
         image_urls: imageUrls,
         prompt: refinementPrompt,
         quality: 'high',
-        seed: targetSeed,
       };
 
       const { url: stage2Url, seed: returnedSeed } = await runModel(stage2Model, stage2Input);
-      const stage2Seed = returnedSeed ?? targetSeed;
+      const stage2Seed = returnedSeed ?? undefined;
       console.log(`[IdeaGenerator] Stage 2 output (seed: ${stage2Seed}):`, stage2Url);
 
       const stage2Base64 = await fetchToBase64(stage2Url);

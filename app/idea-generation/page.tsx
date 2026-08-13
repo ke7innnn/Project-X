@@ -830,7 +830,7 @@ STAGE 2 → Refine interior layout, enforce NBC room sizes, verify room complete
                   {/* Synthesis Card */}
                   <div className="relative flex flex-col rounded-xl border border-cyan-500/30 bg-black/60 overflow-hidden group">
                     <div className="px-3 py-1.5 bg-cyan-950/80 border-b border-cyan-500/20 flex items-center justify-between">
-                      <span className="text-[10px] font-bold text-cyan-400 tracking-wider uppercase">SCHEMATIC SYNTHESIS (NANO BANANA 2)</span>
+                      <span className="text-[10px] font-bold text-cyan-400 tracking-wider uppercase">SCHEMATIC SYNTHESIS (GPT IMAGE 2)</span>
                       <span className="text-[9px] text-cyan-500/60 font-mono">PRIMARY CORE</span>
                     </div>
                     <div className="relative flex-1 bg-white min-h-[400px] flex items-center justify-center">
@@ -1044,12 +1044,12 @@ STAGE 2 → Refine interior layout, enforce NBC room sizes, verify room complete
                   </div>
                 </div>
 
-                {/* 3. Stage 2 (Nano Banana 2) Refinement Prompt */}
+                {/* 3. Stage 2 (GPT Image 2) Refinement Prompt */}
                 {debugPayload.stage2Prompt && (
                   <div className="flex flex-col gap-2 border-t border-white/10 pt-4">
                     <span className="text-[10px] text-purple-400 uppercase tracking-widest font-bold flex items-center gap-1.5">
                       <span className="w-4 h-4 rounded-full bg-purple-500/20 border border-purple-400 flex items-center justify-center text-[9px]">3</span>
-                      STAGE 2 (NANO BANANA 2) REFINEMENT PROMPT
+                      STAGE 2 (GPT IMAGE 2) REFINEMENT PROMPT
                     </span>
                     <div className="p-4 bg-black/60 border border-purple-500/20 rounded-lg text-[11px] text-purple-200/90 font-mono whitespace-pre-wrap leading-relaxed shadow-inner">
                       <span className="text-purple-400 font-bold block mb-1 text-[10px]">STAGE 2 REFINEMENT PROMPT:</span>
@@ -1058,12 +1058,12 @@ STAGE 2 → Refine interior layout, enforce NBC room sizes, verify room complete
                   </div>
                 )}
 
-                {/* 4. Stage 2 (Nano Banana 2) Final Generated Output */}
+                {/* 4. Stage 2 (GPT Image 2) Final Generated Output */}
                 <div className="flex flex-col gap-2 border-t border-white/10 pt-4">
                   <div className="flex items-center justify-between">
                     <span className="text-[10px] text-emerald-400 uppercase tracking-widest font-bold flex items-center gap-1.5">
                       <span className="w-4 h-4 rounded-full bg-emerald-500/20 border border-emerald-400 flex items-center justify-center text-[9px]">4</span>
-                      STAGE 2 (NANO BANANA 2) FINAL SCHEMATIC IMAGE
+                      STAGE 2 (GPT IMAGE 2) FINAL SCHEMATIC IMAGE
                     </span>
                     {debugPayload.stage2Seed !== undefined && (
                       <span className="text-[9px] font-mono px-2 py-0.5 rounded bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 font-bold">
