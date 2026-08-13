@@ -1098,10 +1098,10 @@ STAGE 2 → Refine interior layout, enforce NBC room sizes, verify room complete
                   <div className="flex flex-col gap-2 border-t border-white/10 pt-4">
                     <span className="text-[10px] text-sky-400 uppercase tracking-widest font-bold flex items-center gap-1.5">
                       <span className="w-4 h-4 rounded-full bg-sky-500/20 border border-sky-400 flex items-center justify-center text-[9px]">5</span>
-                      STAGE 3 (GPT IMAGE 2) VENTILATION STRATEGY PROMPT
+                      STAGE 3 (GPT IMAGE 2) ARCHITECTURAL CORRECTION PROMPT
                     </span>
                     <div className="p-4 bg-black/60 border border-sky-500/20 rounded-lg text-[11px] text-sky-200/90 font-mono whitespace-pre-wrap leading-relaxed shadow-inner">
-                      <span className="text-sky-400 font-bold block mb-1 text-[10px]">STAGE 3 VENTILATION PROMPT:</span>
+                      <span className="text-sky-400 font-bold block mb-1 text-[10px]">STAGE 3 CORRECTION PROMPT:</span>
                       {debugPayload.stage3Prompt}
                     </div>
                   </div>
@@ -1112,7 +1112,7 @@ STAGE 2 → Refine interior layout, enforce NBC room sizes, verify room complete
                   <div className="flex items-center justify-between">
                     <span className="text-[10px] text-sky-400 uppercase tracking-widest font-bold flex items-center gap-1.5">
                       <span className="w-4 h-4 rounded-full bg-sky-500/20 border border-sky-400 flex items-center justify-center text-[9px]">6</span>
-                      STAGE 3 (GPT IMAGE 2) VENTILATION STRATEGY OUTPUT
+                      STAGE 3 (GPT IMAGE 2) CORRECTED FINAL OUTPUT
                     </span>
                   </div>
                   {debugPayload.stage3OutputUrl ? (

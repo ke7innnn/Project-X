@@ -85,18 +85,19 @@ async function loadGrokZoningReferenceToFalStorage(): Promise<string | null> {
 // ── Workflow model mapping ────────────────────────────────────────────────────
 
 const WORKFLOWS: Record<string, { stage1: string; stage2?: string; label: string }> = {
-  'grok-gpt':         { stage1: 'xai/grok-imagine-image/quality/edit',           stage2: 'openai/gpt-image-2/edit', label: 'Grok [Quality] -> GPT Image 2' },
-  'grok-nano':        { stage1: 'xai/grok-imagine-image/quality/edit',           stage2: 'openai/gpt-image-2/edit', label: 'Grok [Quality] -> GPT Image 2' },
-  'grok-kontext':     { stage1: 'xai/grok-imagine-image/quality/edit',           stage2: 'fal-ai/flux-pro/kontext', label: 'Grok [Quality] -> FLUX Kontext' },
-  'flux-klein-gpt':   { stage1: 'fal-ai/flux-2/klein/9b/edit',                   stage2: 'openai/gpt-image-2/edit', label: 'FLUX Klein -> GPT Image 2' },
-  'flux-klein-nano':  { stage1: 'fal-ai/flux-2/klein/9b/edit',                   stage2: 'openai/gpt-image-2/edit', label: 'FLUX Klein -> GPT Image 2' },
-  'flux-kontext-gpt': { stage1: 'fal-ai/flux-pro/kontext',                        stage2: 'openai/gpt-image-2/edit', label: 'FLUX Kontext -> GPT Image 2' },
-  'grok-solo':        { stage1: 'xai/grok-imagine-image/quality/edit',           label: 'Grok [Quality] only' },
-  'flux-klein-solo':  { stage1: 'fal-ai/flux-2/klein/9b/edit',                   label: 'FLUX Klein only' },
-  'flux-kontext-solo':{ stage1: 'fal-ai/flux-pro/kontext',                        label: 'FLUX Kontext [pro] only' },
-  'gpt-solo':         { stage1: 'openai/gpt-image-2/edit',                        label: 'GPT Image 2 only' },
-  'gemini-solo':      { stage1: 'fal-ai/gemini-3.1-flash-image-preview/edit',     label: 'Gemini only' },
-  'flux-canny-solo':  { stage1: 'fal-ai/flux-control-lora-canny',                 label: 'FLUX Canny only' },
+  'grok-gpt':             { stage1: 'xai/grok-imagine-image/quality/edit',           stage2: 'openai/gpt-image-2/edit', label: 'Grok [Quality] -> GPT Image 2' },
+  'grok-nano':            { stage1: 'xai/grok-imagine-image/quality/edit',           stage2: 'openai/gpt-image-2/edit', label: 'Grok [Quality] -> GPT Image 2' },
+  'grok-kontext':         { stage1: 'xai/grok-imagine-image/quality/edit',           stage2: 'fal-ai/flux-pro/kontext', label: 'Grok [Quality] -> FLUX Kontext' },
+  'gpt-low-gpt-medium':   { stage1: 'openai/gpt-image-2/edit',                       stage2: 'openai/gpt-image-2/edit', label: 'GPT Image 2 [Low] -> GPT Image 2 [Medium]' },
+  'flux-klein-gpt':       { stage1: 'fal-ai/flux-2/klein/9b/edit',                   stage2: 'openai/gpt-image-2/edit', label: 'FLUX Klein -> GPT Image 2' },
+  'flux-klein-nano':      { stage1: 'fal-ai/flux-2/klein/9b/edit',                   stage2: 'openai/gpt-image-2/edit', label: 'FLUX Klein -> GPT Image 2' },
+  'flux-kontext-gpt':     { stage1: 'fal-ai/flux-pro/kontext',                        stage2: 'openai/gpt-image-2/edit', label: 'FLUX Kontext -> GPT Image 2' },
+  'grok-solo':            { stage1: 'xai/grok-imagine-image/quality/edit',           label: 'Grok [Quality] only' },
+  'flux-klein-solo':      { stage1: 'fal-ai/flux-2/klein/9b/edit',                   label: 'FLUX Klein only' },
+  'flux-kontext-solo':    { stage1: 'fal-ai/flux-pro/kontext',                        label: 'FLUX Kontext [pro] only' },
+  'gpt-solo':             { stage1: 'openai/gpt-image-2/edit',                        label: 'GPT Image 2 only' },
+  'gemini-solo':          { stage1: 'fal-ai/gemini-3.1-flash-image-preview/edit',     label: 'Gemini only' },
+  'flux-canny-solo':      { stage1: 'fal-ai/flux-control-lora-canny',                 label: 'FLUX Canny only' },
 };
 
 // ── Detect dominant BHK type ──────────────────────────────────────────────────
@@ -353,6 +354,7 @@ export async function POST(req: Request) {
 
       const isFluxCanny = stage1Model.includes('flux-control-lora-canny');
       const isGrok = stage1Model.includes('grok');
+      const isGPTImage = stage1Model.includes('gpt-image-2');
 
       let stage1Input: Record<string, any>;
 
@@ -369,13 +371,19 @@ export async function POST(req: Request) {
           seed: stage1TargetSeed,
         };
       } else if (isGrok) {
-        // Grok quality edit accepts multiple image_urls (trace + multi-shape reference)
-        // We DO NOT pass image_size or aspect_ratio to prevent 422 Unprocessable Entity
+        // Grok quality edit — accepts image_urls, resolution, seed. No image_size/aspect_ratio.
         stage1Input = {
           image_urls: stage1ImageUrls,
           prompt: stage1Prompt,
           resolution: '1k',
           seed: stage1TargetSeed,
+        };
+      } else if (isGPTImage) {
+        // GPT Image 2 edit — accepts image_urls and quality. No seed, no image_size, no aspect_ratio.
+        stage1Input = {
+          image_urls: stage1ImageUrls,
+          prompt: stage1Prompt,
+          quality: 'low',
         };
       } else {
         stage1Input = {
@@ -426,7 +434,7 @@ export async function POST(req: Request) {
       const stage2Input: Record<string, any> = {
         image_urls: imageUrls,
         prompt: refinementPrompt,
-        quality: 'high',
+        quality: 'medium',
       };
 
       const { url: stage2Url, seed: returnedSeed } = await runModel(stage2Model, stage2Input);
@@ -441,22 +449,71 @@ export async function POST(req: Request) {
       // Upload Stage 2 result to fal storage so GPT Image 2 can accept it as image_url
       const stage2FalUrl = await urlToFalStorage(stage2Url);
 
-      const flatLabelsList = Array.from({ length: numFlats }, (_, i) => `F${i + 1}`).join('–');
-      const ventilationPrompt = `A highly detailed top-down architectural floor plan organized around a central CORE with elevators, stairs, and circulation corridors, surrounded by ${numFlats} labeled apartments (${flatLabelsList}) featuring living/dining areas, bedrooms, kitchens, bathrooms, ventilation ducts, and large windows. Black-and-gray technical linework, pale interiors, and ventilation annotations clearly explain the design.
+      const flatLabelsList = Array.from({ length: numFlats }, (_, i) => `F${i + 1}`).join(', ');
+      const ventilationPrompt = `You are a licensed senior architect performing a final quality review and correction pass on this residential floor plan.
 
-Add the following ventilation overlay WITHOUT altering the existing floor-plan geometry, walls, or room layout:
-• 'CROSS VENTILATION' callout arrows showing airflow paths entering through exterior-facing windows, passing through living spaces, and exiting through opposite openings in each apartment.
-• 'LARGE WINDOWS FOR NATURAL LIGHT & VENTILATION' labels pointing to exterior-facing windows in bedrooms and living rooms.
-• A small 'VENTILATION STRATEGY' legend in one corner with a compass rose, airflow arrow symbol, window symbol, and DUCT symbol.
-• Blue airflow arrows illustrating cross-ventilation paths through each flat from facade to facade.
-• Small green planter symbols at key window openings to indicate natural ventilation points.
+EDIT THE UPLOADED IMAGE. Correct every architectural deficiency while keeping overall zoning and flat boundaries intact.
 
-Preserve 100% of the existing floor-plan organization, apartment zones (${flatLabelsList}), core geometry, and partition wall positions. Do NOT add rooms, move walls, or alter any dimensions. No people.`;
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+⚠ IMMUTABLE GEOMETRY — ABSOLUTE CONSTRAINTS (DO NOT VIOLATE)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+THE FOLLOWING MUST NEVER CHANGE — TREAT THESE AS LOCKED:
+
+1. THE OUTER BUILDING BOUNDARY (facade/perimeter shape) — LOCKED. Do NOT alter, reshape, shrink, extend, or redraw the exterior building walls under any circumstance.
+2. THE FLAT UNIT BOUNDARY WALLS (the main partition walls separating F1, F2, F3... from each other) — LOCKED. Do NOT move, remove, merge, or resize any flat zone boundary.
+3. THE CORE BLOCK (elevator + staircase box) and its position — LOCKED. Do NOT move or resize the CORE.
+4. THE SHARED CORRIDOR / ENTRANCE ACCESS — LOCKED. Do NOT remove or reroute the building's main circulation corridor.
+
+YOU MAY ONLY TOUCH: The internal room partitions, internal doors, and internal wall layouts INSIDE each flat zone.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+STEP 1 — AUDIT EVERY FLAT (${flatLabelsList})
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+For each flat zone, check and fix ALL of the following:
+
+VENTILATION (CRITICAL):
+• Every habitable room — Living Room, Dining, Kitchen, and ALL Bedrooms — MUST touch an exterior building wall and have a window opening directly on that wall.
+• If any of these rooms is landlocked (no exterior wall contact), REDESIGN the room layout within that flat to push the Living Room, Kitchen, and Bedrooms to the perimeter.
+• Only Bathrooms and utility areas may be internal — they must have a small ventilation duct shaft labeled "DUCT".
+
+INTERNAL CIRCULATION:
+• Each flat MUST have a clear internal entrance/foyer connected to the building's shared corridor.
+• A short internal hallway or circulation spine must connect ALL rooms within the flat without crossing through other rooms.
+• Bedroom doors must open from the private circulation area, NOT directly from the Living Room.
+• Kitchen must connect directly to the Living/Dining area.
+• Bathroom must be accessible from the internal circulation, NOT only from a Bedroom.
+
+ROOM ADJACENCY (PROFESSIONAL STANDARD):
+• Living/Dining → Kitchen: directly adjacent, open plan or single wall between them.
+• Master Bedroom → Bathroom: preferred direct access.
+• No dead-end rooms that require crossing another habitable room to exit.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+STEP 2 — REDESIGN ANY NON-COMPLIANT FLAT
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+If any flat fails the above checks, REDESIGN the internal room partitions of THAT FLAT ONLY to fix it.
+• The flat's outer boundary wall shape MUST remain 100% identical — do not alter the perimeter of the flat zone.
+• ONLY redraw internal partitions, internal doors, and room positions inside the flat zone.
+• The corrected flat must fit entirely within its original boundary shape.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+STEP 3 — PRESERVE WHAT IS CORRECT
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+• Keep all correctly designed flats completely unchanged — internal partitions, doors, and all.
+• Do NOT touch the outer building boundary, flat zone boundaries, CORE block, or shared corridor.
+• Pure 2D black lines on white background only. No colors, no textures, no 3D. No people.
+• DO NOT ADD ANY OVERLAY ANNOTATIONS — No airflow arrows, no ventilation callout labels, no legend boxes, no compass roses, no color-coded zones. Output a clean corrected CAD plan ONLY.
+
+OUTPUT: A complete, architecturally corrected 2D CAD floor plan where EVERY flat has proper exterior ventilation for all habitable rooms and clean internal circulation — with the building shape and all flat boundaries 100% preserved.`;
 
       const stage3Input: Record<string, any> = {
         image_urls: [stage2FalUrl],
         prompt: ventilationPrompt,
-        quality: 'high',
+        quality: 'medium',
       };
 
       const { url: stage3Url } = await runModel('openai/gpt-image-2/edit', stage3Input);

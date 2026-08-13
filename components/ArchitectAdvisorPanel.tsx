@@ -1821,6 +1821,7 @@ Use these measurements to determine which apartment types can physically fit in 
               >
                 <optgroup label="2-Stage Pipelines (Recommended)" className="bg-[#0a0a0f]">
                   <option value="grok-gpt" className="bg-[#0a0a0f] text-cyan-400">Grok → GPT Image 2 (Best)</option>
+                  <option value="gpt-low-gpt-medium" className="bg-[#0a0a0f] text-cyan-400">GPT Low → GPT Medium (Cheaper)</option>
                   <option value="grok-nano" className="bg-[#0a0a0f] text-cyan-400">Grok → Nano Banana Pro</option>
                   <option value="grok-kontext" className="bg-[#0a0a0f] text-cyan-400">Grok → FLUX Kontext</option>
                   <option value="flux-klein-gpt" className="bg-[#0a0a0f] text-cyan-400">FLUX Klein → GPT Image 2</option>
