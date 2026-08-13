@@ -983,7 +983,7 @@ STAGE 2 → Refine interior layout, enforce NBC room sizes, verify room complete
               <div className="flex items-center justify-between p-4 border-b border-cyan-500/20 bg-cyan-950/20">
                 <div className="flex items-center gap-2 text-cyan-400">
                   <Terminal className="w-4 h-4" />
-                  <span className="text-xs font-bold tracking-widest uppercase">2-Stage AI Generation Pipeline Logs ({debugPayload.workflow || selectedModel})</span>
+                  <span className="text-xs font-bold tracking-widest uppercase">3-Stage AI Generation Pipeline Logs ({debugPayload.workflow || selectedModel})</span>
                 </div>
                 <button onClick={() => setShowDebugModal(false)} className="text-cyan-400/60 hover:text-white p-1 transition-colors">
                   <X className="w-5 h-5" />
