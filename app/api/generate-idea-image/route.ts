@@ -3,7 +3,7 @@ import { fal } from '@fal-ai/client';
 import fs from 'fs';
 import path from 'path';
 
-export const maxDuration = 300; // 5 min — needed for 2-stage pipeline (Grok ~60s + GPT ~90s + uploads)
+export const maxDuration = 600; // 10 min — needed for 3-stage pipeline (Grok ~60s + GPT Stage2 ~90s + GPT Stage3 ~90s + uploads)
 
 fal.config({ credentials: process.env.FAL_KEY });
 
@@ -424,16 +424,47 @@ export async function POST(req: Request) {
 
       const stage2Base64 = await fetchToBase64(stage2Url);
 
+      // ── STAGE 3 — GPT Image 2: Ventilation Strategy Overlay ──────────────
+      console.log(`[IdeaGenerator] Stage 3: openai/gpt-image-2/edit — adding cross-ventilation annotation overlay...`);
+
+      // Upload Stage 2 result to fal storage so GPT Image 2 can accept it as image_url
+      const stage2FalUrl = await urlToFalStorage(stage2Url);
+
+      const flatLabelsList = Array.from({ length: numFlats }, (_, i) => `F${i + 1}`).join('–');
+      const ventilationPrompt = `A highly detailed top-down architectural floor plan organized around a central CORE with elevators, stairs, and circulation corridors, surrounded by ${numFlats} labeled apartments (${flatLabelsList}) featuring living/dining areas, bedrooms, kitchens, bathrooms, ventilation ducts, and large windows. Black-and-gray technical linework, pale interiors, and ventilation annotations clearly explain the design.
+
+Add the following ventilation overlay WITHOUT altering the existing floor-plan geometry, walls, or room layout:
+• 'CROSS VENTILATION' callout arrows showing airflow paths entering through exterior-facing windows, passing through living spaces, and exiting through opposite openings in each apartment.
+• 'LARGE WINDOWS FOR NATURAL LIGHT & VENTILATION' labels pointing to exterior-facing windows in bedrooms and living rooms.
+• A small 'VENTILATION STRATEGY' legend in one corner with a compass rose, airflow arrow symbol, window symbol, and DUCT symbol.
+• Blue airflow arrows illustrating cross-ventilation paths through each flat from facade to facade.
+• Small green planter symbols at key window openings to indicate natural ventilation points.
+
+Preserve 100% of the existing floor-plan organization, apartment zones (${flatLabelsList}), core geometry, and partition wall positions. Do NOT add rooms, move walls, or alter any dimensions. No people.`;
+
+      const stage3Input: Record<string, any> = {
+        image_urls: [stage2FalUrl],
+        prompt: ventilationPrompt,
+        quality: 'high',
+      };
+
+      const { url: stage3Url } = await runModel('openai/gpt-image-2/edit', stage3Input);
+      console.log(`[IdeaGenerator] Stage 3 output:`, stage3Url);
+
+      const stage3Base64 = await fetchToBase64(stage3Url);
+
       return NextResponse.json({
-        url: stage2Base64,
-        imageUrls: [stage2Base64],
+        url: stage3Base64,
+        imageUrls: [stage3Base64],
         stage1ImageUrl: stage1Base64,
         stage2ImageUrl: stage2Base64,
+        stage3ImageUrl: stage3Base64,
         stage1Seed,
         stage2Seed,
         systemPrompt: stage1Prompt,
         refinementPrompt,
-        userPrompt: `PIPELINE | Stage1: ${stage1Model} -> Stage2: ${stage2Model} | BHK: ${dominantBHK}`,
+        stage3Prompt: ventilationPrompt,
+        userPrompt: `PIPELINE | Stage1: ${stage1Model} -> Stage2: ${stage2Model} -> Stage3: openai/gpt-image-2/edit | BHK: ${dominantBHK}`,
       });
     }
 

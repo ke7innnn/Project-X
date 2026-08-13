@@ -376,8 +376,10 @@ STAGE 2 → Refine interior layout, enforce NBC room sizes, verify room complete
           stage1OutputUrl: resData.stage1ImageUrl,
           stage1Seed: resData.stage1Seed,
           stage2Prompt: resData.refinementPrompt,
-          stage2OutputUrl: resData.stage2ImageUrl || resData.url,
+          stage2OutputUrl: resData.stage2ImageUrl,
           stage2Seed: resData.stage2Seed,
+          stage3Prompt: resData.stage3Prompt,
+          stage3OutputUrl: resData.stage3ImageUrl || resData.url,
           userPrompt: resData.userPrompt,
           workflow: selectedModel,
         });
@@ -388,6 +390,9 @@ STAGE 2 → Refine interior layout, enforce NBC room sizes, verify room complete
         }
         if (resData.stage2ImageUrl) {
           setLogs(prev => [...prev, `[SYS] STAGE 2 REFINEMENT OUTPUT: RECEIVED`]);
+        }
+        if (resData.stage3ImageUrl) {
+          setLogs(prev => [...prev, `[SYS] STAGE 3 VENTILATION OVERLAY: RECEIVED`]);
         }
         
         const finalResultImg = resData.url || null;
@@ -1058,12 +1063,12 @@ STAGE 2 → Refine interior layout, enforce NBC room sizes, verify room complete
                   </div>
                 )}
 
-                {/* 4. Stage 2 (GPT Image 2) Final Generated Output */}
+                {/* 4. Stage 2 (GPT Image 2) Schematic Output */}
                 <div className="flex flex-col gap-2 border-t border-white/10 pt-4">
                   <div className="flex items-center justify-between">
                     <span className="text-[10px] text-emerald-400 uppercase tracking-widest font-bold flex items-center gap-1.5">
                       <span className="w-4 h-4 rounded-full bg-emerald-500/20 border border-emerald-400 flex items-center justify-center text-[9px]">4</span>
-                      STAGE 2 (GPT IMAGE 2) FINAL SCHEMATIC IMAGE
+                      STAGE 2 (GPT IMAGE 2) SCHEMATIC OUTPUT
                     </span>
                     {debugPayload.stage2Seed !== undefined && (
                       <span className="text-[9px] font-mono px-2 py-0.5 rounded bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 font-bold">
@@ -1081,7 +1086,44 @@ STAGE 2 → Refine interior layout, enforce NBC room sizes, verify room complete
                     </div>
                   ) : (
                     <div className="p-4 bg-black/40 border border-emerald-500/10 rounded-lg text-[11px] text-emerald-500/50 font-mono text-center">
-                      Waiting for Stage 2 refinement generation...
+                      Waiting for Stage 2 schematic generation...
+                    </div>
+                  )}
+                </div>
+
+                {/* 5. Stage 3 (GPT Image 2) Ventilation Prompt */}
+                {debugPayload.stage3Prompt && (
+                  <div className="flex flex-col gap-2 border-t border-white/10 pt-4">
+                    <span className="text-[10px] text-sky-400 uppercase tracking-widest font-bold flex items-center gap-1.5">
+                      <span className="w-4 h-4 rounded-full bg-sky-500/20 border border-sky-400 flex items-center justify-center text-[9px]">5</span>
+                      STAGE 3 (GPT IMAGE 2) VENTILATION STRATEGY PROMPT
+                    </span>
+                    <div className="p-4 bg-black/60 border border-sky-500/20 rounded-lg text-[11px] text-sky-200/90 font-mono whitespace-pre-wrap leading-relaxed shadow-inner">
+                      <span className="text-sky-400 font-bold block mb-1 text-[10px]">STAGE 3 VENTILATION PROMPT:</span>
+                      {debugPayload.stage3Prompt}
+                    </div>
+                  </div>
+                )}
+
+                {/* 6. Stage 3 (GPT Image 2) Ventilation Final Output */}
+                <div className="flex flex-col gap-2 border-t border-white/10 pt-4">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] text-sky-400 uppercase tracking-widest font-bold flex items-center gap-1.5">
+                      <span className="w-4 h-4 rounded-full bg-sky-500/20 border border-sky-400 flex items-center justify-center text-[9px]">6</span>
+                      STAGE 3 (GPT IMAGE 2) VENTILATION STRATEGY OUTPUT
+                    </span>
+                  </div>
+                  {debugPayload.stage3OutputUrl ? (
+                    <div className="p-3 bg-black/80 border border-sky-500/30 rounded-lg flex items-center justify-center">
+                      <img 
+                        src={debugPayload.stage3OutputUrl} 
+                        alt="GPT Stage 3 Ventilation Output"
+                        className="max-w-full max-h-[400px] object-contain border border-sky-500/30 rounded shadow-lg"
+                      />
+                    </div>
+                  ) : (
+                    <div className="p-4 bg-black/40 border border-sky-500/10 rounded-lg text-[11px] text-sky-500/50 font-mono text-center">
+                      Waiting for Stage 3 ventilation overlay...
                     </div>
                   )}
                 </div>
