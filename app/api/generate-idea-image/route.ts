@@ -142,7 +142,7 @@ EQUAL AREA PARTITIONING & MAXIMUM FLOOR UTILIZATION (CRITICAL)
 
 1. EQUAL FLOOR AREA PER FLAT:
    • Divide the total usable footprint area into EXACTLY ${numFlats} PROPORTIONAL, EQUAL-SIZED flat zones.
-   • ABSOLUTELY NO SQUEEZED OR TINY FLATS — no flat zone should be too small (e.g. only enough space for 2 rooms). Every single flat zone must have sufficient, equal area to accommodate a full multi-room apartment layout.
+   • ABSOLUTELY NO SQUEEZED OR TINY FLATS — no flat zone should be disproportionately small. Every single flat zone must have sufficient, equal area to accommodate a full multi-room apartment layout.
 
 2. RECTANGULAR & SQUARE ZONING BLOCKS:
    • Draw the flat zones as clean RECTANGULAR or SQUARE blocks inside the footprint shape.
