@@ -474,6 +474,7 @@ STEP 1 — AUDIT EVERY FLAT (${flatLabelsList})
 For each flat zone, check and fix ALL of the following:
 
 VENTILATION (CRITICAL):
+• Every habitable room must be placed on the exterior/perimeter of the building.
 • Every habitable room — Living Room, Dining, Kitchen, and ALL Bedrooms — MUST touch an exterior building wall and have a window opening directly on that wall.
 • If any of these rooms is landlocked (no exterior wall contact), REDESIGN the room layout within that flat to push the Living Room, Kitchen, and Bedrooms to the perimeter.
 • Only Bathrooms and utility areas may be internal — they must have a small ventilation duct shaft labeled "DUCT".
@@ -495,6 +496,7 @@ STEP 2 — REDESIGN FLAT INTERNAL ROOM LAYOUTS
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 REDESIGN internal room partitions inside each flat zone (${flatLabelsList}) to create an architectural layout of perfection.
+• Every habitable room must be placed on the exterior/perimeter of the building.
 • Do NOT preserve the original internal room positions. You have full freedom to completely reorganize, resize, and reposition every room to create a much better architectural layout.
 • The flat's outer boundary wall shape MUST remain 100% identical — do not alter the outer perimeter of any flat zone.
 • Redraw internal partitions, internal doors, and room positions inside each flat zone for optimal room proportions, direct window contact, and smooth circulation.
