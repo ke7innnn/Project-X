@@ -103,7 +103,7 @@ export default function IdeaGenerationPage() {
   const [resultDesc, setResultDesc] = useState('');
 
   // AI Model Selection
-  const [selectedModel, setSelectedModel] = useState('grok-gpt');
+  const [selectedModel, setSelectedModel] = useState('gpt-low-gpt-medium');
 
   // QA Hardening states
   const [validationError, setValidationError] = useState<string | null>(null);

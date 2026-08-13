@@ -326,7 +326,7 @@ export async function POST(req: Request) {
 
     // ── NEW PIPELINE PATH: if traceCanvasBase64 is provided ──────────────────
     if (traceCanvasBase64) {
-      const wf = WORKFLOWS[workflow] || WORKFLOWS['grok-gpt'];
+      const wf = WORKFLOWS[workflow] || WORKFLOWS['gpt-low-gpt-medium'];
       const stage1Model = wf.stage1;
       const stage2Model = wf.stage2 || null;
 
