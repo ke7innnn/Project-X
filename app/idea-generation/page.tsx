@@ -120,6 +120,8 @@ export default function IdeaGenerationPage() {
     stage2Prompt?: string;
     stage2OutputUrl?: string;
     stage2Seed?: number;
+    stage3Prompt?: string;
+    stage3OutputUrl?: string;
     userPrompt?: string;
     workflow?: string;
   } | null>(null);
