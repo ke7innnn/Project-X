@@ -136,13 +136,24 @@ IMMUTABLE OUTER BOUNDARY — 100% INSIDE ONLY
 Your ONLY task is to divide this building footprint into EXACTLY ${numFlats} clean, proportional apartment/flat zones (${flatLabels}) around an optimally positioned circulation CORE.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-CIRCULATION CORE POSITIONING (DYNAMIC & ACCESSIBLE)
+CIRCULATION CORE — THINK LIKE A REAL ARCHITECT
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-• THE CORE DOES NOT HAVE TO BE AT THE EXACT GEOMETRIC CENTER.
-• Position the circulation CORE (elevator shaft & stairs) in the MOST EFFICIENT and ACCESSIBLE location tailored to the specific footprint shape (e.g. at the junction of wings in L/Y/T shapes, along the central spine, or where it minimizes corridor walking distance to all flat units).
-• The CORE must take approximately 18–25% of the total floor area.
-• Provide a short, direct entrance corridor connecting the CORE to the building's outer perimeter wall for main building entrance access.
+THE CORE (elevator shaft + staircase block) IS NOT FORCED TO THE GEOMETRIC CENTER.
+A skilled architect reads the building footprint shape first, then places the CORE in the position that:
+
+  1. MINIMISES the maximum walking distance from every flat unit's front door to the core.
+  2. CREATES EQUAL or proportional flat zones on all sides — no flat should be squeezed or oddly shaped because of a misplaced core.
+  3. EXPLOITS NATURAL JUNCTIONS in the footprint shape:
+     • RECTANGULAR shape → core at the center spine is fine.
+     • L-SHAPE → core at the inner corner of the "L" where both wings meet.
+     • T-SHAPE or Y-SHAPE → core at the stem-junction where all arms radiate outward.
+     • HEXAGONAL or IRREGULAR POLYGON → core at the weighted centroid of the polygon, shifted slightly toward the longest perimeter run.
+     • STEP-TERRACED shape → core at the widest step segment for maximum reach.
+  4. ONE short, straight entrance corridor connects the CORE directly to the nearest outer perimeter wall so the building entrance is immediately accessible from street level.
+  5. The CORE occupies approximately 18–22% of the total building footprint area.
+
+DO NOT place the CORE at the exact geometric center if the shape is non-rectangular — read the shape, find the junction, and place the CORE where a real architect would.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 EXACT DIVISION COUNT & ZERO DUPLICATES (CRITICAL)
