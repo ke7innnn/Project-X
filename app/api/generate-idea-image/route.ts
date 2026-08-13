@@ -131,30 +131,36 @@ IMMUTABLE OUTER BOUNDARY — 100% INSIDE ONLY
 
 • WORK 100% ENTIRELY INSIDE THE WHITE FOOTPRINT POLYGON.
 • DO NOT DRAW ANY LINE, PATHWAY, OR CORRIDOR EXTENDING OUTSIDE THE WHITE BUILDING BOUNDARY INTO THE BLACK BACKGROUND.
-• The main entrance corridor must START at the central CORE and END at the INNER FACE of the outer building boundary wall.
+• The main entrance corridor must START at the CORE and END at the INNER FACE of the outer building boundary wall.
 • ABSOLUTELY NO LINE OR BOX MAY BLEED OR EXTEND OUTSIDE THE WHITE POLYGON FACADE WALL.
 
-Your ONLY task is to divide this building footprint into EXACTLY ${numFlats} clean, proportional apartment/flat zones (${flatLabels}) around an optimally positioned circulation CORE.
+Your ONLY task is to divide this building footprint into EXACTLY ${numFlats} clean, EQUAL-AREA apartment/flat zones (${flatLabels}) around an optimally positioned circulation CORE.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-CIRCULATION CORE — THINK LIKE A REAL ARCHITECT
+EQUAL AREA PARTITIONING & MAXIMUM FLOOR UTILIZATION (CRITICAL)
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-THE CORE (elevator shaft + staircase block) IS NOT FORCED TO THE GEOMETRIC CENTER.
-A skilled architect reads the building footprint shape first, then places the CORE in the position that:
+1. EQUAL FLOOR AREA PER FLAT:
+   • Divide the total usable footprint area into EXACTLY ${numFlats} PROPORTIONAL, EQUAL-SIZED flat zones.
+   • ABSOLUTELY NO SQUEEZED OR TINY FLATS — no flat zone should be too small (e.g. only enough space for 2 rooms). Every single flat zone must have sufficient, equal area to accommodate a full multi-room apartment layout.
 
-  1. MINIMISES the maximum walking distance from every flat unit's front door to the core.
-  2. CREATES EQUAL or proportional flat zones on all sides — no flat should be squeezed or oddly shaped because of a misplaced core.
-  3. EXPLOITS NATURAL JUNCTIONS in the footprint shape:
-     • RECTANGULAR shape → core at the center spine is fine.
-     • L-SHAPE → core at the inner corner of the "L" where both wings meet.
-     • T-SHAPE or Y-SHAPE → core at the stem-junction where all arms radiate outward.
-     • HEXAGONAL or IRREGULAR POLYGON → core at the weighted centroid of the polygon, shifted slightly toward the longest perimeter run.
-     • STEP-TERRACED shape → core at the widest step segment for maximum reach.
-  4. ONE short, straight entrance corridor connects the CORE directly to the nearest outer perimeter wall so the building entrance is immediately accessible from street level.
-  5. The CORE occupies approximately 18–22% of the total building footprint area.
+2. RECTANGULAR & SQUARE ZONING BLOCKS:
+   • Draw the flat zones as clean RECTANGULAR or SQUARE blocks inside the footprint shape.
+   • Partition walls must be clean, straight lines at 90-degree angles.
+   • Fill and utilize MAXIMUM usable floor area inside the building footprint — minimize awkward or wasted residual space.
 
-DO NOT place the CORE at the exact geometric center if the shape is non-rectangular — read the shape, find the junction, and place the CORE where a real architect would.
+3. FLEXIBLE EXTERIOR ACCESS:
+   • Flat zones are NOT rigidly forced to stretch all the way to exterior walls if the shape allows rectangular blocks inside. Place clean rectangular/square flat blocks inside the footprint wherever they make the best equal-area composition.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+CIRCULATION CORE — ACCESSIBLE TO ALL UNITS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+THE CORE (elevator shaft + staircase block) MUST BE HIGHLY ACCESSIBLE TO EVERY FLAT UNIT:
+• Place the CORE at the most strategic location (center spine, wing junction, or weighted centroid) so that the walking distance from the CORE to every flat's front entrance is MINIMIZED and EQUAL.
+• A shared corridor ring around the CORE provides direct front-door access to all ${numFlats} flats (${flatLabels}).
+• ONE short, straight entrance corridor connects the CORE directly to the nearest outer perimeter wall for street-level building entry.
+• The CORE occupies approximately 18–22% of the total building footprint area.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 EXACT DIVISION COUNT & ZERO DUPLICATES (CRITICAL)
@@ -171,31 +177,31 @@ DO NOT CREATE EXTRA UNLABELED BOXES OR SPARE ZONES.
 There are EXACTLY ${numFlats} apartments requested, so there must be EXACTLY ${numFlats} flat zones (${flatLabels}).
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-NO INTERNAL GRID LINES & ENTRANCE CORRIDOR
+NO INTERNAL GRID LINES & SOLID BLANK INTERIORS
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 • Do NOT draw any internal grid lines, sub-boxes, or mesh lines inside the apartment zones.
 • The interior of each flat box (${flatLabels}) must be 100% SOLID BLANK WHITE.
 • The ONLY lines inside the building must be:
-  1. The outer CORE rectangular box (placed in the most accessible position for the shape)
+  1. The outer CORE rectangular box
   2. The corridor ring around the CORE
-  3. ONE thin straight main entrance corridor connecting the CORE to the outer building perimeter wall for main building access
+  3. ONE thin straight main entrance corridor connecting the CORE to the outer building boundary wall
   4. The main straight partition walls separating ${flatLabels} from each other.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-DESIGN INTENT
+DESIGN INTENT SUMMARY
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-• ONE rectangular CORE placed in the most accessible location for the footprint shape
+• ONE rectangular CORE placed for equal, easy access to all units
 • ONE corridor ring wrapping around the CORE
-• ONE thin main entrance pathway connecting the CORE to the exterior boundary for entrance access
-• EXACTLY ${numFlats} clean RECTANGULAR or SQUARE apartment boxes (${flatLabels})
+• ONE thin main entrance pathway connecting the CORE to the exterior boundary
+• EXACTLY ${numFlats} clean RECTANGULAR or SQUARE flat boxes (${flatLabels}) of EQUAL FLOOR AREA
+• Maximum usable space utilized with no squeezed/tiny units
 • All partition walls straight at 90 degrees
-• Every flat touches an exterior perimeter wall for windows
 • SOLID WHITE background inside all flat boxes
 • Pure 2D black & white CAD linework only
 
-OUTPUT ONLY THE FINAL CLEAN TOP-DOWN 2D CAD ZONING DIAGRAM WITH EXACTLY ${numFlats} FLAT ZONES.`;
+OUTPUT ONLY THE FINAL CLEAN TOP-DOWN 2D CAD ZONING DIAGRAM WITH EXACTLY ${numFlats} EQUAL-AREA FLAT ZONES.`;
 }
 
 // ── Stage 2: GPT Image 2 prompt — fill zones using BHK reference ──────────────
