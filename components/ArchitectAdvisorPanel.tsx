@@ -316,19 +316,28 @@ const ArchitectAdvisorPanel = forwardRef<ArchitectAdvisorRef, Props>(({ onParams
   // Uses the same technique as the Concept Generator: black background + white polygon fill
   // This format is proven to give AI models the most accurate shape recognition
   const exportForAI = useCallback((): string | null => {
-    if (polygon.length < 3 || !isTracingClosed) return null;
-    // Determine active polygon and bounding box
-    let activePts: Point[];
-    if (suggestedShape && finalShapePolygonsRef.current) {
-      activePts = finalShapePolygonsRef.current.flat();
+    // Determine active polygons and bounding box
+    let activePolys: Point[][];
+    if (suggestedShape) {
+      if (finalShapePolygonsRef.current && finalShapePolygonsRef.current.length > 0) {
+        activePolys = finalShapePolygonsRef.current;
+      } else if (polygon.length >= 3) {
+        const bbox = polygonBBox(polygon);
+        activePolys = getShapePoints(suggestedShape, (bbox.minX + bbox.maxX) / 2, (bbox.minY + bbox.maxY) / 2, bbox.w * 0.85, bbox.h * 0.85);
+      } else {
+        activePolys = getShapePoints(suggestedShape, canvasW / 2, canvasH / 2, 400, 400);
+      }
+    } else if (polygon.length >= 3 && isTracingClosed) {
+      activePolys = [polygon];
     } else {
-      activePts = polygon;
+      return null;
     }
 
-    if (activePts.length < 3) return null;
+    const allPts = activePolys.flat();
+    if (allPts.length < 3) return null;
 
     let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
-    activePts.forEach(p => {
+    allPts.forEach(p => {
       if (p.x < minX) minX = p.x;
       if (p.x > maxX) maxX = p.x;
       if (p.y < minY) minY = p.y;
@@ -337,10 +346,6 @@ const ArchitectAdvisorPanel = forwardRef<ArchitectAdvisorRef, Props>(({ onParams
     const ptsW = Math.max(1, maxX - minX);
     const ptsH = Math.max(1, maxY - minY);
 
-    // Dynamic offscreen canvas aspect ratio matching image_size selection:
-    // ratio > 1.15 → Portrait (768 x 1024)
-    // ratio < 0.87 → Landscape (1024 x 768)
-    // Otherwise   → Square (1024 x 1024)
     const ratio = ptsH / ptsW;
     let expW = 1024;
     let expH = 1024;
@@ -362,8 +367,8 @@ const ArchitectAdvisorPanel = forwardRef<ArchitectAdvisorRef, Props>(({ onParams
     ctx.fillStyle = '#000000';
     ctx.fillRect(0, 0, expW, expH);
 
-    // 2. Scale and center the polygon using zoom-to-fit inside dynamic aspect canvas
-    const padding = 24;
+    // 2. Scale and center the polygon using zoom-to-fit
+    const padding = 28;
     const targetW = Math.max(1, expW - padding * 2);
     const targetH = Math.max(1, expH - padding * 2);
 
@@ -371,58 +376,67 @@ const ArchitectAdvisorPanel = forwardRef<ArchitectAdvisorRef, Props>(({ onParams
     const offsetX = (expW / 2) - ((minX + maxX) / 2) * scale;
     const offsetY = (expH / 2) - ((minY + maxY) / 2) * scale;
 
-    const scaledPts = activePts.map(p => ({
+    const scaledPolys = activePolys.map(poly => poly.map(p => ({
       x: Math.round(p.x * scale + offsetX),
       y: Math.round(p.y * scale + offsetY)
-    }));
+    })));
 
-    // 3. Fill polygon with WHITE (AI knows: white = draw floor plan here)
-    ctx.fillStyle = '#ffffff';
-    ctx.beginPath();
-    ctx.moveTo(scaledPts[0].x, scaledPts[0].y);
-    for (let i = 1; i < scaledPts.length; i++) {
-      ctx.lineTo(scaledPts[i].x, scaledPts[i].y);
-    }
-    ctx.closePath();
-    ctx.fill();
-
-    // 4. Draw room-hint grid boxes inside the polygon (same technique as concept generator)
-    // These tiny boxes give the AI a visual cue that small rooms are expected
-    ctx.save();
-    ctx.beginPath();
-    ctx.moveTo(scaledPts[0].x, scaledPts[0].y);
-    for (let i = 1; i < scaledPts.length; i++) {
-      ctx.lineTo(scaledPts[i].x, scaledPts[i].y);
-    }
-    ctx.closePath();
-    ctx.clip();
-
-    // Calculate grid cell size — aim for ~50px cells (room-sized hints)
-    let sMinX = Infinity, sMaxX = -Infinity, sMinY = Infinity, sMaxY = -Infinity;
-    scaledPts.forEach(p => {
-      if (p.x < sMinX) sMinX = p.x;
-      if (p.x > sMaxX) sMaxX = p.x;
-      if (p.y < sMinY) sMinY = p.y;
-      if (p.y > sMaxY) sMaxY = p.y;
-    });
-    const gridCellSize = 50;
-    ctx.strokeStyle = 'rgba(0, 0, 0, 0.2)';
-    ctx.lineWidth = 0.5;
-
-    for (let gy = Math.floor(sMinY / gridCellSize) * gridCellSize; gy <= sMaxY; gy += gridCellSize) {
-      const rowOffset = (Math.random() - 0.5) * gridCellSize;
-      for (let gx = Math.floor(sMinX / gridCellSize) * gridCellSize; gx <= sMaxX; gx += gridCellSize) {
-        const w = gridCellSize * (0.6 + Math.random() * 1.0);
-        const h = gridCellSize * (0.6 + Math.random() * 1.0);
-        const yScatter = (Math.random() - 0.5) * 10;
-        ctx.strokeRect(gx + rowOffset, gy + yScatter, w, h);
+    // 3. Fill outer polygon with WHITE (AI knows: white = draw floor plan here)
+    if (scaledPolys.length > 0 && scaledPolys[0].length >= 3) {
+      const outer = scaledPolys[0];
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath();
+      ctx.moveTo(outer[0].x, outer[0].y);
+      for (let i = 1; i < outer.length; i++) {
+        ctx.lineTo(outer[i].x, outer[i].y);
       }
-    }
-    ctx.restore();
+      ctx.closePath();
+      ctx.fill();
 
-    // Return full data URL (NOT stripped — the API route handles stripping)
+      // 4. Fill any inner void/hole polygons with solid BLACK
+      for (let h = 1; h < scaledPolys.length; h++) {
+        const hole = scaledPolys[h];
+        if (hole.length >= 3) {
+          ctx.fillStyle = '#000000';
+          ctx.beginPath();
+          ctx.moveTo(hole[0].x, hole[0].y);
+          for (let i = 1; i < hole.length; i++) {
+            ctx.lineTo(hole[i].x, hole[i].y);
+          }
+          ctx.closePath();
+          ctx.fill();
+        }
+      }
+
+      // 5. Draw room-hint grid boxes inside the outer polygon
+      ctx.save();
+      ctx.beginPath();
+      ctx.moveTo(outer[0].x, outer[0].y);
+      for (let i = 1; i < outer.length; i++) {
+        ctx.lineTo(outer[i].x, outer[i].y);
+      }
+      ctx.closePath();
+      ctx.clip();
+
+      const gridCellSize = 50;
+      ctx.strokeStyle = 'rgba(0, 0, 0, 0.2)';
+      ctx.lineWidth = 0.5;
+
+      for (let gy = 0; gy <= expH; gy += gridCellSize) {
+        const rowOffset = (Math.random() - 0.5) * gridCellSize;
+        for (let gx = 0; gx <= expW; gx += gridCellSize) {
+          const w = gridCellSize * (0.6 + Math.random() * 1.0);
+          const h = gridCellSize * (0.6 + Math.random() * 1.0);
+          const yScatter = (Math.random() - 0.5) * 10;
+          ctx.strokeRect(gx + rowOffset, gy + yScatter, w, h);
+        }
+      }
+      ctx.restore();
+    }
+
+    // Return full data URL (the API route handles stripping)
     return offscreen.toDataURL('image/png');
-  }, [polygon, isTracingClosed, suggestedShape, outputW, outputH]);
+  }, [polygon, isTracingClosed, suggestedShape, canvasW, canvasH]);
 
   const handleGenerateTrigger = useCallback(() => {
     const base64 = exportForAI();
@@ -1439,10 +1453,34 @@ Use these measurements to determine which apartment types can physically fit in 
 
   const handleSelectShapeFromPicker = (shape: ShapeDefinition) => {
     setSuggestedShape(shape.id);
-    finalShapePolygonsRef.current = null;
     setShapeWasModified(false);
     setEditablePolygons(null);
     setIsShapePickerOpen(false);
+
+    // Compute immediate polygons for instant export readiness
+    if (polygon.length >= 3) {
+      const bbox = polygonBBox(polygon);
+      const immediatePolys = getShapePoints(shape.id, (bbox.minX + bbox.maxX) / 2, (bbox.minY + bbox.maxY) / 2, bbox.w * 0.85, bbox.h * 0.85);
+      finalShapePolygonsRef.current = immediatePolys;
+    } else {
+      finalShapePolygonsRef.current = null;
+    }
+
+    // Sync with parent floor plan generator form
+    const wM = plotData ? Math.round(plotData.widthM * 0.85).toString() : '80';
+    const lM = plotData ? Math.round(plotData.lengthM * 0.85).toString() : '80';
+    onParamsApplied({
+      footprintShape: shape.id,
+      overallWidth: wM,
+      overallLength: lM,
+      units1BHK: 0,
+      units2BHK: 2,
+      units3BHK: 2,
+      units4BHK: 0,
+      passengerLifts: 4,
+      staircases: 2,
+      customPrompt: `Spacious layout inside iconic ${shape.name} tower footprint with attached living room balconies and ample natural light.`
+    });
 
     setMessages(prev => [...prev, {
       role: 'assistant',

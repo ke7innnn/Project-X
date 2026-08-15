@@ -31,6 +31,7 @@ import { useArchitectStore } from '@/store/useArchitectStore';
 import { useActiveProjectGuard } from '@/lib/useActiveProjectGuard';
 import { useDebounce } from '@/lib/useDebounce';
 import ArchitectAdvisorPanel, { type FormParams, type ArchitectAdvisorRef } from '@/components/ArchitectAdvisorPanel';
+import { MASTER_SHAPES_50 } from '@/lib/shapeLibrary50';
 
 // Architectural Shapes Presets
 export interface FootprintPreset {
@@ -42,18 +43,13 @@ export interface FootprintPreset {
 }
 
 export const FOOTPRINT_PRESETS: FootprintPreset[] = [
-  { id: 'curved-x', name: 'CURVED X-SHAPE (HIGH-RISE)', desc: 'Symmetrical 4-wing curvilinear tower with central circulation core.', recommendedAspect: '1:1 (Square HD)', recommendedImageSize: 'square_hd' },
-  { id: 'curved-s', name: 'CURVED S-SHAPE / SERPENTINE', desc: 'Flowing double-curve residential footprint for maximum perimeter daylight.', recommendedAspect: '2:1 (Landscape)', recommendedImageSize: 'landscape_16_9' },
-  { id: 'crescent-arc', name: 'CRESCENT / ARC-SHAPE TOWER', desc: 'Sweeping arc wing oriented to capture panoramic views.', recommendedAspect: '16:9 (Landscape)', recommendedImageSize: 'landscape_16_9' },
-  { id: 'tri-foil', name: 'TRI-FOIL / Y-SHAPE TOWER', desc: '3-wing radiating footprint with 120° corner units around a compact core.', recommendedAspect: '1:1 (Square HD)', recommendedImageSize: 'square_hd' },
-  { id: 'h-shape', name: 'H-SHAPE DUAL WING TOWER', desc: 'High-density twin parallel wings connected by a central lobby bridge.', recommendedAspect: '3:2 (Landscape)', recommendedImageSize: 'landscape_4_3' },
-  { id: 'pinwheel', name: 'PINWHEEL / SWIRL 4-WING', desc: 'Dynamic staggered 4-arm pinwheel ensuring zero wing-to-wing overlap.', recommendedAspect: '1:1 (Square HD)', recommendedImageSize: 'square_hd' },
-  { id: 'elliptical', name: 'ELLIPTICAL / OVAL TOWER', desc: 'Aerodynamic smooth oval footprint for ultra-high wind resistance.', recommendedAspect: '16:9 (Landscape)', recommendedImageSize: 'landscape_16_9' },
-  { id: 'courtyard-ring', name: 'COURTYARD / O-SHAPE SLAB', desc: 'Enclosed perimeter ring layout with a central open-to-sky atrium.', recommendedAspect: '1:1 (Square HD)', recommendedImageSize: 'square_hd' },
-  { id: 'hexagonal', name: 'HEXAGONAL HONEYCOMB TOWER', desc: '6-sided geometric honeycomb plate offering 60° corner balconies.', recommendedAspect: '1:1 (Square HD)', recommendedImageSize: 'square_hd' },
-  { id: 'stepped-l', name: 'STEP-TERRACED L-SHAPE', desc: 'Dual-wing corner urban infill tower with cascading sky terraces.', recommendedAspect: '3:2 (Landscape)', recommendedImageSize: 'landscape_4_3' },
-  { id: 'monolithic-rect', name: 'MONOLITHIC RECTANGULAR SLAB', desc: 'Classic double-loaded linear slab footprint with central core.', recommendedAspect: '3:2 (Landscape)', recommendedImageSize: 'landscape_4_3' },
-  { id: 'circular-atrium', name: 'CIRCULAR ATRIUM TOWER', desc: 'Concentric core layout with circular exterior gallery walls.', recommendedAspect: '1:1 (Square HD)', recommendedImageSize: 'square_hd' },
+  ...MASTER_SHAPES_50.map(s => ({
+    id: s.id,
+    name: s.name,
+    desc: s.description,
+    recommendedAspect: s.defaultAspect,
+    recommendedImageSize: s.defaultAspect.includes('Landscape') ? 'landscape_16_9' : 'square_hd',
+  })),
   { id: 'custom', name: 'CUSTOM FOOTPRINT...', desc: 'Define your own tower footprint shape dynamically.', recommendedAspect: '1:1 (Square HD)', recommendedImageSize: 'square_hd' }
 ];
 
