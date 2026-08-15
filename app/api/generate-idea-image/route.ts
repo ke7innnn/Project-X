@@ -276,8 +276,9 @@ ${roomItemsBullet}
 * All rooms and partitions must remain completely inside their assigned zone.
 * **Living, Kitchen, and Bedroom MUST each touch a wall that forms the OUTER EDGE OF THE BUILDING (the building's outside-facing boundary), and each must have a window directly on that wall.**
 * Bathroom may be internal. If it does not touch the building's outside-facing boundary, provide a small ventilation shaft labeled **\`DUCT\`**.
+* **HARD RULE — KITCHEN & LIVING ROOM SEPARATION: The Kitchen and Living Room MUST be separated by a full solid partition wall with a door opening between them. NO open-plan or combined Kitchen-Living layouts are allowed. They must be two clearly distinct walled rooms connected only by a door.**
 * Arrange rooms logically with practical adjacency and minimal circulation.
-* Bedroom should have privacy; Kitchen should connect directly to Living/Dining; Bathroom should preferably open from common circulation.
+* Bedroom should have privacy; Kitchen should connect to Living/Dining via a door in the separating wall; Bathroom should preferably open from common circulation.
 * Adapt the layout to each zone's **irregular geometry**; do not force identical or purely rectangular layouts.
 * Use realistic wall thicknesses, door swings, window lines, and room proportions.
 * **Any remaining awkward, narrow, or unusable leftover space should remain EMPTY and may be used as ventilation/duct space. Do NOT create additional rooms or force partitions into these areas.**
