@@ -1,6 +1,6 @@
 /**
  * Project X — 50 Master Architectural, Geometric & Biophilic Footprint Library
- * Clean, unioned 2D polygon generators with generous, wide residential floor plates (>= 12m-18m wing depth).
+ * Clean, unioned 2D polygon generators with generous residential floor plates (>= 12m-18m wing depth).
  */
 
 export type ShapeCategory = 'all' | 'architectural' | 'geometric' | 'biophilic';
@@ -23,7 +23,7 @@ const PI = Math.PI;
 const cos = Math.cos;
 const sin = Math.sin;
 
-// ── 50 WIDE ARCHITECTURAL SHAPES ─────────────────────────────────────────────
+// ── 50 MASTER SHAPES DEFINITIONS ─────────────────────────────────────────────
 
 export const MASTER_SHAPES_50: ShapeDefinition[] = [
   // ═══════════════════════════════════════════════════════════════════════════
@@ -52,24 +52,15 @@ export const MASTER_SHAPES_50: ShapeDefinition[] = [
         const perpY = cosA;
 
         // Wide, robust residential wing (16m-22m width)
-        // 1. Wing Left root
         pts.push({ x: cx + (cosA * 0.32 - perpX * 0.22) * rx, y: cy + (sinA * 0.32 - perpY * 0.22) * ry });
-        // 2. Setback 1
         pts.push({ x: cx + (cosA * 0.58 - perpX * 0.20) * rx, y: cy + (sinA * 0.58 - perpY * 0.20) * ry });
-        // 3. Setback 2
         pts.push({ x: cx + (cosA * 0.78 - perpX * 0.17) * rx, y: cy + (sinA * 0.78 - perpY * 0.17) * ry });
-        // 4. Wing Tip Left
         pts.push({ x: cx + (cosA * 0.94 - perpX * 0.14) * rx, y: cy + (sinA * 0.94 - perpY * 0.14) * ry });
-        // 5. Wing Tip Right
         pts.push({ x: cx + (cosA * 0.94 + perpX * 0.14) * rx, y: cy + (sinA * 0.94 + perpY * 0.14) * ry });
-        // 6. Return Setback 2
         pts.push({ x: cx + (cosA * 0.78 + perpX * 0.17) * rx, y: cy + (sinA * 0.78 + perpY * 0.17) * ry });
-        // 7. Return Setback 1
         pts.push({ x: cx + (cosA * 0.58 + perpX * 0.20) * rx, y: cy + (sinA * 0.58 + perpY * 0.20) * ry });
-        // 8. Wing Right root
         pts.push({ x: cx + (cosA * 0.32 + perpX * 0.22) * rx, y: cy + (sinA * 0.32 + perpY * 0.22) * ry });
 
-        // Wide Outer Crotch between wings
         const midAngle = angle + PI / 3;
         pts.push({
           x: cx + 0.26 * cos(midAngle) * rx,
@@ -77,6 +68,61 @@ export const MASTER_SHAPES_50: ShapeDefinition[] = [
         });
       }
       return pts;
+    },
+  },
+
+  {
+    id: 'batman-insignia',
+    name: 'THE DARK KNIGHT (BATMAN INSIGNIA)',
+    category: 'architectural',
+    inspiration: 'DC Comics / Gotham Iconography',
+    description: 'Iconic aerodynamic Batwing silhouette with twin bat ears, sweeping wingtips, dual scalloped underbellies, and central tail prow.',
+    efficiency: 76,
+    defaultAspect: '16:9 (Landscape)',
+    tags: ['Batman', 'Batwing', 'Gotham', 'Sculptural', 'Iconic'],
+    getPolygon: (cx, cy, w, h) => {
+      const rx = w / 2;
+      const ry = h / 2;
+      return [
+        // 1. Center Head Notch (between ears)
+        { x: cx,             y: cy - 0.50 * ry },
+        // 2. Right Bat Ear
+        { x: cx + 0.08 * rx, y: cy - 0.80 * ry },
+        // 3. Right Neck Dip
+        { x: cx + 0.15 * rx, y: cy - 0.55 * ry },
+        // 4. Right Upper Wing Sweep
+        { x: cx + 0.40 * rx, y: cy - 0.65 * ry },
+        { x: cx + 0.70 * rx, y: cy - 0.78 * ry },
+        // 5. Right Wingtip Apex
+        { x: cx + 0.95 * rx, y: cy - 0.88 * ry },
+        // 6. Right Outer Flank
+        { x: cx + 0.92 * rx, y: cy - 0.35 * ry },
+        // 7. Right Outer Scallop Notch
+        { x: cx + 0.68 * rx, y: cy - 0.05 * ry },
+        { x: cx + 0.75 * rx, y: cy + 0.35 * ry },
+        // 8. Right Inner Scallop Notch
+        { x: cx + 0.45 * rx, y: cy + 0.30 * ry },
+        { x: cx + 0.35 * rx, y: cy + 0.68 * ry },
+        // 9. Central Bat Tail Point (bottom)
+        { x: cx,             y: cy + 0.88 * ry },
+        // 10. Left Inner Scallop Notch
+        { x: cx - 0.35 * rx, y: cy + 0.68 * ry },
+        { x: cx - 0.45 * rx, y: cy + 0.30 * ry },
+        // 11. Left Outer Scallop Notch
+        { x: cx - 0.75 * rx, y: cy + 0.35 * ry },
+        { x: cx - 0.68 * rx, y: cy - 0.05 * ry },
+        // 12. Left Outer Flank
+        { x: cx - 0.92 * rx, y: cy - 0.35 * ry },
+        // 13. Left Wingtip Apex
+        { x: cx - 0.95 * rx, y: cy - 0.88 * ry },
+        // 14. Left Upper Wing Sweep
+        { x: cx - 0.70 * rx, y: cy - 0.78 * ry },
+        { x: cx - 0.40 * rx, y: cy - 0.65 * ry },
+        // 15. Left Neck Dip
+        { x: cx - 0.15 * rx, y: cy - 0.55 * ry },
+        // 16. Left Bat Ear
+        { x: cx - 0.08 * rx, y: cy - 0.80 * ry },
+      ];
     },
   },
 
@@ -173,29 +219,27 @@ export const MASTER_SHAPES_50: ShapeDefinition[] = [
   },
 
   {
-    id: 'mbs-curved-arc',
-    name: 'MARINA BAY SANDS (CURVED ARC SLAB)',
+    id: 'torre-glories',
+    name: 'TORRE GLÒRIES (BULLET GEODESIC)',
     category: 'architectural',
-    inspiration: 'Moshe Safdie (Singapore)',
-    description: 'Sweeping continuous wide arc wing with generous rounded prow ends capturing panoramic views.',
-    efficiency: 80,
-    defaultAspect: '16:9 (Landscape)',
-    tags: ['Safdie', 'Panoramic', 'Curved Arc', 'Luxury'],
+    inspiration: 'Jean Nouvel (Barcelona)',
+    description: 'Smooth aerodynamic bullet-cylinder plate with rounded prows and maximum 360-degree perimeter daylight.',
+    efficiency: 86,
+    defaultAspect: '1:1 (Square)',
+    tags: ['Jean Nouvel', 'Bullet', 'Geodesic', 'Aerodynamic'],
     getPolygon: (cx, cy, w, h) => {
       const rx = w / 2;
       const ry = h / 2;
-      return [
-        { x: cx - 0.92 * rx, y: cy + 0.35 * ry },
-        { x: cx - 0.60 * rx, y: cy + 0.05 * ry },
-        { x: cx,             y: cy - 0.15 * ry },
-        { x: cx + 0.60 * rx, y: cy + 0.05 * ry },
-        { x: cx + 0.92 * rx, y: cy + 0.35 * ry },
-        { x: cx + 0.95 * rx, y: cy + 0.65 * ry },
-        { x: cx + 0.60 * rx, y: cy + 0.40 * ry },
-        { x: cx,             y: cy + 0.25 * ry },
-        { x: cx - 0.60 * rx, y: cy + 0.40 * ry },
-        { x: cx - 0.95 * rx, y: cy + 0.65 * ry },
-      ];
+      const pts: Array<{ x: number; y: number }> = [];
+      const N = 36;
+      for (let i = 0; i < N; i++) {
+        const a = (i / N) * 2 * PI;
+        pts.push({
+          x: cx + 0.88 * cos(a) * rx,
+          y: cy + 0.92 * sin(a) * ry,
+        });
+      }
+      return pts;
     },
   },
 
@@ -531,49 +575,6 @@ export const MASTER_SHAPES_50: ShapeDefinition[] = [
   },
 
   {
-    id: 'big-8house',
-    name: 'BIG 8-HOUSE (INFINITY LOOP)',
-    category: 'architectural',
-    inspiration: 'Bjarke Ingels Group (Copenhagen)',
-    description: 'Figure-8 continuous infinity loop with dual internal landscaped courtyards and looping continuous circulation.',
-    efficiency: 76,
-    defaultAspect: '16:9 (Landscape)',
-    tags: ['BIG', 'Bjarke Ingels', 'Figure-8', 'Dual Courtyard'],
-    getPolygon: (cx, cy, w, h) => {
-      const rx = w / 2;
-      const ry = h / 2;
-      return [
-        { x: cx - 0.90 * rx, y: cy - 0.80 * ry },
-        { x: cx - 0.15 * rx, y: cy - 0.80 * ry },
-        { x: cx + 0.15 * rx, y: cy - 0.20 * ry },
-        { x: cx + 0.90 * rx, y: cy - 0.80 * ry },
-        { x: cx + 0.90 * rx, y: cy + 0.80 * ry },
-        { x: cx + 0.15 * rx, y: cy + 0.80 * ry },
-        { x: cx - 0.15 * rx, y: cy + 0.20 * ry },
-        { x: cx - 0.90 * rx, y: cy + 0.80 * ry },
-      ];
-    },
-    getHoles: (cx, cy, w, h) => {
-      const rx = w / 2;
-      const ry = h / 2;
-      return [
-        [
-          { x: cx - 0.68 * rx, y: cy - 0.45 * ry },
-          { x: cx - 0.38 * rx, y: cy - 0.45 * ry },
-          { x: cx - 0.38 * rx, y: cy + 0.45 * ry },
-          { x: cx - 0.68 * rx, y: cy + 0.45 * ry },
-        ],
-        [
-          { x: cx + 0.38 * rx, y: cy - 0.45 * ry },
-          { x: cx + 0.68 * rx, y: cy - 0.45 * ry },
-          { x: cx + 0.68 * rx, y: cy + 0.45 * ry },
-          { x: cx + 0.38 * rx, y: cy + 0.45 * ry },
-        ],
-      ];
-    }
-  },
-
-  {
     id: 'de-rotterdam',
     name: 'DE ROTTERDAM (TRIPLE INTERLOCKING)',
     category: 'architectural',
@@ -731,7 +732,6 @@ export const MASTER_SHAPES_50: ShapeDefinition[] = [
         const perpX = -sinA;
         const perpY = cosA;
 
-        // Wide, comfortable residential wing
         pts.push({ x: cx + (cosA * 0.30 - perpX * 0.18) * rx, y: cy + (sinA * 0.30 - perpY * 0.18) * ry });
         pts.push({ x: cx + (cosA * 0.65 - perpX * 0.16) * rx, y: cy + (sinA * 0.65 - perpY * 0.16) * ry });
         pts.push({ x: cx + (cosA * 0.92 - perpX * 0.14) * rx, y: cy + (sinA * 0.92 - perpY * 0.14) * ry });
@@ -1037,54 +1037,83 @@ export const MASTER_SHAPES_50: ShapeDefinition[] = [
   // ═══════════════════════════════════════════════════════════════════════════
   {
     id: 'water-droplet',
-    name: 'WATER DROPLET (AERODYNAMIC TEARDROP)',
+    name: 'WATER DROPLET (TEARDROP POD)',
     category: 'biophilic',
     inspiration: 'Fluid Hydrodynamics',
-    description: 'Aerodynamic smooth teardrop profile with wide rounded southern living zones and comfortable northern service core.',
-    efficiency: 84,
+    description: 'Pristine teardrop water droplet with smooth tapered apical crown and wide bulbous lower living zones.',
+    efficiency: 82,
     defaultAspect: '1:1 (Square)',
     tags: ['Water Droplet', 'Fluid', 'Aerodynamic', 'Biophilic'],
     getPolygon: (cx, cy, w, h) => {
       const rx = w / 2;
       const ry = h / 2;
       const pts: Array<{ x: number; y: number }> = [];
-      const N = 40;
-      for (let i = 0; i < N; i++) {
-        const theta = (i / N) * 2 * PI;
-        const r = (1 - 0.7 * sin(theta)) * 0.48 + 0.38;
-        pts.push({
-          x: cx + r * cos(theta - PI / 2) * rx * 0.95,
-          y: cy + r * sin(theta - PI / 2) * ry * 1.05 - 0.05 * ry,
-        });
-      }
+
+      // 1. Top Pointed Apex (droplet tip)
+      pts.push({ x: cx, y: cy - 0.94 * ry });
+
+      // 2. Right gentle shoulder curve transitioning into bulbous base
+      pts.push({ x: cx + 0.18 * rx, y: cy - 0.65 * ry });
+      pts.push({ x: cx + 0.42 * rx, y: cy - 0.30 * ry });
+      pts.push({ x: cx + 0.72 * rx, y: cy + 0.05 * ry });
+      pts.push({ x: cx + 0.88 * rx, y: cy + 0.40 * ry });
+      pts.push({ x: cx + 0.80 * rx, y: cy + 0.70 * ry });
+      pts.push({ x: cx + 0.50 * rx, y: cy + 0.88 * ry });
+
+      // 3. Bottom Center Rounded Base
+      pts.push({ x: cx, y: cy + 0.94 * ry });
+
+      // 4. Left Bulbous Base mirroring right
+      pts.push({ x: cx - 0.50 * rx, y: cy + 0.88 * ry });
+      pts.push({ x: cx - 0.80 * rx, y: cy + 0.70 * ry });
+      pts.push({ x: cx - 0.88 * rx, y: cy + 0.40 * ry });
+      pts.push({ x: cx - 0.72 * rx, y: cy + 0.05 * ry });
+      pts.push({ x: cx - 0.42 * rx, y: cy - 0.30 * ry });
+      pts.push({ x: cx - 0.18 * rx, y: cy - 0.65 * ry });
+
       return pts;
     },
   },
 
   {
     id: 'botanical-leaf',
-    name: 'BOTANICAL LEAF (FOLIAGE CURVE)',
+    name: 'ORGANIC BOTANICAL LEAF',
     category: 'biophilic',
-    inspiration: 'Plant Foliage / Photosynthetic Optimization',
-    description: 'Generous organic leaf contour with wide 18m central plate capturing maximum solar exposure.',
+    inspiration: 'Natural Foliage Morphology',
+    description: 'Iconic organic leaf geometry with sharp apical tip, wide curving photosynthetically-optimized belly, and tapered stem.',
     efficiency: 80,
     defaultAspect: '1:1 (Square)',
-    tags: ['Botanical Leaf', 'Foliage', 'Solar', 'Organic'],
+    tags: ['Botanical Leaf', 'Foliage', 'Organic', 'Biophilic'],
     getPolygon: (cx, cy, w, h) => {
       const rx = w / 2;
       const ry = h / 2;
-      return [
-        { x: cx - 0.15 * rx, y: cy - 0.92 * ry },
-        { x: cx + 0.15 * rx, y: cy - 0.92 * ry },
-        { x: cx + 0.60 * rx, y: cy - 0.45 * ry },
-        { x: cx + 0.88 * rx, y: cy },
-        { x: cx + 0.65 * rx, y: cy + 0.55 * ry },
-        { x: cx + 0.15 * rx, y: cy + 0.90 * ry },
-        { x: cx - 0.15 * rx, y: cy + 0.90 * ry },
-        { x: cx - 0.65 * rx, y: cy + 0.55 * ry },
-        { x: cx - 0.88 * rx, y: cy },
-        { x: cx - 0.60 * rx, y: cy - 0.45 * ry },
-      ];
+      const pts: Array<{ x: number; y: number }> = [];
+
+      // 1. Top Apical Tip
+      pts.push({ x: cx, y: cy - 0.94 * ry });
+
+      // 2. Right Leaf Contour
+      pts.push({ x: cx + 0.28 * rx, y: cy - 0.75 * ry });
+      pts.push({ x: cx + 0.58 * rx, y: cy - 0.45 * ry });
+      pts.push({ x: cx + 0.82 * rx, y: cy - 0.10 * ry });
+      pts.push({ x: cx + 0.88 * rx, y: cy + 0.18 * ry });
+      pts.push({ x: cx + 0.72 * rx, y: cy + 0.50 * ry });
+      pts.push({ x: cx + 0.42 * rx, y: cy + 0.74 * ry });
+      pts.push({ x: cx + 0.16 * rx, y: cy + 0.88 * ry });
+
+      // 3. Bottom Stem Tip
+      pts.push({ x: cx, y: cy + 0.94 * ry });
+
+      // 4. Left Leaf Contour
+      pts.push({ x: cx - 0.16 * rx, y: cy + 0.88 * ry });
+      pts.push({ x: cx - 0.42 * rx, y: cy + 0.74 * ry });
+      pts.push({ x: cx - 0.72 * rx, y: cy + 0.50 * ry });
+      pts.push({ x: cx - 0.88 * rx, y: cy + 0.18 * ry });
+      pts.push({ x: cx - 0.82 * rx, y: cy - 0.10 * ry });
+      pts.push({ x: cx - 0.58 * rx, y: cy - 0.45 * ry });
+      pts.push({ x: cx - 0.28 * rx, y: cy - 0.75 * ry });
+
+      return pts;
     },
   },
 
@@ -1225,27 +1254,28 @@ export const MASTER_SHAPES_50: ShapeDefinition[] = [
   },
 
   {
-    id: 'crescent-wing',
-    name: 'CRESCENT POD (WIDE CURVED SLAB)',
+    id: 'lotus-blossom',
+    name: 'LOTUS BLOSSOM (BIOPHILIC POD)',
     category: 'biophilic',
-    inspiration: 'Lunar Crescent / Organic Curve',
-    description: 'Wide sweeping double-loaded curved crescent slab offering 16m depth and panoramic ocean/park views.',
-    efficiency: 82,
-    defaultAspect: '16:9 (Landscape)',
-    tags: ['Crescent', 'Curved Slab', 'Panoramic', 'Organic'],
+    inspiration: 'Nelumbo Nucifera Sacred Lotus',
+    description: '8-petal blooming floral plate with broad habitable petals wrapping around a radiant central atrium core.',
+    efficiency: 80,
+    defaultAspect: '1:1 (Square)',
+    tags: ['Lotus', 'Floral', 'Biophilic', 'Radiant Core'],
     getPolygon: (cx, cy, w, h) => {
       const rx = w / 2;
       const ry = h / 2;
-      return [
-        { x: cx - 0.88 * rx, y: cy + 0.30 * ry },
-        { x: cx - 0.50 * rx, y: cy - 0.50 * ry },
-        { x: cx,             y: cy - 0.80 * ry },
-        { x: cx + 0.50 * rx, y: cy - 0.50 * ry },
-        { x: cx + 0.88 * rx, y: cy + 0.30 * ry },
-        { x: cx + 0.65 * rx, y: cy + 0.80 * ry },
-        { x: cx,             y: cy + 0.10 * ry },
-        { x: cx - 0.65 * rx, y: cy + 0.80 * ry },
-      ];
+      const pts: Array<{ x: number; y: number }> = [];
+      const N = 48;
+      for (let i = 0; i < N; i++) {
+        const a = (i / N) * 2 * PI;
+        const r = 0.74 + 0.16 * cos(8 * a);
+        pts.push({
+          x: cx + r * cos(a) * rx,
+          y: cy + r * sin(a) * ry,
+        });
+      }
+      return pts;
     },
   },
 
@@ -1330,28 +1360,27 @@ export const MASTER_SHAPES_50: ShapeDefinition[] = [
   },
 
   {
-    id: 'snowflake-hex',
-    name: 'CRYSTALLINE SNOWFLAKE (WIDE DENDRITE)',
+    id: 'diamond-quadrant',
+    name: 'DIAMOND QUADRANT (4-WING FACET)',
     category: 'biophilic',
-    inspiration: 'Hexagonal Ice Crystal Dendrite',
-    description: '6-fold symmetric crystal lattice with wide secondary branch pods providing 12 corner living rooms.',
-    efficiency: 72,
+    inspiration: 'Crystalline Faceted Diamond Structure',
+    description: '4 wide interlocking diamond quadrant pods with expansive 270-degree panoramic corner living rooms.',
+    efficiency: 80,
     defaultAspect: '1:1 (Square)',
-    tags: ['Snowflake', 'Crystal', '6-Fold', 'Dendrite'],
+    tags: ['Diamond', 'Quadrant', 'Crystalline', 'Panoramic'],
     getPolygon: (cx, cy, w, h) => {
       const rx = w / 2;
       const ry = h / 2;
-      const pts: Array<{ x: number; y: number }> = [];
-      const N = 24;
-      for (let i = 0; i < N; i++) {
-        const a = (i / N) * 2 * PI;
-        const r = i % 4 === 0 ? 0.92 : i % 2 === 0 ? 0.72 : 0.58;
-        pts.push({
-          x: cx + r * cos(a) * rx,
-          y: cy + r * sin(a) * ry,
-        });
-      }
-      return pts;
+      return [
+        { x: cx,             y: cy - 0.92 * ry },
+        { x: cx + 0.45 * rx, y: cy - 0.45 * ry },
+        { x: cx + 0.92 * rx, y: cy },
+        { x: cx + 0.45 * rx, y: cy + 0.45 * ry },
+        { x: cx,             y: cy + 0.92 * ry },
+        { x: cx - 0.45 * rx, y: cy + 0.45 * ry },
+        { x: cx - 0.92 * rx, y: cy },
+        { x: cx - 0.45 * rx, y: cy - 0.45 * ry },
+      ];
     },
   },
 
