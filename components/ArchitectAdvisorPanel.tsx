@@ -205,6 +205,81 @@ const ArchitectAdvisorPanel = forwardRef<ArchitectAdvisorRef, Props>(({ onParams
     return parseFloat(Math.abs(a / 2).toFixed(1));
   }, [pxToM]);
 
+  // Deterministic calculation of auto-fitted, rotated shape polygons inside plot setbacks
+  const getAutoFittedShapePolygons = useCallback((shapeId: string, plot: Point[]): { polygons: Point[][]; areaM2: number; cx: number; cy: number } => {
+    if (plot.length < 3) {
+      const defaultPolys = getShapePoints(shapeId, canvasW / 2, canvasH / 2, 400, 400);
+      let area = 0;
+      defaultPolys.forEach(pts => { area += polygonAreaM2(pts); });
+      return { polygons: defaultPolys, areaM2: area, cx: canvasW / 2, cy: canvasH / 2 };
+    }
+
+    const bbox = polygonBBox(plot);
+    let bestArea = 0;
+    let bestScale = 0.15;
+    let bestCx = polygonCentroid(plot).x;
+    let bestCy = polygonCentroid(plot).y;
+    let bestAngle = 0;
+    let bestRatio = { rw: 1.0, rh: 1.0 };
+    
+    const baseSize = Math.max(bbox.w, bbox.h) * 0.85;
+    const aspectRatios = [
+      { rw: 1.0, rh: 1.0 },   { rw: 1.25, rh: 1.0 },
+      { rw: 1.5, rh: 1.0 },   { rw: 1.75, rh: 1.0 },
+      { rw: 2.0, rh: 1.0 }
+    ];
+    
+    const stepsX = 15;
+    const stepsY = 15;
+    for (let ix = 1; ix < stepsX; ix++) {
+      for (let iy = 1; iy < stepsY; iy++) {
+        const testCx = bbox.minX + (bbox.w * ix) / stepsX;
+        const testCy = bbox.minY + (bbox.h * iy) / stepsY;
+        if (!isPointInPolygon({ x: testCx, y: testCy }, plot)) continue;
+        
+        for (const ratio of aspectRatios) {
+          const maxW = baseSize * ratio.rw;
+          const maxH = baseSize * ratio.rh;
+          for (let angle = 0; angle < Math.PI * 2; angle += Math.PI / 12) {
+            const minRequiredScale = Math.sqrt(bestArea / (ratio.rw * ratio.rh));
+            if (minRequiredScale >= 1.0) continue;
+            
+            let localMaxScale = 0;
+            for (let scale = 1.0; scale > minRequiredScale; scale -= 0.02) {
+              const testShapes = getShapePoints(shapeId, testCx, testCy, maxW * scale, maxH * scale);
+              let allInside = true;
+              for (const pts of testShapes) {
+                const rotatedPts = rotateShape(pts, testCx, testCy, angle);
+                const outlinePts = generateShapeOutlinePoints(rotatedPts, 6);
+                for (const pt of outlinePts) {
+                  if (!isPointInPolygon(pt, plot)) { allInside = false; break; }
+                }
+                if (!allInside) break;
+              }
+              if (allInside) { localMaxScale = scale; break; }
+            }
+            const localArea = ratio.rw * ratio.rh * localMaxScale * localMaxScale;
+            if (localArea > bestArea) {
+              bestArea = localArea; bestScale = localMaxScale; bestCx = testCx; bestCy = testCy; bestAngle = angle; bestRatio = ratio;
+            }
+          }
+        }
+      }
+    }
+    
+    const finalScale = bestScale * 0.90;
+    const finalW = baseSize * bestRatio.rw * finalScale;
+    const finalH = baseSize * bestRatio.rh * finalScale;
+    
+    let shapePolygons = getShapePoints(shapeId, bestCx, bestCy, finalW, finalH);
+    shapePolygons = shapePolygons.map(pts => rotateShape(pts, bestCx, bestCy, bestAngle));
+    
+    let totalArea = 0;
+    shapePolygons.forEach(pts => { totalArea += polygonAreaM2(pts); });
+
+    return { polygons: shapePolygons, areaM2: totalArea, cx: bestCx, cy: bestCy };
+  }, [canvasW, canvasH, polygonAreaM2]);
+
   const [polygon, setPolygon] = useState<Point[]>([]);
   const [isTracingClosed, setIsTracingClosed] = useState(false);
   const [isGridSet, setIsGridSet] = useState(false);
@@ -347,13 +422,14 @@ const ArchitectAdvisorPanel = forwardRef<ArchitectAdvisorRef, Props>(({ onParams
     // Determine active polygons and bounding box
     let activePolys: Point[][];
     if (suggestedShape) {
-      if (finalShapePolygonsRef.current && finalShapePolygonsRef.current.length > 0) {
+      if (editablePolygons && editablePolygons.length > 0) {
+        activePolys = editablePolygons;
+      } else if (finalShapePolygonsRef.current && finalShapePolygonsRef.current.length > 0) {
         activePolys = finalShapePolygonsRef.current;
-      } else if (polygon.length >= 3) {
-        const bbox = polygonBBox(polygon);
-        activePolys = getShapePoints(suggestedShape, (bbox.minX + bbox.maxX) / 2, (bbox.minY + bbox.maxY) / 2, bbox.w * 0.85, bbox.h * 0.85);
       } else {
-        activePolys = getShapePoints(suggestedShape, canvasW / 2, canvasH / 2, 400, 400);
+        const fitted = getAutoFittedShapePolygons(suggestedShape, polygon);
+        activePolys = fitted.polygons;
+        finalShapePolygonsRef.current = fitted.polygons;
       }
     } else if (polygon.length >= 3 && isTracingClosed) {
       activePolys = [polygon];
@@ -606,78 +682,23 @@ const ArchitectAdvisorPanel = forwardRef<ArchitectAdvisorRef, Props>(({ onParams
           let textCy = 0;
           
           if (!shapeWasModified) {
-            const bbox = polygonBBox(polygon);
-            let bestArea = 0;
-            let bestScale = 0.15;
-            let bestCx = polygonCentroid(polygon).x;
-            let bestCy = polygonCentroid(polygon).y;
-            let bestAngle = 0;
-            let bestRatio = { rw: 1.0, rh: 1.0 };
-            
-            const baseSize = Math.max(bbox.w, bbox.h) * 0.85;
-            const aspectRatios = [
-              { rw: 1.0, rh: 1.0 },   { rw: 1.25, rh: 1.0 },
-              { rw: 1.5, rh: 1.0 },   { rw: 1.75, rh: 1.0 },
-              { rw: 2.0, rh: 1.0 }
-            ];
-            
-            const stepsX = 15;
-            const stepsY = 15;
-            for (let ix = 1; ix < stepsX; ix++) {
-              for (let iy = 1; iy < stepsY; iy++) {
-                const testCx = bbox.minX + (bbox.w * ix) / stepsX;
-                const testCy = bbox.minY + (bbox.h * iy) / stepsY;
-                if (!isPointInPolygon({ x: testCx, y: testCy }, polygon)) continue;
-                
-                for (const ratio of aspectRatios) {
-                  const maxW = baseSize * ratio.rw;
-                  const maxH = baseSize * ratio.rh;
-                  for (let angle = 0; angle < Math.PI * 2; angle += Math.PI / 12) {
-                    const minRequiredScale = Math.sqrt(bestArea / (ratio.rw * ratio.rh));
-                    if (minRequiredScale >= 1.0) continue;
-                    
-                    let localMaxScale = 0;
-                    for (let scale = 1.0; scale > minRequiredScale; scale -= 0.02) {
-                      const testShapes = getShapePoints(suggestedShape, testCx, testCy, maxW * scale, maxH * scale);
-                      let allInside = true;
-                      for (const pts of testShapes) {
-                        const rotatedPts = rotateShape(pts, testCx, testCy, angle);
-                        const outlinePts = generateShapeOutlinePoints(rotatedPts, 6);
-                        for (const pt of outlinePts) {
-                          if (!isPointInPolygon(pt, polygon)) { allInside = false; break; }
-                        }
-                        if (!allInside) break;
-                      }
-                      if (allInside) { localMaxScale = scale; break; }
-                    }
-                    const localArea = ratio.rw * ratio.rh * localMaxScale * localMaxScale;
-                    if (localArea > bestArea) {
-                      bestArea = localArea; bestScale = localMaxScale; bestCx = testCx; bestCy = testCy; bestAngle = angle; bestRatio = ratio;
-                    }
-                  }
-                }
-              }
+            if (!finalShapePolygonsRef.current || finalShapePolygonsRef.current.length === 0) {
+              const fitted = getAutoFittedShapePolygons(suggestedShape, polygon);
+              finalShapePolygonsRef.current = fitted.polygons;
+              buildingAreaRef.current = fitted.areaM2;
             }
-            
-            const finalScale = bestScale * 0.90;
-            const finalW = baseSize * bestRatio.rw * finalScale;
-            const finalH = baseSize * bestRatio.rh * finalScale;
-            
-            shapePolygons = getShapePoints(suggestedShape, bestCx, bestCy, finalW, finalH);
-            shapePolygons = shapePolygons.map(pts => rotateShape(pts, bestCx, bestCy, bestAngle));
-            
-            let totalBuildingAreaM2 = 0;
-            shapePolygons.forEach(pts => { totalBuildingAreaM2 += polygonAreaM2(pts); });
-            buildingAreaRef.current = totalBuildingAreaM2;
-            finalShapePolygonsRef.current = shapePolygons;
-            textCx = bestCx;
-            textCy = bestCy;
+            shapePolygons = finalShapePolygonsRef.current || [];
+            if (shapePolygons.length > 0) {
+              const centroid = getShapeCentroid(shapePolygons);
+              textCx = centroid.x;
+              textCy = centroid.y;
+            }
           } else {
             shapePolygons = finalShapePolygonsRef.current || [];
             if (shapePolygons.length > 0) {
-               const centroid = getShapeCentroid(shapePolygons);
-               textCx = centroid.x;
-               textCy = centroid.y;
+              const centroid = getShapeCentroid(shapePolygons);
+              textCx = centroid.x;
+              textCy = centroid.y;
             }
           }
           
@@ -1433,17 +1454,23 @@ Use these measurements to determine which apartment types can physically fit in 
       setMessages(prev => [...prev.filter(m => !m.isTyping), assistantMsg]);
 
       if (data.shapeSuggestion && data.shapeSuggestion.shapeId) {
-        setSuggestedShape(data.shapeSuggestion.shapeId);
-        finalShapePolygonsRef.current = null;
+        const shapeId = data.shapeSuggestion.shapeId;
+        setSuggestedShape(shapeId);
         setShapeWasModified(false);
         setEditablePolygons(null);
+        const fitted = getAutoFittedShapePolygons(shapeId, polygon);
+        finalShapePolygonsRef.current = fitted.polygons;
+        buildingAreaRef.current = fitted.areaM2;
       }
 
       if (data.options && data.options.length > 0) {
-        setSuggestedShape(data.options[0].footprintShape);
-        finalShapePolygonsRef.current = null;
+        const shapeId = data.options[0].footprintShape;
+        setSuggestedShape(shapeId);
         setShapeWasModified(false);
         setEditablePolygons(null);
+        const fitted = getAutoFittedShapePolygons(shapeId, polygon);
+        finalShapePolygonsRef.current = fitted.polygons;
+        buildingAreaRef.current = fitted.areaM2;
       }
     } catch (err: any) {
       setMessages(prev => [...prev.filter(m => !m.isTyping), { role: 'assistant', content: `⚠️ Error: ${err.message}. Please try again.` }]);
@@ -1473,8 +1500,14 @@ Use these measurements to determine which apartment types can physically fit in 
     };
     onParamsApplied(params);
     setSuggestedShape(opt.footprintShape);
+    setShapeWasModified(false);
+    setEditablePolygons(null);
     setAppliedOptionId(opt.id);
     setParamsApplied(true);
+
+    const fitted = getAutoFittedShapePolygons(opt.footprintShape, polygon);
+    finalShapePolygonsRef.current = fitted.polygons;
+    buildingAreaRef.current = fitted.areaM2;
 
     const mixParts = [
       opt.units1BHK > 0 ? `${opt.units1BHK}×1BHK` : '',
@@ -1508,14 +1541,10 @@ Use these measurements to determine which apartment types can physically fit in 
     setEditablePolygons(null);
     setIsShapePickerOpen(false);
 
-    // Compute immediate polygons for instant export readiness
-    if (polygon.length >= 3) {
-      const bbox = polygonBBox(polygon);
-      const immediatePolys = getShapePoints(shape.id, (bbox.minX + bbox.maxX) / 2, (bbox.minY + bbox.maxY) / 2, bbox.w * 0.85, bbox.h * 0.85);
-      finalShapePolygonsRef.current = immediatePolys;
-    } else {
-      finalShapePolygonsRef.current = null;
-    }
+    // Compute optimal auto-fitted polygons synchronously
+    const fitted = getAutoFittedShapePolygons(shape.id, polygon);
+    finalShapePolygonsRef.current = fitted.polygons;
+    buildingAreaRef.current = fitted.areaM2;
 
     // Sync with parent floor plan generator form
     const wM = plotData ? Math.round(plotData.widthM * 0.85).toString() : '80';
