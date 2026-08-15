@@ -198,12 +198,10 @@ function getShapePoints(shapeId: string, cx: number, cy: number, w: number, h: n
     (id.includes('batman') && s.id === 'batman-insignia') ||
     (id.includes('droplet') && s.id === 'water-droplet') ||
     (id.includes('leaf') && s.id === 'botanical-leaf') ||
-    (id.includes('burj') && s.id === 'burj-khalifa') ||
     (id.includes('lotus') && s.id === 'lotus-blossom') ||
     (id.includes('l-shape') && s.id === 'stepped-l') ||
     (id.includes('hex') && s.id === 'hexagonal') ||
-    (id.includes('cross') && s.id === 'greek-cross') ||
-    (id.includes('tri-foil') && s.id === 'burj-khalifa')
+    (id.includes('cross') && s.id === 'greek-cross')
   );
   if (fuzzyMatch) {
     const mainPoly = fuzzyMatch.getPolygon(cx, cy, w, h);
@@ -484,12 +482,31 @@ const ArchitectAdvisorPanel = forwardRef<ArchitectAdvisorRef, Props>(({ onParams
     const padding = 24;
     const targetBox = expW - padding * 2; // 976px
 
-    // 1. Find optimal rotation angle to maximize shape scale inside 1:1 canvas
-    const { rotatedPolys, scale } = getOptimalScaleRotation(activePolys, targetBox);
-    const rotatedPts = rotatedPolys.flat();
+    // 1. If user edited/stretched vertices, PRESERVE their exact custom shape and orientation!
+    // If not edited, find optimal rotation to maximize bounding scale in 1:1 canvas.
+    let targetPolys = activePolys;
+    let scale = 1;
 
+    if (!shapeWasModified) {
+      const opt = getOptimalScaleRotation(activePolys, targetBox);
+      targetPolys = opt.rotatedPolys;
+      scale = opt.scale;
+    } else {
+      let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+      allPts.forEach(p => {
+        if (p.x < minX) minX = p.x;
+        if (p.x > maxX) maxX = p.x;
+        if (p.y < minY) minY = p.y;
+        if (p.y > maxY) maxY = p.y;
+      });
+      const ptsW = Math.max(1, maxX - minX);
+      const ptsH = Math.max(1, maxY - minY);
+      scale = Math.min(targetBox / ptsW, targetBox / ptsH);
+    }
+
+    const targetPts = targetPolys.flat();
     let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
-    rotatedPts.forEach(p => {
+    targetPts.forEach(p => {
       if (p.x < minX) minX = p.x;
       if (p.x > maxX) maxX = p.x;
       if (p.y < minY) minY = p.y;
@@ -510,7 +527,7 @@ const ArchitectAdvisorPanel = forwardRef<ArchitectAdvisorRef, Props>(({ onParams
     const offsetX = (expW / 2) - ((minX + maxX) / 2) * scale;
     const offsetY = (expH / 2) - ((minY + maxY) / 2) * scale;
 
-    const scaledPolys = rotatedPolys.map(poly => poly.map(p => ({
+    const scaledPolys = targetPolys.map(poly => poly.map(p => ({
       x: Math.round(p.x * scale + offsetX),
       y: Math.round(p.y * scale + offsetY)
     })));
@@ -1442,33 +1459,33 @@ Use these measurements to determine which apartment types can physically fit in 
   }, [pxToM, polygonAreaM2, suggestedShape, shapeWasModified]);
 
   const exitShapeEditMode = useCallback(() => {
-    if (!editablePolygons) return;
+    if (!editablePolygons || editablePolygons.length === 0) {
+      setIsEditingShape(false);
+      return;
+    }
     
-    // Save edited polygons back to the ref
-    finalShapePolygonsRef.current = editablePolygons;
+    // Deep clone edited polygons back to ref so they persist indefinitely
+    const saved = editablePolygons.map(poly => poly.map(p => ({ ...p })));
+    finalShapePolygonsRef.current = saved;
     
     // Recalculate building area
     let totalArea = 0;
-    editablePolygons.forEach(pts => { totalArea += polygonAreaM2(pts); });
+    saved.forEach(pts => { totalArea += polygonAreaM2(pts); });
     buildingAreaRef.current = totalArea;
     
-    // Mark as modified if any changes were made
-    if (shapeWasModified && suggestedShape) {
-      // Label stays as original + "(Edited)" — handled in display
-    }
+    setShapeWasModified(true);
     
     // Compute geometry analysis for chatbot
-    const analysis = computeGeometryAnalysis(editablePolygons);
+    const analysis = computeGeometryAnalysis(saved);
     setShapeGeometryAnalysis(analysis);
-    
-    finalShapePolygonsRef.current = editablePolygons;
     
     setIsEditingShape(false);
     setEditablePolygons(null);
     setShapeDragIdx(null);
     setHoveredEdge(null);
     setIsRotatingShape(false);
-  }, [editablePolygons, polygonAreaM2, computeGeometryAnalysis, suggestedShape, shapeWasModified]);
+    setIsDraggingWholeShape(false);
+  }, [editablePolygons, polygonAreaM2, computeGeometryAnalysis]);
 
   const handleSetExactPlot = () => {
     const w = parseFloat(plotInputW);

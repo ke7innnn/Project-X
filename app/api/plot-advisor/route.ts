@@ -46,41 +46,36 @@ You are in an interactive consultation with a real estate developer. You must st
 - Replace '[ACTUAL_NUMBER_IN_METERS]' with real numbers calculated to fit the plot (e.g., "71"), NOT the literal string "[CALC]".
 - Always generate 3 EXACTLY DIFFERENT options. Dynamically calculate the dimensions and areas to perfectly fit the user's plot.
 
-## Available 50 Master Building Shape Presets:
+## Available Master Building Shape Presets:
 ### 🏛️ Iconic Architectural Towers:
-- burj-khalifa: BURJ KHALIFA (TRI-FOIL 3-WING), efficiency: 72%
-- batman-insignia: THE DARK KNIGHT (BATMAN INSIGNIA), efficiency: 76%
-- taipei-101: TAIPEI 101 (PAGODA STAGGER), efficiency: 78%
-- shanghai-tower: SHANGHAI TOWER (TREFOIL REULEAUX), efficiency: 78%
-- gherkin-torpedo: THE GHERKIN (TORPEDO OVAL), efficiency: 84%
-- torre-glories: TORRE GLÒRIES (BULLET GEODESIC), efficiency: 86%
-- turning-torso: TURNING TORSO (TWISTED RHOMBUS), efficiency: 76%
-- chrysler-starburst: CHRYSLER ART DECO (SUNBURST STAR), efficiency: 78%
-- cctv-loop: CCTV BEIJING (CONTINUOUS LOOP), efficiency: 72%
-- the-shard: THE SHARD (FACETED PYRAMID), efficiency: 82%
-- petronas-cross: PETRONAS TWIN (OCTAGRAM 8-STAR), efficiency: 78%
-- triangular-prism: TRIAD PRISM (WIDE 3-WING CORE), efficiency: 84%
-- one-wtc-octagon: ONE WTC (CHAMFERED OCTAGON), efficiency: 86%
-- hearst-prism: HEARST TOWER (DIAGRID FACETED), efficiency: 83%
-- marilyn-monroe: ABSOLUTE WORLD (ORGANIC HOURGLASS), efficiency: 80%
-- bosco-verticale: BOSCO VERTICALE (STAGGERED SLABS), efficiency: 82%
-- aqua-waveform: AQUA TOWER (UNDULATING WAVEFORM), efficiency: 84%
-- morpheus-void: MORPHEUS (ORGANIC ATRIUM VOID), efficiency: 74%
-- de-rotterdam: DE ROTTERDAM (TRIPLE INTERLOCKING), efficiency: 86%
-- al-hamra-helix: AL HAMRA (SCULPTED RIBBON), efficiency: 80%
+- batman-insignia: THE DARK KNIGHT (BATMAN INSIGNIA), efficiency: 82%
+- taipei-101: TAIPEI 101 (PAGODA STAGGER), efficiency: 86%
+- shanghai-tower: SHANGHAI TOWER (TREFOIL REULEAUX), efficiency: 85%
+- gherkin-torpedo: THE GHERKIN (TORPEDO OVAL), efficiency: 88%
+- torre-glories: TORRE GLÒRIES (BULLET GEODESIC), efficiency: 89%
+- turning-torso: TURNING TORSO (TWISTED RHOMBUS), efficiency: 82%
+- chrysler-starburst: CHRYSLER ART DECO (SUNBURST STAR), efficiency: 84%
+- the-shard: THE SHARD (FACETED PYRAMID), efficiency: 86%
+- petronas-cross: PETRONAS TWIN (OCTAGRAM 8-STAR), efficiency: 84%
+- triangular-prism: TRIAD PRISM (WIDE 3-WING CORE), efficiency: 88%
+- one-wtc-octagon: ONE WTC (CHAMFERED OCTAGON), efficiency: 90%
+- hearst-prism: HEARST TOWER (DIAGRID FACETED), efficiency: 88%
+- marilyn-monroe: ABSOLUTE WORLD (ORGANIC HOURGLASS), efficiency: 84%
+- bosco-verticale: BOSCO VERTICALE (STAGGERED SLABS), efficiency: 85%
+- aqua-waveform: AQUA TOWER (UNDULATING WAVEFORM), efficiency: 88%
+- de-rotterdam: DE ROTTERDAM (TRIPLE INTERLOCKING), efficiency: 88%
+- al-hamra-helix: AL HAMRA (SCULPTED RIBBON), efficiency: 85%
 
 ### 📐 High-Density Geometric Typologies:
-- stepped-l: STEP-TERRACED L-SHAPE, efficiency: 82%
-- h-shape: H-SHAPE DUAL WING, efficiency: 80%
-- pinwheel: DYNAMIC PINWHEEL (4-WING), efficiency: 72%
-- curved-x: CURVED X-SHAPE QUAD-WING, efficiency: 74%
-- curved-s: SERPENTINE S-SHAPE, efficiency: 76%
-- courtyard-ring: COURTYARD RING (O-SHAPE), efficiency: 72%
-- hexagonal: HEXAGONAL HONEYCOMB, efficiency: 78%
-- greek-cross: SYMMETRICAL GREEK CROSS, efficiency: 76%
-- t-shape: T-SHAPE RESIDENTIAL SLAB, efficiency: 84%
-- horseshoe-u: HORSESHOE (U-SHAPE SLAB), efficiency: 78%
-- z-shape: Z-SHAPE STAGGERED SLAB, efficiency: 80%
+- stepped-l: STEP-TERRACED L-SHAPE, efficiency: 85%
+- h-shape: H-SHAPE DUAL WING, efficiency: 85%
+- pinwheel: DYNAMIC PINWHEEL (4-WING), efficiency: 82%
+- curved-x: CURVED X-SHAPE QUAD-WING, efficiency: 84%
+- courtyard-ring: COURTYARD RING (O-SHAPE), efficiency: 80%
+- hexagonal: HEXAGONAL HONEYCOMB, efficiency: 86%
+- greek-cross: SYMMETRICAL GREEK CROSS, efficiency: 85%
+- t-shape: T-SHAPE RESIDENTIAL SLAB, efficiency: 88%
+- z-shape: Z-SHAPE STAGGERED SLAB, efficiency: 86%
 - double-diamond: DOUBLE-DIAMOND (INTERLOCKING), efficiency: 78%
 - octagram-star: OCTAGRAM (8-POINT STAR TOWER), efficiency: 76%
 - vesica-piscis: VESICA PISCIS (CONVEX LENS), efficiency: 84%

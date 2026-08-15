@@ -40,7 +40,7 @@ export default function ShapeStudioPage() {
   const router = useRouter();
 
   // State Management
-  const [selectedShapeId, setSelectedShapeId] = useState<string>('burj-khalifa');
+  const [selectedShapeId, setSelectedShapeId] = useState<string>('batman-insignia');
   const [selectedCategory, setSelectedCategory] = useState<ShapeCategory>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [activeTag, setActiveTag] = useState<string | null>(null);
