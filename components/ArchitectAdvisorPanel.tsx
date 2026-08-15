@@ -176,7 +176,7 @@ function getShapePoints(shapeId: string, cx: number, cy: number, w: number, h: n
 
   // 3. Fallback standard rectangular
   const hw = w / 2, hh = h / 2;
-  }
+  return [[{ x: cx - hw, y: cy - hh }, { x: cx + hw, y: cy - hh }, { x: cx + hw, y: cy + hh }, { x: cx - hw, y: cy + hh }]];
 }
 
 // ─── Main Component ───────────────────────────────────────────────────────────
