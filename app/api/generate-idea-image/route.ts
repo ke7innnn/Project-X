@@ -199,9 +199,10 @@ DESIGN INTENT SUMMARY
 • Maximum usable space utilized with no squeezed/tiny units
 • All partition walls straight at 90 degrees
 • SOLID WHITE background inside all flat boxes
-• Pure 2D black & white CAD linework only
+• COLOR-CODED UNIT BOUNDARIES: Draw the outer boundary outline of each flat zone in a DIFFERENT, DISTINCT COLOR. Every flat must have its own unique color outline so it is visually distinguished from its neighbours. Use vivid, easily distinguishable colors (e.g. red, blue, green, orange, purple, teal, crimson, indigo). All interior partition walls remain thin black lines — only the outer boundary of each flat zone is color-coded.
+• 2D CAD linework on white background only. No 3D, no textures.
 
-OUTPUT ONLY THE FINAL CLEAN TOP-DOWN 2D CAD ZONING DIAGRAM WITH EXACTLY ${numFlats} EQUAL-AREA FLAT ZONES.`;
+OUTPUT ONLY THE FINAL CLEAN TOP-DOWN 2D CAD ZONING DIAGRAM WITH EXACTLY ${numFlats} EQUAL-AREA FLAT ZONES, EACH WITH ITS OWN DISTINCT COLOR BOUNDARY.`;
 }
 
 // ── Stage 2: GPT Image 2 prompt — fill zones using BHK reference ──────────────
@@ -284,9 +285,14 @@ ${roomItemsBullet}
 **Validation:** Every ${flatLabels} must contain exactly **${validationRoomStr}**. Living, Kitchen, and Bedroom must each have a window directly on the **building's outside-facing boundary wall**. Any internal Bathroom must have a \`DUCT\`.
 
 4. GRAPHIC STYLE (STRICT):
-Pure 2D black lines on a solid white background only. ABSOLUTELY NO COLOR, NO WOOD TEXTURES, NO GREY SHADING, NO 3D RENDERING.
+Pure 2D black lines on a solid white background only. ABSOLUTELY NO WOOD TEXTURES, NO GREY SHADING, NO 3D RENDERING.
 NO ROOM NAMES OR TEXT INSIDE ROOMS. Keep room interiors completely clean of text.
 Keep ONLY the flat labels (${flatLabels}) near entry doors.
+
+COLOR-CODED UNIT BOUNDARIES (PRESERVE FROM IMAGE 1):
+• Each flat zone in IMAGE 1 already has its own distinct colored outer boundary outline. PRESERVE that exact same color for each flat's outer boundary outline in your output — do not change or remove those colors.
+• All internal room partition walls drawn inside each flat must remain thin black lines.
+• Only the outer boundary wall outline of each flat zone keeps its unique color from IMAGE 1.
 
 Output a complete 2D CAD blueprint floor plan with rooms designed inside the preserved flat zones of IMAGE 1.`;
 }
