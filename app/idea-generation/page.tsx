@@ -21,6 +21,7 @@ import {
   ShieldCheck,
   Wind,
   Camera,
+  Maximize2,
   X
 } from 'lucide-react';
 import Image from 'next/image';
@@ -110,8 +111,8 @@ export default function IdeaGenerationPage() {
   const [variantsHistory, setVariantsHistory] = useState<string[]>([]);
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
   const [isClientMode, setIsClientMode] = useState(false);
-  
-  // Realtime Logs State
+  const [selectedViewTab, setSelectedViewTab] = useState<'both' | 'gpt' | 'nano' | 'zoning'>('both');
+  const [lightboxImage, setLightboxImage] = useState<{ url: string; title: string } | null>(null);
   const [debugPayload, setDebugPayload] = useState<{
     traceBase64?: string;
     stage1Prompt?: string;
@@ -803,16 +804,16 @@ STAGE 2 → Refine interior layout, enforce NBC room sizes, verify room complete
             </button>
           </div>
 
-          {/* Column 2: Center Display Panel (Canvas & Circulation Core underneath) */}
+          {/* Column 2: Center Display Panel (Dual Schematics & Circulation Core underneath) */}
           <div className="lg:col-span-4 flex flex-col gap-4 overflow-y-auto no-scrollbar">
             
-            {/* Main Interactive CAD Canvas */}
-            <div className="relative w-full aspect-[16/10] rounded-xl overflow-hidden border border-cyan-500/20 bg-[#050508] flex items-center justify-center p-6 shadow-2xl shrink-0">
+            {/* Main Interactive CAD Canvas & Dual Schematic Viewer */}
+            <div className="relative w-full rounded-xl overflow-hidden border border-cyan-500/20 bg-[#050508] flex flex-col p-4 shadow-2xl shrink-0">
               <div className="absolute inset-0 bg-[radial-gradient(#00f0ff_1px,transparent_1.5px)] [background-size:16px_16px] opacity-10 pointer-events-none" />
 
               {/* Simulation Loader HUD */}
               {isGenerating && (
-                <div className="absolute inset-0 bg-[#0a0a0f]/95 z-30 flex flex-col items-center justify-center p-6 text-center animate-fadeIn">
+                <div className="w-full min-h-[380px] bg-[#0a0a0f]/95 z-30 flex flex-col items-center justify-center p-6 text-center animate-fadeIn rounded-lg">
                   <div className="relative w-14 h-14 mb-4 flex items-center justify-center">
                     <div className="absolute inset-0 border border-cyan-500/20 rounded-full" />
                     <div className="absolute inset-0 border border-t-[#00f0ff] rounded-full animate-spin" />
@@ -833,66 +834,243 @@ STAGE 2 → Refine interior layout, enforce NBC room sizes, verify room complete
                 </div>
               )}
 
-              {/* Single Generated Image Viewport */}
-              {(resultImage) && !isGenerating ? (
-                <div className="w-full h-full flex flex-col overflow-y-auto p-1 animate-fadeIn">
+              {/* Generated Schematics Viewport (Both Variants + Tabs) */}
+              {(resultImage || debugPayload?.stage2GptOutputUrl || debugPayload?.stage2NanoOutputUrl) && !isGenerating ? (
+                <div className="w-full flex flex-col gap-3 animate-fadeIn">
                   
-                  {/* Synthesis Card */}
-                  <div className="relative flex flex-col rounded-xl border border-cyan-500/30 bg-black/60 overflow-hidden group">
-                    <div className="px-3 py-1.5 bg-cyan-950/80 border-b border-cyan-500/20 flex items-center justify-between">
-                      <span className="text-[10px] font-bold text-cyan-400 tracking-wider uppercase">SCHEMATIC SYNTHESIS (GPT IMAGE 2)</span>
-                      <span className="text-[9px] text-cyan-500/60 font-mono">PRIMARY CORE</span>
-                    </div>
-                    <div className="relative flex-1 bg-white min-h-[400px] flex items-center justify-center">
-                      <img 
-                        src={resultImage} 
-                        alt="Floor Plan Schematic"
-                        className="w-full h-full object-contain"
-                      />
-                    </div>
-                    <div className="p-3 bg-[#08080c] border-t border-white/10 flex flex-col gap-2">
-                      <div className="flex items-center justify-between">
-                        <span className="text-[10px] text-cyan-300 font-semibold truncate">Generated Schematic</span>
-                        <a 
-                          href={resultImage}
-                          download="floorplan-schematic.png"
-                          className="px-2.5 py-1 rounded bg-cyan-950 border border-cyan-500/30 text-[10px] text-cyan-400 hover:text-white flex items-center gap-1"
+                  {/* Variant Navigation Tabs */}
+                  <div className="flex items-center justify-between gap-1 bg-black/60 p-1 rounded-lg border border-white/10">
+                    <div className="flex items-center gap-1 overflow-x-auto no-scrollbar">
+                      {debugPayload?.stage2GptOutputUrl && debugPayload?.stage2NanoOutputUrl && (
+                        <button
+                          onClick={() => setSelectedViewTab('both')}
+                          className={`px-2.5 py-1 rounded text-[10px] font-bold tracking-wider uppercase transition-all ${
+                            selectedViewTab === 'both'
+                              ? 'bg-cyan-500/20 border border-cyan-400 text-cyan-300 shadow-sm'
+                              : 'text-gray-400 hover:text-white border border-transparent'
+                          }`}
                         >
-                          <Download className="w-3 h-3" /> Download
-                        </a>
-                      </div>
-                      <button
-                        onClick={() => {
-                          const targetImg = resultImage;
-                          const styleName = footprintShape === 'custom'
-                            ? customFootprintText.trim().toUpperCase()
-                            : (FOOTPRINT_PRESETS.find(f => f.id === footprintShape)?.name || 'X-SHAPE');
-                          const params = new URLSearchParams({
-                            floorPlanImageUrl: targetImg,
-                            footprintShape: styleName,
-                            overallWidth,
-                            overallLength,
-                            storyCount,
-                            designNotes: customPrompt,
-                          });
-                          router.push(`/idea-generation/view-synthesis?${params.toString()}`);
-                        }}
-                        className="w-full py-2 rounded font-bold text-[10px] tracking-wider transition-all flex items-center justify-center gap-1.5 bg-gradient-to-r from-cyan-500/20 to-purple-500/20 border border-cyan-400/30 text-white hover:border-cyan-300"
-                      >
-                        <Camera className="w-3 h-3" /> 3D VIEWS
-                      </button>
+                          ⊞ Both Variants
+                        </button>
+                      )}
+                      {(debugPayload?.stage2GptOutputUrl || resultImage) && (
+                        <button
+                          onClick={() => setSelectedViewTab('gpt')}
+                          className={`px-2.5 py-1 rounded text-[10px] font-bold tracking-wider uppercase transition-all ${
+                            selectedViewTab === 'gpt'
+                              ? 'bg-emerald-500/20 border border-emerald-400 text-emerald-300 shadow-sm'
+                              : 'text-gray-400 hover:text-white border border-transparent'
+                          }`}
+                        >
+                          ★ GPT Image 2
+                        </button>
+                      )}
+                      {debugPayload?.stage2NanoOutputUrl && (
+                        <button
+                          onClick={() => setSelectedViewTab('nano')}
+                          className={`px-2.5 py-1 rounded text-[10px] font-bold tracking-wider uppercase transition-all ${
+                            selectedViewTab === 'nano'
+                              ? 'bg-purple-500/20 border border-purple-400 text-purple-300 shadow-sm'
+                              : 'text-gray-400 hover:text-white border border-transparent'
+                          }`}
+                        >
+                          ★ Nano Banana 2
+                        </button>
+                      )}
+                      {debugPayload?.stage1OutputUrl && (
+                        <button
+                          onClick={() => setSelectedViewTab('zoning')}
+                          className={`px-2.5 py-1 rounded text-[10px] font-bold tracking-wider uppercase transition-all ${
+                            selectedViewTab === 'zoning'
+                              ? 'bg-amber-500/20 border border-amber-400 text-amber-300 shadow-sm'
+                              : 'text-gray-400 hover:text-white border border-transparent'
+                          }`}
+                        >
+                          📐 Zoning (Stage 1)
+                        </button>
+                      )}
                     </div>
+                  </div>
+
+                  {/* Schema Display Cards Container */}
+                  <div className="flex flex-col gap-4">
+                    
+                    {/* 1. GPT Image 2 Card */}
+                    {(selectedViewTab === 'both' || selectedViewTab === 'gpt') && (debugPayload?.stage2GptOutputUrl || resultImage) && (
+                      <div className="relative flex flex-col rounded-xl border border-emerald-500/30 bg-black/60 overflow-hidden group shadow-lg">
+                        <div className="px-3 py-1.5 bg-emerald-950/80 border-b border-emerald-500/20 flex items-center justify-between">
+                          <span className="text-[10px] font-bold text-emerald-400 tracking-wider uppercase flex items-center gap-1.5">
+                            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                            VARIANT A: GPT IMAGE 2 (MEDIUM)
+                          </span>
+                          <span className="text-[9px] text-emerald-500/60 font-mono">
+                            {debugPayload?.stage2Seed !== undefined ? `SEED: ${debugPayload.stage2Seed}` : 'CROSS-VENTILATION'}
+                          </span>
+                        </div>
+                        <div 
+                          className="relative bg-white p-2 flex items-center justify-center cursor-pointer group/img min-h-[350px]"
+                          onClick={() => setLightboxImage({ 
+                            url: debugPayload?.stage2GptOutputUrl || resultImage!, 
+                            title: 'Variant A: GPT Image 2 Floor Plan' 
+                          })}
+                        >
+                          <img 
+                            src={debugPayload?.stage2GptOutputUrl || resultImage!} 
+                            alt="GPT Image 2 Floor Plan"
+                            className="w-full h-auto max-h-[550px] object-contain rounded transition-transform group-hover/img:scale-[1.01]"
+                          />
+                          <div className="absolute top-3 right-3 p-1.5 bg-black/70 rounded-lg text-white opacity-0 group-hover/img:opacity-100 transition-opacity border border-white/20 flex items-center gap-1 text-[9px] font-mono pointer-events-none">
+                            <Maximize2 className="w-3 h-3" /> Full View
+                          </div>
+                        </div>
+                        <div className="p-3 bg-[#08080c] border-t border-white/10 flex items-center justify-between gap-2">
+                          <span className="text-[10px] text-emerald-300 font-semibold truncate">GPT Image 2 Schematic</span>
+                          <div className="flex items-center gap-2">
+                            <button
+                              onClick={() => setLightboxImage({ 
+                                url: debugPayload?.stage2GptOutputUrl || resultImage!, 
+                                title: 'Variant A: GPT Image 2 Floor Plan' 
+                              })}
+                              className="px-2.5 py-1 rounded bg-black/40 border border-white/10 hover:border-emerald-400 text-[10px] text-gray-300 hover:text-white flex items-center gap-1 transition-colors"
+                            >
+                              <Maximize2 className="w-3 h-3" /> Zoom
+                            </button>
+                            <a 
+                              href={debugPayload?.stage2GptOutputUrl || resultImage!}
+                              download="gpt-floorplan-schematic.png"
+                              className="px-2.5 py-1 rounded bg-emerald-950 border border-emerald-500/30 text-[10px] text-emerald-400 hover:text-white flex items-center gap-1 transition-colors"
+                            >
+                              <Download className="w-3 h-3" /> Download
+                            </a>
+                            <button
+                              onClick={() => {
+                                const targetImg = debugPayload?.stage2GptOutputUrl || resultImage!;
+                                const styleName = footprintShape === 'custom'
+                                  ? customFootprintText.trim().toUpperCase()
+                                  : (FOOTPRINT_PRESETS.find(f => f.id === footprintShape)?.name || 'X-SHAPE');
+                                const params = new URLSearchParams({
+                                  floorPlanImageUrl: targetImg,
+                                  footprintShape: styleName,
+                                  overallWidth,
+                                  overallLength,
+                                  storyCount,
+                                  designNotes: customPrompt,
+                                });
+                                router.push(`/idea-generation/view-synthesis?${params.toString()}`);
+                              }}
+                              className="px-3 py-1 rounded font-bold text-[10px] tracking-wider transition-all flex items-center gap-1 bg-gradient-to-r from-emerald-500/20 to-cyan-500/20 border border-emerald-400/30 text-white hover:border-emerald-300"
+                            >
+                              <Camera className="w-3 h-3" /> 3D View
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* 2. Nano Banana 2 Card */}
+                    {(selectedViewTab === 'both' || selectedViewTab === 'nano') && debugPayload?.stage2NanoOutputUrl && (
+                      <div className="relative flex flex-col rounded-xl border border-cyan-500/30 bg-black/60 overflow-hidden group shadow-lg">
+                        <div className="px-3 py-1.5 bg-cyan-950/80 border-b border-cyan-500/20 flex items-center justify-between">
+                          <span className="text-[10px] font-bold text-cyan-400 tracking-wider uppercase flex items-center gap-1.5">
+                            <span className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse" />
+                            VARIANT B: NANO BANANA 2
+                          </span>
+                          <span className="text-[9px] text-cyan-500/60 font-mono">BALANCED ENGINE</span>
+                        </div>
+                        <div 
+                          className="relative bg-white p-2 flex items-center justify-center cursor-pointer group/img min-h-[350px]"
+                          onClick={() => setLightboxImage({ 
+                            url: debugPayload.stage2NanoOutputUrl!, 
+                            title: 'Variant B: Nano Banana 2 Floor Plan' 
+                          })}
+                        >
+                          <img 
+                            src={debugPayload.stage2NanoOutputUrl} 
+                            alt="Nano Banana 2 Floor Plan"
+                            className="w-full h-auto max-h-[550px] object-contain rounded transition-transform group-hover/img:scale-[1.01]"
+                          />
+                          <div className="absolute top-3 right-3 p-1.5 bg-black/70 rounded-lg text-white opacity-0 group-hover/img:opacity-100 transition-opacity border border-white/20 flex items-center gap-1 text-[9px] font-mono pointer-events-none">
+                            <Maximize2 className="w-3 h-3" /> Full View
+                          </div>
+                        </div>
+                        <div className="p-3 bg-[#08080c] border-t border-white/10 flex items-center justify-between gap-2">
+                          <span className="text-[10px] text-cyan-300 font-semibold truncate">Nano Banana 2 Schematic</span>
+                          <div className="flex items-center gap-2">
+                            <button
+                              onClick={() => setLightboxImage({ 
+                                url: debugPayload.stage2NanoOutputUrl!, 
+                                title: 'Variant B: Nano Banana 2 Floor Plan' 
+                              })}
+                              className="px-2.5 py-1 rounded bg-black/40 border border-white/10 hover:border-cyan-400 text-[10px] text-gray-300 hover:text-white flex items-center gap-1 transition-colors"
+                            >
+                              <Maximize2 className="w-3 h-3" /> Zoom
+                            </button>
+                            <a 
+                              href={debugPayload.stage2NanoOutputUrl}
+                              download="nano-floorplan-schematic.png"
+                              className="px-2.5 py-1 rounded bg-cyan-950 border border-cyan-500/30 text-[10px] text-cyan-400 hover:text-white flex items-center gap-1 transition-colors"
+                            >
+                              <Download className="w-3 h-3" /> Download
+                            </a>
+                            <button
+                              onClick={() => {
+                                const targetImg = debugPayload.stage2NanoOutputUrl!;
+                                const styleName = footprintShape === 'custom'
+                                  ? customFootprintText.trim().toUpperCase()
+                                  : (FOOTPRINT_PRESETS.find(f => f.id === footprintShape)?.name || 'X-SHAPE');
+                                const params = new URLSearchParams({
+                                  floorPlanImageUrl: targetImg,
+                                  footprintShape: styleName,
+                                  overallWidth,
+                                  overallLength,
+                                  storyCount,
+                                  designNotes: customPrompt,
+                                });
+                                router.push(`/idea-generation/view-synthesis?${params.toString()}`);
+                              }}
+                              className="px-3 py-1 rounded font-bold text-[10px] tracking-wider transition-all flex items-center gap-1 bg-gradient-to-r from-cyan-500/20 to-purple-500/20 border border-cyan-400/30 text-white hover:border-cyan-300"
+                            >
+                              <Camera className="w-3 h-3" /> 3D View
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* 3. Stage 1 Zoning Card */}
+                    {selectedViewTab === 'zoning' && debugPayload?.stage1OutputUrl && (
+                      <div className="relative flex flex-col rounded-xl border border-amber-500/30 bg-black/60 overflow-hidden group shadow-lg">
+                        <div className="px-3 py-1.5 bg-amber-950/80 border-b border-amber-500/20 flex items-center justify-between">
+                          <span className="text-[10px] font-bold text-amber-400 tracking-wider uppercase">STAGE 1: 90° ORTHOGONAL ZONING</span>
+                          <span className="text-[9px] text-amber-500/60 font-mono">COLOR BOUNDARIES</span>
+                        </div>
+                        <div 
+                          className="relative bg-white p-2 flex items-center justify-center cursor-pointer group/img min-h-[350px]"
+                          onClick={() => setLightboxImage({ 
+                            url: debugPayload.stage1OutputUrl!, 
+                            title: 'Stage 1: 90° Zoning Diagram' 
+                          })}
+                        >
+                          <img 
+                            src={debugPayload.stage1OutputUrl} 
+                            alt="Stage 1 Zoning Output"
+                            className="w-full h-auto max-h-[550px] object-contain rounded"
+                          />
+                        </div>
+                      </div>
+                    )}
+
                   </div>
 
                 </div>
               ) : !isGenerating ? (
-                <div className="flex flex-col items-center justify-center text-center p-6 max-w-xs text-cyan-500/60">
+                <div className="flex flex-col items-center justify-center text-center p-8 min-h-[320px] text-cyan-500/60">
                   <div className="w-12 h-12 rounded-xl bg-cyan-950/20 border border-cyan-500/20 flex items-center justify-center mb-4">
                     <Sparkles className="w-6 h-6 animate-pulse" />
                   </div>
                   <h3 className="text-xs font-bold text-cyan-400 uppercase tracking-wider">Design Grid Offline</h3>
                   <p className="text-[10px] mt-1.5 leading-relaxed">
-                    Awaiting target coordinates. Configure mix details and click execute.
+                    Awaiting target coordinates. Configure unit mix details and click execute.
                   </p>
                 </div>
               ) : null}
@@ -1118,6 +1296,50 @@ STAGE 2 → Refine interior layout, enforce NBC room sizes, verify room complete
                     </div>
                   )}
                 </div>
+              </div>
+            </div>
+        )}
+
+        {/* Fullscreen Lightbox Modal for Uncropped Floor Plan Inspection */}
+        {lightboxImage && (
+          <div 
+            className="fixed inset-0 z-50 bg-black/90 backdrop-blur-md flex items-center justify-center p-4 md:p-8 animate-fadeIn select-none"
+            onClick={() => setLightboxImage(null)}
+          >
+            <div 
+              className="relative max-w-5xl w-full max-h-[90vh] bg-[#0c0c14] border border-cyan-500/30 rounded-2xl overflow-hidden flex flex-col shadow-2xl"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Lightbox Header */}
+              <div className="px-5 py-3.5 bg-black/60 border-b border-white/10 flex items-center justify-between">
+                <span className="text-xs font-bold text-cyan-400 tracking-wider uppercase flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse" />
+                  {lightboxImage.title}
+                </span>
+                <div className="flex items-center gap-3">
+                  <a
+                    href={lightboxImage.url}
+                    download="floorplan-full.png"
+                    className="px-3 py-1 rounded bg-cyan-950/80 border border-cyan-500/40 text-[11px] text-cyan-300 hover:text-white flex items-center gap-1.5 transition-colors"
+                  >
+                    <Download className="w-3.5 h-3.5" /> Download Original
+                  </a>
+                  <button
+                    onClick={() => setLightboxImage(null)}
+                    className="p-1 rounded-lg text-gray-400 hover:text-white hover:bg-white/10 transition-colors"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+              </div>
+
+              {/* Lightbox Image Container (Pure uncropped view) */}
+              <div className="flex-1 bg-white p-4 flex items-center justify-center overflow-auto">
+                <img 
+                  src={lightboxImage.url} 
+                  alt={lightboxImage.title}
+                  className="max-w-full max-h-[75vh] object-contain rounded shadow-lg"
+                />
               </div>
             </div>
           </div>
