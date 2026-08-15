@@ -205,15 +205,23 @@ ${uniqueLabelLines}
 • NO duplicate labels. NO extra unlabeled boxes.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-#4 — COLOR-CODED BOUNDARIES & VISUAL STYLE
+#4 — EXTERIOR FACADE PODS (TINY BOXES ALONG EXTERIOR)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+• Along the outer exterior wall of EACH flat division, draw 1 or 2 tiny/small rectangular boxes (balconies / exterior window pods) touching the exterior building boundary.
+• These tiny boxes clearly demarcate the outer ventilated facade zones (balconies, master bedroom, living room window bays) for each unit.
+• They must be clean orthogonal 90° rectangular sub-boxes drawn with thin black lines along the outer perimeter inside each flat.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+#5 — COLOR-CODED BOUNDARIES & VISUAL STYLE
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 • COLOR-CODED UNIT BOUNDARIES: Draw the outer boundary outline of each flat zone in a DIFFERENT, DISTINCT VIVID COLOR (e.g. red, blue, green, orange, purple, teal, crimson, indigo).
-• All internal room/partition lines remain thin black lines.
+• All internal room/pod lines remain thin black lines.
 • Solid blank white background inside each flat zone (no grid, no hatching, no textures).
 • Pure 2D top-down CAD linework only. Stay 100% inside the white footprint polygon.
 
-OUTPUT: Clean 2D CAD zoning floor plan with EXACTLY ${numFlats} rectangular flat zones (${flatLabels}) with 90° horizontal/vertical divisions and distinct colored boundaries.`;
+OUTPUT: Clean 2D CAD zoning floor plan with EXACTLY ${numFlats} rectangular flat zones (${flatLabels}) with 90° horizontal/vertical divisions, tiny exterior facade boxes along outer edges, and distinct colored boundaries.`;
 }
 
 // ── Stage 2: GPT Image 2 prompt — fill zones using BHK reference ──────────────
