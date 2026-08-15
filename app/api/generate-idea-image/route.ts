@@ -127,95 +127,50 @@ function buildStage1Prompt(opts: {
   const flatLabels = flatLabelsArray.join(', ');
   const uniqueLabelLines = flatLabelsArray.map(label => `• ${label} (use once)`).join('\n');
 
-  return `You are a senior architectural floor-plan and zoning drafter.
+  return `You are a 2D architectural floor-plan drafter. EDIT THE UPLOADED IMAGE ONLY.
 
-EDIT THE UPLOADED IMAGE ONLY.
-
-The uploaded image shows a WHITE building footprint polygon on a BLACK background. Treat the entire WHITE polygon area as a SINGLE EMPTY CANVAS.
-
-Use the uploaded footprint as the exact outer boundary. Work entirely inside the WHITE footprint polygon.
+The uploaded image shows a WHITE building footprint on a BLACK background.
+Your ONLY task: divide the white footprint into EXACTLY ${numFlats} rectangular/square flat zones (${flatLabels}) around a central CORE block.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-IMMUTABLE OUTER BOUNDARY — 100% INSIDE ONLY
+#1 — PARTITION WALLS: STRICT HORIZONTAL & VERTICAL ONLY (90°)
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-• WORK 100% ENTIRELY INSIDE THE WHITE FOOTPRINT POLYGON.
-• DO NOT DRAW ANY LINE, PATHWAY, OR CORRIDOR EXTENDING OUTSIDE THE WHITE BUILDING BOUNDARY INTO THE BLACK BACKGROUND.
-• The main entrance corridor must START at the CORE and END at the INNER FACE of the outer building boundary wall.
-• ABSOLUTELY NO LINE OR BOX MAY BLEED OR EXTEND OUTSIDE THE WHITE POLYGON FACADE WALL.
-
-Your ONLY task is to divide this building footprint into EXACTLY ${numFlats} clean, EQUAL-AREA apartment/flat zones (${flatLabels}) around an optimally positioned circulation CORE.
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-EQUAL AREA PARTITIONING & MAXIMUM FLOOR UTILIZATION (CRITICAL)
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-1. EQUAL FLOOR AREA PER FLAT:
-   • Divide the total usable footprint area into EXACTLY ${numFlats} PROPORTIONAL, EQUAL-SIZED flat zones.
-   • ABSOLUTELY NO SQUEEZED OR TINY FLATS — no flat zone should be disproportionately small. Every single flat zone must have sufficient, equal area to accommodate a full multi-room apartment layout.
-
-2. RECTANGULAR & SQUARE ZONING BLOCKS — STRICT 90° RULE:
-   • EVERY flat zone MUST be a clean RECTANGLE or SQUARE shape — no triangles, no trapezoids, no wedges, no irregular polygons.
-   • ALL internal partition walls separating flat zones MUST be perfectly HORIZONTAL or VERTICAL lines only — no diagonals.
-   • ABSOLUTELY FORBIDDEN: Do NOT divide the footprint by drawing diagonal lines from corners to the center. Do NOT create pie-slice, triangle, or wedge-shaped units. Do NOT draw any angled or slanted partition line.
-   • HOW TO DIVIDE CORRECTLY: Draw horizontal lines and/or vertical lines across the interior of the footprint to create rectangular/square blocks. Think of it like a grid — cut the space with straight left-right or up-down lines only.
-   • Even if the outer building footprint has diagonal or curved edges, ALL INTERNAL DIVISIONS must still use only horizontal/vertical partition lines to form rectangular flat zones inside.
-   • Fill and utilize MAXIMUM usable floor area inside the building footprint.
-
-3. FLEXIBLE EXTERIOR ACCESS:
-   • Flat zones do NOT need to perfectly touch all exterior walls. Place clean rectangular/square flat blocks inside the footprint wherever they make the best equal-area composition with 90° partition walls.
+• Draw ONLY straight HORIZONTAL (left-right) and VERTICAL (up-down) partition lines.
+• EVERY flat zone MUST be a clean RECTANGLE or SQUARE shape.
+• ABSOLUTELY FORBIDDEN:
+  - NO diagonal lines from corners to center.
+  - NO triangle, pie-slice, wedge, or trapezoid units.
+  - NO angled walls or slanted partition lines.
+• Even if the outer building footprint has diagonal or slanted boundary walls, ALL internal dividing walls MUST be strictly horizontal or vertical meeting at 90° angles.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-CIRCULATION CORE — ACCESSIBLE TO ALL UNITS
+#2 — CENTRAL CIRCULATION CORE
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-THE CORE (elevator shaft + staircase block) MUST BE HIGHLY ACCESSIBLE TO EVERY FLAT UNIT:
-• Place the CORE at the most strategic location (center spine, wing junction, or weighted centroid) so that the walking distance from the CORE to every flat's front entrance is MINIMIZED and EQUAL.
-• A shared corridor ring around the CORE provides direct front-door access to all ${numFlats} flats (${flatLabels}).
-• ONE short, straight entrance corridor connects the CORE directly to the nearest outer perimeter wall for street-level building entry.
-• The CORE occupies approximately 18–22% of the total building footprint area.
+• Place ONE rectangular CORE box (elevator + staircase) centrally inside the footprint.
+• Draw a corridor ring around the CORE so every flat has direct access.
+• Draw ONE thin straight entrance corridor from the CORE to the nearest outer facade wall.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-EXACT DIVISION COUNT & ZERO DUPLICATES (CRITICAL)
+#3 — EXACT FLAT COUNT & LABELS
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-• DIVIDE THE FOOTPRINT INTO EXACTLY ${numFlats} SEPARATE FLAT ZONES — NO MORE, NO LESS.
-• YOU MUST DRAW EXACTLY ${numFlats} BOXES/ZONES inside the footprint.
-• YOU MUST USE EACH LABEL (${flatLabels}) EXACTLY ONCE:
+• Divide into EXACTLY ${numFlats} flat zones (${flatLabels}) of proportional, equal floor area.
+• Place each label clearly inside its flat zone EXACTLY ONCE:
 ${uniqueLabelLines}
-
-ABSOLUTELY NO DUPLICATE LABELS.
-DO NOT WRITE ANY LABEL TWICE.
-DO NOT CREATE EXTRA UNLABELED BOXES OR SPARE ZONES.
-There are EXACTLY ${numFlats} apartments requested, so there must be EXACTLY ${numFlats} flat zones (${flatLabels}).
+• NO duplicate labels. NO extra unlabeled boxes.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-NO INTERNAL GRID LINES & SOLID BLANK INTERIORS
+#4 — COLOR-CODED BOUNDARIES & VISUAL STYLE
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-• Do NOT draw any internal grid lines, sub-boxes, or mesh lines inside the apartment zones.
-• The interior of each flat box (${flatLabels}) must be 100% SOLID BLANK WHITE.
-• The ONLY lines inside the building must be:
-  1. The outer CORE rectangular box
-  2. The corridor ring around the CORE
-  3. ONE thin straight main entrance corridor connecting the CORE to the outer building boundary wall
-  4. The main straight partition walls separating ${flatLabels} from each other.
+• COLOR-CODED UNIT BOUNDARIES: Draw the outer boundary outline of each flat zone in a DIFFERENT, DISTINCT VIVID COLOR (e.g. red, blue, green, orange, purple, teal, crimson, indigo).
+• All internal room/partition lines remain thin black lines.
+• Solid blank white background inside each flat zone (no grid, no hatching, no textures).
+• Pure 2D top-down CAD linework only. Stay 100% inside the white footprint polygon.
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-DESIGN INTENT SUMMARY
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-• ONE rectangular CORE placed for equal, easy access to all units
-• ONE corridor ring wrapping around the CORE
-• ONE thin main entrance pathway connecting the CORE to the exterior boundary
-• EXACTLY ${numFlats} clean RECTANGULAR or SQUARE flat boxes (${flatLabels}) of EQUAL FLOOR AREA
-• Maximum usable space utilized with no squeezed/tiny units
-• All partition walls straight at 90 degrees
-• SOLID WHITE background inside all flat boxes
-• COLOR-CODED UNIT BOUNDARIES: Draw the outer boundary outline of each flat zone in a DIFFERENT, DISTINCT COLOR. Every flat must have its own unique color outline so it is visually distinguished from its neighbours. Use vivid, easily distinguishable colors (e.g. red, blue, green, orange, purple, teal, crimson, indigo). All interior partition walls remain thin black lines — only the outer boundary of each flat zone is color-coded.
-• 2D CAD linework on white background only. No 3D, no textures.
-
-OUTPUT ONLY THE FINAL CLEAN TOP-DOWN 2D CAD ZONING DIAGRAM WITH EXACTLY ${numFlats} EQUAL-AREA FLAT ZONES, EACH WITH ITS OWN DISTINCT COLOR BOUNDARY.`;
+OUTPUT: Clean 2D CAD zoning floor plan with EXACTLY ${numFlats} rectangular flat zones (${flatLabels}) with 90° horizontal/vertical divisions and distinct colored boundaries.`;
 }
 
 // ── Stage 2: GPT Image 2 prompt — fill zones using BHK reference ──────────────
