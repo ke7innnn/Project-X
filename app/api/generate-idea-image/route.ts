@@ -150,11 +150,51 @@ function detectDominantBHK(units1BHK: number, units2BHK: number, units3BHK: numb
 function buildStage1Prompt(opts: {
   numFlats: number;
   hasReferenceImage?: boolean;
+  units1BHK?: number;
+  units2BHK?: number;
+  units3BHK?: number;
+  units4BHK?: number;
+  bhkType?: string;
 }): string {
-  const { numFlats, hasReferenceImage } = opts;
+  const { numFlats, hasReferenceImage, units1BHK = 0, units2BHK = 0, units3BHK = 0, units4BHK = 0, bhkType = '2bhk' } = opts;
   const flatLabelsArray = Array.from({ length: numFlats }, (_, i) => `F${i + 1}`);
   const flatLabels = flatLabelsArray.join(', ');
   const uniqueLabelLines = flatLabelsArray.map(label => `• ${label} (use once)`).join('\n');
+
+  // Build exact exterior box count specifications per unit
+  const boxRules: string[] = [];
+  let totalBoxes = 0;
+  let flatIdx = 1;
+
+  if (units1BHK > 0) {
+    const list = Array.from({ length: units1BHK }, () => `F${flatIdx++}`).join(', ');
+    boxRules.push(`• 1BHK Units (${list}): EXACTLY 4 exterior facade boxes along outer perimeter (1 Living Room + 1 Balcony + 1 Bedroom + 1 Kitchen).`);
+    totalBoxes += units1BHK * 4;
+  }
+  if (units2BHK > 0) {
+    const list = Array.from({ length: units2BHK }, () => `F${flatIdx++}`).join(', ');
+    boxRules.push(`• 2BHK Units (${list}): EXACTLY 5 exterior facade boxes along outer perimeter (1 Living Room + 1 Balcony + 2 Bedrooms [Master + Bed 2] + 1 Kitchen).`);
+    totalBoxes += units2BHK * 5;
+  }
+  if (units3BHK > 0) {
+    const list = Array.from({ length: units3BHK }, () => `F${flatIdx++}`).join(', ');
+    boxRules.push(`• 3BHK Units (${list}): EXACTLY 6 exterior facade boxes along outer perimeter (1 Living Room + 1 Balcony + 3 Bedrooms [Master + Bed 2 + Bed 3] + 1 Kitchen).`);
+    totalBoxes += units3BHK * 6;
+  }
+  if (units4BHK > 0) {
+    const list = Array.from({ length: units4BHK }, () => `F${flatIdx++}`).join(', ');
+    boxRules.push(`• 4BHK Units (${list}): EXACTLY 7 exterior facade boxes along outer perimeter (1 Living Room + 1 Balcony + 4 Bedrooms + 1 Kitchen).`);
+    totalBoxes += units4BHK * 7;
+  }
+
+  // Fallback if generic dominant BHK
+  if (boxRules.length === 0) {
+    const boxesPerFlat = bhkType.includes('1') ? 4 : bhkType.includes('3') ? 6 : bhkType.includes('4') ? 7 : 5;
+    totalBoxes = numFlats * boxesPerFlat;
+    boxRules.push(`• Every flat zone (${flatLabels}): EXACTLY ${boxesPerFlat} exterior facade boxes along outer perimeter.`);
+  }
+
+  const boxCountDescription = boxRules.join('\n');
 
   return `You are a 2D architectural floor-plan drafter. EDIT THE FIRST UPLOADED IMAGE ONLY.
 
@@ -205,12 +245,19 @@ ${uniqueLabelLines}
 • NO duplicate labels. NO extra unlabeled boxes.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-#4 — SUB-DIVIDE EXTERIOR ROOM BOXES ALONG THE PERIMETER
+#4 — STRICT EXTERIOR FACADE ROOM BOX COUNT PER UNIT
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-• Inside EACH flat division zone, sub-divide the zone by drawing clean 90° rectangular room boxes along the exterior facade/perimeter wall.
-• These are the exterior room compartments (Living Room and Bedroom blocks) lining the outer boundary of each unit so that rooms are clearly formed along the building's exterior face.
-• Draw them as clean orthogonal 90° rectangular boxes with thin black internal partition lines sitting along the outer building wall inside each flat.
+• DO NOT create dozens of tiny random boxes along the outer walls.
+• Along the outer exterior facade/perimeter wall of EACH flat zone, draw EXACTLY the required number of spacious 90° rectangular room boxes:
+${boxCountDescription}
+• Total exterior facade boxes across all units = EXACTLY ${totalBoxes} boxes.
+• Each exterior box is a clean orthogonal 90° rectangular compartment sitting on the outer building wall for:
+  - 1 Living Room box
+  - 1 Attached Balcony box
+  - The Bedroom boxes (1 for 1BHK, 2 for 2BHK, 3 for 3BHK, 4 for 4BHK)
+  - 1 Kitchen box
+• Leave internal areas near the core/corridor open for internal toilets and ventilation ducts in the next stage.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 #5 — COLOR-CODED BOUNDARIES & VISUAL STYLE
@@ -220,7 +267,7 @@ ${uniqueLabelLines}
 • All internal room partition lines remain thin black lines.
 • Pure 2D top-down CAD linework only. Stay 100% inside the white footprint polygon.
 
-OUTPUT: Clean 2D CAD zoning floor plan with EXACTLY ${numFlats} rectangular flat zones (${flatLabels}) with 90° horizontal/vertical divisions, sub-divided exterior room boxes along the outer walls, and distinct colored boundaries.`;
+OUTPUT: Clean 2D CAD zoning floor plan with EXACTLY ${numFlats} rectangular flat zones (${flatLabels}) with 90° horizontal/vertical divisions, exactly ${totalBoxes} sub-divided exterior room boxes along the outer walls (${boxRules.length > 0 ? '1BHK=4, 2BHK=5, 3BHK=6, 4BHK=7' : ''}), and distinct colored boundaries.`;
 }
 
 // ── Stage 2: GPT Image 2 prompt — fill zones using BHK reference ──────────────
@@ -246,24 +293,24 @@ function buildStage2Prompt(opts: {
   let flatIndex = 1;
   if (units1BHK > 0) {
     const list = Array.from({ length: units1BHK }, () => `F${flatIndex++}`).join(', ');
-    mixLines.push(`• ${list}: 1 BHK (1 Living/Dining Room with Attached BALCONY + 1 Kitchen + 1 Bedroom + 1 Bathroom)`);
+    mixLines.push(`• ${list}: 1 BHK (1 Living Room with Attached BALCONY + 1 Kitchen + 1 Bedroom in exterior boxes + 1 Internal Bathroom with DUCT)`);
   }
   if (units2BHK > 0) {
     const list = Array.from({ length: units2BHK }, () => `F${flatIndex++}`).join(', ');
-    mixLines.push(`• ${list}: 2 BHK (1 Living/Dining Room with Attached BALCONY + 1 Kitchen + 2 Bedrooms [Master + Bed 2] + 2 Bathrooms)`);
+    mixLines.push(`• ${list}: 2 BHK (1 Living Room with Attached BALCONY + 1 Kitchen + 2 Bedrooms [Master Bed + Bed 2] in exterior boxes + 2 Internal Bathrooms with DUCT)`);
   }
   if (units3BHK > 0) {
     const list = Array.from({ length: units3BHK }, () => `F${flatIndex++}`).join(', ');
-    mixLines.push(`• ${list}: 3 BHK (1 Living/Dining Room with Attached BALCONY + 1 Kitchen + 3 Bedrooms [Master + Bed 2 + Bed 3] + 3 Bathrooms)`);
+    mixLines.push(`• ${list}: 3 BHK (1 Living Room with Attached BALCONY + 1 Kitchen + 3 Bedrooms [Master Bed + Bed 2 + Bed 3] in exterior boxes + 3 Internal Bathrooms with DUCT)`);
   }
   if (units4BHK > 0) {
     const list = Array.from({ length: units4BHK }, () => `F${flatIndex++}`).join(', ');
-    mixLines.push(`• ${list}: 4 BHK (1 Living/Dining Room with Attached BALCONY + 1 Kitchen + 4 Bedrooms + 4 Bathrooms)`);
+    mixLines.push(`• ${list}: 4 BHK (1 Living Room with Attached BALCONY + 1 Kitchen + 4 Bedrooms in exterior boxes + 4 Internal Bathrooms with DUCT)`);
   }
 
   const mixDescription = mixLines.length > 0
     ? mixLines.join('\n')
-    : `• Every flat zone (${flatLabels}): ${bhkType.toUpperCase()} layout with 1 Living/Dining Room with Attached BALCONY`;
+    : `• Every flat zone (${flatLabels}): ${bhkType.toUpperCase()} layout with 1 Living Room + Attached BALCONY + Bedrooms + Kitchen in exterior boxes + Internal Bathrooms with DUCT`;
 
   const liftsStr = passengerLifts > 0 ? `${passengerLifts} elevator shaft(s)` : '1 elevator shaft';
   const stairsStr = staircases > 0 ? `${staircases} fire staircase flight(s)` : '2 fire staircase flights';
@@ -280,11 +327,11 @@ IMAGE ROLES — EXTREMELY IMPORTANT
 • IMAGE 2 = CROSS-VENTILATION & ROOM FLOW REFERENCE.
   Study the architectural composition in IMAGE 2:
   1. PERIMETER LIVING & BALCONY: Notice that EVERY living room connects directly to an attached exterior BALCONY on the facade.
-  2. PERIMETER BEDROOMS: Habitable rooms (Living Room, Dining, Bedrooms) line the exterior building facade with windows for natural airflow and daylight.
-  3. INTERNAL SERVICE CORE: The entrance door, Kitchen, and Bathrooms sit along the internal corridor side.
+  2. PERIMETER BEDROOMS & KITCHEN: Habitable rooms (Living Room, Balcony, Bedrooms, Kitchen) occupy the EXTERIOR FACADE BOXES along the building perimeter for natural airflow and daylight.
+  3. INTERNAL TOILETS WITH DUCTS: Bathrooms sit INTERNALLY adjacent to the corridor/foyer, backed by a vertical ventilation shaft ("DUCT").
   4. SOLID KITCHEN PARTITION: Kitchen is an enclosed walled room with a door connecting to Living/Dining (no open-plan kitchen).
   5. FOYER CIRCULATION: Entrance foyer connects directly to all rooms without walking through private spaces.
-  Apply this exact cross-ventilation logic inside every flat zone of IMAGE 1!
+  Apply this exact architectural layout inside every flat zone of IMAGE 1!
 ` : ''}
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 #1 — IMMUTABLE LOCKED GEOMETRY
@@ -309,32 +356,27 @@ Fill all ${numFlats} flat zones (${flatLabels}) with EXACTLY their required room
 ${mixDescription}
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-#4 — STRICT ARCHITECTURAL & VENTILATION RULES
+#4 — STRICT ROOM-TO-BOX ASSIGNMENT & VENTILATION DUCT LOGIC
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-1. LIVING ROOM BALCONY (MANDATORY STRICT RULE):
-   • STRICT RULE: EVERY Living Room MUST have an attached outdoor BALCONY along the exterior facade.
-   • The Living Room MUST touch the exterior building perimeter facade where this balcony is situated.
-   • Draw clear balcony boundary lines, railing lines, and door access between the Living Room and the Balcony.
+1. EXTERIOR FACADE BOXES (MANDATORY FOR LIVING, BALCONY, BEDROOMS & KITCHEN):
+   • The exterior boxes lining the outer building perimeter MUST be strictly assigned to:
+     ① LIVING ROOM with sliding door access to exterior
+     ② ATTACHED OUTDOOR BALCONY with railing along the outer facade
+     ③ BEDROOMS (Master Bedroom, Bedroom 2, Bedroom 3, Bedroom 4) with double-line outside windows
+     ④ KITCHEN with exterior wall window for natural cooking ventilation
+   • Under NO circumstances should any bedroom or living room be landlocked in the interior without external windows.
 
-2. PERIMETER VENTILATION (LIGHT & AIR FIRST):
-   • The exterior building perimeter is the PRIMARY light and ventilation source.
-   • EVERY Living Room and its Balcony MUST directly touch an exterior facade wall.
-   • EVERY Bedroom MUST be placed along an exterior perimeter wall with direct outside-facing windows — NEVER landlocked in the middle.
-   • Kitchens must have an exterior wall window OR be placed along a dedicated ventilation shaft.
-   • Bathrooms placed internally MUST have a ventilation shaft labeled "DUCT" — never unventilated.
-   • Corridors are strictly for circulation and must NEVER substitute for room ventilation.
+2. INTERNAL TOILETS WITH VENTILATION DUCTS (MANDATORY):
+   • Bathrooms / Toilets (Attached Master Bath, Common Bath) MUST be placed INTERNALLY adjacent to the inner corridor or entrance foyer.
+   • EVERY internal bathroom MUST be backed directly by a vertical MEP plumbing & ventilation shaft (labeled "DUCT" or "SHAFT") for mechanical ventilation and drainage risers.
+   • This ensures 100% of the valuable exterior facade length is dedicated to Living Room, Balcony, Bedrooms, and Kitchen!
 
-3. LOGICAL ENTRANCE & CIRCULATION SEQUENCE:
-   • Common Corridor → Apartment Entrance Door → Foyer / Living Room → Internal Circulation Hallway → Bedrooms / Kitchen / Bathrooms.
-   • Every room must open from common circulation — never require walking through one bedroom to enter another room.
+3. KITCHEN WALL ENCLOSURE:
+   • Kitchen must be an enclosed room with a solid partition wall and door connecting to Living/Dining (no open-plan kitchen).
 
-4. 90° ORTHOGONAL ROOM GEOMETRY & FULL SPACE UTILIZATION:
-   • The flat boundary may follow the building shape, but ALL internal room partitions MUST be clean 90° orthogonal rectangles/squares.
-   • Fill the entire usable area inside each flat zone — do NOT leave awkward, unused residual gaps.
-
-5. KITCHEN SEPARATION:
-   • Kitchen and Living Room MUST be separated by a full solid partition wall with a door opening between them. NO open-plan kitchen.
+4. CIRCULATION SEQUENCE:
+   • Common Corridor → Apartment Entrance Door → Foyer / Living Room → Internal Hallway → Bedrooms & Internal Toilets.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 #5 — GRAPHIC STYLE (STRICT 2D CAD BLUEPRINT)
@@ -346,7 +388,7 @@ ${mixDescription}
 • PRESERVE each flat's unique colored outer boundary outline from IMAGE 1. All internal partition lines remain thin black lines.
 • Keep flat labels (${flatLabels}) near entry doors.
 
-OUTPUT: A complete, functional 2D CAD floor plan with all ${numFlats} units perfectly arranged with mandatory living room balconies, perimeter ventilation, 90° rectangular rooms, and clean circulation inside IMAGE 1.`;
+OUTPUT: A complete, functional 2D CAD floor plan with all ${numFlats} units perfectly arranged with Living Room, Balcony, Bedrooms, and Kitchen in exterior boxes, and Internal Toilets backed by DUCT shafts inside IMAGE 1.`;
 }
 
 // ── Route Handler ─────────────────────────────────────────────────────────────
@@ -414,6 +456,11 @@ export async function POST(req: Request) {
       const stage1Prompt = buildStage1Prompt({
         numFlats,
         hasReferenceImage: hasZoningRef,
+        units1BHK,
+        units2BHK,
+        units3BHK,
+        units4BHK,
+        bhkType: dominantBHK,
       });
 
       console.log(`[IdeaGenerator] Stage 1: ${stage1Model} — drawing ${numFlats} empty flat zones... (hasZoningRef: ${hasZoningRef})`);
