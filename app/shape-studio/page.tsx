@@ -295,7 +295,7 @@ export default function ShapeStudioPage() {
 
         ctx.fillStyle = isDark ? '#ffffff' : '#0f172a';
         ctx.beginPath();
-        ctx.arc(vx, vy, 3.5, 0, 2 * PI);
+        ctx.arc(vx, vy, 3.5, 0, 2 * Math.PI);
         ctx.fill();
 
         ctx.strokeStyle = isDark ? '#00f0ff' : '#0284c7';
@@ -330,7 +330,7 @@ export default function ShapeStudioPage() {
       const rightX = originX + plotWidthM * scale + 18;
       ctx.save();
       ctx.translate(rightX, originY + (plotLengthM * scale) / 2);
-      ctx.rotate(PI / 2);
+      ctx.rotate(Math.PI / 2);
       ctx.fillText(`LENGTH: ${plotLengthM}m`, 0, 0);
       ctx.restore();
     }
