@@ -868,6 +868,41 @@ const ArchitectAdvisorPanel = forwardRef<ArchitectAdvisorRef, Props>(({ onParams
     }
   }, [messages]);
 
+  const getCanvasCoords = useCallback((e: React.MouseEvent<HTMLCanvasElement>): Point => {
+    const canvas = canvasRef.current;
+    if (!canvas) return { x: 0, y: 0 };
+    const rect = canvas.getBoundingClientRect();
+    const elemW = rect.width;
+    const elemH = rect.height;
+
+    // Calculate actual rendered canvas box under CSS object-contain
+    const canvasAspect = canvasW / canvasH;
+    const elemAspect = elemW / elemH;
+
+    let renderW = elemW;
+    let renderH = elemH;
+    let offsetX = 0;
+    let offsetY = 0;
+
+    if (elemAspect > canvasAspect) {
+      // Letterboxed horizontally (black bars on left/right)
+      renderW = elemH * canvasAspect;
+      offsetX = (elemW - renderW) / 2;
+    } else {
+      // Letterboxed vertically (black bars on top/bottom)
+      renderH = elemW / canvasAspect;
+      offsetY = (elemH - renderH) / 2;
+    }
+
+    const clientX = e.clientX - rect.left - offsetX;
+    const clientY = e.clientY - rect.top - offsetY;
+
+    const x = Math.max(0, Math.min(canvasW, (clientX / renderW) * canvasW));
+    const y = Math.max(0, Math.min(canvasH, (clientY / renderH) * canvasH));
+
+    return { x, y };
+  }, [canvasW, canvasH]);
+
   const snapToGrid = (px: number, py: number): Point => {
     const mPx = cellPx / 10;
     return {
@@ -877,10 +912,7 @@ const ArchitectAdvisorPanel = forwardRef<ArchitectAdvisorRef, Props>(({ onParams
   };
 
   const handleCanvasMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
-    const rect = canvasRef.current!.getBoundingClientRect();
-    const scaleX = canvasW / rect.width;
-    const scaleY = canvasH / rect.height;
-    const raw = { x: (e.clientX - rect.left) * scaleX, y: (e.clientY - rect.top) * scaleY };
+    const raw = getCanvasCoords(e);
 
     // ── Shape editing intercept ─────────────────────────────────────────────
     if (isEditingShape && editablePolygons) {
@@ -953,10 +985,7 @@ const ArchitectAdvisorPanel = forwardRef<ArchitectAdvisorRef, Props>(({ onParams
   };
 
   const handleCanvasMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
-    const rect = canvasRef.current!.getBoundingClientRect();
-    const scaleX = canvasW / rect.width;
-    const scaleY = canvasH / rect.height;
-    const raw = { x: (e.clientX - rect.left) * scaleX, y: (e.clientY - rect.top) * scaleY };
+    const raw = getCanvasCoords(e);
 
     // ── Shape editing intercept ─────────────────────────────────────────────
     if (isEditingShape && editablePolygons) {
@@ -1113,10 +1142,7 @@ const ArchitectAdvisorPanel = forwardRef<ArchitectAdvisorRef, Props>(({ onParams
       return;
     }
     if (isTracingClosed) return;
-    const rect = canvasRef.current!.getBoundingClientRect();
-    const scaleX = canvasW / rect.width;
-    const scaleY = canvasH / rect.height;
-    const raw = { x: (e.clientX - rect.left) * scaleX, y: (e.clientY - rect.top) * scaleY };
+    const raw = getCanvasCoords(e);
     const snapped = snapToGrid(raw.x, raw.y);
 
     if (polygon.length >= 3) {
@@ -1133,10 +1159,7 @@ const ArchitectAdvisorPanel = forwardRef<ArchitectAdvisorRef, Props>(({ onParams
   const handleCanvasContextMenu = (e: React.MouseEvent<HTMLCanvasElement>) => {
     if (!isEditingShape || !editablePolygons) return;
     e.preventDefault();
-    const rect = canvasRef.current!.getBoundingClientRect();
-    const scaleX = canvasW / rect.width;
-    const scaleY = canvasH / rect.height;
-    const raw = { x: (e.clientX - rect.left) * scaleX, y: (e.clientY - rect.top) * scaleY };
+    const raw = getCanvasCoords(e);
     
     const HANDLE_R = 10;
     for (let pi = 0; pi < editablePolygons.length; pi++) {
@@ -1690,102 +1713,115 @@ Use these measurements to determine which apartment types can physically fit in 
           : 'rounded-xl relative'
       }`}>
         
-        <div className="flex items-center justify-between px-3 py-2 border-b border-cyan-500/15 select-none shrink-0">
+        {/* Tier 1: Main Title, Shape Button & View Controls */}
+        <div className="flex flex-wrap items-center justify-between px-3 py-2 border-b border-cyan-500/15 select-none gap-2 shrink-0 bg-slate-950/40">
           <div className="flex items-center gap-2">
             <MousePointer className="w-3.5 h-3.5 text-cyan-400" />
             <span className="text-[10px] font-bold tracking-widest text-cyan-400 uppercase">
               {isFullscreen ? 'FULLSCREEN PLOT TRACER & SHAPE ENGINE' : 'PLOT TRACER'}
             </span>
           </div>
-          <div className="flex items-center gap-1.5">
-            {/* Shape Selector Dropdown Trigger Button */}
+
+          <div className="flex flex-wrap items-center gap-1.5 ml-auto">
+            {/* Shape Selector Button */}
             <button
               onClick={() => setIsShapePickerOpen(true)}
-              className="flex items-center gap-1.5 px-3 py-1 rounded-lg text-[10px] font-bold bg-gradient-to-r from-emerald-500/30 to-teal-500/30 border border-emerald-400 text-emerald-200 hover:from-emerald-500/50 hover:to-teal-500/50 cursor-pointer tracking-wider shadow-[0_0_15px_rgba(16,185,129,0.3)] transition-all"
+              className="flex items-center gap-1 px-2.5 py-1 rounded-md text-[9px] font-bold bg-gradient-to-r from-emerald-500/25 to-teal-500/25 border border-emerald-400 text-emerald-200 hover:from-emerald-500/40 hover:to-teal-500/40 cursor-pointer tracking-wider shadow-[0_0_12px_rgba(16,185,129,0.25)] transition-all"
               title="Choose from 50 architectural, geometric & biophilic footprints"
             >
-              <Sparkles className="w-3.5 h-3.5 text-emerald-300 animate-pulse" />
+              <Sparkles className="w-3 h-3 text-emerald-300 animate-pulse" />
               <span>📐 SELECT SHAPE (50)</span>
-              <ChevronDown className="w-3.5 h-3.5 text-emerald-300" />
+              <ChevronDown className="w-3 h-3 text-emerald-300" />
             </button>
-
-            {!isTracingClosed && polygon.length >= 3 && (
-              <button
-                onClick={closePlot}
-                className="px-2 py-0.5 rounded text-[9px] font-bold bg-cyan-500/20 border border-cyan-400 text-cyan-300 hover:bg-cyan-500/30 cursor-pointer tracking-wider"
-              >
-                CLOSE PLOT
-              </button>
-            )}
-            {isTracingClosed && plotData && !hasAnalyzed && (
-              <button
-                onClick={handleAnalyzePlot}
-                className="px-2 py-0.5 rounded text-[9px] font-bold bg-gradient-to-r from-emerald-500/30 to-teal-500/20 border border-emerald-400 text-emerald-300 hover:from-emerald-500/40 cursor-pointer tracking-wider shadow-[0_0_10px_rgba(16,185,129,0.2)]"
-              >
-                ANALYZE SHAPE
-              </button>
-            )}
-            
-            <div className="flex items-center ml-2 border-l border-cyan-500/20 pl-2 gap-1">
-              <input 
-                type="text" 
-                placeholder="W" 
-                value={plotInputW}
-                onChange={e => setPlotInputW(e.target.value)}
-                className="w-10 h-5 bg-black/40 border border-cyan-500/30 text-cyan-400 text-[9px] px-1 focus:outline-none focus:border-cyan-400 text-center rounded"
-              />
-              <span className="text-cyan-500/50 text-[9px]">×</span>
-              <input 
-                type="text" 
-                placeholder="H" 
-                value={plotInputH}
-                onChange={e => setPlotInputH(e.target.value)}
-                className="w-10 h-5 bg-black/40 border border-cyan-500/30 text-cyan-400 text-[9px] px-1 focus:outline-none focus:border-cyan-400 text-center rounded"
-              />
-              <button
-                onClick={handleSetExactPlot}
-                className="px-1.5 py-0.5 ml-1 rounded text-[9px] bg-cyan-500/10 border border-cyan-500/30 text-cyan-400 hover:bg-cyan-500/20 cursor-pointer"
-              >
-                SET
-              </button>
-            </div>
 
             <button
               onClick={() => setIsFullscreen(!isFullscreen)}
-              className={`flex items-center gap-1 px-2.5 py-1 rounded text-[9px] font-bold border cursor-pointer transition-colors ${
+              className={`flex items-center gap-1 px-2 py-1 rounded-md text-[9px] font-bold border cursor-pointer transition-colors ${
                 isFullscreen
                   ? 'bg-red-500/20 border-red-400 text-red-300 hover:bg-red-500/30 shadow-[0_0_10px_rgba(239,68,68,0.3)]'
-                  : 'text-cyan-500/70 border-cyan-500/20 hover:border-cyan-400 hover:text-cyan-300'
+                  : 'text-cyan-400/80 border-cyan-500/30 hover:border-cyan-400 hover:text-cyan-200 bg-cyan-950/30'
               }`}
             >
               {isFullscreen ? '✕ COLLAPSE (Esc)' : '⛶ FULLSCREEN'}
             </button>
+
             <button
               onClick={() => fileInputRef.current?.click()}
-              className="flex items-center gap-1 px-2 py-0.5 rounded text-[9px] text-cyan-500/70 border border-cyan-500/20 hover:border-cyan-400 hover:text-cyan-300 cursor-pointer transition-colors"
+              className="flex items-center gap-1 px-2 py-1 rounded-md text-[9px] text-cyan-400/80 border border-cyan-500/30 hover:border-cyan-400 hover:text-cyan-200 bg-cyan-950/30 cursor-pointer transition-colors"
+              title="Upload reference site image"
             >
               <Upload className="w-3 h-3" /> IMAGE
             </button>
+
             {polygon.length > 0 && (
               <button
                 onClick={resetTrace}
-                className="flex items-center gap-1 px-2 py-0.5 rounded text-[9px] text-red-400/70 border border-red-500/20 hover:border-red-400 hover:text-red-400 cursor-pointer"
+                className="flex items-center gap-1 px-2.5 py-1 rounded-md text-[9px] font-bold text-red-400 border border-red-500/40 hover:border-red-400 hover:bg-red-500/20 bg-red-950/30 cursor-pointer transition-all shadow-sm"
+                title="Reset plot trace"
               >
-                <RotateCcw className="w-3 h-3" /> RESET
+                <RotateCcw className="w-3 h-3 text-red-400" /> RESET
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Tier 2: Dimension Setup, Tracing Guidance & Action Triggers */}
+        <div className="flex flex-wrap items-center justify-between px-3 py-1.5 border-b border-cyan-500/10 bg-black/50 text-[9px] gap-2 shrink-0">
+          <div className="flex items-center gap-1.5">
+            <span className="text-cyan-400/60 font-semibold uppercase text-[8px]">PLOT DIMENSIONS:</span>
+            <input 
+              type="text" 
+              placeholder="W" 
+              value={plotInputW}
+              onChange={e => setPlotInputW(e.target.value)}
+              className="w-9 h-5 bg-slate-900 border border-cyan-500/40 text-cyan-300 text-[9px] px-1 focus:outline-none focus:border-cyan-300 text-center rounded"
+            />
+            <span className="text-cyan-500/50 text-[9px]">×</span>
+            <input 
+              type="text" 
+              placeholder="H" 
+              value={plotInputH}
+              onChange={e => setPlotInputH(e.target.value)}
+              className="w-9 h-5 bg-slate-900 border border-cyan-500/40 text-cyan-300 text-[9px] px-1 focus:outline-none focus:border-cyan-300 text-center rounded"
+            />
+            <button
+              onClick={handleSetExactPlot}
+              className="px-2 py-0.5 rounded text-[9px] font-bold bg-cyan-500/20 border border-cyan-400/50 text-cyan-300 hover:bg-cyan-500/35 cursor-pointer"
+            >
+              SET
+            </button>
+          </div>
+
+          <div className="flex items-center gap-2 ml-auto">
+            {!isTracingClosed && (
+              <span className="text-cyan-400/70 select-none">
+                {!isGridSet ? 'Enter W × H and click SET before tracing.' :
+                 polygon.length === 0 ? 'Click on grid to trace plot boundary.' :
+                 polygon.length < 3 ? `${polygon.length} pt. Need ≥ 3 to close.` :
+                 `${polygon.length} pts. Click green dot to close.`}
+              </span>
+            )}
+
+            {!isTracingClosed && polygon.length >= 3 && (
+              <button
+                onClick={closePlot}
+                className="px-2.5 py-0.5 rounded text-[9px] font-bold bg-emerald-500/25 border border-emerald-400 text-emerald-300 hover:bg-emerald-500/40 cursor-pointer tracking-wider shadow-[0_0_10px_rgba(16,185,129,0.25)]"
+              >
+                ✓ CLOSE PLOT
+              </button>
+            )}
+
+            {isTracingClosed && plotData && !hasAnalyzed && (
+              <button
+                onClick={handleAnalyzePlot}
+                className="px-2.5 py-0.5 rounded text-[9px] font-bold bg-gradient-to-r from-emerald-500/30 to-teal-500/20 border border-emerald-400 text-emerald-300 hover:from-emerald-500/40 cursor-pointer tracking-wider shadow-[0_0_10px_rgba(16,185,129,0.25)]"
+              >
+                ⚡ ANALYZE SHAPE
               </button>
             )}
           </div>
         </div>
         <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleImageUpload} />
-
-        {!isTracingClosed && (
-          <div className="px-3 py-1 text-[9px] text-cyan-500/45 select-none">
-            {!isGridSet ? 'Enter W × H and click SET before tracing.' :
-             polygon.length === 0 ? 'Click on grid to trace your plot. Each cell = 10×10 meters.' :
-             polygon.length < 3 ? `${polygon.length} point(s). Need at least 3 to close.` :
-             `${polygon.length} points. Click near first point (green dot) to close & analyze.`}
-          </div>
-        )}
 
         <div className={`flex flex-col relative flex-1 min-h-0 ${isFullscreen ? 'items-center justify-center p-4 h-[calc(100vh-140px)]' : 'items-center justify-center'}`}>
           <canvas
