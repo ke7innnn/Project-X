@@ -462,22 +462,31 @@ export async function POST(req: Request) {
       const colorMap = ['red','blue','green','orange','purple','teal','crimson','indigo','dark-green','dark-orange'];
       const flatColorList = Array.from({ length: numFlats }, (_, i) => `F${i + 1} (${colorMap[i % colorMap.length]} boundary)`).join(', ');
 
-      const auditSystemPrompt = `You are a licensed senior architect reviewing a 2D CAD residential floor plan. Your job is to produce a precise, actionable correction brief for each flat unit that has architectural deficiencies. Be specific: name the unit by its label AND boundary color. Output ONLY a structured correction brief — no preamble, no praise.`;
+      const auditSystemPrompt = `You are a licensed senior architect reviewing a 2D CAD residential floor plan. Your job is to produce a precise, actionable correction brief for each flat unit that has architectural deficiencies.
+
+CRITICAL RULE FOR FIX INSTRUCTIONS:
+- NEVER use measurements, numbers, distances, or dimensions (no meters, no millimeters, no percentages).
+- Describe fixes using ONLY spatial and positional language: "shift to the left wall", "push to the top edge", "move to the outer perimeter", "swap position with", "slide toward the exterior", "reposition to the corner", "flip to the opposite wall", etc.
+- The goal is visual repositioning instructions that a drawing model can understand, not engineering dimensions.
+
+Be specific: name the unit by its label AND boundary color. Output ONLY a structured correction brief — no preamble, no praise.`;
 
       const auditUserPrompt = `Analyze this 2D CAD floor plan image. It contains ${numFlats} flat units: ${flatColorList}. Each unit is identified by its colored outer boundary outline.
 
 For EACH flat unit (${flatLabelsList}), check and report:
 
-1. VENTILATION CHECK: Is every habitable room (Living Room, Kitchen, ALL Bedrooms) placed on the exterior/perimeter wall of the building with a direct window opening? If any habitable room is landlocked (interior with no exterior wall window), flag it.
+1. VENTILATION CHECK: Is every habitable room (Living Room, Kitchen, ALL Bedrooms) placed on the exterior/perimeter wall of the building with a direct window opening? If any habitable room is positioned away from the outer building wall (landlocked interior position, no window), flag it.
 
-2. CIRCULATION CHECK: Does the flat have a clear foyer/entrance from the shared corridor? Is there an internal hallway connecting all rooms without crossing through another room? Can every room be reached without passing through a habitable room?
+2. CIRCULATION CHECK: Does the flat have a clear foyer/entrance from the shared corridor? Is there an internal passage connecting all rooms without crossing through another room? Can every room be reached without passing through a habitable room?
 
-3. ROOM ADJACENCY CHECK: Is the Kitchen directly adjacent to Living/Dining? Are Bedroom doors opening from a circulation/hallway area rather than the Living Room?
+3. ROOM ADJACENCY CHECK: Is the Kitchen directly next to Living/Dining? Are Bedroom doors opening from a corridor/passage rather than from the Living Room?
 
 Output Format — write one block per problematic flat only:
 UNIT [F#] ([color] boundary):
-- PROBLEM: [exact room name] is landlocked / has no exterior window / has no direct circulation access etc.
-- FIX: [exactly what internal partition changes need to be made — which room to move to which wall, etc.]
+- PROBLEM: [exact room name] is positioned away from the outer wall / has no exterior window / has no direct corridor access etc.
+- FIX: [positional repositioning instruction — e.g. "shift the Living Room to the left outer wall of this unit", "push the Kitchen toward the top exterior edge", "swap the Bedroom and Bathroom positions so Bedroom faces the outer wall", "slide the Living Room to the bottom perimeter wall", "rotate the room arrangement so Bedrooms are on the outer side"]
+
+DO NOT use any numbers, meters, or measurements in the FIX instructions. Use only directional and positional language.
 
 If a flat has NO issues, skip it entirely.
 At the end write: UNITS WITH NO ISSUES: [list any perfect flats, or "None" if all have issues].`;
