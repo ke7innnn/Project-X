@@ -498,12 +498,11 @@ export async function POST(req: Request) {
         stage2ImageUrls.push(referenceStorageUrl);
       }
 
-      console.log(`[IdeaGenerator] Stage 2 dual dispatch (GPT Image 2 + Nano Banana 2) | image_urls: ${stage2ImageUrls.length} (Zoning + ${hasReferenceImage ? 'Cross-vent reference' : 'none'})`);
+      console.log(`[IdeaGenerator] Stage 2 dual dispatch (Nano Banana Pro + Nano Banana 2) | image_urls: ${stage2ImageUrls.length} (Zoning + ${hasReferenceImage ? 'Cross-vent reference' : 'none'})`);
 
-      const gptInput: Record<string, any> = {
+      const proInput: Record<string, any> = {
         image_urls: stage2ImageUrls,
         prompt: refinementPrompt,
-        quality: 'medium',
       };
 
       const nanoInput: Record<string, any> = {
@@ -511,19 +510,19 @@ export async function POST(req: Request) {
         prompt: refinementPrompt,
       };
 
-      const [gptRes, nanoRes] = await Promise.allSettled([
-        runModel('openai/gpt-image-2/edit', gptInput),
+      const [proRes, nanoRes] = await Promise.allSettled([
+        runModel('fal-ai/nano-banana-pro/edit', proInput),
         runModel('fal-ai/nano-banana-2/edit', nanoInput),
       ]);
 
-      let stage2GptBase64: string | null = null;
-      let stage2GptSeed: number | undefined = undefined;
-      if (gptRes.status === 'fulfilled') {
-        stage2GptSeed = gptRes.value.seed;
-        stage2GptBase64 = await fetchToBase64(gptRes.value.url);
-        console.log('[IdeaGenerator] Stage 2A (GPT Image 2) generated successfully');
+      let stage2ProBase64: string | null = null;
+      let stage2ProSeed: number | undefined = undefined;
+      if (proRes.status === 'fulfilled') {
+        stage2ProSeed = proRes.value.seed;
+        stage2ProBase64 = await fetchToBase64(proRes.value.url);
+        console.log('[IdeaGenerator] Stage 2A (Nano Banana Pro) generated successfully');
       } else {
-        console.warn('[IdeaGenerator] Stage 2A (GPT Image 2) failed:', gptRes.reason?.message);
+        console.warn('[IdeaGenerator] Stage 2A (Nano Banana Pro) failed:', proRes.reason?.message);
       }
 
       let stage2NanoBase64: string | null = null;
@@ -536,20 +535,21 @@ export async function POST(req: Request) {
         console.warn('[IdeaGenerator] Stage 2B (Nano Banana 2) failed:', nanoRes.reason?.message);
       }
 
-      const primaryResult = stage2GptBase64 || stage2NanoBase64 || stage1Base64;
-      const allResults = [stage2GptBase64, stage2NanoBase64].filter((img): img is string => Boolean(img));
+      const primaryResult = stage2ProBase64 || stage2NanoBase64 || stage1Base64;
+      const allResults = [stage2ProBase64, stage2NanoBase64].filter((img): img is string => Boolean(img));
 
       return NextResponse.json({
         url: primaryResult,
         imageUrls: allResults.length > 0 ? allResults : [primaryResult],
         stage1ImageUrl: stage1Base64,
-        stage2ImageUrl: stage2GptBase64,
+        stage2ImageUrl: stage2ProBase64,
+        stage2ProImageUrl: stage2ProBase64,
         stage2NanoImageUrl: stage2NanoBase64,
         stage1Seed,
-        stage2Seed: stage2GptSeed ?? stage2NanoSeed,
+        stage2Seed: stage2ProSeed ?? stage2NanoSeed,
         systemPrompt: stage1Prompt,
         refinementPrompt,
-        userPrompt: `PIPELINE | Stage1: ${stage1Model} -> Stage 2A: GPT Image 2 + Stage 2B: Nano Banana 2 | BHK: ${dominantBHK}`,
+        userPrompt: `PIPELINE | Stage1: ${stage1Model} -> Stage 2A: Nano Banana Pro + Stage 2B: Nano Banana 2 | BHK: ${dominantBHK}`,
       });
     }
 

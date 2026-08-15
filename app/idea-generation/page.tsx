@@ -111,7 +111,7 @@ export default function IdeaGenerationPage() {
   const [variantsHistory, setVariantsHistory] = useState<string[]>([]);
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
   const [isClientMode, setIsClientMode] = useState(false);
-  const [selectedViewTab, setSelectedViewTab] = useState<'both' | 'gpt' | 'nano' | 'zoning'>('both');
+  const [selectedViewTab, setSelectedViewTab] = useState<'both' | 'pro' | 'nano' | 'zoning'>('both');
   const [lightboxImage, setLightboxImage] = useState<{ url: string; title: string } | null>(null);
   const [debugPayload, setDebugPayload] = useState<{
     traceBase64?: string;
@@ -119,6 +119,7 @@ export default function IdeaGenerationPage() {
     stage1OutputUrl?: string;
     stage1Seed?: number;
     stage2Prompt?: string;
+    stage2ProOutputUrl?: string;
     stage2GptOutputUrl?: string;
     stage2NanoOutputUrl?: string;
     stage2OutputUrl?: string;
@@ -379,9 +380,10 @@ STAGE 2 → Refine interior layout, enforce NBC room sizes, verify room complete
           stage1OutputUrl: resData.stage1ImageUrl,
           stage1Seed: resData.stage1Seed,
           stage2Prompt: resData.refinementPrompt,
-          stage2GptOutputUrl: resData.stage2ImageUrl,
+          stage2ProOutputUrl: resData.stage2ProImageUrl || resData.stage2ImageUrl,
+          stage2GptOutputUrl: resData.stage2ProImageUrl || resData.stage2ImageUrl,
           stage2NanoOutputUrl: resData.stage2NanoImageUrl,
-          stage2OutputUrl: resData.stage2ImageUrl || resData.url,
+          stage2OutputUrl: resData.stage2ProImageUrl || resData.stage2ImageUrl || resData.url,
           stage2Seed: resData.stage2Seed,
           userPrompt: resData.userPrompt,
           workflow: selectedModel,
@@ -391,8 +393,8 @@ STAGE 2 → Refine interior layout, enforce NBC room sizes, verify room complete
         if (resData.stage1ImageUrl) {
           setLogs(prev => [...prev, `[SYS] STAGE 1 ZONING OUTPUT: RECEIVED`]);
         }
-        if (resData.stage2ImageUrl) {
-          setLogs(prev => [...prev, `[SYS] STAGE 2A (GPT IMAGE 2) OUTPUT: RECEIVED`]);
+        if (resData.stage2ProImageUrl || resData.stage2ImageUrl) {
+          setLogs(prev => [...prev, `[SYS] STAGE 2A (NANO BANANA PRO) OUTPUT: RECEIVED`]);
         }
         if (resData.stage2NanoImageUrl) {
           setLogs(prev => [...prev, `[SYS] STAGE 2B (NANO BANANA 2) OUTPUT: RECEIVED`]);
@@ -841,7 +843,7 @@ STAGE 2 → Refine interior layout, enforce NBC room sizes, verify room complete
                   {/* Variant Navigation Tabs */}
                   <div className="flex items-center justify-between gap-1 bg-black/60 p-1 rounded-lg border border-white/10">
                     <div className="flex items-center gap-1 overflow-x-auto no-scrollbar">
-                      {debugPayload?.stage2GptOutputUrl && debugPayload?.stage2NanoOutputUrl && (
+                      {(debugPayload?.stage2ProOutputUrl || debugPayload?.stage2GptOutputUrl) && debugPayload?.stage2NanoOutputUrl && (
                         <button
                           onClick={() => setSelectedViewTab('both')}
                           className={`px-2.5 py-1 rounded text-[10px] font-bold tracking-wider uppercase transition-all ${
@@ -853,16 +855,16 @@ STAGE 2 → Refine interior layout, enforce NBC room sizes, verify room complete
                           ⊞ Both Variants
                         </button>
                       )}
-                      {(debugPayload?.stage2GptOutputUrl || resultImage) && (
+                      {(debugPayload?.stage2ProOutputUrl || debugPayload?.stage2GptOutputUrl || resultImage) && (
                         <button
-                          onClick={() => setSelectedViewTab('gpt')}
+                          onClick={() => setSelectedViewTab('pro')}
                           className={`px-2.5 py-1 rounded text-[10px] font-bold tracking-wider uppercase transition-all ${
-                            selectedViewTab === 'gpt'
+                            selectedViewTab === 'pro'
                               ? 'bg-emerald-500/20 border border-emerald-400 text-emerald-300 shadow-sm'
                               : 'text-gray-400 hover:text-white border border-transparent'
                           }`}
                         >
-                          ★ GPT Image 2
+                          ★ Nano Banana Pro
                         </button>
                       )}
                       {debugPayload?.stage2NanoOutputUrl && (
@@ -895,13 +897,13 @@ STAGE 2 → Refine interior layout, enforce NBC room sizes, verify room complete
                   {/* Schema Display Cards Container */}
                   <div className="flex flex-col gap-4">
                     
-                    {/* 1. GPT Image 2 Card */}
-                    {(selectedViewTab === 'both' || selectedViewTab === 'gpt') && (debugPayload?.stage2GptOutputUrl || resultImage) && (
+                    {/* 1. Nano Banana Pro Card */}
+                    {(selectedViewTab === 'both' || selectedViewTab === 'pro') && (debugPayload?.stage2ProOutputUrl || debugPayload?.stage2GptOutputUrl || resultImage) && (
                       <div className="relative flex flex-col rounded-xl border border-emerald-500/30 bg-black/60 overflow-hidden group shadow-lg">
                         <div className="px-3 py-1.5 bg-emerald-950/80 border-b border-emerald-500/20 flex items-center justify-between">
                           <span className="text-[10px] font-bold text-emerald-400 tracking-wider uppercase flex items-center gap-1.5">
                             <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                            VARIANT A: GPT IMAGE 2 (MEDIUM)
+                            VARIANT A: NANO BANANA PRO (FAST)
                           </span>
                           <span className="text-[9px] text-emerald-500/60 font-mono">
                             {debugPayload?.stage2Seed !== undefined ? `SEED: ${debugPayload.stage2Seed}` : 'CROSS-VENTILATION'}
@@ -910,13 +912,13 @@ STAGE 2 → Refine interior layout, enforce NBC room sizes, verify room complete
                         <div 
                           className="relative bg-white p-2 flex items-center justify-center cursor-pointer group/img min-h-[350px]"
                           onClick={() => setLightboxImage({ 
-                            url: debugPayload?.stage2GptOutputUrl || resultImage!, 
-                            title: 'Variant A: GPT Image 2 Floor Plan' 
+                            url: debugPayload?.stage2ProOutputUrl || debugPayload?.stage2GptOutputUrl || resultImage!, 
+                            title: 'Variant A: Nano Banana Pro Floor Plan' 
                           })}
                         >
                           <img 
-                            src={debugPayload?.stage2GptOutputUrl || resultImage!} 
-                            alt="GPT Image 2 Floor Plan"
+                            src={debugPayload?.stage2ProOutputUrl || debugPayload?.stage2GptOutputUrl || resultImage!} 
+                            alt="Nano Banana Pro Floor Plan"
                             className="w-full h-auto max-h-[550px] object-contain rounded transition-transform group-hover/img:scale-[1.01]"
                           />
                           <div className="absolute top-3 right-3 p-1.5 bg-black/70 rounded-lg text-white opacity-0 group-hover/img:opacity-100 transition-opacity border border-white/20 flex items-center gap-1 text-[9px] font-mono pointer-events-none">
@@ -924,27 +926,27 @@ STAGE 2 → Refine interior layout, enforce NBC room sizes, verify room complete
                           </div>
                         </div>
                         <div className="p-3 bg-[#08080c] border-t border-white/10 flex items-center justify-between gap-2">
-                          <span className="text-[10px] text-emerald-300 font-semibold truncate">GPT Image 2 Schematic</span>
+                          <span className="text-[10px] text-emerald-300 font-semibold truncate">Nano Banana Pro Schematic</span>
                           <div className="flex items-center gap-2">
                             <button
                               onClick={() => setLightboxImage({ 
-                                url: debugPayload?.stage2GptOutputUrl || resultImage!, 
-                                title: 'Variant A: GPT Image 2 Floor Plan' 
+                                url: debugPayload?.stage2ProOutputUrl || debugPayload?.stage2GptOutputUrl || resultImage!, 
+                                title: 'Variant A: Nano Banana Pro Floor Plan' 
                               })}
                               className="px-2.5 py-1 rounded bg-black/40 border border-white/10 hover:border-emerald-400 text-[10px] text-gray-300 hover:text-white flex items-center gap-1 transition-colors"
                             >
                               <Maximize2 className="w-3 h-3" /> Zoom
                             </button>
                             <a 
-                              href={debugPayload?.stage2GptOutputUrl || resultImage!}
-                              download="gpt-floorplan-schematic.png"
+                              href={debugPayload?.stage2ProOutputUrl || debugPayload?.stage2GptOutputUrl || resultImage!}
+                              download="nano-pro-floorplan-schematic.png"
                               className="px-2.5 py-1 rounded bg-emerald-950 border border-emerald-500/30 text-[10px] text-emerald-400 hover:text-white flex items-center gap-1 transition-colors"
                             >
                               <Download className="w-3 h-3" /> Download
                             </a>
                             <button
                               onClick={() => {
-                                const targetImg = debugPayload?.stage2GptOutputUrl || resultImage!;
+                                const targetImg = debugPayload?.stage2ProOutputUrl || debugPayload?.stage2GptOutputUrl || resultImage!;
                                 const styleName = footprintShape === 'custom'
                                   ? customFootprintText.trim().toUpperCase()
                                   : (FOOTPRINT_PRESETS.find(f => f.id === footprintShape)?.name || 'X-SHAPE');
@@ -1246,12 +1248,12 @@ STAGE 2 → Refine interior layout, enforce NBC room sizes, verify room complete
                   </div>
                 )}
 
-                {/* 4A. Stage 2A (GPT Image 2) Schematic Output */}
+                {/* 4A. Stage 2A (Nano Banana Pro) Schematic Output */}
                 <div className="flex flex-col gap-2 border-t border-white/10 pt-4">
                   <div className="flex items-center justify-between">
                     <span className="text-[10px] text-emerald-400 uppercase tracking-widest font-bold flex items-center gap-1.5">
                       <span className="w-4 h-4 rounded-full bg-emerald-500/20 border border-emerald-400 flex items-center justify-center text-[9px]">4A</span>
-                      STAGE 2A (GPT IMAGE 2) SCHEMATIC OUTPUT
+                      STAGE 2A (NANO BANANA PRO) SCHEMATIC OUTPUT
                     </span>
                     {debugPayload.stage2Seed !== undefined && (
                       <span className="text-[9px] font-mono px-2 py-0.5 rounded bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 font-bold">
@@ -1259,17 +1261,17 @@ STAGE 2 → Refine interior layout, enforce NBC room sizes, verify room complete
                       </span>
                     )}
                   </div>
-                  {debugPayload.stage2GptOutputUrl ? (
+                  {(debugPayload.stage2ProOutputUrl || debugPayload.stage2GptOutputUrl) ? (
                     <div className="p-3 bg-black/80 border border-emerald-500/30 rounded-lg flex items-center justify-center">
                       <img 
-                        src={debugPayload.stage2GptOutputUrl} 
-                        alt="GPT Stage 2 Output"
+                        src={debugPayload.stage2ProOutputUrl || debugPayload.stage2GptOutputUrl} 
+                        alt="Nano Banana Pro Stage 2 Output"
                         className="max-w-full max-h-[400px] object-contain border border-emerald-500/30 rounded shadow-lg"
                       />
                     </div>
                   ) : (
                     <div className="p-4 bg-black/40 border border-emerald-500/10 rounded-lg text-[11px] text-emerald-500/50 font-mono text-center">
-                      Waiting for GPT Image 2 generation...
+                      Waiting for Nano Banana Pro generation...
                     </div>
                   )}
                 </div>
