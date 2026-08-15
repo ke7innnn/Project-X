@@ -1582,7 +1582,7 @@ Use these measurements to determine which apartment types can physically fit in 
       const assistantMsg: ChatMessage = { role: 'assistant', content: data.message, options: data.options || undefined };
       setMessages(prev => [...prev.filter(m => !m.isTyping), assistantMsg]);
 
-      if (data.shapeSuggestion && data.shapeSuggestion.shapeId) {
+      if (data.shapeSuggestion && data.shapeSuggestion.shapeId && !shapeWasModified) {
         const shapeId = data.shapeSuggestion.shapeId;
         setSuggestedShape(shapeId);
         setShapeWasModified(false);
@@ -1592,7 +1592,7 @@ Use these measurements to determine which apartment types can physically fit in 
         buildingAreaRef.current = fitted.areaM2;
       }
 
-      if (data.options && data.options.length > 0) {
+      if (data.options && data.options.length > 0 && !shapeWasModified) {
         const shapeId = data.options[0].footprintShape;
         setSuggestedShape(shapeId);
         setShapeWasModified(false);
@@ -1616,7 +1616,7 @@ Use these measurements to determine which apartment types can physically fit in 
 
   const applyOption = (opt: AdvisorOption) => {
     const params: FormParams = {
-      footprintShape: opt.footprintShape,
+      footprintShape: shapeWasModified ? (suggestedShape || 'custom') : opt.footprintShape,
       overallWidth: opt.width,
       overallLength: opt.length,
       units1BHK: opt.units1BHK,
@@ -1628,15 +1628,18 @@ Use these measurements to determine which apartment types can physically fit in 
       customPrompt: opt.designNotes,
     };
     onParamsApplied(params);
-    setSuggestedShape(opt.footprintShape);
-    setShapeWasModified(false);
-    setEditablePolygons(null);
+
+    if (!shapeWasModified) {
+      setSuggestedShape(opt.footprintShape);
+      setShapeWasModified(false);
+      setEditablePolygons(null);
+      const fitted = getAutoFittedShapePolygons(opt.footprintShape, polygon);
+      finalShapePolygonsRef.current = fitted.polygons;
+      buildingAreaRef.current = fitted.areaM2;
+    }
+
     setAppliedOptionId(opt.id);
     setParamsApplied(true);
-
-    const fitted = getAutoFittedShapePolygons(opt.footprintShape, polygon);
-    finalShapePolygonsRef.current = fitted.polygons;
-    buildingAreaRef.current = fitted.areaM2;
 
     const mixParts = [
       opt.units1BHK > 0 ? `${opt.units1BHK}×1BHK` : '',
