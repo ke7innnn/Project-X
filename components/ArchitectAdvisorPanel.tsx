@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { Send, Loader2, Upload, CheckCircle2, ChevronRight, RotateCcw, MousePointer, Sparkles, Edit2, Check } from 'lucide-react';
+import { Send, Loader2, Upload, CheckCircle2, ChevronRight, RotateCcw, MousePointer, Sparkles, Edit2, Check, Search, X, Layers, ChevronDown } from 'lucide-react';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface Point { x: number; y: number; }
@@ -137,144 +137,45 @@ function rotateShape(shape: Point[], cx: number, cy: number, angle: number): Poi
 }
 
 function getShapePoints(shapeId: string, cx: number, cy: number, w: number, h: number): Point[][] {
-  const hw = w / 2, hh = h / 2;
-  const id = shapeId.toLowerCase();
+  const id = shapeId.toLowerCase().trim();
   
-  if (id.includes('monolithic') || id.includes('rect')) {
-      return [[{ x: cx - hw, y: cy - hh }, { x: cx + hw, y: cy - hh }, { x: cx + hw, y: cy + hh }, { x: cx - hw, y: cy + hh }]];
-  } else if (id.includes('h-shape') || id === 'h') {
-      const arm = hw * 0.35;
-      return [[
-        { x: cx - hw, y: cy - hh }, { x: cx - hw + arm, y: cy - hh },
-        { x: cx - hw + arm, y: cy - hh * 0.35 }, { x: cx + hw - arm, y: cy - hh * 0.35 },
-        { x: cx + hw - arm, y: cy - hh }, { x: cx + hw, y: cy - hh },
-        { x: cx + hw, y: cy + hh }, { x: cx + hw - arm, y: cy + hh },
-        { x: cx + hw - arm, y: cy + hh * 0.35 }, { x: cx - hw + arm, y: cy + hh * 0.35 },
-        { x: cx - hw + arm, y: cy + hh }, { x: cx - hw, y: cy + hh },
-      ]];
-  } else if (id.includes('x-shape') || id.includes('cross') || (id.includes('curved') && id.includes('x')) || id.includes('pinwheel')) {
-      // Clean Architectural Cross / X-Shape
-      const armThickness = 0.35; // thickness of the arms
-      const core = 0.35; // size of the center core where arms meet
-      return [[
-        // Top arm
-        { x: cx - hw * armThickness, y: cy - hh },
-        { x: cx + hw * armThickness, y: cy - hh },
-        { x: cx + hw * armThickness, y: cy - hh * core },
-        // Right arm
-        { x: cx + hw, y: cy - hh * core },
-        { x: cx + hw, y: cy + hh * core },
-        { x: cx + hw * armThickness, y: cy + hh * core },
-        // Bottom arm
-        { x: cx + hw * armThickness, y: cy + hh },
-        { x: cx - hw * armThickness, y: cy + hh },
-        { x: cx - hw * armThickness, y: cy + hh * core },
-        // Left arm
-        { x: cx - hw, y: cy + hh * core },
-        { x: cx - hw, y: cy - hh * core },
-        { x: cx - hw * armThickness, y: cy - hh * core },
-      ]];
-  } else if (id.includes('tri-foil') || id.includes('y-shape')) {
-      const pts3: Point[] = [];
-      for (let i = 0; i < 3; i++) {
-        const angle = (i * 120 - 90) * Math.PI / 180;
-        const armA = (i * 120 - 90 + 30) * Math.PI / 180;
-        const armB = (i * 120 - 90 - 30) * Math.PI / 180;
-        pts3.push(
-          { x: cx + Math.cos(armB) * 0.38 * hw, y: cy + Math.sin(armB) * 0.38 * hh },
-          { x: cx + Math.cos(angle) * 0.9 * hw, y: cy + Math.sin(angle) * 0.9 * hh },
-          { x: cx + Math.cos(armA) * 0.38 * hw, y: cy + Math.sin(armA) * 0.38 * hh },
-        );
-      }
-      return [pts3];
-  } else if (id.includes('stepped') || id.includes('l-shape') || id.match(/\bl\b/)) {
-      return [[
-        { x: cx - hw, y: cy - hh }, { x: cx + hw * 0.2, y: cy - hh },
-        { x: cx + hw * 0.2, y: cy - hh * 0.2 }, { x: cx + hw, y: cy - hh * 0.2 },
-        { x: cx + hw, y: cy + hh }, { x: cx - hw, y: cy + hh },
-      ]];
-  } else if (id.includes('arc') || id.includes('crescent') || id.includes('elliptical')) {
-      const pts4: Point[] = [];
-      const sides = 16;
-      for (let i = 0; i <= sides; i++) {
-        const angle = ((i / sides) * (id.includes('crescent') ? 180 : 360) - 90) * Math.PI / 180;
-        pts4.push({ x: cx + Math.cos(angle) * hw, y: cy + Math.sin(angle) * hh });
-      }
-      if (id.includes('crescent')) {
-        for (let i = sides; i >= 0; i--) {
-          const angle = ((i / sides) * 180 - 90) * Math.PI / 180;
-          pts4.push({ x: cx + Math.cos(angle) * hw * 0.4, y: cy + Math.sin(angle) * hh * 0.8 });
-        }
-      }
-      return [pts4];
-  } else if (id.includes('ring') || id.includes('atrium') || id.includes('courtyard')) {
-      if (id.includes('oval') || id.includes('circular') || id.includes('atrium')) {
-         const pts: Point[] = [];
-         const sides = 24;
-         for (let i = 0; i <= sides; i++) {
-           const angle = ((i / sides) * 359 - 90) * Math.PI / 180;
-           pts.push({ x: cx + Math.cos(angle) * hw, y: cy + Math.sin(angle) * hh });
-         }
-         for (let i = sides; i >= 0; i--) {
-           const angle = ((i / sides) * 359 - 90) * Math.PI / 180;
-           pts.push({ x: cx + Math.cos(angle) * hw * 0.45, y: cy + Math.sin(angle) * hh * 0.45 });
-         }
-         return [pts];
-      } else {
-         // Rectangular ring with a slit on the right to form a valid non-intersecting polygon hole
-         const ir = 0.45; // inner courtyard size ratio
-         const slit = 0.1; // tiny slit offset
-         return [[
-           // Outer path
-           { x: cx + hw, y: cy - slit },
-           { x: cx + hw, y: cy - hh },
-           { x: cx - hw, y: cy - hh },
-           { x: cx - hw, y: cy + hh },
-           { x: cx + hw, y: cy + hh },
-           { x: cx + hw, y: cy + slit },
-           // Inner path (backwards)
-           { x: cx + hw * ir, y: cy + slit },
-           { x: cx + hw * ir, y: cy + hh * ir },
-           { x: cx - hw * ir, y: cy + hh * ir },
-           { x: cx - hw * ir, y: cy - hh * ir },
-           { x: cx + hw * ir, y: cy - hh * ir },
-           { x: cx + hw * ir, y: cy - slit },
-         ]];
-      }
-  } else if (id.includes('hex')) {
-      const hexPts: Point[] = [];
-      for (let i = 0; i < 6; i++) {
-        const angle = (i * 60 - 30) * Math.PI / 180;
-        hexPts.push({ x: cx + Math.cos(angle) * hw, y: cy + Math.sin(angle) * hh });
-      }
-      return [hexPts];
-  } else if (id.includes('s-shape') || id.includes('z-shape') || (id.includes('curved') && id.includes('s'))) {
-      // Clean Architectural Z/S-Shape footprint
-      const barH = 0.25; // thickness of the horizontal bars
-      const stemW = 0.25; // thickness of the vertical stem
-      return [[
-        // Top horizontal bar
-        { x: cx - hw, y: cy - hh },
-        { x: cx + hw, y: cy - hh },
-        { x: cx + hw, y: cy - hh + hh * barH * 2 },
-        // Inner cut leftwards to the stem
-        { x: cx + hw * stemW, y: cy - hh + hh * barH * 2 },
-        // Vertical stem down
-        { x: cx + hw * stemW, y: cy + hh - hh * barH * 2 },
-        // Bottom horizontal bar
-        { x: cx + hw, y: cy + hh - hh * barH * 2 },
-        { x: cx + hw, y: cy + hh },
-        { x: cx - hw, y: cy + hh },
-        { x: cx - hw, y: cy + hh - hh * barH * 2 },
-        // Inner cut rightwards to the stem
-        { x: cx - hw * stemW, y: cy + hh - hh * barH * 2 },
-        // Vertical stem up
-        { x: cx - hw * stemW, y: cy - hh + hh * barH * 2 },
-        // Top horizontal bar (left side completion)
-        { x: cx - hw, y: cy - hh + hh * barH * 2 },
-      ]];
-  } else {
-      return [[{ x: cx - hw, y: cy - hh }, { x: cx + hw, y: cy - hh }, { x: cx + hw, y: cy + hh }, { x: cx - hw, y: cy + hh }]];
+  // 1. Direct ID match in MASTER_SHAPES_50
+  const match = MASTER_SHAPES_50.find(s => s.id.toLowerCase() === id);
+  if (match) {
+    const mainPoly = match.getPolygon(cx, cy, w, h);
+    if (match.getHoles) {
+      const holes = match.getHoles(cx, cy, w, h);
+      return [mainPoly, ...holes];
+    }
+    return [mainPoly];
+  }
+
+  // 2. Exact or fuzzy name / tag / alias match in MASTER_SHAPES_50
+  const fuzzyMatch = MASTER_SHAPES_50.find(s => 
+    s.name.toLowerCase().includes(id) || 
+    id.includes(s.id.toLowerCase()) || 
+    s.tags.some(t => t.toLowerCase().includes(id) || id.includes(t.toLowerCase())) ||
+    (id.includes('batman') && s.id === 'batman-insignia') ||
+    (id.includes('droplet') && s.id === 'water-droplet') ||
+    (id.includes('leaf') && s.id === 'botanical-leaf') ||
+    (id.includes('burj') && s.id === 'burj-khalifa') ||
+    (id.includes('lotus') && s.id === 'lotus-blossom') ||
+    (id.includes('l-shape') && s.id === 'stepped-l') ||
+    (id.includes('hex') && s.id === 'hexagonal') ||
+    (id.includes('cross') && s.id === 'greek-cross') ||
+    (id.includes('tri-foil') && s.id === 'burj-khalifa')
+  );
+  if (fuzzyMatch) {
+    const mainPoly = fuzzyMatch.getPolygon(cx, cy, w, h);
+    if (fuzzyMatch.getHoles) {
+      const holes = fuzzyMatch.getHoles(cx, cy, w, h);
+      return [mainPoly, ...holes];
+    }
+    return [mainPoly];
+  }
+
+  // 3. Fallback standard rectangular
+  const hw = w / 2, hh = h / 2;
   }
 }
 
@@ -320,6 +221,11 @@ const ArchitectAdvisorPanel = forwardRef<ArchitectAdvisorRef, Props>(({ onParams
   const [plotData, setPlotData] = useState<PlotData | null>(null);
   const [suggestedShape, setSuggestedShape] = useState<string | null>(null);
   const [appliedOptionId, setAppliedOptionId] = useState<string | null>(null);
+  
+  // ── 50-Shape Selector Modal / Dropdown State ──────────────────────────────
+  const [isShapePickerOpen, setIsShapePickerOpen] = useState(false);
+  const [shapePickerCategory, setShapePickerCategory] = useState<'all' | 'architectural' | 'geometric' | 'biophilic'>('all');
+  const [shapePickerSearch, setShapePickerSearch] = useState('');
 
   // ── Shape Vertex Editing State ────────────────────────────────────────────
   const [isEditingShape, setIsEditingShape] = useState(false);
@@ -1464,10 +1370,16 @@ Use these measurements to determine which apartment types can physically fit in 
 
       if (data.shapeSuggestion && data.shapeSuggestion.shapeId) {
         setSuggestedShape(data.shapeSuggestion.shapeId);
+        finalShapePolygonsRef.current = null;
+        setShapeWasModified(false);
+        setEditablePolygons(null);
       }
 
       if (data.options && data.options.length > 0) {
         setSuggestedShape(data.options[0].footprintShape);
+        finalShapePolygonsRef.current = null;
+        setShapeWasModified(false);
+        setEditablePolygons(null);
       }
     } catch (err: any) {
       setMessages(prev => [...prev.filter(m => !m.isTyping), { role: 'assistant', content: `⚠️ Error: ${err.message}. Please try again.` }]);
@@ -1526,22 +1438,126 @@ Use these measurements to determine which apartment types can physically fit in 
     });
   };
 
+  const handleSelectShapeFromPicker = (shape: ShapeDefinition) => {
+    setSuggestedShape(shape.id);
+    finalShapePolygonsRef.current = null;
+    setShapeWasModified(false);
+    setEditablePolygons(null);
+    setIsShapePickerOpen(false);
+
+    setMessages(prev => [...prev, {
+      role: 'assistant',
+      content: `📐 **${shape.name}** placed on the plot!\n- Inspiration: *${shape.inspiration}*\n- Efficiency: **${shape.efficiency}%**\n\nThe footprint has been auto-scaled, rotated, and fitted inside your plot setbacks. How many flats and what mix (1BHK, 2BHK, 3BHK, etc.) would you like to fit on this typical floor?`,
+    }]);
+  };
+
   return (
     <div className="flex flex-col gap-4 w-full h-full min-h-0">
 
       {/* ── Plot Tracer Canvas ──────────────────────────────────────── */}
-      <div className={`flex flex-col bg-slate-900/30 backdrop-blur border border-cyan-500/20 overflow-hidden shrink-0 transition-all ${
+      <div className={`flex flex-col bg-slate-900/30 backdrop-blur border border-cyan-500/20 overflow-hidden shrink-0 transition-all relative ${
         isFullscreen 
           ? 'fixed inset-4 z-[100] rounded-2xl shadow-[0_0_50px_rgba(0,240,255,0.2)]' 
-          : 'rounded-xl relative'
+          : 'rounded-xl'
       }`}>
         
+        {/* ── 50-Shape Selector Modal Overlay ────────────────────────── */}
+        {isShapePickerOpen && (
+          <div className="absolute inset-0 z-50 bg-slate-950/95 backdrop-blur-md p-4 flex flex-col gap-3 rounded-xl border border-emerald-500/40 shadow-2xl animate-in fade-in zoom-in-95 duration-150">
+            <div className="flex items-center justify-between border-b border-white/10 pb-2.5 shrink-0">
+              <div className="flex items-center gap-2">
+                <Sparkles className="w-4 h-4 text-emerald-400" />
+                <span className="text-xs font-black tracking-widest text-emerald-300 uppercase">SELECT MASTER FOOTPRINT (50 SHAPES)</span>
+              </div>
+              <button
+                onClick={() => setIsShapePickerOpen(false)}
+                className="p-1 rounded bg-white/5 hover:bg-white/15 text-slate-400 hover:text-white transition-colors cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Search & Category Tabs */}
+            <div className="flex flex-wrap items-center gap-2 shrink-0">
+              <div className="relative flex-1 min-w-[180px]">
+                <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                <input
+                  type="text"
+                  placeholder="Search 50 shapes (e.g. Batman, Burj, Droplet, Leaf, Hexagon, Zaha)..."
+                  value={shapePickerSearch}
+                  onChange={e => setShapePickerSearch(e.target.value)}
+                  className="w-full pl-8 pr-3 py-1.5 bg-black/60 border border-cyan-500/30 rounded-lg text-xs text-white placeholder-slate-500 focus:outline-none focus:border-cyan-400"
+                  autoFocus
+                />
+              </div>
+
+              <div className="flex items-center gap-1 bg-black/40 p-1 rounded-lg border border-white/10">
+                {(['all', 'architectural', 'geometric', 'biophilic'] as const).map(cat => (
+                  <button
+                    key={cat}
+                    onClick={() => setShapePickerCategory(cat)}
+                    className={`px-2.5 py-1 rounded text-[10px] font-bold uppercase transition-all cursor-pointer ${
+                      shapePickerCategory === cat
+                        ? 'bg-emerald-500/30 border border-emerald-400 text-emerald-200 shadow'
+                        : 'text-slate-400 hover:text-white hover:bg-white/5'
+                    }`}
+                  >
+                    {cat === 'all' ? 'ALL (50)' : cat === 'architectural' ? '🏛️ TOWERS' : cat === 'geometric' ? '📐 GEOMETRIC' : '🌿 BIOPHILIC'}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Scrollable Shape Grid */}
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 overflow-y-auto pr-1 flex-1 no-scrollbar max-h-[280px]">
+              {MASTER_SHAPES_50
+                .filter(s => shapePickerCategory === 'all' || s.category === shapePickerCategory)
+                .filter(s => {
+                  if (!shapePickerSearch.trim()) return true;
+                  const q = shapePickerSearch.toLowerCase();
+                  return s.name.toLowerCase().includes(q) || s.inspiration.toLowerCase().includes(q) || s.tags.some(t => t.toLowerCase().includes(q));
+                })
+                .map(shape => (
+                  <button
+                    key={shape.id}
+                    onClick={() => handleSelectShapeFromPicker(shape)}
+                    className="flex flex-col p-2.5 bg-slate-900/80 hover:bg-emerald-950/50 border border-white/10 hover:border-emerald-400/60 rounded-lg text-left transition-all group cursor-pointer hover:scale-[1.02] shadow-sm hover:shadow-[0_0_15px_rgba(16,185,129,0.2)]"
+                  >
+                    <div className="flex items-center justify-between w-full mb-1">
+                      <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                        {shape.efficiency}% EFF
+                      </span>
+                      <span className="text-[8px] font-mono text-slate-400 uppercase">{shape.category}</span>
+                    </div>
+                    <span className="text-[11px] font-bold text-white group-hover:text-emerald-300 transition-colors line-clamp-1">
+                      {shape.name}
+                    </span>
+                    <span className="text-[9px] text-slate-400 line-clamp-1 mt-0.5">
+                      {shape.inspiration}
+                    </span>
+                  </button>
+                ))}
+            </div>
+          </div>
+        )}
+
         <div className="flex items-center justify-between px-3 py-2 border-b border-cyan-500/15 select-none shrink-0">
           <div className="flex items-center gap-2">
             <MousePointer className="w-3.5 h-3.5 text-cyan-400" />
             <span className="text-[10px] font-bold tracking-widest text-cyan-400 uppercase">PLOT TRACER</span>
           </div>
           <div className="flex items-center gap-1.5">
+            {/* Shape Selector Dropdown Trigger Button */}
+            <button
+              onClick={() => setIsShapePickerOpen(!isShapePickerOpen)}
+              className="flex items-center gap-1 px-2.5 py-1 rounded text-[9px] font-bold bg-gradient-to-r from-emerald-500/25 to-teal-500/25 border border-emerald-400 text-emerald-300 hover:from-emerald-500/40 hover:to-teal-500/40 cursor-pointer tracking-wider shadow-[0_0_12px_rgba(16,185,129,0.2)] transition-all"
+              title="Choose from 50 architectural, geometric & biophilic footprints"
+            >
+              <Sparkles className="w-3 h-3 text-emerald-400 animate-pulse" />
+              <span>📐 SELECT SHAPE (50)</span>
+              <ChevronDown className="w-3 h-3 text-emerald-400/80" />
+            </button>
+
             {!isTracingClosed && polygon.length >= 3 && (
               <button
                 onClick={closePlot}
