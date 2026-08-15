@@ -1,7 +1,8 @@
 'use client';
 
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useRef, useEffect, useCallback, forwardRef, useImperativeHandle } from 'react';
 import { Send, Loader2, Upload, CheckCircle2, ChevronRight, RotateCcw, MousePointer, Sparkles, Edit2, Check, Search, X, Layers, ChevronDown } from 'lucide-react';
+import { MASTER_SHAPES_50, ShapeDefinition } from '@/lib/shapeLibrary50';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface Point { x: number; y: number; }
@@ -180,8 +181,6 @@ function getShapePoints(shapeId: string, cx: number, cy: number, w: number, h: n
 }
 
 // ─── Main Component ───────────────────────────────────────────────────────────
-import { forwardRef, useImperativeHandle } from 'react';
-
 const ArchitectAdvisorPanel = forwardRef<ArchitectAdvisorRef, Props>(({ onParamsApplied, onGenerateTrigger, selectedModel, onModelChange }, ref) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const chatEndRef = useRef<HTMLDivElement>(null);
