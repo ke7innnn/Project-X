@@ -137,6 +137,45 @@ function rotateShape(shape: Point[], cx: number, cy: number, angle: number): Poi
   });
 }
 
+// Finds the optimal rotation angle that yields the MAXIMUM bounding scale in a 1:1 square canvas
+function getOptimalScaleRotation(polys: Point[][], targetBox: number = 976): { rotatedPolys: Point[][]; bestAngle: number; scale: number } {
+  const allPts = polys.flat();
+  if (allPts.length < 3) return { rotatedPolys: polys, bestAngle: 0, scale: 1 };
+
+  const centroid = polygonCentroid(allPts);
+  let bestScale = 0;
+  let bestAngle = 0;
+  let bestPolys = polys;
+
+  // Search across 0 to 360 in 2 degree increments
+  for (let deg = 0; deg < 360; deg += 2) {
+    const rad = (deg * Math.PI) / 180;
+    const testPolys = polys.map(poly => rotateShape(poly, centroid.x, centroid.y, rad));
+    const testPts = testPolys.flat();
+    
+    let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+    for (let i = 0; i < testPts.length; i++) {
+      const p = testPts[i];
+      if (p.x < minX) minX = p.x;
+      if (p.x > maxX) maxX = p.x;
+      if (p.y < minY) minY = p.y;
+      if (p.y > maxY) maxY = p.y;
+    }
+    
+    const w = Math.max(1, maxX - minX);
+    const h = Math.max(1, maxY - minY);
+    const scale = Math.min(targetBox / w, targetBox / h);
+    
+    if (scale > bestScale) {
+      bestScale = scale;
+      bestAngle = rad;
+      bestPolys = testPolys;
+    }
+  }
+
+  return { rotatedPolys: bestPolys, bestAngle, scale: bestScale };
+}
+
 function getShapePoints(shapeId: string, cx: number, cy: number, w: number, h: number): Point[][] {
   const id = shapeId.toLowerCase().trim();
   
@@ -416,8 +455,7 @@ const ArchitectAdvisorPanel = forwardRef<ArchitectAdvisorRef, Props>(({ onParams
   ];
 
   // Export tracer canvas as clean black/white trace for AI
-  // Uses the same technique as the Concept Generator: black background + white polygon fill
-  // This format is proven to give AI models the most accurate shape recognition
+  // Automatically rotates the shape to achieve MAXIMUM scaling inside 1:1 square canvas (1024x1024)
   const exportForAI = useCallback((): string | null => {
     // Determine active polygons and bounding box
     let activePolys: Point[][];
@@ -440,26 +478,22 @@ const ArchitectAdvisorPanel = forwardRef<ArchitectAdvisorRef, Props>(({ onParams
     const allPts = activePolys.flat();
     if (allPts.length < 3) return null;
 
+    const expW = 1024;
+    const expH = 1024;
+    const padding = 24;
+    const targetBox = expW - padding * 2; // 976px
+
+    // 1. Find optimal rotation angle to maximize shape scale inside 1:1 canvas
+    const { rotatedPolys, scale } = getOptimalScaleRotation(activePolys, targetBox);
+    const rotatedPts = rotatedPolys.flat();
+
     let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
-    allPts.forEach(p => {
+    rotatedPts.forEach(p => {
       if (p.x < minX) minX = p.x;
       if (p.x > maxX) maxX = p.x;
       if (p.y < minY) minY = p.y;
       if (p.y > maxY) maxY = p.y;
     });
-    const ptsW = Math.max(1, maxX - minX);
-    const ptsH = Math.max(1, maxY - minY);
-
-    const ratio = ptsH / ptsW;
-    let expW = 1024;
-    let expH = 1024;
-    if (ratio > 1.15) {
-      expW = 768;
-      expH = 1024;
-    } else if (ratio < 0.87) {
-      expW = 1024;
-      expH = 768;
-    }
 
     const offscreen = document.createElement('canvas');
     offscreen.width = expW;
@@ -471,16 +505,11 @@ const ArchitectAdvisorPanel = forwardRef<ArchitectAdvisorRef, Props>(({ onParams
     ctx.fillStyle = '#000000';
     ctx.fillRect(0, 0, expW, expH);
 
-    // 2. Scale and center the polygon using zoom-to-fit
-    const padding = 28;
-    const targetW = Math.max(1, expW - padding * 2);
-    const targetH = Math.max(1, expH - padding * 2);
-
-    const scale = Math.min(targetW / ptsW, targetH / ptsH);
+    // 2. Center the max-scaled shape onto the 1024x1024 canvas
     const offsetX = (expW / 2) - ((minX + maxX) / 2) * scale;
     const offsetY = (expH / 2) - ((minY + maxY) / 2) * scale;
 
-    const scaledPolys = activePolys.map(poly => poly.map(p => ({
+    const scaledPolys = rotatedPolys.map(poly => poly.map(p => ({
       x: Math.round(p.x * scale + offsetX),
       y: Math.round(p.y * scale + offsetY)
     })));
