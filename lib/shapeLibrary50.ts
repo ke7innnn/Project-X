@@ -42,25 +42,38 @@ export const MASTER_SHAPES_50: ShapeDefinition[] = [
       const rx = w / 2;
       const ry = h / 2;
       const pts: Array<{ x: number; y: number }> = [];
-      const angles = [0, (2 * PI) / 3, (4 * PI) / 3];
-      for (const angle of angles) {
-        const cosA = cos(angle);
-        const sinA = sin(angle);
-        const perpX = -sinA;
-        const perpY = cosA;
-        const armLen = 0.95;
-        const armW1 = 0.22;
-        const armW2 = 0.16;
-        const armW3 = 0.10;
+      const wingAngles = [0, (2 * Math.PI) / 3, (4 * Math.PI) / 3];
 
-        pts.push({ x: cx + (cosA * 0.28 + perpX * 0.28) * rx, y: cy + (sinA * 0.28 + perpY * 0.28) * ry });
-        pts.push({ x: cx + (cosA * 0.55 + perpX * armW1) * rx, y: cy + (sinA * 0.55 + perpY * armW1) * ry });
-        pts.push({ x: cx + (cosA * 0.78 + perpX * armW2) * rx, y: cy + (sinA * 0.78 + perpY * armW2) * ry });
-        pts.push({ x: cx + (cosA * armLen + perpX * armW3) * rx, y: cy + (sinA * armLen + perpY * armW3) * ry });
-        pts.push({ x: cx + (cosA * armLen - perpX * armW3) * rx, y: cy + (sinA * armLen - perpY * armW3) * ry });
-        pts.push({ x: cx + (cosA * 0.78 - perpX * armW2) * rx, y: cy + (sinA * 0.78 - perpY * armW2) * ry });
-        pts.push({ x: cx + (cosA * 0.55 - perpX * armW1) * rx, y: cy + (sinA * 0.55 - perpY * armW1) * ry });
-        pts.push({ x: cx + (cosA * 0.28 - perpX * 0.28) * rx, y: cy + (sinA * 0.28 - perpY * 0.28) * ry });
+      for (let i = 0; i < 3; i++) {
+        const angle = wingAngles[i];
+        const cosA = Math.cos(angle);
+        const sinA = Math.sin(angle);
+        const perpX = -Math.sin(angle);
+        const perpY = Math.cos(angle);
+
+        // Wing 1: Left root
+        pts.push({ x: cx + (cosA * 0.28 - perpX * 0.16) * rx, y: cy + (sinA * 0.28 - perpY * 0.16) * ry });
+        // Setback 1
+        pts.push({ x: cx + (cosA * 0.55 - perpX * 0.14) * rx, y: cy + (sinA * 0.55 - perpY * 0.14) * ry });
+        // Setback 2
+        pts.push({ x: cx + (cosA * 0.78 - perpX * 0.10) * rx, y: cy + (sinA * 0.78 - perpY * 0.10) * ry });
+        // Wing Tip Left
+        pts.push({ x: cx + (cosA * 0.95 - perpX * 0.06) * rx, y: cy + (sinA * 0.95 - perpY * 0.06) * ry });
+        // Wing Tip Right
+        pts.push({ x: cx + (cosA * 0.95 + perpX * 0.06) * rx, y: cy + (sinA * 0.95 + perpY * 0.06) * ry });
+        // Return Setback 2
+        pts.push({ x: cx + (cosA * 0.78 + perpX * 0.10) * rx, y: cy + (sinA * 0.78 + perpY * 0.10) * ry });
+        // Return Setback 1
+        pts.push({ x: cx + (cosA * 0.55 + perpX * 0.14) * rx, y: cy + (sinA * 0.55 + perpY * 0.14) * ry });
+        // Wing 1: Right root
+        pts.push({ x: cx + (cosA * 0.28 + perpX * 0.16) * rx, y: cy + (sinA * 0.28 + perpY * 0.16) * ry });
+
+        // Inner Crotch between wings (60°, 180°, 300°)
+        const midAngle = angle + Math.PI / 3;
+        pts.push({
+          x: cx + 0.22 * Math.cos(midAngle) * rx,
+          y: cy + 0.22 * Math.sin(midAngle) * ry,
+        });
       }
       return pts;
     },
@@ -706,22 +719,37 @@ export const MASTER_SHAPES_50: ShapeDefinition[] = [
     getPolygon: (cx, cy, w, h) => {
       const rx = w / 2;
       const ry = h / 2;
-      return [
-        { x: cx - 0.70 * rx, y: cy - 0.90 * ry },
-        { x: cx - 0.35 * rx, y: cy - 0.90 * ry },
-        { x: cx,             y: cy - 0.30 * ry },
-        { x: cx + 0.35 * rx, y: cy - 0.90 * ry },
-        { x: cx + 0.70 * rx, y: cy - 0.90 * ry },
-        { x: cx + 0.40 * rx, y: cy - 0.15 * ry },
-        { x: cx + 0.90 * rx, y: cy + 0.35 * ry },
-        { x: cx + 0.70 * rx, y: cy + 0.90 * ry },
-        { x: cx + 0.20 * rx, y: cy + 0.40 * ry },
-        { x: cx,             y: cy + 0.70 * ry },
-        { x: cx - 0.20 * rx, y: cy + 0.40 * ry },
-        { x: cx - 0.70 * rx, y: cy + 0.90 * ry },
-        { x: cx - 0.90 * rx, y: cy + 0.35 * ry },
-        { x: cx - 0.40 * rx, y: cy - 0.15 * ry },
-      ];
+      const pts: Array<{ x: number; y: number }> = [];
+      const wingAngles = [Math.PI / 4, (3 * Math.PI) / 4, (5 * Math.PI) / 4, (7 * Math.PI) / 4];
+
+      for (let i = 0; i < 4; i++) {
+        const angle = wingAngles[i];
+        const cosA = Math.cos(angle);
+        const sinA = Math.sin(angle);
+        const perpX = -Math.sin(angle);
+        const perpY = Math.cos(angle);
+
+        // Wing left root
+        pts.push({ x: cx + (cosA * 0.30 - perpX * 0.14) * rx, y: cy + (sinA * 0.30 - perpY * 0.14) * ry });
+        // Wing mid flank
+        pts.push({ x: cx + (cosA * 0.65 - perpX * 0.12) * rx, y: cy + (sinA * 0.65 - perpY * 0.12) * ry });
+        // Wing tip left
+        pts.push({ x: cx + (cosA * 0.92 - perpX * 0.08) * rx, y: cy + (sinA * 0.92 - perpY * 0.08) * ry });
+        // Wing tip right
+        pts.push({ x: cx + (cosA * 0.92 + perpX * 0.08) * rx, y: cy + (sinA * 0.92 + perpY * 0.08) * ry });
+        // Wing return mid flank
+        pts.push({ x: cx + (cosA * 0.65 + perpX * 0.12) * rx, y: cy + (sinA * 0.65 + perpY * 0.12) * ry });
+        // Wing right root
+        pts.push({ x: cx + (cosA * 0.30 + perpX * 0.14) * rx, y: cy + (sinA * 0.30 + perpY * 0.14) * ry });
+
+        // Inner Notch between wings (at 90°, 180°, 270°, 0°)
+        const midAngle = angle + Math.PI / 4;
+        pts.push({
+          x: cx + 0.22 * Math.cos(midAngle) * rx,
+          y: cy + 0.22 * Math.sin(midAngle) * ry,
+        });
+      }
+      return pts;
     },
   },
 
@@ -1075,15 +1103,20 @@ export const MASTER_SHAPES_50: ShapeDefinition[] = [
       const rx = w / 2;
       const ry = h / 2;
       const pts: Array<{ x: number; y: number }> = [];
-      const N = 36;
-      for (let i = 0; i < N; i++) {
-        const t = (i / N) * 2 * PI;
-        const r = 0.35 + 0.55 * (t / (2 * PI));
+      const N = 32;
+      // Outer logarithmic spiral arc from 0 to 2*PI
+      for (let i = 0; i <= N; i++) {
+        const t = (i / N) * 2 * Math.PI;
+        const r = 0.35 + 0.55 * (t / (2 * Math.PI));
         pts.push({
-          x: cx + r * cos(t) * rx,
-          y: cy + r * sin(t) * ry,
+          x: cx + r * Math.cos(t) * rx,
+          y: cy + r * Math.sin(t) * ry,
         });
       }
+      // Return curve along inner core shell to close smoothly without internal cutting lines
+      pts.push({ x: cx + 0.70 * rx, y: cy - 0.25 * ry });
+      pts.push({ x: cx + 0.45 * rx, y: cy - 0.35 * ry });
+      pts.push({ x: cx + 0.25 * rx, y: cy - 0.15 * ry });
       return pts;
     },
   },
