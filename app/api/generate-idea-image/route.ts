@@ -455,16 +455,86 @@ export async function POST(req: Request) {
 
       const stage2Base64 = await fetchToBase64(stage2Url);
 
-      // ── STAGE 3 — GPT Image 2: Ventilation Strategy Overlay ──────────────
-      console.log(`[IdeaGenerator] Stage 3: openai/gpt-image-2/edit — adding cross-ventilation annotation overlay...`);
+      // ── STAGE 2.5 — GPT-4o Vision: Architectural Audit ──────────────────────
+      console.log(`[IdeaGenerator] Stage 2.5: GPT-4o Vision — auditing floor plan for ventilation and circulation issues...`);
+
+      const flatLabelsList = Array.from({ length: numFlats }, (_, i) => `F${i + 1}`).join(', ');
+      const colorMap = ['red','blue','green','orange','purple','teal','crimson','indigo','dark-green','dark-orange'];
+      const flatColorList = Array.from({ length: numFlats }, (_, i) => `F${i + 1} (${colorMap[i % colorMap.length]} boundary)`).join(', ');
+
+      const auditSystemPrompt = `You are a licensed senior architect reviewing a 2D CAD residential floor plan. Your job is to produce a precise, actionable correction brief for each flat unit that has architectural deficiencies. Be specific: name the unit by its label AND boundary color. Output ONLY a structured correction brief — no preamble, no praise.`;
+
+      const auditUserPrompt = `Analyze this 2D CAD floor plan image. It contains ${numFlats} flat units: ${flatColorList}. Each unit is identified by its colored outer boundary outline.
+
+For EACH flat unit (${flatLabelsList}), check and report:
+
+1. VENTILATION CHECK: Is every habitable room (Living Room, Kitchen, ALL Bedrooms) placed on the exterior/perimeter wall of the building with a direct window opening? If any habitable room is landlocked (interior with no exterior wall window), flag it.
+
+2. CIRCULATION CHECK: Does the flat have a clear foyer/entrance from the shared corridor? Is there an internal hallway connecting all rooms without crossing through another room? Can every room be reached without passing through a habitable room?
+
+3. ROOM ADJACENCY CHECK: Is the Kitchen directly adjacent to Living/Dining? Are Bedroom doors opening from a circulation/hallway area rather than the Living Room?
+
+Output Format — write one block per problematic flat only:
+UNIT [F#] ([color] boundary):
+- PROBLEM: [exact room name] is landlocked / has no exterior window / has no direct circulation access etc.
+- FIX: [exactly what internal partition changes need to be made — which room to move to which wall, etc.]
+
+If a flat has NO issues, skip it entirely.
+At the end write: UNITS WITH NO ISSUES: [list any perfect flats, or "None" if all have issues].`;
+
+      let auditReport = '';
+      try {
+        const openaiResponse = await fetch('https://api.openai.com/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            model: 'gpt-4o',
+            max_tokens: 1200,
+            messages: [
+              { role: 'system', content: auditSystemPrompt },
+              {
+                role: 'user',
+                content: [
+                  { type: 'text', text: auditUserPrompt },
+                  { type: 'image_url', image_url: { url: stage2Base64, detail: 'high' } },
+                ],
+              },
+            ],
+          }),
+        });
+        const auditJson = await openaiResponse.json();
+        auditReport = auditJson?.choices?.[0]?.message?.content || '';
+        console.log(`[IdeaGenerator] Stage 2.5 Audit Report:\n${auditReport}`);
+      } catch (auditErr) {
+        console.warn('[IdeaGenerator] Stage 2.5 audit failed, proceeding without audit report:', auditErr);
+      }
+
+      // ── STAGE 3 — GPT Image 2: Architectural Correction ──────────────────────
+      console.log(`[IdeaGenerator] Stage 3: openai/gpt-image-2/edit — applying architectural corrections...`);
 
       // Upload Stage 2 result to fal storage so GPT Image 2 can accept it as image_url
       const stage2FalUrl = await urlToFalStorage(stage2Url);
 
-      const flatLabelsList = Array.from({ length: numFlats }, (_, i) => `F${i + 1}`).join(', ');
+      const auditSection = auditReport
+        ? `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ARCHITECTURAL AUDIT REPORT — SPECIFIC ISSUES TO FIX
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+The following issues were identified in this floor plan by an architectural review. Fix EACH issue precisely as described:
+
+${auditReport}
+
+Apply the above fixes by editing ONLY the internal room partitions and doors of the flagged units. Do NOT change any unit that was marked as having no issues.`
+        : '';
+
       const ventilationPrompt = `You are a licensed senior architect performing a final quality review and correction pass on this residential floor plan.
 
 EDIT THE UPLOADED IMAGE. Correct every architectural deficiency while keeping overall zoning and flat boundaries intact.
+
+${auditSection}
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ⚠ IMMUTABLE GEOMETRY — ABSOLUTE CONSTRAINTS (DO NOT VIOLATE)
@@ -546,7 +616,8 @@ OUTPUT: A complete, architecturally corrected 2D CAD floor plan where EVERY flat
         systemPrompt: stage1Prompt,
         refinementPrompt,
         stage3Prompt: ventilationPrompt,
-        userPrompt: `PIPELINE | Stage1: ${stage1Model} -> Stage2: ${stage2Model} -> Stage3: openai/gpt-image-2/edit | BHK: ${dominantBHK}`,
+        auditReport,
+        userPrompt: `PIPELINE | Stage1: ${stage1Model} -> Stage2: ${stage2Model} -> Stage2.5: GPT-4o Audit -> Stage3: openai/gpt-image-2/edit | BHK: ${dominantBHK}`,
       });
     }
 

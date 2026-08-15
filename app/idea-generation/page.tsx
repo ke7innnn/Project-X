@@ -120,6 +120,7 @@ export default function IdeaGenerationPage() {
     stage2Prompt?: string;
     stage2OutputUrl?: string;
     stage2Seed?: number;
+    auditReport?: string;
     stage3Prompt?: string;
     stage3OutputUrl?: string;
     userPrompt?: string;
@@ -380,6 +381,7 @@ STAGE 2 → Refine interior layout, enforce NBC room sizes, verify room complete
           stage2Prompt: resData.refinementPrompt,
           stage2OutputUrl: resData.stage2ImageUrl,
           stage2Seed: resData.stage2Seed,
+          auditReport: resData.auditReport,
           stage3Prompt: resData.stage3Prompt,
           stage3OutputUrl: resData.stage3ImageUrl || resData.url,
           userPrompt: resData.userPrompt,
@@ -393,8 +395,11 @@ STAGE 2 → Refine interior layout, enforce NBC room sizes, verify room complete
         if (resData.stage2ImageUrl) {
           setLogs(prev => [...prev, `[SYS] STAGE 2 REFINEMENT OUTPUT: RECEIVED`]);
         }
+        if (resData.auditReport) {
+          setLogs(prev => [...prev, `[SYS] STAGE 2.5 GPT-4o AUDIT: COMPLETE`]);
+        }
         if (resData.stage3ImageUrl) {
-          setLogs(prev => [...prev, `[SYS] STAGE 3 VENTILATION OVERLAY: RECEIVED`]);
+          setLogs(prev => [...prev, `[SYS] STAGE 3 CORRECTION OUTPUT: RECEIVED`]);
         }
         
         const finalResultImg = resData.url || null;
@@ -1093,7 +1098,21 @@ STAGE 2 → Refine interior layout, enforce NBC room sizes, verify room complete
                   )}
                 </div>
 
-                {/* 5. Stage 3 (GPT Image 2) Ventilation Prompt */}
+                {/* 4.5. Stage 2.5 — GPT-4o Vision Architectural Audit Report */}
+                {debugPayload.auditReport && (
+                  <div className="flex flex-col gap-2 border-t border-white/10 pt-4">
+                    <span className="text-[10px] text-yellow-400 uppercase tracking-widest font-bold flex items-center gap-1.5">
+                      <span className="w-4 h-4 rounded-full bg-yellow-500/20 border border-yellow-400 flex items-center justify-center text-[9px]">★</span>
+                      STAGE 2.5 — GPT-4O VISION ARCHITECTURAL AUDIT REPORT
+                    </span>
+                    <div className="p-4 bg-black/60 border border-yellow-500/20 rounded-lg text-[11px] text-yellow-200/90 font-mono whitespace-pre-wrap leading-relaxed shadow-inner">
+                      <span className="text-yellow-400 font-bold block mb-2 text-[10px]">⚠ ISSUES IDENTIFIED — SENT TO STAGE 3 FOR CORRECTION:</span>
+                      {debugPayload.auditReport}
+                    </div>
+                  </div>
+                )}
+
+                {/* 5. Stage 3 (GPT Image 2) Architectural Correction Prompt */}
                 {debugPayload.stage3Prompt && (
                   <div className="flex flex-col gap-2 border-t border-white/10 pt-4">
                     <span className="text-[10px] text-sky-400 uppercase tracking-widest font-bold flex items-center gap-1.5">
