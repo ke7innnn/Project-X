@@ -144,9 +144,11 @@ EQUAL AREA PARTITIONING & MAXIMUM FLOOR UTILIZATION (CRITICAL)
    • Divide the total usable footprint area into EXACTLY ${numFlats} PROPORTIONAL, EQUAL-SIZED flat zones.
    • ABSOLUTELY NO SQUEEZED OR TINY FLATS — no flat zone should be disproportionately small. Every single flat zone must have sufficient, equal area to accommodate a full multi-room apartment layout.
 
-2. RECTANGULAR & SQUARE ZONING BLOCKS:
-   • Draw the flat zones as clean RECTANGULAR or SQUARE blocks inside the footprint shape.
-   • Partition walls must be clean, straight lines at 90-degree angles.
+2. RECTANGULAR & SQUARE ZONING BLOCKS — STRICT 90° RULE:
+   • EVERY flat zone division box MUST be a clean RECTANGLE or SQUARE — no triangles, no trapezoids, no irregular polygons, no diagonal cuts.
+   • ALL partition walls separating flat zones from each other MUST be perfectly straight horizontal or vertical lines at EXACTLY 90-degree angles.
+   • ABSOLUTELY NO DIAGONAL WALLS, ANGLED CUTS, or SLANTED PARTITION LINES anywhere in the flat zone divisions.
+   • Each flat zone is a clean orthogonal rectangular/square block sitting inside the building footprint shape.
    • Fill and utilize MAXIMUM usable floor area inside the building footprint — minimize awkward or wasted residual space.
 
 3. FLEXIBLE EXTERIOR ACCESS:
