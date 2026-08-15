@@ -1298,6 +1298,7 @@ STAGE 2 → Refine interior layout, enforce NBC room sizes, verify room complete
                 </div>
               </div>
             </div>
+          </div>
         )}
 
         {/* Fullscreen Lightbox Modal for Uncropped Floor Plan Inspection */}
