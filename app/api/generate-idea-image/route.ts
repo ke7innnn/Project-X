@@ -246,24 +246,24 @@ function buildStage2Prompt(opts: {
   let flatIndex = 1;
   if (units1BHK > 0) {
     const list = Array.from({ length: units1BHK }, () => `F${flatIndex++}`).join(', ');
-    mixLines.push(`• ${list}: 1 BHK (1 Living/Dining + 1 Kitchen + 1 Bedroom + 1 Bathroom)`);
+    mixLines.push(`• ${list}: 1 BHK (1 Living/Dining Room with Attached BALCONY + 1 Kitchen + 1 Bedroom + 1 Bathroom)`);
   }
   if (units2BHK > 0) {
     const list = Array.from({ length: units2BHK }, () => `F${flatIndex++}`).join(', ');
-    mixLines.push(`• ${list}: 2 BHK (1 Living/Dining + 1 Kitchen + 2 Bedrooms [Master + Bed 2] + 2 Bathrooms)`);
+    mixLines.push(`• ${list}: 2 BHK (1 Living/Dining Room with Attached BALCONY + 1 Kitchen + 2 Bedrooms [Master + Bed 2] + 2 Bathrooms)`);
   }
   if (units3BHK > 0) {
     const list = Array.from({ length: units3BHK }, () => `F${flatIndex++}`).join(', ');
-    mixLines.push(`• ${list}: 3 BHK (1 Living/Dining + 1 Kitchen + 3 Bedrooms [Master + Bed 2 + Bed 3] + 3 Bathrooms)`);
+    mixLines.push(`• ${list}: 3 BHK (1 Living/Dining Room with Attached BALCONY + 1 Kitchen + 3 Bedrooms [Master + Bed 2 + Bed 3] + 3 Bathrooms)`);
   }
   if (units4BHK > 0) {
     const list = Array.from({ length: units4BHK }, () => `F${flatIndex++}`).join(', ');
-    mixLines.push(`• ${list}: 4 BHK (1 Living/Dining + 1 Kitchen + 4 Bedrooms + 4 Bathrooms)`);
+    mixLines.push(`• ${list}: 4 BHK (1 Living/Dining Room with Attached BALCONY + 1 Kitchen + 4 Bedrooms + 4 Bathrooms)`);
   }
 
   const mixDescription = mixLines.length > 0
     ? mixLines.join('\n')
-    : `• Every flat zone (${flatLabels}): ${bhkType.toUpperCase()} layout`;
+    : `• Every flat zone (${flatLabels}): ${bhkType.toUpperCase()} layout with 1 Living/Dining Room with Attached BALCONY`;
 
   const liftsStr = passengerLifts > 0 ? `${passengerLifts} elevator shaft(s)` : '1 elevator shaft';
   const stairsStr = staircases > 0 ? `${staircases} fire staircase flight(s)` : '2 fire staircase flights';
@@ -279,10 +279,11 @@ IMAGE ROLES — EXTREMELY IMPORTANT
 
 • IMAGE 2 = CROSS-VENTILATION & ROOM FLOW REFERENCE.
   Study the architectural composition in IMAGE 2:
-  1. PERIMETER-DRIVEN VENTILATION: Habitable rooms (Living Room, Dining, Bedrooms) line the exterior building facade with windows & balcony for natural airflow and daylight.
-  2. INTERNAL SERVICE CORE: The entrance door, Kitchen, and Bathrooms sit along the internal corridor side.
-  3. SOLID KITCHEN PARTITION: Kitchen is an enclosed walled room with a door connecting to Living/Dining (no open-plan kitchen).
-  4. FOYER CIRCULATION: Entrance foyer connects directly to all rooms without walking through private spaces.
+  1. PERIMETER LIVING & BALCONY: Notice that EVERY living room connects directly to an attached exterior BALCONY on the facade.
+  2. PERIMETER BEDROOMS: Habitable rooms (Living Room, Dining, Bedrooms) line the exterior building facade with windows for natural airflow and daylight.
+  3. INTERNAL SERVICE CORE: The entrance door, Kitchen, and Bathrooms sit along the internal corridor side.
+  4. SOLID KITCHEN PARTITION: Kitchen is an enclosed walled room with a door connecting to Living/Dining (no open-plan kitchen).
+  5. FOYER CIRCULATION: Entrance foyer connects directly to all rooms without walking through private spaces.
   Apply this exact cross-ventilation logic inside every flat zone of IMAGE 1!
 ` : ''}
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -311,23 +312,28 @@ ${mixDescription}
 #4 — STRICT ARCHITECTURAL & VENTILATION RULES
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-1. PERIMETER VENTILATION (LIGHT & AIR FIRST):
+1. LIVING ROOM BALCONY (MANDATORY STRICT RULE):
+   • STRICT RULE: EVERY Living Room MUST have an attached outdoor BALCONY along the exterior facade.
+   • The Living Room MUST touch the exterior building perimeter facade where this balcony is situated.
+   • Draw clear balcony boundary lines, railing lines, and door access between the Living Room and the Balcony.
+
+2. PERIMETER VENTILATION (LIGHT & AIR FIRST):
    • The exterior building perimeter is the PRIMARY light and ventilation source.
-   • EVERY Living Room MUST directly touch an exterior facade wall with a proper window or balcony opening.
+   • EVERY Living Room and its Balcony MUST directly touch an exterior facade wall.
    • EVERY Bedroom MUST be placed along an exterior perimeter wall with direct outside-facing windows — NEVER landlocked in the middle.
    • Kitchens must have an exterior wall window OR be placed along a dedicated ventilation shaft.
    • Bathrooms placed internally MUST have a ventilation shaft labeled "DUCT" — never unventilated.
    • Corridors are strictly for circulation and must NEVER substitute for room ventilation.
 
-2. LOGICAL ENTRANCE & CIRCULATION SEQUENCE:
+3. LOGICAL ENTRANCE & CIRCULATION SEQUENCE:
    • Common Corridor → Apartment Entrance Door → Foyer / Living Room → Internal Circulation Hallway → Bedrooms / Kitchen / Bathrooms.
    • Every room must open from common circulation — never require walking through one bedroom to enter another room.
 
-3. 90° ORTHOGONAL ROOM GEOMETRY & FULL SPACE UTILIZATION:
+4. 90° ORTHOGONAL ROOM GEOMETRY & FULL SPACE UTILIZATION:
    • The flat boundary may follow the building shape, but ALL internal room partitions MUST be clean 90° orthogonal rectangles/squares.
    • Fill the entire usable area inside each flat zone — do NOT leave awkward, unused residual gaps.
 
-4. KITCHEN SEPARATION:
+5. KITCHEN SEPARATION:
    • Kitchen and Living Room MUST be separated by a full solid partition wall with a door opening between them. NO open-plan kitchen.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -335,12 +341,12 @@ ${mixDescription}
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 • Pure 2D architectural CAD linework on solid white background.
-• Standard door swings (quarter-circle arcs) and double-line window openings along exterior walls.
+• Standard door swings (quarter-circle arcs), balcony railings, and double-line window openings along exterior walls.
 • NO wood textures, NO 3D rendering, NO color fills inside rooms.
 • PRESERVE each flat's unique colored outer boundary outline from IMAGE 1. All internal partition lines remain thin black lines.
 • Keep flat labels (${flatLabels}) near entry doors.
 
-OUTPUT: A complete, functional 2D CAD floor plan with all ${numFlats} units perfectly arranged with perimeter ventilation, 90° rectangular rooms, and clean circulation inside IMAGE 1.`;
+OUTPUT: A complete, functional 2D CAD floor plan with all ${numFlats} units perfectly arranged with mandatory living room balconies, perimeter ventilation, 90° rectangular rooms, and clean circulation inside IMAGE 1.`;
 }
 
 // ── Route Handler ─────────────────────────────────────────────────────────────
