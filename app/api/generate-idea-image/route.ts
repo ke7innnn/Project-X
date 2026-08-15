@@ -36,22 +36,32 @@ async function urlToFalStorage(url: string): Promise<string> {
 
 async function loadReferenceToFalStorage(bhkType: string): Promise<string | null> {
   try {
-    let refPath = path.join(process.cwd(), 'public', 'references', 'master_cad_ref.png');
-    if (!fs.existsSync(refPath)) {
-      refPath = path.join(process.cwd(), 'public', 'references', `${bhkType}.png`);
+    // Priority order: BHK-specific image first, then generic fallback
+    const candidatePaths = [
+      path.join(process.cwd(), 'public', 'references', `${bhkType}.png`),        // e.g. 2bhk.png
+      path.join(process.cwd(), 'public', 'references', `ref-${bhkType}.png`),    // e.g. ref-2bhk.png
+      path.join(process.cwd(), 'public', 'references', 'master_cad_ref.png'),    // generic fallback
+    ];
+
+    let refPath: string | null = null;
+    for (const p of candidatePaths) {
+      if (fs.existsSync(p)) {
+        refPath = p;
+        break;
+      }
     }
-    if (!fs.existsSync(refPath)) {
-      refPath = path.join(process.cwd(), 'public', 'references', `ref-${bhkType}.png`);
-    }
-    if (!fs.existsSync(refPath)) {
-      console.warn(`[IdeaGenerator] Reference image not found: ${refPath}`);
+
+    if (!refPath) {
+      console.warn(`[IdeaGenerator] No reference image found for bhkType=${bhkType}`);
       return null;
     }
+
+    console.log(`[IdeaGenerator] Using reference image: ${refPath}`);
     const buffer = fs.readFileSync(refPath);
     const blob = new Blob([buffer], { type: 'image/png' });
-    const file = new File([blob], 'master_cad_ref.png', { type: 'image/png' });
+    const file = new File([blob], `${bhkType}_ref.png`, { type: 'image/png' });
     const url = await fal.storage.upload(file);
-    console.log(`[IdeaGenerator] Uploaded master CAD reference to fal storage: ${url}`);
+    console.log(`[IdeaGenerator] Uploaded ${bhkType} CAD reference to fal storage: ${url}`);
     return url;
   } catch (err: any) {
     console.warn(`[IdeaGenerator] Failed to load reference image:`, err.message);
