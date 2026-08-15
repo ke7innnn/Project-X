@@ -852,7 +852,7 @@ STAGE 2 → Refine interior layout, enforce NBC room sizes, verify room complete
                               : 'text-gray-400 hover:text-white border border-transparent'
                           }`}
                         >
-                          ⊞ Both Variants
+                          ⊞ Both Types
                         </button>
                       )}
                       {(debugPayload?.stage2ProOutputUrl || debugPayload?.stage2GptOutputUrl || resultImage) && (
@@ -864,7 +864,7 @@ STAGE 2 → Refine interior layout, enforce NBC room sizes, verify room complete
                               : 'text-gray-400 hover:text-white border border-transparent'
                           }`}
                         >
-                          ★ Nano Banana Pro
+                          ★ Type 1 Image
                         </button>
                       )}
                       {debugPayload?.stage2NanoOutputUrl && (
@@ -876,7 +876,7 @@ STAGE 2 → Refine interior layout, enforce NBC room sizes, verify room complete
                               : 'text-gray-400 hover:text-white border border-transparent'
                           }`}
                         >
-                          ★ Nano Banana 2
+                          ★ Type 2 Image
                         </button>
                       )}
                       {debugPayload?.stage1OutputUrl && (
@@ -888,7 +888,7 @@ STAGE 2 → Refine interior layout, enforce NBC room sizes, verify room complete
                               : 'text-gray-400 hover:text-white border border-transparent'
                           }`}
                         >
-                          📐 Zoning (Stage 1)
+                          📐 Zoning Plan (Stage 1)
                         </button>
                       )}
                     </div>
@@ -897,28 +897,28 @@ STAGE 2 → Refine interior layout, enforce NBC room sizes, verify room complete
                   {/* Schema Display Cards Container */}
                   <div className="flex flex-col gap-4">
                     
-                    {/* 1. Nano Banana Pro Card */}
+                    {/* 1. Type 1 Floor Plan Card */}
                     {(selectedViewTab === 'both' || selectedViewTab === 'pro') && (debugPayload?.stage2ProOutputUrl || debugPayload?.stage2GptOutputUrl || resultImage) && (
                       <div className="relative flex flex-col rounded-xl border border-emerald-500/30 bg-black/60 overflow-hidden group shadow-lg">
                         <div className="px-3 py-1.5 bg-emerald-950/80 border-b border-emerald-500/20 flex items-center justify-between">
                           <span className="text-[10px] font-bold text-emerald-400 tracking-wider uppercase flex items-center gap-1.5">
                             <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                            VARIANT A: NANO BANANA PRO (FAST)
+                            TYPE 1 FLOOR PLAN SCHEMATIC
                           </span>
                           <span className="text-[9px] text-emerald-500/60 font-mono">
-                            {debugPayload?.stage2Seed !== undefined ? `SEED: ${debugPayload.stage2Seed}` : 'CROSS-VENTILATION'}
+                            {debugPayload?.stage2Seed !== undefined ? `SEED: ${debugPayload.stage2Seed}` : 'SCHEME 1'}
                           </span>
                         </div>
                         <div 
                           className="relative bg-white p-2 flex items-center justify-center cursor-pointer group/img min-h-[350px]"
                           onClick={() => setLightboxImage({ 
                             url: debugPayload?.stage2ProOutputUrl || debugPayload?.stage2GptOutputUrl || resultImage!, 
-                            title: 'Variant A: Nano Banana Pro Floor Plan' 
+                            title: 'Type 1 Floor Plan Schematic' 
                           })}
                         >
                           <img 
                             src={debugPayload?.stage2ProOutputUrl || debugPayload?.stage2GptOutputUrl || resultImage!} 
-                            alt="Nano Banana Pro Floor Plan"
+                            alt="Type 1 Floor Plan"
                             className="w-full h-auto max-h-[550px] object-contain rounded transition-transform group-hover/img:scale-[1.01]"
                           />
                           <div className="absolute top-3 right-3 p-1.5 bg-black/70 rounded-lg text-white opacity-0 group-hover/img:opacity-100 transition-opacity border border-white/20 flex items-center gap-1 text-[9px] font-mono pointer-events-none">
@@ -926,12 +926,12 @@ STAGE 2 → Refine interior layout, enforce NBC room sizes, verify room complete
                           </div>
                         </div>
                         <div className="p-3 bg-[#08080c] border-t border-white/10 flex items-center justify-between gap-2">
-                          <span className="text-[10px] text-emerald-300 font-semibold truncate">Nano Banana Pro Schematic</span>
+                          <span className="text-[10px] text-emerald-300 font-semibold truncate">Type 1 Schematic</span>
                           <div className="flex items-center gap-2">
                             <button
                               onClick={() => setLightboxImage({ 
                                 url: debugPayload?.stage2ProOutputUrl || debugPayload?.stage2GptOutputUrl || resultImage!, 
-                                title: 'Variant A: Nano Banana Pro Floor Plan' 
+                                title: 'Type 1 Floor Plan Schematic' 
                               })}
                               className="px-2.5 py-1 rounded bg-black/40 border border-white/10 hover:border-emerald-400 text-[10px] text-gray-300 hover:text-white flex items-center gap-1 transition-colors"
                             >
@@ -939,7 +939,7 @@ STAGE 2 → Refine interior layout, enforce NBC room sizes, verify room complete
                             </button>
                             <a 
                               href={debugPayload?.stage2ProOutputUrl || debugPayload?.stage2GptOutputUrl || resultImage!}
-                              download="nano-pro-floorplan-schematic.png"
+                              download="type-1-floorplan-schematic.png"
                               className="px-2.5 py-1 rounded bg-emerald-950 border border-emerald-500/30 text-[10px] text-emerald-400 hover:text-white flex items-center gap-1 transition-colors"
                             >
                               <Download className="w-3 h-3" /> Download
@@ -969,26 +969,26 @@ STAGE 2 → Refine interior layout, enforce NBC room sizes, verify room complete
                       </div>
                     )}
 
-                    {/* 2. Nano Banana 2 Card */}
+                    {/* 2. Type 2 Floor Plan Card */}
                     {(selectedViewTab === 'both' || selectedViewTab === 'nano') && debugPayload?.stage2NanoOutputUrl && (
                       <div className="relative flex flex-col rounded-xl border border-cyan-500/30 bg-black/60 overflow-hidden group shadow-lg">
                         <div className="px-3 py-1.5 bg-cyan-950/80 border-b border-cyan-500/20 flex items-center justify-between">
                           <span className="text-[10px] font-bold text-cyan-400 tracking-wider uppercase flex items-center gap-1.5">
                             <span className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse" />
-                            VARIANT B: NANO BANANA 2
+                            TYPE 2 FLOOR PLAN SCHEMATIC
                           </span>
-                          <span className="text-[9px] text-cyan-500/60 font-mono">BALANCED ENGINE</span>
+                          <span className="text-[9px] text-cyan-500/60 font-mono">SCHEME 2</span>
                         </div>
                         <div 
                           className="relative bg-white p-2 flex items-center justify-center cursor-pointer group/img min-h-[350px]"
                           onClick={() => setLightboxImage({ 
                             url: debugPayload.stage2NanoOutputUrl!, 
-                            title: 'Variant B: Nano Banana 2 Floor Plan' 
+                            title: 'Type 2 Floor Plan Schematic' 
                           })}
                         >
                           <img 
                             src={debugPayload.stage2NanoOutputUrl} 
-                            alt="Nano Banana 2 Floor Plan"
+                            alt="Type 2 Floor Plan"
                             className="w-full h-auto max-h-[550px] object-contain rounded transition-transform group-hover/img:scale-[1.01]"
                           />
                           <div className="absolute top-3 right-3 p-1.5 bg-black/70 rounded-lg text-white opacity-0 group-hover/img:opacity-100 transition-opacity border border-white/20 flex items-center gap-1 text-[9px] font-mono pointer-events-none">
@@ -996,12 +996,12 @@ STAGE 2 → Refine interior layout, enforce NBC room sizes, verify room complete
                           </div>
                         </div>
                         <div className="p-3 bg-[#08080c] border-t border-white/10 flex items-center justify-between gap-2">
-                          <span className="text-[10px] text-cyan-300 font-semibold truncate">Nano Banana 2 Schematic</span>
+                          <span className="text-[10px] text-cyan-300 font-semibold truncate">Type 2 Schematic</span>
                           <div className="flex items-center gap-2">
                             <button
                               onClick={() => setLightboxImage({ 
                                 url: debugPayload.stage2NanoOutputUrl!, 
-                                title: 'Variant B: Nano Banana 2 Floor Plan' 
+                                title: 'Type 2 Floor Plan Schematic' 
                               })}
                               className="px-2.5 py-1 rounded bg-black/40 border border-white/10 hover:border-cyan-400 text-[10px] text-gray-300 hover:text-white flex items-center gap-1 transition-colors"
                             >
@@ -1009,7 +1009,7 @@ STAGE 2 → Refine interior layout, enforce NBC room sizes, verify room complete
                             </button>
                             <a 
                               href={debugPayload.stage2NanoOutputUrl}
-                              download="nano-floorplan-schematic.png"
+                              download="type-2-floorplan-schematic.png"
                               className="px-2.5 py-1 rounded bg-cyan-950 border border-cyan-500/30 text-[10px] text-cyan-400 hover:text-white flex items-center gap-1 transition-colors"
                             >
                               <Download className="w-3 h-3" /> Download
@@ -1248,12 +1248,12 @@ STAGE 2 → Refine interior layout, enforce NBC room sizes, verify room complete
                   </div>
                 )}
 
-                {/* 4A. Stage 2A (Nano Banana Pro) Schematic Output */}
+                {/* 4A. Stage 2A (Type 1) Schematic Output */}
                 <div className="flex flex-col gap-2 border-t border-white/10 pt-4">
                   <div className="flex items-center justify-between">
                     <span className="text-[10px] text-emerald-400 uppercase tracking-widest font-bold flex items-center gap-1.5">
                       <span className="w-4 h-4 rounded-full bg-emerald-500/20 border border-emerald-400 flex items-center justify-center text-[9px]">4A</span>
-                      STAGE 2A (NANO BANANA PRO) SCHEMATIC OUTPUT
+                      STAGE 2A: TYPE 1 SCHEMATIC OUTPUT
                     </span>
                     {debugPayload.stage2Seed !== undefined && (
                       <span className="text-[9px] font-mono px-2 py-0.5 rounded bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 font-bold">
@@ -1265,36 +1265,36 @@ STAGE 2 → Refine interior layout, enforce NBC room sizes, verify room complete
                     <div className="p-3 bg-black/80 border border-emerald-500/30 rounded-lg flex items-center justify-center">
                       <img 
                         src={debugPayload.stage2ProOutputUrl || debugPayload.stage2GptOutputUrl} 
-                        alt="Nano Banana Pro Stage 2 Output"
+                        alt="Type 1 Stage 2 Output"
                         className="max-w-full max-h-[400px] object-contain border border-emerald-500/30 rounded shadow-lg"
                       />
                     </div>
                   ) : (
                     <div className="p-4 bg-black/40 border border-emerald-500/10 rounded-lg text-[11px] text-emerald-500/50 font-mono text-center">
-                      Waiting for Nano Banana Pro generation...
+                      Waiting for Type 1 generation...
                     </div>
                   )}
                 </div>
 
-                {/* 4B. Stage 2B (Nano Banana 2) Schematic Output */}
+                {/* 4B. Stage 2B (Type 2) Schematic Output */}
                 <div className="flex flex-col gap-2 border-t border-white/10 pt-4">
                   <div className="flex items-center justify-between">
                     <span className="text-[10px] text-cyan-400 uppercase tracking-widest font-bold flex items-center gap-1.5">
                       <span className="w-4 h-4 rounded-full bg-cyan-500/20 border border-cyan-400 flex items-center justify-center text-[9px]">4B</span>
-                      STAGE 2B (NANO BANANA 2) SCHEMATIC OUTPUT
+                      STAGE 2B: TYPE 2 SCHEMATIC OUTPUT
                     </span>
                   </div>
                   {debugPayload.stage2NanoOutputUrl ? (
                     <div className="p-3 bg-black/80 border border-cyan-500/30 rounded-lg flex items-center justify-center">
                       <img 
                         src={debugPayload.stage2NanoOutputUrl} 
-                        alt="Nano Banana 2 Stage 2 Output"
+                        alt="Type 2 Stage 2 Output"
                         className="max-w-full max-h-[400px] object-contain border border-cyan-500/30 rounded shadow-lg"
                       />
                     </div>
                   ) : (
                     <div className="p-4 bg-black/40 border border-cyan-500/10 rounded-lg text-[11px] text-cyan-500/50 font-mono text-center">
-                      Waiting for Nano Banana 2 generation...
+                      Waiting for Type 2 generation...
                     </div>
                   )}
                 </div>
