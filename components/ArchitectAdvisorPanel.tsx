@@ -372,6 +372,7 @@ const ArchitectAdvisorPanel = forwardRef<ArchitectAdvisorRef, Props>(({ onParams
   const [isEditingShape, setIsEditingShape] = useState(false);
   const [editablePolygons, setEditablePolygons] = useState<Point[][] | null>(null);
   const [shapeDragIdx, setShapeDragIdx] = useState<{ polyIdx: number; ptIdx: number } | null>(null);
+  const [isDraggingWholeShape, setIsDraggingWholeShape] = useState(false);
   const [shapeDragStart, setShapeDragStart] = useState<Point | null>(null);
   const [hoveredEdge, setHoveredEdge] = useState<{ polyIdx: number; edgeIdx: number; insertPt: Point } | null>(null);
   const [isRotatingShape, setIsRotatingShape] = useState(false);
@@ -763,9 +764,9 @@ const ArchitectAdvisorPanel = forwardRef<ArchitectAdvisorRef, Props>(({ onParams
             // Draw the editable shape (overrides the static one)
             editablePolygons.forEach(shapePts => {
               if (shapePts.length < 3) return;
-              ctx.fillStyle = 'rgba(255, 165, 0, 0.30)';
-              ctx.strokeStyle = '#FF6B00';
-              ctx.lineWidth = 2.5;
+              ctx.fillStyle = 'rgba(255, 120, 0, 0.35)';
+              ctx.strokeStyle = '#FF7A00';
+              ctx.lineWidth = 3.0;
               ctx.beginPath();
               ctx.moveTo(shapePts[0].x, shapePts[0].y);
               shapePts.slice(1).forEach(p => ctx.lineTo(p.x, p.y));
@@ -774,44 +775,76 @@ const ArchitectAdvisorPanel = forwardRef<ArchitectAdvisorRef, Props>(({ onParams
               ctx.stroke();
             });
             
-            // Draw vertex handles
-            editablePolygons.forEach(shapePts => {
-              shapePts.forEach(pt => {
-                ctx.fillStyle = '#FF6B00';
+            // Draw vertex handles (large, crisp, glowing)
+            editablePolygons.forEach((shapePts, pi) => {
+              shapePts.forEach((pt, vi) => {
+                const isSelected = shapeDragIdx?.polyIdx === pi && shapeDragIdx?.ptIdx === vi;
+                
+                ctx.save();
+                ctx.shadowColor = isSelected ? '#00f0ff' : '#FF6B00';
+                ctx.shadowBlur = isSelected ? 12 : 8;
+                
+                ctx.fillStyle = isSelected ? '#00f0ff' : '#FF7A00';
                 ctx.strokeStyle = '#ffffff';
-                ctx.lineWidth = 2;
+                ctx.lineWidth = isSelected ? 3 : 2;
                 ctx.beginPath();
-                ctx.arc(pt.x, pt.y, 6, 0, Math.PI * 2);
+                ctx.arc(pt.x, pt.y, isSelected ? 10 : 8, 0, Math.PI * 2);
                 ctx.fill();
                 ctx.stroke();
+                
+                // Inner white center dot
+                ctx.fillStyle = '#ffffff';
+                ctx.beginPath();
+                ctx.arc(pt.x, pt.y, 3, 0, Math.PI * 2);
+                ctx.fill();
+                
+                ctx.restore();
               });
             });
             
-            // Draw hovered edge insert point
+            // Draw hovered edge insert point with clear "+" badge
             if (hoveredEdge) {
+              ctx.save();
+              ctx.shadowColor = '#00ff88';
+              ctx.shadowBlur = 10;
+              
               ctx.fillStyle = '#00ff88';
               ctx.strokeStyle = '#ffffff';
-              ctx.lineWidth = 2;
+              ctx.lineWidth = 2.5;
               ctx.beginPath();
-              ctx.arc(hoveredEdge.insertPt.x, hoveredEdge.insertPt.y, 5, 0, Math.PI * 2);
+              ctx.arc(hoveredEdge.insertPt.x, hoveredEdge.insertPt.y, 9, 0, Math.PI * 2);
               ctx.fill();
               ctx.stroke();
-              // Draw a "+" label
-              ctx.fillStyle = '#00ff88';
-              ctx.font = 'bold 10px sans-serif';
+              
+              // Plus symbol
+              ctx.fillStyle = '#000000';
+              ctx.font = 'bold 12px sans-serif';
               ctx.textAlign = 'center';
-              ctx.fillText('+', hoveredEdge.insertPt.x, hoveredEdge.insertPt.y - 10);
-              ctx.textAlign = 'left';
+              ctx.textBaseline = 'middle';
+              ctx.fillText('+', hoveredEdge.insertPt.x, hoveredEdge.insertPt.y);
+              
+              // Tooltip badge
+              ctx.fillStyle = 'rgba(0,0,0,0.85)';
+              ctx.fillRect(hoveredEdge.insertPt.x - 45, hoveredEdge.insertPt.y - 28, 90, 18);
+              ctx.strokeStyle = '#00ff88';
+              ctx.lineWidth = 1;
+              ctx.strokeRect(hoveredEdge.insertPt.x - 45, hoveredEdge.insertPt.y - 28, 90, 18);
+              
+              ctx.fillStyle = '#00ff88';
+              ctx.font = 'bold 8px sans-serif';
+              ctx.fillText('CLICK TO ADD VERTEX', hoveredEdge.insertPt.x, hoveredEdge.insertPt.y - 19);
+              
+              ctx.restore();
             }
             
             // Draw rotation handle
             const centroid = getShapeCentroid(editablePolygons);
-            const rotHandleY = centroid.y - 50;
+            const rotHandleY = centroid.y - 55;
             
             // Dashed line from centroid to rotation handle
-            ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
-            ctx.lineWidth = 1;
-            ctx.setLineDash([3, 3]);
+            ctx.strokeStyle = 'rgba(168, 85, 247, 0.6)';
+            ctx.lineWidth = 1.5;
+            ctx.setLineDash([4, 3]);
             ctx.beginPath();
             ctx.moveTo(centroid.x, centroid.y);
             ctx.lineTo(centroid.x, rotHandleY);
@@ -819,29 +852,46 @@ const ArchitectAdvisorPanel = forwardRef<ArchitectAdvisorRef, Props>(({ onParams
             ctx.setLineDash([]);
             
             // Rotation circle
-            ctx.fillStyle = '#8B5CF6';
+            ctx.save();
+            ctx.shadowColor = '#a855f7';
+            ctx.shadowBlur = 10;
+            ctx.fillStyle = '#a855f7';
             ctx.strokeStyle = '#ffffff';
-            ctx.lineWidth = 2;
+            ctx.lineWidth = 2.5;
             ctx.beginPath();
-            ctx.arc(centroid.x, rotHandleY, 8, 0, Math.PI * 2);
+            ctx.arc(centroid.x, rotHandleY, 11, 0, Math.PI * 2);
             ctx.fill();
             ctx.stroke();
             
             // Rotation icon (↻)
             ctx.fillStyle = '#ffffff';
-            ctx.font = 'bold 9px sans-serif';
+            ctx.font = 'bold 12px sans-serif';
             ctx.textAlign = 'center';
-            ctx.fillText('↻', centroid.x, rotHandleY + 3);
-            ctx.textAlign = 'left';
+            ctx.textBaseline = 'middle';
+            ctx.fillText('↻', centroid.x, rotHandleY);
+            ctx.restore();
             
-            // Real-time area display
+            // Real-time area display and controls badge
             let editArea = 0;
             editablePolygons.forEach(pts => { editArea += polygonAreaM2(pts); });
-            ctx.fillStyle = 'rgba(255, 107, 0, 0.9)';
-            ctx.font = 'bold 9px monospace';
+            
+            ctx.save();
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.75)';
+            ctx.strokeStyle = 'rgba(255, 122, 0, 0.6)';
+            ctx.lineWidth = 1;
+            ctx.fillRect(centroid.x - 70, centroid.y - 14, 140, 28);
+            ctx.strokeRect(centroid.x - 70, centroid.y - 14, 140, 28);
+            
+            ctx.fillStyle = '#FF9D00';
+            ctx.font = 'bold 11px monospace';
             ctx.textAlign = 'center';
-            ctx.fillText(`${editArea.toFixed(0)} m²`, centroid.x, centroid.y + 4);
-            ctx.textAlign = 'left';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(`${editArea.toFixed(0)} m²`, centroid.x, centroid.y - 3);
+            
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
+            ctx.font = '8px sans-serif';
+            ctx.fillText('Drag body to move • Right-click vertex to delete', centroid.x, centroid.y + 8);
+            ctx.restore();
           }
           
           // Re-draw polygon outline to ensure it stays crisp
@@ -965,19 +1015,19 @@ const ArchitectAdvisorPanel = forwardRef<ArchitectAdvisorRef, Props>(({ onParams
     const raw = getCanvasCoords(e);
 
     // ── Shape editing intercept ─────────────────────────────────────────────
-    if (isEditingShape && editablePolygons) {
-      const HANDLE_R = 8;
+    if (isEditingShape && editablePolygons && editablePolygons.length > 0) {
+      const HANDLE_R = 16;
       
-      // Check rotation handle (circle above centroid)
+      // 1. Check rotation handle (purple circle above centroid)
       const centroid = getShapeCentroid(editablePolygons);
-      const rotHandleY = centroid.y - 50;
-      if (Math.hypot(raw.x - centroid.x, raw.y - rotHandleY) <= HANDLE_R + 4) {
+      const rotHandleY = centroid.y - 55;
+      if (Math.hypot(raw.x - centroid.x, raw.y - rotHandleY) <= HANDLE_R + 6) {
         setIsRotatingShape(true);
         setRotationStartAngle(Math.atan2(raw.y - centroid.y, raw.x - centroid.x) - shapeRotationAngle);
         return;
       }
 
-      // Check vertex handles
+      // 2. Check vertex handles (orange circles)
       for (let pi = 0; pi < editablePolygons.length; pi++) {
         for (let vi = 0; vi < editablePolygons[pi].length; vi++) {
           const pt = editablePolygons[pi][vi];
@@ -989,29 +1039,35 @@ const ArchitectAdvisorPanel = forwardRef<ArchitectAdvisorRef, Props>(({ onParams
         }
       }
 
-      // Check if clicking on an edge (insert vertex)
+      // 3. Check if clicking on an edge (insert vertex and immediately start dragging it)
       if (hoveredEdge) {
         const { polyIdx, edgeIdx, insertPt } = hoveredEdge;
-        // Only insert if the point is inside the plot
-        if (isPointInPlot(insertPt)) {
-          setEditablePolygons(prev => {
-            if (!prev) return prev;
-            const newPolys = prev.map(p => [...p]);
-            newPolys[polyIdx].splice(edgeIdx + 1, 0, { ...insertPt });
-            return newPolys;
-          });
-          setShapeWasModified(true);
-          setHoveredEdge(null);
-        }
+        const newPolys = editablePolygons.map(p => [...p]);
+        newPolys[polyIdx].splice(edgeIdx + 1, 0, { ...insertPt });
+        
+        setEditablePolygons(newPolys);
+        finalShapePolygonsRef.current = newPolys;
+        setShapeWasModified(true);
+        setShapeDragIdx({ polyIdx, ptIdx: edgeIdx + 1 });
+        setShapeDragStart(raw);
+        setHoveredEdge(null);
         return;
       }
+
+      // 4. Check clicking inside the shape body (move / shift whole building shape)
+      if (editablePolygons[0] && isPointInPolygon(raw, editablePolygons[0])) {
+        setIsDraggingWholeShape(true);
+        setShapeDragStart(raw);
+        return;
+      }
+
       return;
     }
 
 
     if (!bgImage || !imgBounds) return;
 
-    const handleRadius = 12;
+    const handleRadius = 14;
     const { x, y, w, h } = imgBounds;
 
     if (Math.hypot(raw.x - x, raw.y - y) <= handleRadius) {
@@ -1038,66 +1094,77 @@ const ArchitectAdvisorPanel = forwardRef<ArchitectAdvisorRef, Props>(({ onParams
     const raw = getCanvasCoords(e);
 
     // ── Shape editing intercept ─────────────────────────────────────────────
-    if (isEditingShape && editablePolygons) {
-      // Handle rotation
+    if (isEditingShape && editablePolygons && editablePolygons.length > 0) {
+      // 1. Handle rotation
       if (isRotatingShape) {
         const centroid = getShapeCentroid(editablePolygons);
         const currentAngle = Math.atan2(raw.y - centroid.y, raw.x - centroid.x);
         const newAngle = currentAngle - rotationStartAngle;
         const deltaAngle = newAngle - shapeRotationAngle;
         
-        // Rotate all points
         const rotated = editablePolygons.map(poly =>
           poly.map(p => rotatePoint(p, centroid, deltaAngle))
         );
         
-        // Check all points are inside plot
-        const allInside = rotated.flat().every(p => isPointInPlot(p));
-        if (allInside) {
-          setEditablePolygons(rotated);
-          setShapeRotationAngle(newAngle);
-          setShapeWasModified(true);
-        }
+        setEditablePolygons(rotated);
+        finalShapePolygonsRef.current = rotated;
+        setShapeRotationAngle(newAngle);
+        setShapeWasModified(true);
         return;
       }
       
-      // Handle vertex dragging
+      // 2. Handle vertex dragging / stretching
       if (shapeDragIdx && shapeDragStart) {
         const dx = raw.x - shapeDragStart.x;
         const dy = raw.y - shapeDragStart.y;
+        const currentPt = editablePolygons[shapeDragIdx.polyIdx][shapeDragIdx.ptIdx];
         const newPt = {
-          x: editablePolygons[shapeDragIdx.polyIdx][shapeDragIdx.ptIdx].x + dx,
-          y: editablePolygons[shapeDragIdx.polyIdx][shapeDragIdx.ptIdx].y + dy,
+          x: Math.max(10, Math.min(canvasW - 10, currentPt.x + dx)),
+          y: Math.max(10, Math.min(canvasH - 10, currentPt.y + dy)),
         };
         
-        // Constrain to plot boundary
-        if (isPointInPlot(newPt)) {
-          setEditablePolygons(prev => {
-            if (!prev) return prev;
-            const newPolys = prev.map(poly => poly.map(p => ({ ...p })));
-            newPolys[shapeDragIdx.polyIdx][shapeDragIdx.ptIdx] = newPt;
-            return newPolys;
-          });
-          setShapeDragStart(raw);
-          setShapeWasModified(true);
-        }
+        const newPolys = editablePolygons.map(poly => poly.map(p => ({ ...p })));
+        newPolys[shapeDragIdx.polyIdx][shapeDragIdx.ptIdx] = newPt;
+        
+        setEditablePolygons(newPolys);
+        finalShapePolygonsRef.current = newPolys;
+        setShapeDragStart(raw);
+        setShapeWasModified(true);
+        return;
+      }
+
+      // 3. Handle whole shape translation / shifting
+      if (isDraggingWholeShape && shapeDragStart) {
+        const dx = raw.x - shapeDragStart.x;
+        const dy = raw.y - shapeDragStart.y;
+        
+        const shiftedPolys = editablePolygons.map(poly =>
+          poly.map(p => ({
+            x: Math.max(10, Math.min(canvasW - 10, p.x + dx)),
+            y: Math.max(10, Math.min(canvasH - 10, p.y + dy)),
+          }))
+        );
+
+        setEditablePolygons(shiftedPolys);
+        finalShapePolygonsRef.current = shiftedPolys;
+        setShapeDragStart(raw);
+        setShapeWasModified(true);
         return;
       }
       
-      // Detect edge hover for vertex insertion
-      const EDGE_DIST = 10;
+      // 4. Detect edge hover for vertex insertion
+      const EDGE_DIST = 16;
       let foundEdge: typeof hoveredEdge = null;
       for (let pi = 0; pi < editablePolygons.length && !foundEdge; pi++) {
         const pts = editablePolygons[pi];
         for (let ei = 0; ei < pts.length; ei++) {
           const a = pts[ei];
           const b = pts[(ei + 1) % pts.length];
-          // Distance from raw to line segment a-b
           const dx = b.x - a.x, dy = b.y - a.y;
           const lenSq = dx * dx + dy * dy;
           if (lenSq === 0) continue;
           let t = ((raw.x - a.x) * dx + (raw.y - a.y) * dy) / lenSq;
-          t = Math.max(0.1, Math.min(0.9, t)); // clamp to avoid inserting on top of existing vertices
+          t = Math.max(0.08, Math.min(0.92, t));
           const proj = { x: a.x + t * dx, y: a.y + t * dy };
           const dist = Math.hypot(raw.x - proj.x, raw.y - proj.y);
           if (dist <= EDGE_DIST) {
@@ -1109,8 +1176,9 @@ const ArchitectAdvisorPanel = forwardRef<ArchitectAdvisorRef, Props>(({ onParams
       setHoveredEdge(foundEdge);
       
       if (canvasRef.current) {
-        if (shapeDragIdx) canvasRef.current.style.cursor = 'grabbing';
-        else if (foundEdge) canvasRef.current.style.cursor = 'cell';
+        if (shapeDragIdx || isDraggingWholeShape) canvasRef.current.style.cursor = 'grabbing';
+        else if (foundEdge) canvasRef.current.style.cursor = 'crosshair';
+        else if (editablePolygons[0] && isPointInPolygon(raw, editablePolygons[0])) canvasRef.current.style.cursor = 'move';
         else canvasRef.current.style.cursor = 'default';
       }
       return;
@@ -1178,7 +1246,14 @@ const ArchitectAdvisorPanel = forwardRef<ArchitectAdvisorRef, Props>(({ onParams
     // Shape editing
     setShapeDragIdx(null);
     setShapeDragStart(null);
+    setIsDraggingWholeShape(false);
     setIsRotatingShape(false);
+    if (editablePolygons) {
+      finalShapePolygonsRef.current = editablePolygons;
+      let editArea = 0;
+      editablePolygons.forEach(pts => { editArea += polygonAreaM2(pts); });
+      buildingAreaRef.current = editArea;
+    }
   };
 
   const handleCanvasClick = (e: React.MouseEvent<HTMLCanvasElement>) => {
@@ -1211,19 +1286,17 @@ const ArchitectAdvisorPanel = forwardRef<ArchitectAdvisorRef, Props>(({ onParams
     e.preventDefault();
     const raw = getCanvasCoords(e);
     
-    const HANDLE_R = 10;
+    const HANDLE_R = 16;
     for (let pi = 0; pi < editablePolygons.length; pi++) {
       for (let vi = 0; vi < editablePolygons[pi].length; vi++) {
         const pt = editablePolygons[pi][vi];
         if (Math.hypot(raw.x - pt.x, raw.y - pt.y) <= HANDLE_R) {
           // Don't allow deleting if polygon would have < 3 vertices
           if (editablePolygons[pi].length <= 3) return;
-          setEditablePolygons(prev => {
-            if (!prev) return prev;
-            const newPolys = prev.map(poly => [...poly]);
-            newPolys[pi].splice(vi, 1);
-            return newPolys;
-          });
+          const newPolys = editablePolygons.map(poly => [...poly]);
+          newPolys[pi].splice(vi, 1);
+          setEditablePolygons(newPolys);
+          finalShapePolygonsRef.current = newPolys;
           setShapeWasModified(true);
           return;
         }
@@ -1271,13 +1344,25 @@ const ArchitectAdvisorPanel = forwardRef<ArchitectAdvisorRef, Props>(({ onParams
 
   // ── Shape Editing Functions ─────────────────────────────────────────────────
   const enterShapeEditMode = useCallback(() => {
-    if (!finalShapePolygonsRef.current) return;
-    // Deep clone the shape polygons so edits don't affect the original until "Done"
-    const cloned = finalShapePolygonsRef.current.map(poly => poly.map(p => ({ ...p })));
+    let basePolys = finalShapePolygonsRef.current;
+    if (!basePolys || basePolys.length === 0) {
+      if (suggestedShape) {
+        const fitted = getAutoFittedShapePolygons(suggestedShape, polygon);
+        basePolys = fitted.polygons;
+        finalShapePolygonsRef.current = fitted.polygons;
+        buildingAreaRef.current = fitted.areaM2;
+      } else if (polygon.length >= 3) {
+        basePolys = [polygon];
+      }
+    }
+    if (!basePolys || basePolys.length === 0) return;
+
+    // Deep clone the shape polygons so edits don't affect the original until modified
+    const cloned = basePolys.map(poly => poly.map(p => ({ ...p })));
     setEditablePolygons(cloned);
     setIsEditingShape(true);
     setShapeRotationAngle(0);
-  }, []);
+  }, [suggestedShape, polygon, getAutoFittedShapePolygons]);
 
   const computeGeometryAnalysis = useCallback((polys: Point[][]): string => {
     const allPts = polys.flat();
