@@ -232,22 +232,14 @@ function buildStage2Prompt(opts: {
   const flatLabels = flatLabelsArray.join(', ');
 
   const roomItemsBullet = bhkType === '1bhk'
-    ? '* 1 Living + Dining\n* 1 Kitchen\n* 1 Bedroom\n* 1 Bathroom'
+    ? '• 1 Living/Dining Room\n• 1 Kitchen\n• 1 Bedroom\n• 1 Bathroom'
     : bhkType === '2bhk'
-    ? '* 1 Living + Dining\n* 1 Kitchen\n* 2 Bedrooms (Master Bedroom + Bedroom 2)\n* 2 Bathrooms'
+    ? '• 1 Living/Dining Room\n• 1 Kitchen\n• 2 Bedrooms (Master Bedroom + Bedroom 2)\n• 2 Bathrooms'
     : bhkType === '3bhk'
-    ? '* 1 Living + Dining\n* 1 Kitchen\n* 3 Bedrooms (Master + Bed 2 + Bed 3)\n* 3 Bathrooms'
-    : '* 1 Living + Dining\n* 1 Kitchen\n* 4 Bedrooms (Master + Bed 2 + Bed 3 + Bed 4)\n* 4 Bathrooms';
+    ? '• 1 Living/Dining Room\n• 1 Kitchen\n• 3 Bedrooms (Master Bedroom + Bed 2 + Bed 3)\n• 3 Bathrooms'
+    : '• 1 Living/Dining Room\n• 1 Kitchen\n• 4 Bedrooms (Master Bedroom + Bed 2 + Bed 3 + Bed 4)\n• 4 Bathrooms';
 
-  const validationRoomStr = bhkType === '1bhk'
-    ? '1 Living/Dining + 1 Kitchen + 1 Bedroom + 1 Bathroom'
-    : bhkType === '2bhk'
-    ? '1 Living/Dining + 1 Kitchen + 2 Bedrooms + 2 Bathrooms'
-    : bhkType === '3bhk'
-    ? '1 Living/Dining + 1 Kitchen + 3 Bedrooms + 3 Bathrooms'
-    : '1 Living/Dining + 1 Kitchen + 4 Bedrooms + 4 Bathrooms';
-
-  const liftsStr = passengerLifts > 0 ? `${passengerLifts} rectangular elevator shaft(s)` : '1 rectangular elevator shaft';
+  const liftsStr = passengerLifts > 0 ? `${passengerLifts} elevator shaft(s)` : '1 elevator shaft';
   const stairsStr = staircases > 0 ? `${staircases} staircase flight(s)` : '2 staircase flights';
 
   return `You are a 2D CAD floor-plan drafter. EDIT THE FIRST UPLOADED IMAGE ONLY.
@@ -256,59 +248,56 @@ ${hasReferenceImage ? `━━━━━━━━━━━━━━━━━━━
 IMAGE ROLES — EXTREMELY IMPORTANT
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 • IMAGE 1 = MASTER ZONING DIAGRAM (EDIT THIS IMAGE).
-  Keep 100% of the outer building footprint shape, central CORE position, and flat zone partition walls from IMAGE 1.
+  Keep 100% of the outer building perimeter shape, central CORE position, and flat zone color boundaries (${flatLabels}) from IMAGE 1.
 
-• IMAGE 2 = ROOM POSITIONING & CROSS-VENTILATION REFERENCE ONLY.
-  Do NOT copy the shape, dimensions, or footprint of IMAGE 2.
-  Use IMAGE 2 EXCLUSIVELY as a reference for:
-  1. PERIMETER ROOM PLACEMENT & VENTILATION: Notice how all habitable rooms (Living/Dining and Bedrooms) are placed directly along the exterior perimeter wall with large windows and balcony openings to capture sunlight and cross-ventilation airflow.
-  2. INTERNAL SERVICE CORE: Notice how the entrance door, Kitchen, and Bathrooms/Toilets sit along the internal/corridor side of the unit.
-  3. KITCHEN SEPARATION: The Kitchen is an enclosed, walled room with its own door connecting to the living/dining area.
-  4. CENTRAL CIRCULATION: A central entrance foyer connects cleanly to all room doors without passing through private spaces.
-  5. Apply this exact functional room composition inside each flat zone of IMAGE 1!` : ''}
+• IMAGE 2 = ROOM POSITIONING & CROSS-VENTILATION REFERENCE.
+  Study the room composition in IMAGE 2:
+  1. PERIMETER LIVING & BEDROOMS: All habitable rooms (Living/Dining and Bedrooms) are placed along the exterior building perimeter wall with windows & balcony for sunlight and natural cross-ventilation.
+  2. INTERNAL SERVICE CORE: The entrance door, Kitchen, and Bathrooms/Toilets sit along the internal/corridor side.
+  3. KITCHEN SEPARATION: The Kitchen is an enclosed walled room with a door connecting to the living/dining area.
+  4. CENTRAL CIRCULATION: A central entrance foyer connects cleanly to all room doors.
+  Apply this exact functional room composition inside each flat zone of IMAGE 1!
+` : ''}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+#1 — PRESERVE LOCKED GEOMETRY
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-1. PRESERVE GEOMETRY (LOCKED):
-Keep the outer building footprint shape, central CORE position, and all flat zone partition walls (${flatLabels}) from IMAGE 1 EXACTLY as they appear. Do NOT move, merge, or remove any main wall.
+• Outer building boundary: LOCKED.
+• Central CORE box: LOCKED.
+• Flat zone boundary walls (${flatLabels}): LOCKED with their colors preserved.
 
-2. INSIDE THE CORE BOX:
-Draw ${liftsStr} and ${stairsStr}.
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+#2 — INSIDE THE CORE BOX
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-3. INSIDE EACH FLAT ZONE (${flatLabels})
+• Draw ${liftsStr} and ${stairsStr} inside the central CORE box.
 
-Inside **EACH zone**, create one complete, functional **${bhkLabel} 2D CAD apartment layout**, adapted to that zone's exact irregular shape.
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+#3 — INSIDE EACH FLAT ZONE (${flatLabels})
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-**Each flat must contain exactly:**
-
+Inside EVERY flat zone (${flatLabels}), create a complete functional ${bhkLabel} 2D CAD apartment layout containing:
 ${roomItemsBullet}
-* Internal circulation
-* Door swings + window lines
-* \`DUCT\` ventilation shafts where required
+• Central entrance foyer connecting all rooms
+• 2D CAD door swings and window opening lines
 
-**Planning constraints:**
+PLANNING RULES:
+• PERIMETER VENTILATION: Living/Dining and ALL Bedrooms MUST touch an exterior perimeter wall with windows.
+• KITCHEN & LIVING SEPARATION: Kitchen and Living Room MUST be separated by a full solid wall with a door. NO open-plan kitchen.
+• INTERNAL BATHROOMS: Bathrooms placed internally have a small ventilation shaft labeled "DUCT".
+• CIRCULATION: Foyer connects to all rooms; no bedroom doors opening directly into another bedroom.
 
-* All rooms and partitions must remain completely inside their assigned zone.
-* **Living, Kitchen, and Bedroom MUST each touch a wall that forms the OUTER EDGE OF THE BUILDING (the building's outside-facing boundary), and each must have a window directly on that wall.**
-* Bathroom may be internal. If it does not touch the building's outside-facing boundary, provide a small ventilation shaft labeled **\`DUCT\`**.
-* **HARD RULE — KITCHEN & LIVING ROOM SEPARATION: The Kitchen and Living Room MUST be separated by a full solid partition wall with a door opening between them. NO open-plan or combined Kitchen-Living layouts are allowed. They must be two clearly distinct walled rooms connected only by a door.**
-* Arrange rooms logically with practical adjacency and minimal circulation.
-* Bedroom should have privacy; Kitchen should connect to Living/Dining via a door in the separating wall; Bathroom should preferably open from common circulation.
-* Adapt the layout to each zone's **irregular geometry**; do not force identical or purely rectangular layouts.
-* Use realistic wall thicknesses, door swings, window lines, and room proportions.
-* **Any remaining awkward, narrow, or unusable leftover space should remain EMPTY and may be used as ventilation/duct space. Do NOT create additional rooms or force partitions into these areas.**
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+#4 — GRAPHIC STYLE (STRICT 2D CAD)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-**Validation:** Every ${flatLabels} must contain exactly **${validationRoomStr}**. Living, Kitchen, and Bedroom must each have a window directly on the **building's outside-facing boundary wall**. Any internal Bathroom must have a \`DUCT\`.
+• Pure 2D black lines on a solid white background only.
+• NO wood textures, NO grey shading, NO 3D rendering, NO color fills inside rooms.
+• NO text inside rooms. Keep room interiors clean.
+• Keep ONLY the flat labels (${flatLabels}) near entry doors.
+• PRESERVE each flat's unique colored outer boundary outline from IMAGE 1. All internal partition lines remain thin black lines.
 
-4. GRAPHIC STYLE (STRICT):
-Pure 2D black lines on a solid white background only. ABSOLUTELY NO WOOD TEXTURES, NO GREY SHADING, NO 3D RENDERING.
-NO ROOM NAMES OR TEXT INSIDE ROOMS. Keep room interiors completely clean of text.
-Keep ONLY the flat labels (${flatLabels}) near entry doors.
-
-COLOR-CODED UNIT BOUNDARIES (PRESERVE FROM IMAGE 1):
-• Each flat zone in IMAGE 1 already has its own distinct colored outer boundary outline. PRESERVE that exact same color for each flat's outer boundary outline in your output — do not change or remove those colors.
-• All internal room partition walls drawn inside each flat must remain thin black lines.
-• Only the outer boundary wall outline of each flat zone keeps its unique color from IMAGE 1.
-
-Output a complete 2D CAD blueprint floor plan with rooms designed inside the preserved flat zones of IMAGE 1.`;
+OUTPUT: Complete 2D CAD blueprint floor plan with detailed ${bhkLabel} room layouts inside all ${numFlats} flat zones of IMAGE 1.`;
 }
 
 // ── Route Handler ─────────────────────────────────────────────────────────────
@@ -444,8 +433,8 @@ export async function POST(req: Request) {
         });
       }
 
-      // ── STAGE 2 — GPT Image 2: Fill zones using BHK reference image ────────
-      // Load master CAD reference image and upload to fal storage
+      // ── STAGE 2 — Dual Model Execution: GPT Image 2 + Nano Banana 2 ────────
+      // Load master CAD cross-ventilation reference image and upload to fal storage
       const referenceStorageUrl = await loadReferenceToFalStorage(dominantBHK);
       const hasReferenceImage = !!referenceStorageUrl;
 
@@ -457,197 +446,63 @@ export async function POST(req: Request) {
         hasReferenceImage,
       });
 
-      const imageUrls: string[] = [stage1Url];
+      const stage2ImageUrls: string[] = [stage1Url];
       if (referenceStorageUrl) {
-        imageUrls.push(referenceStorageUrl);
+        stage2ImageUrls.push(referenceStorageUrl);
       }
 
-      console.log(`[IdeaGenerator] Stage 2 image_urls count: ${imageUrls.length} (Stage 1 footprint + ${hasReferenceImage ? 'Master CAD reference' : 'no reference'})`);
+      console.log(`[IdeaGenerator] Stage 2 dual dispatch (GPT Image 2 + Nano Banana 2) | image_urls: ${stage2ImageUrls.length} (Zoning + ${hasReferenceImage ? 'Cross-vent reference' : 'none'})`);
 
-      const stage2Input: Record<string, any> = {
-        image_urls: imageUrls,
+      const gptInput: Record<string, any> = {
+        image_urls: stage2ImageUrls,
         prompt: refinementPrompt,
         quality: 'medium',
       };
 
-      const { url: stage2Url, seed: returnedSeed } = await runModel(stage2Model, stage2Input);
-      const stage2Seed = returnedSeed ?? undefined;
-      console.log(`[IdeaGenerator] Stage 2 output (seed: ${stage2Seed}):`, stage2Url);
-
-      const stage2Base64 = await fetchToBase64(stage2Url);
-
-      // ── STAGE 2.5 — GPT-4o Vision: Architectural Audit ──────────────────────
-      console.log(`[IdeaGenerator] Stage 2.5: GPT-4o Vision — auditing floor plan for ventilation and circulation issues...`);
-
-      const flatLabelsList = Array.from({ length: numFlats }, (_, i) => `F${i + 1}`).join(', ');
-      const colorMap = ['red','blue','green','orange','purple','teal','crimson','indigo','dark-green','dark-orange'];
-      const flatColorList = Array.from({ length: numFlats }, (_, i) => `F${i + 1} (${colorMap[i % colorMap.length]} boundary)`).join(', ');
-
-      const auditSystemPrompt = `You are a licensed senior architect reviewing a 2D CAD residential floor plan. Your job is to produce a precise, actionable correction brief for each flat unit that has architectural deficiencies.
-
-CRITICAL RULE FOR FIX INSTRUCTIONS:
-- NEVER use measurements, numbers, distances, or dimensions (no meters, no millimeters, no percentages).
-- Describe fixes using ONLY spatial and positional language: "shift to the left wall", "push to the top edge", "move to the outer perimeter", "swap position with", "slide toward the exterior", "reposition to the corner", "flip to the opposite wall", etc.
-- The goal is visual repositioning instructions that a drawing model can understand, not engineering dimensions.
-
-Be specific: name the unit by its label AND boundary color. Output ONLY a structured correction brief — no preamble, no praise.`;
-
-      const auditUserPrompt = `Analyze this 2D CAD floor plan image. It contains ${numFlats} flat units: ${flatColorList}. Each unit is identified by its colored outer boundary outline.
-
-For EACH flat unit (${flatLabelsList}), check and report:
-
-1. VENTILATION CHECK: Is every habitable room (Living Room, Kitchen, ALL Bedrooms) placed on the exterior/perimeter wall of the building with a direct window opening? If any habitable room is positioned away from the outer building wall (landlocked interior position, no window), flag it.
-
-2. CIRCULATION CHECK: Does the flat have a clear foyer/entrance from the shared corridor? Is there an internal passage connecting all rooms without crossing through another room? Can every room be reached without passing through a habitable room?
-
-3. ROOM ADJACENCY CHECK: Is the Kitchen directly next to Living/Dining? Are Bedroom doors opening from a corridor/passage rather than from the Living Room?
-
-Output Format — write one block per problematic flat only:
-UNIT [F#] ([color] boundary):
-- PROBLEM: [exact room name] is positioned away from the outer wall / has no exterior window / has no direct corridor access etc.
-- FIX: [positional repositioning instruction — e.g. "shift the Living Room to the left outer wall of this unit", "push the Kitchen toward the top exterior edge", "swap the Bedroom and Bathroom positions so Bedroom faces the outer wall", "slide the Living Room to the bottom perimeter wall", "rotate the room arrangement so Bedrooms are on the outer side"]
-
-DO NOT use any numbers, meters, or measurements in the FIX instructions. Use only directional and positional language.
-
-If a flat has NO issues, skip it entirely.
-At the end write: UNITS WITH NO ISSUES: [list any perfect flats, or "None" if all have issues].`;
-
-      let auditReport = '';
-      try {
-        const openaiResponse = await fetch('https://api.openai.com/v1/chat/completions', {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            model: 'gpt-4o',
-            max_tokens: 1200,
-            messages: [
-              { role: 'system', content: auditSystemPrompt },
-              {
-                role: 'user',
-                content: [
-                  { type: 'text', text: auditUserPrompt },
-                  { type: 'image_url', image_url: { url: stage2Base64, detail: 'high' } },
-                ],
-              },
-            ],
-          }),
-        });
-        const auditJson = await openaiResponse.json();
-        auditReport = auditJson?.choices?.[0]?.message?.content || '';
-        console.log(`[IdeaGenerator] Stage 2.5 Audit Report:\n${auditReport}`);
-      } catch (auditErr) {
-        console.warn('[IdeaGenerator] Stage 2.5 audit failed, proceeding without audit report:', auditErr);
-      }
-
-      // ── STAGE 3 — GPT Image 2: Architectural Correction ──────────────────────
-      console.log(`[IdeaGenerator] Stage 3: openai/gpt-image-2/edit — applying architectural corrections...`);
-
-      // Upload Stage 2 result to fal storage so GPT Image 2 can accept it as image_url
-      const stage2FalUrl = await urlToFalStorage(stage2Url);
-
-      const auditSection = auditReport
-        ? `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-ARCHITECTURAL AUDIT REPORT — SPECIFIC ISSUES TO FIX
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-The following issues were identified in this floor plan by an architectural review. Fix EACH issue precisely as described:
-
-${auditReport}
-
-Apply the above fixes by editing ONLY the internal room partitions and doors of the flagged units. Do NOT change any unit that was marked as having no issues.`
-        : '';
-
-      const ventilationPrompt = `You are a licensed senior architect performing a final quality review and correction pass on this residential floor plan.
-
-EDIT THE UPLOADED IMAGE. Correct every architectural deficiency while keeping overall zoning and flat boundaries intact.
-
-${auditSection}
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-⚠ IMMUTABLE GEOMETRY — ABSOLUTE CONSTRAINTS (DO NOT VIOLATE)
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-THE FOLLOWING MUST NEVER CHANGE — TREAT THESE AS LOCKED:
-
-1. THE OUTER BUILDING BOUNDARY (facade/perimeter shape) — LOCKED. Do NOT alter, reshape, shrink, extend, or redraw the exterior building walls under any circumstance.
-2. THE FLAT UNIT BOUNDARY WALLS (the main partition walls separating F1, F2, F3... from each other) — LOCKED. Do NOT move, remove, merge, or resize any flat zone boundary.
-3. THE CORE BLOCK (elevator + staircase box) and its position — LOCKED. Do NOT move or resize the CORE.
-4. THE SHARED CORRIDOR / ENTRANCE ACCESS — LOCKED. Do NOT remove or reroute the building's main circulation corridor.
-
-YOU MAY ONLY TOUCH: The internal room partitions, internal doors, and internal wall layouts INSIDE each flat zone.
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-STEP 1 — AUDIT EVERY FLAT (${flatLabelsList})
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-For each flat zone, check and fix ALL of the following:
-
-VENTILATION (CRITICAL):
-• Every habitable room must be placed on the exterior/perimeter of the building.
-• Every habitable room — Living Room, Dining, Kitchen, and ALL Bedrooms — MUST touch an exterior building wall and have a window opening directly on that wall.
-• If any of these rooms is landlocked (no exterior wall contact), REDESIGN the room layout within that flat to push the Living Room, Kitchen, and Bedrooms to the perimeter.
-• Only Bathrooms and utility areas may be internal — they must have a small ventilation duct shaft labeled "DUCT".
-
-INTERNAL CIRCULATION:
-• Each flat MUST have a clear internal entrance/foyer connected to the building's shared corridor.
-• A short internal hallway or circulation spine must connect ALL rooms within the flat without crossing through other rooms.
-• Bedroom doors must open from the private circulation area, NOT directly from the Living Room.
-• Kitchen must connect directly to the Living/Dining area.
-• Bathroom must be accessible from the internal circulation, NOT only from a Bedroom.
-
-ROOM ADJACENCY (PROFESSIONAL STANDARD):
-• Living/Dining → Kitchen: directly adjacent, open plan or single wall between them.
-• Master Bedroom → Bathroom: preferred direct access.
-• No dead-end rooms that require crossing another habitable room to exit.
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-STEP 2 — REDESIGN FLAT INTERNAL ROOM LAYOUTS
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-REDESIGN internal room partitions inside each flat zone (${flatLabelsList}) to create an architectural layout of perfection.
-• Every habitable room must be placed on the exterior/perimeter of the building.
-• Do NOT preserve the original internal room positions. You have full freedom to completely reorganize, resize, and reposition every room to create a much better architectural layout.
-• The flat's outer boundary wall shape MUST remain 100% identical — do not alter the outer perimeter of any flat zone.
-• Redraw internal partitions, internal doors, and room positions inside each flat zone for optimal room proportions, direct window contact, and smooth circulation.
-• The newly organized flat layouts must fit entirely within their original flat boundary shapes.
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-STEP 3 — PRESERVE LOCKED STRUCTURES ONLY
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-• Do NOT touch the outer building boundary, flat zone boundaries, CORE block, or shared corridor ring.
-• Pure 2D black lines on white background only. No colors, no textures, no 3D. No people.
-• DO NOT ADD ANY OVERLAY ANNOTATIONS — No airflow arrows, no ventilation callout labels, no legend boxes, no compass roses, no color-coded zones. Output a clean corrected CAD plan ONLY.
-
-OUTPUT: A complete, architecturally corrected 2D CAD floor plan where EVERY flat has proper exterior ventilation for all habitable rooms and clean internal circulation — with the building shape and all flat boundaries 100% preserved, but internal rooms completely reorganized for architectural perfection.`;
-
-      const stage3Input: Record<string, any> = {
-        image_urls: [stage2FalUrl],
-        prompt: ventilationPrompt,
-        quality: 'medium',
+      const nanoInput: Record<string, any> = {
+        image_urls: stage2ImageUrls,
+        prompt: refinementPrompt,
       };
 
-      const { url: stage3Url } = await runModel('openai/gpt-image-2/edit', stage3Input);
-      console.log(`[IdeaGenerator] Stage 3 output:`, stage3Url);
+      const [gptRes, nanoRes] = await Promise.allSettled([
+        runModel('openai/gpt-image-2/edit', gptInput),
+        runModel('fal-ai/nano-banana-2/edit', nanoInput),
+      ]);
 
-      const stage3Base64 = await fetchToBase64(stage3Url);
+      let stage2GptBase64: string | null = null;
+      let stage2GptSeed: number | undefined = undefined;
+      if (gptRes.status === 'fulfilled') {
+        stage2GptSeed = gptRes.value.seed;
+        stage2GptBase64 = await fetchToBase64(gptRes.value.url);
+        console.log('[IdeaGenerator] Stage 2A (GPT Image 2) generated successfully');
+      } else {
+        console.warn('[IdeaGenerator] Stage 2A (GPT Image 2) failed:', gptRes.reason?.message);
+      }
+
+      let stage2NanoBase64: string | null = null;
+      let stage2NanoSeed: number | undefined = undefined;
+      if (nanoRes.status === 'fulfilled') {
+        stage2NanoSeed = nanoRes.value.seed;
+        stage2NanoBase64 = await fetchToBase64(nanoRes.value.url);
+        console.log('[IdeaGenerator] Stage 2B (Nano Banana 2) generated successfully');
+      } else {
+        console.warn('[IdeaGenerator] Stage 2B (Nano Banana 2) failed:', nanoRes.reason?.message);
+      }
+
+      const primaryResult = stage2GptBase64 || stage2NanoBase64 || stage1Base64;
+      const allResults = [stage2GptBase64, stage2NanoBase64].filter((img): img is string => Boolean(img));
 
       return NextResponse.json({
-        url: stage3Base64,
-        imageUrls: [stage3Base64],
+        url: primaryResult,
+        imageUrls: allResults.length > 0 ? allResults : [primaryResult],
         stage1ImageUrl: stage1Base64,
-        stage2ImageUrl: stage2Base64,
-        stage3ImageUrl: stage3Base64,
+        stage2ImageUrl: stage2GptBase64,
+        stage2NanoImageUrl: stage2NanoBase64,
         stage1Seed,
-        stage2Seed,
+        stage2Seed: stage2GptSeed ?? stage2NanoSeed,
         systemPrompt: stage1Prompt,
         refinementPrompt,
-        stage3Prompt: ventilationPrompt,
-        auditReport,
-        userPrompt: `PIPELINE | Stage1: ${stage1Model} -> Stage2: ${stage2Model} -> Stage2.5: GPT-4o Audit -> Stage3: openai/gpt-image-2/edit | BHK: ${dominantBHK}`,
+        userPrompt: `PIPELINE | Stage1: ${stage1Model} -> Stage 2A: GPT Image 2 + Stage 2B: Nano Banana 2 | BHK: ${dominantBHK}`,
       });
     }
 

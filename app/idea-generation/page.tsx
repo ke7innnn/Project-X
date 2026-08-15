@@ -118,11 +118,10 @@ export default function IdeaGenerationPage() {
     stage1OutputUrl?: string;
     stage1Seed?: number;
     stage2Prompt?: string;
+    stage2GptOutputUrl?: string;
+    stage2NanoOutputUrl?: string;
     stage2OutputUrl?: string;
     stage2Seed?: number;
-    auditReport?: string;
-    stage3Prompt?: string;
-    stage3OutputUrl?: string;
     userPrompt?: string;
     workflow?: string;
   } | null>(null);
@@ -379,27 +378,23 @@ STAGE 2 → Refine interior layout, enforce NBC room sizes, verify room complete
           stage1OutputUrl: resData.stage1ImageUrl,
           stage1Seed: resData.stage1Seed,
           stage2Prompt: resData.refinementPrompt,
-          stage2OutputUrl: resData.stage2ImageUrl,
+          stage2GptOutputUrl: resData.stage2ImageUrl,
+          stage2NanoOutputUrl: resData.stage2NanoImageUrl,
+          stage2OutputUrl: resData.stage2ImageUrl || resData.url,
           stage2Seed: resData.stage2Seed,
-          auditReport: resData.auditReport,
-          stage3Prompt: resData.stage3Prompt,
-          stage3OutputUrl: resData.stage3ImageUrl || resData.url,
           userPrompt: resData.userPrompt,
           workflow: selectedModel,
         });
 
         setLogs((prev) => [...prev, `[SYS] PIPELINE: ${selectedModel.toUpperCase()} — GENERATION COMPLETE.`]);
         if (resData.stage1ImageUrl) {
-          setLogs(prev => [...prev, `[SYS] STAGE 1 OUTPUT: ${resData.stage1ImageUrl ? 'RECEIVED' : 'NONE'}`]);
+          setLogs(prev => [...prev, `[SYS] STAGE 1 ZONING OUTPUT: RECEIVED`]);
         }
         if (resData.stage2ImageUrl) {
-          setLogs(prev => [...prev, `[SYS] STAGE 2 REFINEMENT OUTPUT: RECEIVED`]);
+          setLogs(prev => [...prev, `[SYS] STAGE 2A (GPT IMAGE 2) OUTPUT: RECEIVED`]);
         }
-        if (resData.auditReport) {
-          setLogs(prev => [...prev, `[SYS] STAGE 2.5 GPT-4o AUDIT: COMPLETE`]);
-        }
-        if (resData.stage3ImageUrl) {
-          setLogs(prev => [...prev, `[SYS] STAGE 3 CORRECTION OUTPUT: RECEIVED`]);
+        if (resData.stage2NanoImageUrl) {
+          setLogs(prev => [...prev, `[SYS] STAGE 2B (NANO BANANA 2) OUTPUT: RECEIVED`]);
         }
         
         const finalResultImg = resData.url || null;
@@ -408,10 +403,13 @@ STAGE 2 → Refine interior layout, enforce NBC room sizes, verify room complete
         setResultTitle(`${styleName} TOWER PLAN SCHEMATIC`);
         setResultDesc(`Generated with ${selectedModel} pipeline.`);
 
-        // Save to variants history
+        // Save all generated images to variants history so user can toggle between them
+        const generatedImages: string[] = (resData.imageUrls && resData.imageUrls.length > 0)
+          ? resData.imageUrls
+          : [finalResultImg].filter(Boolean);
+
         setVariantsHistory(prev => {
-          const newItems = [finalResultImg].filter((u): u is string => Boolean(u));
-          const list = [...newItems, ...prev.filter(item => !newItems.includes(item))];
+          const list = [...generatedImages, ...prev.filter(item => !generatedImages.includes(item))];
           return list.slice(0, 10);
         });
 
@@ -1070,12 +1068,12 @@ STAGE 2 → Refine interior layout, enforce NBC room sizes, verify room complete
                   </div>
                 )}
 
-                {/* 4. Stage 2 (GPT Image 2) Schematic Output */}
+                {/* 4A. Stage 2A (GPT Image 2) Schematic Output */}
                 <div className="flex flex-col gap-2 border-t border-white/10 pt-4">
                   <div className="flex items-center justify-between">
                     <span className="text-[10px] text-emerald-400 uppercase tracking-widest font-bold flex items-center gap-1.5">
-                      <span className="w-4 h-4 rounded-full bg-emerald-500/20 border border-emerald-400 flex items-center justify-center text-[9px]">4</span>
-                      STAGE 2 (GPT IMAGE 2) SCHEMATIC OUTPUT
+                      <span className="w-4 h-4 rounded-full bg-emerald-500/20 border border-emerald-400 flex items-center justify-center text-[9px]">4A</span>
+                      STAGE 2A (GPT IMAGE 2) SCHEMATIC OUTPUT
                     </span>
                     {debugPayload.stage2Seed !== undefined && (
                       <span className="text-[9px] font-mono px-2 py-0.5 rounded bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 font-bold">
@@ -1083,68 +1081,40 @@ STAGE 2 → Refine interior layout, enforce NBC room sizes, verify room complete
                       </span>
                     )}
                   </div>
-                  {debugPayload.stage2OutputUrl ? (
+                  {debugPayload.stage2GptOutputUrl ? (
                     <div className="p-3 bg-black/80 border border-emerald-500/30 rounded-lg flex items-center justify-center">
                       <img 
-                        src={debugPayload.stage2OutputUrl} 
+                        src={debugPayload.stage2GptOutputUrl} 
                         alt="GPT Stage 2 Output"
                         className="max-w-full max-h-[400px] object-contain border border-emerald-500/30 rounded shadow-lg"
                       />
                     </div>
                   ) : (
                     <div className="p-4 bg-black/40 border border-emerald-500/10 rounded-lg text-[11px] text-emerald-500/50 font-mono text-center">
-                      Waiting for Stage 2 schematic generation...
+                      Waiting for GPT Image 2 generation...
                     </div>
                   )}
                 </div>
 
-                {/* 4.5. Stage 2.5 — GPT-4o Vision Architectural Audit Report */}
-                {debugPayload.auditReport && (
-                  <div className="flex flex-col gap-2 border-t border-white/10 pt-4">
-                    <span className="text-[10px] text-yellow-400 uppercase tracking-widest font-bold flex items-center gap-1.5">
-                      <span className="w-4 h-4 rounded-full bg-yellow-500/20 border border-yellow-400 flex items-center justify-center text-[9px]">★</span>
-                      STAGE 2.5 — GPT-4O VISION ARCHITECTURAL AUDIT REPORT
-                    </span>
-                    <div className="p-4 bg-black/60 border border-yellow-500/20 rounded-lg text-[11px] text-yellow-200/90 font-mono whitespace-pre-wrap leading-relaxed shadow-inner">
-                      <span className="text-yellow-400 font-bold block mb-2 text-[10px]">⚠ ISSUES IDENTIFIED — SENT TO STAGE 3 FOR CORRECTION:</span>
-                      {debugPayload.auditReport}
-                    </div>
-                  </div>
-                )}
-
-                {/* 5. Stage 3 (GPT Image 2) Architectural Correction Prompt */}
-                {debugPayload.stage3Prompt && (
-                  <div className="flex flex-col gap-2 border-t border-white/10 pt-4">
-                    <span className="text-[10px] text-sky-400 uppercase tracking-widest font-bold flex items-center gap-1.5">
-                      <span className="w-4 h-4 rounded-full bg-sky-500/20 border border-sky-400 flex items-center justify-center text-[9px]">5</span>
-                      STAGE 3 (GPT IMAGE 2) ARCHITECTURAL CORRECTION PROMPT
-                    </span>
-                    <div className="p-4 bg-black/60 border border-sky-500/20 rounded-lg text-[11px] text-sky-200/90 font-mono whitespace-pre-wrap leading-relaxed shadow-inner">
-                      <span className="text-sky-400 font-bold block mb-1 text-[10px]">STAGE 3 CORRECTION PROMPT:</span>
-                      {debugPayload.stage3Prompt}
-                    </div>
-                  </div>
-                )}
-
-                {/* 6. Stage 3 (GPT Image 2) Ventilation Final Output */}
+                {/* 4B. Stage 2B (Nano Banana 2) Schematic Output */}
                 <div className="flex flex-col gap-2 border-t border-white/10 pt-4">
                   <div className="flex items-center justify-between">
-                    <span className="text-[10px] text-sky-400 uppercase tracking-widest font-bold flex items-center gap-1.5">
-                      <span className="w-4 h-4 rounded-full bg-sky-500/20 border border-sky-400 flex items-center justify-center text-[9px]">6</span>
-                      STAGE 3 (GPT IMAGE 2) CORRECTED FINAL OUTPUT
+                    <span className="text-[10px] text-cyan-400 uppercase tracking-widest font-bold flex items-center gap-1.5">
+                      <span className="w-4 h-4 rounded-full bg-cyan-500/20 border border-cyan-400 flex items-center justify-center text-[9px]">4B</span>
+                      STAGE 2B (NANO BANANA 2) SCHEMATIC OUTPUT
                     </span>
                   </div>
-                  {debugPayload.stage3OutputUrl ? (
-                    <div className="p-3 bg-black/80 border border-sky-500/30 rounded-lg flex items-center justify-center">
+                  {debugPayload.stage2NanoOutputUrl ? (
+                    <div className="p-3 bg-black/80 border border-cyan-500/30 rounded-lg flex items-center justify-center">
                       <img 
-                        src={debugPayload.stage3OutputUrl} 
-                        alt="GPT Stage 3 Ventilation Output"
-                        className="max-w-full max-h-[400px] object-contain border border-sky-500/30 rounded shadow-lg"
+                        src={debugPayload.stage2NanoOutputUrl} 
+                        alt="Nano Banana 2 Stage 2 Output"
+                        className="max-w-full max-h-[400px] object-contain border border-cyan-500/30 rounded shadow-lg"
                       />
                     </div>
                   ) : (
-                    <div className="p-4 bg-black/40 border border-sky-500/10 rounded-lg text-[11px] text-sky-500/50 font-mono text-center">
-                      Waiting for Stage 3 ventilation overlay...
+                    <div className="p-4 bg-black/40 border border-cyan-500/10 rounded-lg text-[11px] text-cyan-500/50 font-mono text-center">
+                      Waiting for Nano Banana 2 generation...
                     </div>
                   )}
                 </div>
