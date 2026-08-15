@@ -226,6 +226,34 @@ const ArchitectAdvisorPanel = forwardRef<ArchitectAdvisorRef, Props>(({ onParams
   const [shapePickerCategory, setShapePickerCategory] = useState<'all' | 'architectural' | 'geometric' | 'biophilic'>('all');
   const [shapePickerSearch, setShapePickerSearch] = useState('');
 
+  // Escape key closes modals and exits fullscreen
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        if (isShapePickerOpen) {
+          setIsShapePickerOpen(false);
+        } else if (isFullscreen) {
+          setIsFullscreen(false);
+        }
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isShapePickerOpen, isFullscreen]);
+
+  const filteredShapes = MASTER_SHAPES_50
+    .filter(s => shapePickerCategory === 'all' || s.category === shapePickerCategory)
+    .filter(s => {
+      if (!shapePickerSearch.trim()) return true;
+      const q = shapePickerSearch.toLowerCase().trim();
+      return (
+        s.name.toLowerCase().includes(q) ||
+        s.inspiration.toLowerCase().includes(q) ||
+        s.description.toLowerCase().includes(q) ||
+        s.tags.some(t => t.toLowerCase().includes(q))
+      );
+    });
+
   // ── Shape Vertex Editing State ────────────────────────────────────────────
   const [isEditingShape, setIsEditingShape] = useState(false);
   const [editablePolygons, setEditablePolygons] = useState<Point[][] | null>(null);
@@ -1491,108 +1519,194 @@ Use these measurements to determine which apartment types can physically fit in 
   return (
     <div className="flex flex-col gap-4 w-full h-full min-h-0">
 
-      {/* ── Plot Tracer Canvas ──────────────────────────────────────── */}
-      <div className={`flex flex-col bg-slate-900/30 backdrop-blur border border-cyan-500/20 overflow-hidden shrink-0 transition-all relative ${
-        isFullscreen 
-          ? 'fixed inset-4 z-[100] rounded-2xl shadow-[0_0_50px_rgba(0,240,255,0.2)]' 
-          : 'rounded-xl'
-      }`}>
-        
-        {/* ── 50-Shape Selector Modal Overlay ────────────────────────── */}
-        {isShapePickerOpen && (
-          <div className="absolute inset-0 z-50 bg-slate-950/95 backdrop-blur-md p-4 flex flex-col gap-3 rounded-xl border border-emerald-500/40 shadow-2xl animate-in fade-in zoom-in-95 duration-150">
-            <div className="flex items-center justify-between border-b border-white/10 pb-2.5 shrink-0">
-              <div className="flex items-center gap-2">
-                <Sparkles className="w-4 h-4 text-emerald-400" />
-                <span className="text-xs font-black tracking-widest text-emerald-300 uppercase">SELECT MASTER FOOTPRINT (50 SHAPES)</span>
+      {/* ── 50-Shape Selector Modal Dialog (Top Level, Fixed Centered) ── */}
+      {isShapePickerOpen && (
+        <div className="fixed inset-0 z-[99999] bg-black/85 backdrop-blur-xl p-4 sm:p-6 md:p-10 flex items-center justify-center animate-in fade-in duration-200">
+          <div className="bg-gradient-to-b from-slate-900/98 to-slate-950/98 border border-cyan-500/40 rounded-2xl shadow-[0_0_80px_rgba(0,240,255,0.25)] w-full max-w-6xl max-h-[90vh] flex flex-col overflow-hidden text-white">
+            
+            {/* Modal Header */}
+            <div className="flex items-center justify-between px-6 py-4 border-b border-cyan-500/20 bg-cyan-950/20 shrink-0">
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-xl bg-cyan-500/20 border border-cyan-400/50 shadow-[0_0_15px_rgba(0,240,255,0.3)]">
+                  <Sparkles className="w-5 h-5 text-cyan-300 animate-pulse" />
+                </div>
+                <div>
+                  <h2 className="text-base font-black tracking-widest text-transparent bg-clip-text bg-gradient-to-r from-white via-cyan-200 to-cyan-400 uppercase">
+                    MASTER SHAPE STUDIO — 50 ARCHITECTURAL FOOTPRINTS
+                  </h2>
+                  <p className="text-xs text-cyan-400/70">
+                    Select an iconic tower, geometric plate, or biophilic footprint to auto-fit inside your plot
+                  </p>
+                </div>
               </div>
+
               <button
                 onClick={() => setIsShapePickerOpen(false)}
-                className="p-1 rounded bg-white/5 hover:bg-white/15 text-slate-400 hover:text-white transition-colors cursor-pointer"
+                className="p-2 rounded-xl bg-white/5 hover:bg-red-500/20 border border-white/10 hover:border-red-400 text-slate-400 hover:text-red-300 transition-all cursor-pointer"
+                title="Close (Esc)"
               >
-                <X className="w-4 h-4" />
+                <X className="w-5 h-5" />
               </button>
             </div>
 
-            {/* Search & Category Tabs */}
-            <div className="flex flex-wrap items-center gap-2 shrink-0">
-              <div className="relative flex-1 min-w-[180px]">
-                <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
+            {/* Filter & Search Bar */}
+            <div className="px-6 py-3.5 border-b border-white/10 bg-black/40 flex flex-wrap items-center justify-between gap-3 shrink-0">
+              {/* Search */}
+              <div className="relative flex-1 min-w-[260px]">
+                <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-cyan-400/60" />
                 <input
                   type="text"
-                  placeholder="Search 50 shapes (e.g. Batman, Burj, Droplet, Leaf, Hexagon, Zaha)..."
+                  placeholder="Search 50 shapes (e.g. Batman, Burj Khalifa, Leaf, Water Droplet, Zaha, Hexagon)..."
                   value={shapePickerSearch}
                   onChange={e => setShapePickerSearch(e.target.value)}
-                  className="w-full pl-8 pr-3 py-1.5 bg-black/60 border border-cyan-500/30 rounded-lg text-xs text-white placeholder-slate-500 focus:outline-none focus:border-cyan-400"
+                  className="w-full pl-9 pr-8 py-2 bg-slate-900/80 border border-cyan-500/30 rounded-xl text-sm text-white placeholder-slate-500 focus:outline-none focus:border-cyan-400 focus:ring-1 focus:ring-cyan-400"
                   autoFocus
                 />
+                {shapePickerSearch && (
+                  <button
+                    onClick={() => setShapePickerSearch('')}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                )}
               </div>
 
-              <div className="flex items-center gap-1 bg-black/40 p-1 rounded-lg border border-white/10">
+              {/* Category Tabs */}
+              <div className="flex items-center gap-1.5 bg-slate-900/80 p-1 rounded-xl border border-white/10">
                 {(['all', 'architectural', 'geometric', 'biophilic'] as const).map(cat => (
                   <button
                     key={cat}
                     onClick={() => setShapePickerCategory(cat)}
-                    className={`px-2.5 py-1 rounded text-[10px] font-bold uppercase transition-all cursor-pointer ${
+                    className={`px-3 py-1.5 rounded-lg text-xs font-bold uppercase transition-all cursor-pointer flex items-center gap-1.5 ${
                       shapePickerCategory === cat
-                        ? 'bg-emerald-500/30 border border-emerald-400 text-emerald-200 shadow'
-                        : 'text-slate-400 hover:text-white hover:bg-white/5'
+                        ? 'bg-gradient-to-r from-cyan-500/30 to-blue-500/30 border border-cyan-400 text-cyan-200 shadow-[0_0_15px_rgba(0,240,255,0.25)]'
+                        : 'text-slate-400 hover:text-white hover:bg-white/5 border border-transparent'
                     }`}
                   >
-                    {cat === 'all' ? 'ALL (50)' : cat === 'architectural' ? '🏛️ TOWERS' : cat === 'geometric' ? '📐 GEOMETRIC' : '🌿 BIOPHILIC'}
+                    {cat === 'all' && <span>🌐 ALL (50)</span>}
+                    {cat === 'architectural' && <span>🏛️ TOWERS (20)</span>}
+                    {cat === 'geometric' && <span>📐 GEOMETRIC (15)</span>}
+                    {cat === 'biophilic' && <span>🌿 BIOPHILIC (15)</span>}
                   </button>
                 ))}
               </div>
             </div>
 
-            {/* Scrollable Shape Grid */}
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 overflow-y-auto pr-1 flex-1 no-scrollbar max-h-[280px]">
-              {MASTER_SHAPES_50
-                .filter(s => shapePickerCategory === 'all' || s.category === shapePickerCategory)
-                .filter(s => {
-                  if (!shapePickerSearch.trim()) return true;
-                  const q = shapePickerSearch.toLowerCase();
-                  return s.name.toLowerCase().includes(q) || s.inspiration.toLowerCase().includes(q) || s.tags.some(t => t.toLowerCase().includes(q));
-                })
-                .map(shape => (
+            {/* Grid of Shapes with Live SVG Previews */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3.5 p-6 overflow-y-auto max-h-[60vh] no-scrollbar">
+              {filteredShapes.map(shape => {
+                const pts = shape.getPolygon(50, 50, 68, 68);
+                const pointsStr = pts.map(p => `${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' ');
+                const holes = shape.getHoles ? shape.getHoles(50, 50, 68, 68) : [];
+
+                return (
                   <button
                     key={shape.id}
                     onClick={() => handleSelectShapeFromPicker(shape)}
-                    className="flex flex-col p-2.5 bg-slate-900/80 hover:bg-emerald-950/50 border border-white/10 hover:border-emerald-400/60 rounded-lg text-left transition-all group cursor-pointer hover:scale-[1.02] shadow-sm hover:shadow-[0_0_15px_rgba(16,185,129,0.2)]"
+                    className={`flex flex-col p-3.5 rounded-xl border transition-all text-left group cursor-pointer relative overflow-hidden ${
+                      suggestedShape === shape.id
+                        ? 'bg-gradient-to-b from-cyan-950/60 to-slate-900 border-cyan-400 shadow-[0_0_20px_rgba(0,240,255,0.3)] ring-1 ring-cyan-400'
+                        : 'bg-slate-900/70 hover:bg-cyan-950/30 border-slate-800 hover:border-cyan-500/60 hover:shadow-[0_0_20px_rgba(0,240,255,0.15)] hover:scale-[1.02]'
+                    }`}
                   >
-                    <div className="flex items-center justify-between w-full mb-1">
-                      <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                    {/* Top Row: Category & Efficiency */}
+                    <div className="flex items-center justify-between w-full mb-2.5">
+                      <span className="text-[10px] font-mono uppercase px-2 py-0.5 rounded-md bg-white/5 border border-white/10 text-slate-300">
+                        {shape.category}
+                      </span>
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
                         {shape.efficiency}% EFF
                       </span>
-                      <span className="text-[8px] font-mono text-slate-400 uppercase">{shape.category}</span>
                     </div>
-                    <span className="text-[11px] font-bold text-white group-hover:text-emerald-300 transition-colors line-clamp-1">
-                      {shape.name}
-                    </span>
-                    <span className="text-[9px] text-slate-400 line-clamp-1 mt-0.5">
-                      {shape.inspiration}
-                    </span>
-                  </button>
-                ))}
-            </div>
-          </div>
-        )}
 
+                    {/* Vector Blueprint SVG Silhouette */}
+                    <div className="w-full h-28 rounded-lg bg-black/60 border border-white/5 flex items-center justify-center p-2 mb-3 group-hover:border-cyan-500/40 transition-colors">
+                      <svg viewBox="0 0 100 100" className="w-full h-full drop-shadow-[0_0_8px_rgba(0,240,255,0.4)]">
+                        <polygon
+                          points={pointsStr}
+                          fill="rgba(0, 240, 255, 0.15)"
+                          stroke="#00f0ff"
+                          strokeWidth="2"
+                          strokeLinejoin="round"
+                        />
+                        {holes.map((hPts, hIdx) => (
+                          <polygon
+                            key={hIdx}
+                            points={hPts.map(p => `${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' ')}
+                            fill="#070b14"
+                            stroke="#00f0ff"
+                            strokeWidth="1.5"
+                            strokeDasharray="2 2"
+                          />
+                        ))}
+                      </svg>
+                    </div>
+
+                    {/* Title & Description */}
+                    <div className="flex flex-col flex-1">
+                      <div className="text-xs font-bold text-white group-hover:text-cyan-300 transition-colors line-clamp-1 mb-0.5">
+                        {shape.name}
+                      </div>
+                      <div className="text-[11px] text-cyan-400/80 line-clamp-1 mb-1 font-medium">
+                        {shape.inspiration}
+                      </div>
+                      <div className="text-[10px] text-slate-400 line-clamp-2 leading-relaxed">
+                        {shape.description}
+                      </div>
+                    </div>
+
+                    {/* Selected Pill Indicator */}
+                    {suggestedShape === shape.id && (
+                      <div className="mt-2.5 pt-2 border-t border-cyan-500/30 flex items-center justify-between text-[10px] text-cyan-300 font-bold">
+                        <span>ACTIVE ON CANVAS</span>
+                        <Check className="w-3.5 h-3.5 text-cyan-400" />
+                      </div>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Modal Footer */}
+            <div className="px-6 py-3 border-t border-white/10 bg-slate-950 flex items-center justify-between text-xs text-slate-400 shrink-0">
+              <span>Showing {filteredShapes.length} of 50 shapes</span>
+              <button
+                onClick={() => setIsShapePickerOpen(false)}
+                className="px-4 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white font-bold transition-colors cursor-pointer"
+              >
+                Close
+              </button>
+            </div>
+
+          </div>
+        </div>
+      )}
+
+      {/* ── Plot Tracer Canvas ──────────────────────────────────────── */}
+      <div className={`flex flex-col bg-slate-900/30 backdrop-blur border border-cyan-500/20 overflow-hidden shrink-0 transition-all ${
+        isFullscreen 
+          ? 'fixed inset-0 z-[99990] bg-[#070b14]/98 backdrop-blur-2xl p-4 sm:p-6 flex flex-col shadow-[0_0_80px_rgba(0,240,255,0.3)]' 
+          : 'rounded-xl relative'
+      }`}>
+        
         <div className="flex items-center justify-between px-3 py-2 border-b border-cyan-500/15 select-none shrink-0">
           <div className="flex items-center gap-2">
             <MousePointer className="w-3.5 h-3.5 text-cyan-400" />
-            <span className="text-[10px] font-bold tracking-widest text-cyan-400 uppercase">PLOT TRACER</span>
+            <span className="text-[10px] font-bold tracking-widest text-cyan-400 uppercase">
+              {isFullscreen ? 'FULLSCREEN PLOT TRACER & SHAPE ENGINE' : 'PLOT TRACER'}
+            </span>
           </div>
           <div className="flex items-center gap-1.5">
             {/* Shape Selector Dropdown Trigger Button */}
             <button
-              onClick={() => setIsShapePickerOpen(!isShapePickerOpen)}
-              className="flex items-center gap-1 px-2.5 py-1 rounded text-[9px] font-bold bg-gradient-to-r from-emerald-500/25 to-teal-500/25 border border-emerald-400 text-emerald-300 hover:from-emerald-500/40 hover:to-teal-500/40 cursor-pointer tracking-wider shadow-[0_0_12px_rgba(16,185,129,0.2)] transition-all"
+              onClick={() => setIsShapePickerOpen(true)}
+              className="flex items-center gap-1.5 px-3 py-1 rounded-lg text-[10px] font-bold bg-gradient-to-r from-emerald-500/30 to-teal-500/30 border border-emerald-400 text-emerald-200 hover:from-emerald-500/50 hover:to-teal-500/50 cursor-pointer tracking-wider shadow-[0_0_15px_rgba(16,185,129,0.3)] transition-all"
               title="Choose from 50 architectural, geometric & biophilic footprints"
             >
-              <Sparkles className="w-3 h-3 text-emerald-400 animate-pulse" />
+              <Sparkles className="w-3.5 h-3.5 text-emerald-300 animate-pulse" />
               <span>📐 SELECT SHAPE (50)</span>
-              <ChevronDown className="w-3 h-3 text-emerald-400/80" />
+              <ChevronDown className="w-3.5 h-3.5 text-emerald-300" />
             </button>
 
             {!isTracingClosed && polygon.length >= 3 && (
@@ -1638,9 +1752,13 @@ Use these measurements to determine which apartment types can physically fit in 
 
             <button
               onClick={() => setIsFullscreen(!isFullscreen)}
-              className="flex items-center gap-1 px-2 py-0.5 rounded text-[9px] text-cyan-500/70 border border-cyan-500/20 hover:border-cyan-400 hover:text-cyan-300 cursor-pointer transition-colors"
+              className={`flex items-center gap-1 px-2.5 py-1 rounded text-[9px] font-bold border cursor-pointer transition-colors ${
+                isFullscreen
+                  ? 'bg-red-500/20 border-red-400 text-red-300 hover:bg-red-500/30 shadow-[0_0_10px_rgba(239,68,68,0.3)]'
+                  : 'text-cyan-500/70 border-cyan-500/20 hover:border-cyan-400 hover:text-cyan-300'
+              }`}
             >
-              {isFullscreen ? 'COLLAPSE' : 'FULLSCREEN'}
+              {isFullscreen ? '✕ COLLAPSE (Esc)' : '⛶ FULLSCREEN'}
             </button>
             <button
               onClick={() => fileInputRef.current?.click()}
@@ -1669,7 +1787,7 @@ Use these measurements to determine which apartment types can physically fit in 
           </div>
         )}
 
-        <div className={`flex flex-col relative flex-1 min-h-0 ${isFullscreen ? 'items-center justify-center p-4' : 'items-center justify-center'}`}>
+        <div className={`flex flex-col relative flex-1 min-h-0 ${isFullscreen ? 'items-center justify-center p-4 h-[calc(100vh-140px)]' : 'items-center justify-center'}`}>
           <canvas
             ref={canvasRef}
             width={canvasW}
@@ -1679,7 +1797,7 @@ Use these measurements to determine which apartment types can physically fit in 
             onMouseUp={handleCanvasMouseUp}
             onMouseLeave={() => { setHoverPt(null); setDragMode(null); }}
             onClick={handleCanvasClick}
-            className={`cursor-crosshair ${isFullscreen ? 'w-auto h-full max-w-full object-contain bg-black/50 rounded-xl border border-white/10' : 'w-full max-h-[300px] object-contain'}`}
+            className={`cursor-crosshair ${isFullscreen ? 'w-full h-full object-contain bg-black/60 rounded-xl border border-white/10 shadow-2xl' : 'w-full max-h-[300px] object-contain'}`}
           />
           {bgImage && (
             <div className="absolute bottom-2 right-2 px-2 py-1 bg-black/60 backdrop-blur border border-white/10 rounded pointer-events-none shadow">
@@ -1689,7 +1807,7 @@ Use these measurements to determine which apartment types can physically fit in 
         </div>
 
         {isTracingClosed && plotData && (
-          <div className="flex items-center justify-between px-3 py-1.5 text-[9px] font-mono border-t border-white/5">
+          <div className="flex items-center justify-between px-3 py-1.5 text-[9px] font-mono border-t border-white/5 shrink-0">
             <div className="flex items-center gap-3">
               <span className="text-cyan-400/70">PLOT: <strong className="text-cyan-300">{plotData.widthM}m × {plotData.lengthM}m</strong></span>
               <span className="text-cyan-400/70">AREA: <strong className="text-cyan-300">{buildingAreaRef.current ? buildingAreaRef.current.toFixed(1) : plotData.areaM2}m²</strong></span>
