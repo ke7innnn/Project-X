@@ -92,6 +92,32 @@ async function loadGrokZoningReferenceToFalStorage(): Promise<string | null> {
   }
 }
 
+/** Load local 90-degree multi-shape zoning reference image from /public/references/zoning_reference_90deg.png and upload to fal storage */
+async function loadZoningReferenceToFalStorage(): Promise<string | null> {
+  try {
+    let refPath = path.join(process.cwd(), 'public', 'references', 'zoning_reference_90deg.png');
+    if (!fs.existsSync(refPath)) {
+      refPath = path.join(process.cwd(), 'public', 'references', 'grok_zoning_multi_ref.png');
+    }
+    if (!fs.existsSync(refPath)) {
+      refPath = path.join(process.cwd(), 'public', 'references', 'grok_zoning_ref.png');
+    }
+    if (!fs.existsSync(refPath)) {
+      console.warn(`[IdeaGenerator] Zoning reference not found: ${refPath}`);
+      return null;
+    }
+    const buffer = fs.readFileSync(refPath);
+    const blob = new Blob([buffer], { type: 'image/png' });
+    const file = new File([blob], 'zoning_reference_90deg.png', { type: 'image/png' });
+    const url = await fal.storage.upload(file);
+    console.log(`[IdeaGenerator] Uploaded 90-degree zoning reference to fal storage: ${url}`);
+    return url;
+  } catch (err: any) {
+    console.warn('[IdeaGenerator] Failed to load zoning reference image:', err.message);
+    return null;
+  }
+}
+
 // ── Workflow model mapping ────────────────────────────────────────────────────
 
 const WORKFLOWS: Record<string, { stage1: string; stage2?: string; label: string }> = {
@@ -119,17 +145,34 @@ function detectDominantBHK(units1BHK: number, units2BHK: number, units3BHK: numb
   return '1bhk';
 }
 
+// ── Stage 1: Prompt for empty flat zones + central core ─────────────────────────
+
 function buildStage1Prompt(opts: {
   numFlats: number;
+  hasReferenceImage?: boolean;
 }): string {
-  const { numFlats } = opts;
+  const { numFlats, hasReferenceImage } = opts;
   const flatLabelsArray = Array.from({ length: numFlats }, (_, i) => `F${i + 1}`);
   const flatLabels = flatLabelsArray.join(', ');
   const uniqueLabelLines = flatLabelsArray.map(label => `• ${label} (use once)`).join('\n');
 
-  return `You are a 2D architectural floor-plan drafter. EDIT THE UPLOADED IMAGE ONLY.
+  return `You are a 2D architectural floor-plan drafter. EDIT THE FIRST UPLOADED IMAGE ONLY.
 
-The uploaded image shows a WHITE building footprint on a BLACK background.
+${hasReferenceImage ? `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+IMAGE ROLES — EXTREMELY IMPORTANT
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+• IMAGE 1 = TARGET BUILDING FOOTPRINT (EDIT THIS IMAGE).
+  Keep 100% of this exact outer boundary footprint shape. Draw all unit divisions entirely inside this shape.
+
+• IMAGE 2 = 90-DEGREE SQUARES & RECTANGLES ZONING REFERENCE.
+  LOOK AT IMAGE 2 CAREFULLY:
+  - Notice that across all different building geometries (ring/octagon, V-shape, Y-shape), EVERY SINGLE UNIT DIVISION IS COMPOSED STRICTLY OF 90-DEGREE SQUARES AND RECTANGLES.
+  - Notice how corridors run through the shapes and individual flat units are clean orthogonal rectangular/square blocks along the paths with color-coded boundaries.
+  - Do NOT copy the specific building shape from IMAGE 2.
+  - COPY THE PARTITIONING METHOD: Use clean 90° horizontal and vertical cuts to create clean rectangular/square flat unit blocks inside IMAGE 1!
+` : ''}
+The target image (IMAGE 1) shows a WHITE building footprint on a BLACK background.
 Your ONLY task: divide the white footprint into EXACTLY ${numFlats} rectangular/square flat zones (${flatLabels}) around a central CORE block.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -137,7 +180,7 @@ Your ONLY task: divide the white footprint into EXACTLY ${numFlats} rectangular/
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 • Draw ONLY straight HORIZONTAL (left-right) and VERTICAL (up-down) partition lines.
-• EVERY flat zone MUST be a clean RECTANGLE or SQUARE shape.
+• EVERY flat zone MUST be a clean RECTANGLE or SQUARE shape — exactly as shown in the reference image (IMAGE 2).
 • ABSOLUTELY FORBIDDEN:
   - NO diagonal lines from corners to center.
   - NO triangle, pie-slice, wedge, or trapezoid units.
@@ -324,14 +367,21 @@ export async function POST(req: Request) {
       const numFlats = Math.max(1, totalUnits);
       const dominantBHK = detectDominantBHK(units1BHK, units2BHK, units3BHK, units4BHK);
 
-      // ── STAGE 1 — Grok: Generate N empty flat zone boxes + central core ────
+      // ── STAGE 1: Generate N empty flat zone boxes + central core ──────────
+      const zoningRefUrl = await loadZoningReferenceToFalStorage();
+      const hasZoningRef = !!zoningRefUrl;
+
       const stage1Prompt = buildStage1Prompt({
         numFlats,
+        hasReferenceImage: hasZoningRef,
       });
 
-      console.log(`[IdeaGenerator] Stage 1: ${stage1Model} — drawing ${numFlats} empty flat zones...`);
+      console.log(`[IdeaGenerator] Stage 1: ${stage1Model} — drawing ${numFlats} empty flat zones... (hasZoningRef: ${hasZoningRef})`);
 
       const stage1ImageUrls: string[] = [uploadedTraceUrl];
+      if (zoningRefUrl) {
+        stage1ImageUrls.push(zoningRefUrl);
+      }
 
       const isFluxCanny = stage1Model.includes('flux-control-lora-canny');
       const isGrok = stage1Model.includes('grok');
