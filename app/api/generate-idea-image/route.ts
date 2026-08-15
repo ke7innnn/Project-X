@@ -258,12 +258,14 @@ IMAGE ROLES — EXTREMELY IMPORTANT
 • IMAGE 1 = MASTER ZONING DIAGRAM (EDIT THIS IMAGE).
   Keep 100% of the outer building footprint shape, central CORE position, and flat zone partition walls from IMAGE 1.
 
-• IMAGE 2 = ROOM POSITIONING & FACADE VENTILATION REFERENCE ONLY.
+• IMAGE 2 = ROOM POSITIONING & CROSS-VENTILATION REFERENCE ONLY.
   Do NOT copy the shape, dimensions, or footprint of IMAGE 2.
   Use IMAGE 2 EXCLUSIVELY as a reference for:
-  1. ROOM POSITIONING & FLOW: How rooms (Living Room, Kitchen, Bedrooms, Bathrooms) are connected and arranged inside each flat.
-  2. EXTERIOR FACADE VENTILATION: How Living Room, Kitchen, and ALL Bedrooms are positioned along outer building exterior walls so every habitable room connects to the outside for natural sunlight and ventilation.
-  3. INTERNAL BATHROOM DUCTS: How internal Bathrooms use small ventilation shafts labeled "DUCT".` : ''}
+  1. PERIMETER ROOM PLACEMENT & VENTILATION: Notice how all habitable rooms (Living/Dining and Bedrooms) are placed directly along the exterior perimeter wall with large windows and balcony openings to capture sunlight and cross-ventilation airflow.
+  2. INTERNAL SERVICE CORE: Notice how the entrance door, Kitchen, and Bathrooms/Toilets sit along the internal/corridor side of the unit.
+  3. KITCHEN SEPARATION: The Kitchen is an enclosed, walled room with its own door connecting to the living/dining area.
+  4. CENTRAL CIRCULATION: A central entrance foyer connects cleanly to all room doors without passing through private spaces.
+  5. Apply this exact functional room composition inside each flat zone of IMAGE 1!` : ''}
 
 1. PRESERVE GEOMETRY (LOCKED):
 Keep the outer building footprint shape, central CORE position, and all flat zone partition walls (${flatLabels}) from IMAGE 1 EXACTLY as they appear. Do NOT move, merge, or remove any main wall.
