@@ -945,11 +945,9 @@ const ArchitectAdvisorPanel = forwardRef<ArchitectAdvisorRef, Props>(({ onParams
       ctx.beginPath(); ctx.moveTo(hoverPt.x, 0); ctx.lineTo(hoverPt.x, canvasH); ctx.stroke();
       ctx.beginPath(); ctx.moveTo(0, hoverPt.y); ctx.lineTo(canvasW, hoverPt.y); ctx.stroke();
       ctx.setLineDash([]);
-      ctx.fillStyle = 'rgba(0,240,255,0.7)';
-      ctx.font = '7px monospace';
       ctx.fillText(`${pxToM(hoverPt.x)}m, ${pxToM(hoverPt.y)}m`, hoverPt.x + 6, hoverPt.y - 3);
     }
-  }, [polygon, hoverPt, isTracingClosed, bgImage, imgBounds, suggestedShape, canvasW, canvasH, cellPx, pxToM]);
+  }, [polygon, hoverPt, isTracingClosed, bgImage, imgBounds, suggestedShape, canvasW, canvasH, cellPx, pxToM, isEditingShape, editablePolygons, hoveredEdge, shapeDragIdx, isRotatingShape, isDraggingWholeShape, shapeWasModified]);
 
   useEffect(() => {
     // Smooth scroll the closest scrollable container (the page wrapper) instead of using scrollIntoView
