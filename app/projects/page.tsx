@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
 import { useArchitectStore } from '@/store/useArchitectStore';
 import { v4 as uuidv4 } from 'uuid';
@@ -243,6 +244,13 @@ export default function ProjectsDashboard() {
               className="w-full bg-black/40 border border-cyan-500/20 focus:border-cyan-400 focus:outline-none rounded-lg pl-9 pr-3 py-2 text-[11px] text-cyan-300 placeholder-cyan-500/30 transition-colors"
             />
           </div>
+
+          <Link
+            href="/shape-studio"
+            className="flex items-center gap-2 px-4 py-2.5 bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-500/50 hover:border-emerald-400 text-emerald-300 font-bold text-xs uppercase tracking-widest rounded-lg transition-all shadow-[0_0_20px_rgba(16,185,129,0.15)] cursor-pointer whitespace-nowrap"
+          >
+            <Layers size={15} /> 📐 SHAPE STUDIO (50 SHAPES)
+          </Link>
 
           <button 
             onClick={() => setIsModalOpen(true)}

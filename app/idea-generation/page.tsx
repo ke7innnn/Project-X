@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { 
   ArrowLeft, 
   ArrowRight,
@@ -500,6 +501,14 @@ STAGE 2 → Refine interior layout, enforce NBC room sizes, verify room complete
 
           {/* Mode Selector and API Configuration */}
           <div className="flex items-center gap-3">
+            <Link
+              href="/shape-studio"
+              className="p-1.5 px-3 border border-emerald-500/40 text-emerald-300 bg-emerald-950/40 hover:bg-emerald-900/60 rounded text-[10px] font-bold tracking-wider transition-all flex items-center gap-1.5 shadow-[0_0_15px_rgba(16,185,129,0.2)]"
+            >
+              <Layers className="w-3 h-3" />
+              📐 SHAPE STUDIO (50 SHAPES)
+            </Link>
+
             {debugPayload && (
               <button
                 onClick={() => setShowDebugModal(true)}
