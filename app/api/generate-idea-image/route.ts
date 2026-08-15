@@ -155,14 +155,15 @@ EQUAL AREA PARTITIONING & MAXIMUM FLOOR UTILIZATION (CRITICAL)
    • ABSOLUTELY NO SQUEEZED OR TINY FLATS — no flat zone should be disproportionately small. Every single flat zone must have sufficient, equal area to accommodate a full multi-room apartment layout.
 
 2. RECTANGULAR & SQUARE ZONING BLOCKS — STRICT 90° RULE:
-   • EVERY flat zone division box MUST be a clean RECTANGLE or SQUARE — no triangles, no trapezoids, no irregular polygons, no diagonal cuts.
-   • ALL partition walls separating flat zones from each other MUST be perfectly straight horizontal or vertical lines at EXACTLY 90-degree angles.
-   • ABSOLUTELY NO DIAGONAL WALLS, ANGLED CUTS, or SLANTED PARTITION LINES anywhere in the flat zone divisions.
-   • Each flat zone is a clean orthogonal rectangular/square block sitting inside the building footprint shape.
-   • Fill and utilize MAXIMUM usable floor area inside the building footprint — minimize awkward or wasted residual space.
+   • EVERY flat zone MUST be a clean RECTANGLE or SQUARE shape — no triangles, no trapezoids, no wedges, no irregular polygons.
+   • ALL internal partition walls separating flat zones MUST be perfectly HORIZONTAL or VERTICAL lines only — no diagonals.
+   • ABSOLUTELY FORBIDDEN: Do NOT divide the footprint by drawing diagonal lines from corners to the center. Do NOT create pie-slice, triangle, or wedge-shaped units. Do NOT draw any angled or slanted partition line.
+   • HOW TO DIVIDE CORRECTLY: Draw horizontal lines and/or vertical lines across the interior of the footprint to create rectangular/square blocks. Think of it like a grid — cut the space with straight left-right or up-down lines only.
+   • Even if the outer building footprint has diagonal or curved edges, ALL INTERNAL DIVISIONS must still use only horizontal/vertical partition lines to form rectangular flat zones inside.
+   • Fill and utilize MAXIMUM usable floor area inside the building footprint.
 
 3. FLEXIBLE EXTERIOR ACCESS:
-   • Flat zones are NOT rigidly forced to stretch all the way to exterior walls if the shape allows rectangular blocks inside. Place clean rectangular/square flat blocks inside the footprint wherever they make the best equal-area composition.
+   • Flat zones do NOT need to perfectly touch all exterior walls. Place clean rectangular/square flat blocks inside the footprint wherever they make the best equal-area composition with 90° partition walls.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 CIRCULATION CORE — ACCESSIBLE TO ALL UNITS
