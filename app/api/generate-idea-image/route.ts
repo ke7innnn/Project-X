@@ -409,6 +409,7 @@ async function evaluateCandidatesWithVisionAgent(
     };
   }
 
+  try {
     const promptText = `You are a Senior Architectural QA Auditor & Geometric Shape Evaluator.
 You are inspecting ${candidateUrls.length} candidate floor plan zoning layouts against the user's TARGET BUILDING FOOTPRINT (Image 0: solid white footprint mask on solid black background).
 
