@@ -409,27 +409,39 @@ async function evaluateCandidatesWithVisionAgent(
     };
   }
 
-  try {
-    const promptText = `You are a Senior Architectural Floor Plan QA Auditor & Evaluator.
-You are inspecting ${candidateUrls.length} CAD floor plan zoning candidate options against the original user-drawn footprint (Image 0: solid white building footprint on solid black background).
+    const promptText = `You are a Senior Architectural QA Auditor & Geometric Shape Evaluator.
+You are inspecting ${candidateUrls.length} candidate floor plan zoning layouts against the user's TARGET BUILDING FOOTPRINT (Image 0: solid white footprint mask on solid black background).
 
-EVALUATION CRITERIA:
-1. SHAPE ACCURACY & INTEGRITY (Top Priority - 40% weight): Does the candidate strictly preserve the exact outer building perimeter silhouette, sharp corners, wing angles, and setbacks from Image 0 without rounding, warping, or bleeding into the black background?
-2. VENTILATION & EXTERIOR ROOMS (30% weight): Are the habitable rooms (Attached Balconies, Bedrooms, Kitchen, Toilets) sitting properly along the exterior building facade with direct external windows/ventilation?
-3. SPATIAL FLOW & LIVING ROOM (20% weight): Is the living room in the central area connecting cleanly to the balcony (no solid dividing wall)? Is the central elevator/stair core accessible?
-4. ARCHITECTURAL REALISM (10% weight): Clean 90° CAD linework with exactly ${numFlats} color-coded flat units.
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🏆 SUPREME EVALUATION CRITERIA (SHAPE IS THE #1 MAIN PRIORITY)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-Pick the single BEST candidate (index 0 to ${candidateUrls.length - 1}) to send to final CAD detailing.
+1. SHAPE FIDELITY & CONTOUR ACCURACY (OVERWHELMING #1 PRIORITY - 60% WEIGHT / HARD KNOCKOUT):
+   • STRICT COMPARISON: Look at Image 0 (the original white building footprint mask). Does the candidate strictly reproduce the EXACT SAME outer geometric silhouette, sharp corners, wing angles, and setbacks?
+   • ZERO-TOLERANCE WARPING: IMMEDIATELY DISQUALIFY or heavily penalize any candidate that rounds off sharp corners, turns angled wings into plain rectangles/ovals, truncates wings, or bleeds outside the boundary.
+   • THE CANDIDATE WITH THE CLOSEST 1:1 GEOMETRIC MATCH TO IMAGE 0'S EXACT PERIMETER MUST WIN.
+
+2. FACADE VENTILATION & EXTERIOR ROOMS (25% WEIGHT):
+   • All habitable rooms (Attached Balconies, Bedrooms, Kitchens, and Toilets) must sit along the outer perimeter facade to capture direct exterior windows and cross-ventilation.
+
+3. SPATIAL FLOW & LIVING ROOM REALISM (10% WEIGHT):
+   • Living Room is located in the central zone connecting directly and seamlessly to the Attached Balcony. Central core has elevator and stair access.
+
+4. 90° CAD PARTITIONS & UNIT LABELING (5% WEIGHT):
+   • Clean orthogonal linework with exactly ${numFlats} distinct unit zones.
+
+DECISION RULE: Filter for the candidates that have the BEST shape match to Image 0 first. Among those with accurate shape preservation, choose the one with the best exterior ventilation and room layout.
+
 Output your evaluation ONLY as a valid JSON object in this exact format:
 {
   "winnerIndex": 0,
-  "winnerScore": 95,
-  "reasoning": "Candidate 0 is chosen because it has the highest geometric fidelity to the original shape silhouette, places all habitable bedrooms and balconies along the exterior facade with zero shape distortion, and establishes clean 90° unit divisions.",
+  "winnerScore": 96,
+  "reasoning": "Candidate 0 was selected because it achieved the highest shape fidelity to Image 0, perfectly preserving all sharp corner vertices, wing angles, and setbacks without rounding or warping, while successfully positioning all bedrooms and balconies along the outer facade.",
   "candidateCritiques": [
-    "Candidate 0: Crisp geometry, all exterior rooms on facade, optimal living-balcony connection.",
-    "Candidate 1: Slight corner rounding on south wing.",
-    "Candidate 2: Good core, but bedroom placement is slightly shallow.",
-    "Candidate 3: Flat boundary line slightly skewed."
+    "Candidate 0: Flawless 1:1 shape silhouette match, sharp wing corners preserved, all bedrooms along exterior facade.",
+    "Candidate 1: Slight corner rounding on south wing, altering the original footprint.",
+    "Candidate 2: Good interior core, but warped outer contour on east wing.",
+    "Candidate 3: Shape altered significantly from Image 0."
   ]
 }`;
 
