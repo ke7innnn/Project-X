@@ -350,6 +350,40 @@ PRIMARY DIRECTIVE — PRESERVE 100% COMPOSITION (ENHANCE ONLY)
 • UNIT BOUNDARIES (${flatLabels}): LOCKED with their distinct vivid boundary colors preserved from IMAGE 1.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+#2 — ARCHITECTURAL CAD LINEWORK & OPENINGS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+• WALLS: Crisp, sharp, solid black 2D CAD partition lines.
+• DOORS: Standard quarter-circle door swing arcs showing clear opening direction into each room.
+• WINDOWS: Clean double-line architectural window symbols along all exterior walls.
+• SEAMLESS LIVING-TO-BALCONY SLIDER: The connection between the Living Room and Attached Balcony is drawn strictly as a full-width SLIDING GLASS DOOR / glazed threshold (thin double line / dashed slider with NO solid brick/masonry wall).
+• BALCONY RAILING: Clean double-line glass/metal railing along the outer balcony edge.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+#3 — ARCHITECTURAL FURNITURE, FIXTURES & ROOM DECORATION
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Populate each existing room in IMAGE 1 with clean, elegant, top-down 2D CAD vector furniture symbols and decor:
+• MASTER BEDROOM: King-size double bed with pillows & side nightstands, wardrobe line, and dresser.
+• BEDROOMS (Bed 2, Bed 3, Bed 4): Queen or single beds with side tables, built-in wardrobes, and study desk with chair.
+• LIVING ROOM: L-shaped sectional sofa or 3+2 couch with a central coffee table, slim media/TV wall console, and corner accent indoor potted plant.
+• DINING AREA: 4-seater to 6-seater dining table with neatly arranged chairs.
+• KITCHEN: L-shaped or parallel modular kitchen counters with 2-bowl sink, cooktop stove, and refrigerator icon.
+• ATTACHED BALCONY: Outdoor patio seating (2 chairs + small coffee table) and green potted planter boxes along the railing.
+• BATHROOMS / TOILETS: Wall-hung WC commode, vanity washbasin with mirror, and glass shower partition enclosure.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+#4 — GRAPHIC STYLE & TYPOGRAPHY
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+• Pure 2D architectural CAD linework on a solid white background.
+• Clean vector furniture line symbols (NO photo textures, NO 3D rendering).
+• PRESERVE each flat's unique colored outer boundary outline from IMAGE 1 (e.g. F1 in Red, F2 in Green, etc.).
+• Clean, crisp, legible architectural room text labels and flat markers (${flatLabels}).
+
+OUTPUT: A beautiful, publication-grade, professional 2D CAD architectural blueprint that preserves 100% of IMAGE 1's exact composition while enhancing it with crisp CAD walls, doors, windows, and complete architectural furniture and decor.`;
+}
+
 // ── AI Architectural Evaluator Agent (Evaluates 4 Stage 1 candidates against shape & ventilation) ──
 
 interface EvaluationResult {
