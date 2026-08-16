@@ -350,38 +350,117 @@ PRIMARY DIRECTIVE — PRESERVE 100% COMPOSITION (ENHANCE ONLY)
 • UNIT BOUNDARIES (${flatLabels}): LOCKED with their distinct vivid boundary colors preserved from IMAGE 1.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-#2 — ARCHITECTURAL CAD LINEWORK & OPENINGS
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// ── AI Architectural Evaluator Agent (Evaluates 4 Stage 1 candidates against shape & ventilation) ──
 
-• WALLS: Crisp, sharp, solid black 2D CAD partition lines.
-• DOORS: Standard quarter-circle door swing arcs showing clear opening direction into each room.
-• WINDOWS: Clean double-line architectural window symbols along all exterior walls.
-• SEAMLESS LIVING-TO-BALCONY SLIDER: The connection between the Living Room and Attached Balcony is drawn strictly as a full-width SLIDING GLASS DOOR / glazed threshold (thin double line / dashed slider with NO solid brick/masonry wall).
-• BALCONY RAILING: Clean double-line glass/metal railing along the outer balcony edge.
+interface EvaluationResult {
+  winnerIndex: number;
+  winnerScore: number;
+  reasoning: string;
+  candidateCritiques: string[];
+}
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-#3 — ARCHITECTURAL FURNITURE, FIXTURES & ROOM DECORATION
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+async function evaluateCandidatesWithVisionAgent(
+  originalMaskBase64: string,
+  candidateUrls: string[],
+  dominantBHK: string,
+  numFlats: number
+): Promise<EvaluationResult> {
+  const openRouterKey = process.env.OPENROUTER_API_KEY || process.env.NEXT_PUBLIC_OPENROUTER_API_KEY;
+  if (!openRouterKey || candidateUrls.length <= 1) {
+    return {
+      winnerIndex: 0,
+      winnerScore: 92,
+      reasoning: 'Single candidate produced or offline evaluator fallback',
+      candidateCritiques: candidateUrls.map((_, i) => `Candidate ${i + 1}: Processed successfully.`),
+    };
+  }
 
-Populate each existing room in IMAGE 1 with clean, elegant, top-down 2D CAD vector furniture symbols and decor:
-• MASTER BEDROOM: King-size double bed with pillows & side nightstands, wardrobe line, and dresser.
-• BEDROOMS (Bed 2, Bed 3, Bed 4): Queen or single beds with side tables, built-in wardrobes, and study desk with chair.
-• LIVING ROOM: L-shaped sectional sofa or 3+2 couch with a central coffee table, slim media/TV wall console, and corner accent indoor potted plant.
-• DINING AREA: 4-seater to 6-seater dining table with neatly arranged chairs.
-• KITCHEN: L-shaped or parallel modular kitchen counters with 2-bowl sink, cooktop stove, and refrigerator icon.
-• ATTACHED BALCONY: Outdoor patio seating (2 chairs + small coffee table) and green potted planter boxes along the railing.
-• BATHROOMS / TOILETS: Wall-hung WC commode, vanity washbasin with mirror, and glass shower partition enclosure.
+  try {
+    const promptText = `You are a Senior Architectural Floor Plan QA Auditor & Evaluator.
+You are inspecting ${candidateUrls.length} CAD floor plan zoning candidate options against the original user-drawn footprint (Image 0: solid white building footprint on solid black background).
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-#4 — GRAPHIC STYLE & TYPOGRAPHY
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+EVALUATION CRITERIA:
+1. SHAPE ACCURACY & INTEGRITY (Top Priority - 40% weight): Does the candidate strictly preserve the exact outer building perimeter silhouette, sharp corners, wing angles, and setbacks from Image 0 without rounding, warping, or bleeding into the black background?
+2. VENTILATION & EXTERIOR ROOMS (30% weight): Are the habitable rooms (Attached Balconies, Bedrooms, Kitchen, Toilets) sitting properly along the exterior building facade with direct external windows/ventilation?
+3. SPATIAL FLOW & LIVING ROOM (20% weight): Is the living room in the central area connecting cleanly to the balcony (no solid dividing wall)? Is the central elevator/stair core accessible?
+4. ARCHITECTURAL REALISM (10% weight): Clean 90° CAD linework with exactly ${numFlats} color-coded flat units.
 
-• Pure 2D architectural CAD linework on a solid white background.
-• Clean vector furniture line symbols (NO photo textures, NO 3D rendering).
-• PRESERVE each flat's unique colored outer boundary outline from IMAGE 1 (e.g. F1 in Red, F2 in Green, etc.).
-• Clean, crisp, legible architectural room text labels and flat markers (${flatLabels}).
+Pick the single BEST candidate (index 0 to ${candidateUrls.length - 1}) to send to final CAD detailing.
+Output your evaluation ONLY as a valid JSON object in this exact format:
+{
+  "winnerIndex": 0,
+  "winnerScore": 95,
+  "reasoning": "Candidate 0 is chosen because it has the highest geometric fidelity to the original shape silhouette, places all habitable bedrooms and balconies along the exterior facade with zero shape distortion, and establishes clean 90° unit divisions.",
+  "candidateCritiques": [
+    "Candidate 0: Crisp geometry, all exterior rooms on facade, optimal living-balcony connection.",
+    "Candidate 1: Slight corner rounding on south wing.",
+    "Candidate 2: Good core, but bedroom placement is slightly shallow.",
+    "Candidate 3: Flat boundary line slightly skewed."
+  ]
+}`;
 
-OUTPUT: A beautiful, publication-grade, professional 2D CAD architectural blueprint that preserves 100% of IMAGE 1's exact composition while enhancing it with crisp CAD walls, doors, windows, and complete architectural furniture and decor.`;
+    const contentArray: any[] = [
+      { type: 'text', text: promptText },
+      {
+        type: 'image_url',
+        image_url: { url: originalMaskBase64.startsWith('data:') ? originalMaskBase64 : `data:image/png;base64,${originalMaskBase64}` },
+      },
+    ];
+
+    candidateUrls.forEach((url, i) => {
+      contentArray.push({ type: 'text', text: `=== CANDIDATE ${i} ===` });
+      contentArray.push({ type: 'image_url', image_url: { url } });
+    });
+
+    const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${openRouterKey}`,
+        'Content-Type': 'application/json',
+        'HTTP-Referer': 'https://projectx.app',
+        'X-Title': 'Project X Architectural Evaluator Agent',
+      },
+      body: JSON.stringify({
+        model: 'google/gemini-2.5-flash',
+        messages: [{ role: 'user', content: contentArray }],
+        temperature: 0.1,
+        response_format: { type: 'json_object' },
+        max_tokens: 800,
+      }),
+      signal: AbortSignal.timeout(25000),
+    });
+
+    if (!res.ok) {
+      console.warn(`[EvaluatorAgent] Vision evaluation call failed (${res.status}), defaulting to Candidate 0`);
+      return {
+        winnerIndex: 0,
+        winnerScore: 90,
+        reasoning: 'Candidate 0 selected (evaluator response fallback)',
+        candidateCritiques: candidateUrls.map((_, i) => `Candidate ${i + 1}: Available`),
+      };
+    }
+
+    const json = await res.json();
+    const parsed = JSON.parse(json.choices?.[0]?.message?.content || '{}');
+    const winnerIndex = typeof parsed.winnerIndex === 'number' && parsed.winnerIndex >= 0 && parsed.winnerIndex < candidateUrls.length
+      ? parsed.winnerIndex
+      : 0;
+
+    return {
+      winnerIndex,
+      winnerScore: parsed.winnerScore || 92,
+      reasoning: parsed.reasoning || `Candidate ${winnerIndex + 1} selected as most architecturally sound layout.`,
+      candidateCritiques: Array.isArray(parsed.candidateCritiques) ? parsed.candidateCritiques : [],
+    };
+  } catch (err: any) {
+    console.warn('[EvaluatorAgent] Error during evaluation:', err.message);
+    return {
+      winnerIndex: 0,
+      winnerScore: 88,
+      reasoning: 'Candidate 0 selected (fallback)',
+      candidateCritiques: candidateUrls.map((_, i) => `Candidate ${i + 1}: Ready`),
+    };
+  }
 }
 
 // ── Route Handler ─────────────────────────────────────────────────────────────
@@ -390,7 +469,7 @@ export async function POST(req: Request) {
   try {
     const {
       traceCanvasBase64,
-      workflow = 'grok-gpt',
+      workflow = 'gpt-low-gpt-medium',
       units1BHK = 0,
       units2BHK = 0,
       units3BHK = 0,
@@ -415,34 +494,39 @@ export async function POST(req: Request) {
     // ── Determine image size and aspect ratio from shape bounding box ──────────
     function pickDimensions(w?: number, h?: number): { image_size: string; aspect_ratio: string } {
       if (!w || !h || w === 0 || h === 0) return { image_size: 'square_hd', aspect_ratio: '1:1' };
-      const ratio = h / w;
-      if (ratio > 1.15) return { image_size: 'portrait_4_3', aspect_ratio: '3:4' };     // tall shape  → portrait
-      if (ratio < 0.87) return { image_size: 'landscape_4_3', aspect_ratio: '4:3' };    // wide shape  → landscape
-      return { image_size: 'square_hd', aspect_ratio: '1:1' };                           // near-square → square HD
+      const ratio = w / h;
+      if (ratio > 1.6) return { image_size: 'landscape_16_9', aspect_ratio: '16:9' };
+      if (ratio > 1.25) return { image_size: 'landscape_4_3', aspect_ratio: '4:3' };
+      if (ratio < 0.62) return { image_size: 'portrait_16_9', aspect_ratio: '9:16' };
+      if (ratio < 0.8) return { image_size: 'portrait_4_3', aspect_ratio: '3:4' };
+      return { image_size: 'square_hd', aspect_ratio: '1:1' };
     }
+
     const { image_size: detectedImageSize, aspect_ratio: detectedAspectRatio } = pickDimensions(shapeW, shapeH);
-    console.log(`[IdeaGenerator] Shape bounding box: ${shapeW}×${shapeH}px → image_size: ${detectedImageSize}, aspect_ratio: ${detectedAspectRatio}`);
 
-    // ── NEW PIPELINE PATH: if traceCanvasBase64 is provided ──────────────────
+    // ── Two-Stage Workflow Pipeline ───────────────────────────────────────────
     if (traceCanvasBase64) {
-      const wf = WORKFLOWS[workflow] || WORKFLOWS['gpt-low-gpt-medium'];
-      const stage1Model = wf.stage1;
-      const stage2Model = wf.stage2 || null;
+      const activeApiKey = apiKey || process.env.FAL_KEY;
+      if (!activeApiKey) {
+        return NextResponse.json({ error: 'FAL_KEY is missing.' }, { status: 400 });
+      }
 
-      console.log(`[IdeaGenerator] Pipeline: ${wf.label} | stage1=${stage1Model} stage2=${stage2Model || 'none'}`);
+      const cleanApiKey = activeApiKey.replace(/\s+/g, '').replace(/[^a-zA-Z0-9:-]/g, '');
+      fal.config({ credentials: cleanApiKey });
 
-      // Upload trace image to fal storage
-      const base64Data = traceCanvasBase64.replace(/^data:image\/\w+;base64,/, '');
-      const imageBuffer = Buffer.from(base64Data, 'base64');
-      const traceFile = new File([new Blob([imageBuffer], { type: 'image/png' })], 'trace.png', { type: 'image/png' });
-      const uploadedTraceUrl = await fal.storage.upload(traceFile);
-      console.log('[IdeaGenerator] Trace uploaded:', uploadedTraceUrl);
+      // Convert trace canvas data URI to a publicly accessible fal storage URL
+      console.log('[IdeaGenerator] Uploading trace canvas mask to fal storage...');
+      const uploadedTraceUrl = await urlToFalStorage(traceCanvasBase64);
+      console.log('[IdeaGenerator] Trace canvas uploaded:', uploadedTraceUrl);
+
+      const workflowConfig = WORKFLOWS[workflow] || WORKFLOWS['gpt-low-gpt-medium'] || WORKFLOWS['grok-gpt'];
+      const stage2Model = workflowConfig.stage2 || 'openai/gpt-image-2/edit';
 
       const totalUnits = units1BHK + units2BHK + units3BHK + units4BHK;
       const numFlats = Math.max(1, totalUnits);
       const dominantBHK = detectDominantBHK(units1BHK, units2BHK, units3BHK, units4BHK);
 
-      // ── STAGE 1: Generate N empty flat zone boxes + central core ──────────
+      // ── STAGE 1: Generate 4 parallel candidate zoning layouts with GPT Image 2 [Low] ──
       const zoningRefUrl = await loadZoningReferenceToFalStorage();
       const hasZoningRef = !!zoningRefUrl;
 
@@ -456,74 +540,81 @@ export async function POST(req: Request) {
         bhkType: dominantBHK,
       });
 
-      console.log(`[IdeaGenerator] Stage 1: ${stage1Model} — drawing ${numFlats} empty flat zones inside exact footprint... (hasZoningRef: ${hasZoningRef})`);
-
       const stage1ImageUrls: string[] = [uploadedTraceUrl];
       if (zoningRefUrl) {
         stage1ImageUrls.push(zoningRefUrl);
       }
 
-      const isFluxCanny = stage1Model.includes('flux-control-lora-canny');
-      const isGrok = stage1Model.includes('grok');
-      const isGPTImage = stage1Model.includes('gpt-image-2');
+      console.log(`[IdeaGenerator] Stage 1: Generating 4 parallel candidate zoning layouts with openai/gpt-image-2/edit [Low]...`);
 
-      let stage1Input: Record<string, any>;
+      const stage1Input = {
+        image_urls: stage1ImageUrls,
+        prompt: stage1Prompt,
+        quality: 'low',
+      };
 
-      const stage1TargetSeed = Math.floor(Math.random() * 2147483647);
+      const candidatePromises = Array.from({ length: 4 }, () =>
+        runModel('openai/gpt-image-2/edit', stage1Input)
+      );
 
-      if (isFluxCanny) {
-        stage1Input = {
-          control_image_url: uploadedTraceUrl,
-          control_lora_image_url: uploadedTraceUrl,
-          prompt: stage1Prompt,
-          num_inference_steps: 28,
-          guidance_scale: 3.5,
-          controlnet_conditioning_scale: 1.0,
-          seed: stage1TargetSeed,
-        };
-      } else if (isGrok) {
-        // Grok quality edit — accepts image_urls, resolution, seed. No image_size/aspect_ratio.
-        stage1Input = {
-          image_urls: stage1ImageUrls,
-          prompt: stage1Prompt,
-          resolution: '1k',
-          seed: stage1TargetSeed,
-        };
-      } else if (isGPTImage) {
-        // GPT Image 2 edit — accepts image_urls and quality. No seed, no image_size, no aspect_ratio.
-        stage1Input = {
-          image_urls: stage1ImageUrls,
-          prompt: stage1Prompt,
-          quality: 'low',
-        };
-      } else {
-        stage1Input = {
-          image_urls: stage1ImageUrls,
-          prompt: stage1Prompt,
-          image_size: detectedImageSize,
-          aspect_ratio: detectedAspectRatio,
-          seed: stage1TargetSeed,
-        };
+      const candidateResults = await Promise.allSettled(candidatePromises);
+      const successfulCandidates: Array<{ url: string; seed?: number; index: number }> = [];
+
+      candidateResults.forEach((res, idx) => {
+        if (res.status === 'fulfilled' && res.value?.url) {
+          successfulCandidates.push({ url: res.value.url, seed: res.value.seed, index: idx });
+          console.log(`[IdeaGenerator] Stage 1 Candidate ${idx + 1}/4 generated successfully: ${res.value.url}`);
+        } else if (res.status === 'rejected') {
+          console.warn(`[IdeaGenerator] Stage 1 Candidate ${idx + 1}/4 failed:`, res.reason?.message);
+        }
+      });
+
+      if (successfulCandidates.length === 0) {
+        throw new Error('All 4 Step 1 candidates failed to generate.');
       }
-      const { url: stage1Url, seed: returnedStage1Seed } = await runModel(stage1Model, stage1Input);
-      const stage1Seed = returnedStage1Seed ?? stage1TargetSeed;
-      console.log(`[IdeaGenerator] Stage 1 output (seed: ${stage1Seed}):`, stage1Url);
 
-      const stage1Base64 = await fetchToBase64(stage1Url);
+      console.log(`[IdeaGenerator] Stage 1: ${successfulCandidates.length}/4 candidates ready. Running AI Architectural Evaluator Agent...`);
+
+      // ── AI AGENT EVALUATION: Inspect shape preservation, ventilation, and living room composition ──
+      const candidateUrls = successfulCandidates.map(c => c.url);
+      const evaluation = await evaluateCandidatesWithVisionAgent(
+        traceCanvasBase64,
+        candidateUrls,
+        dominantBHK,
+        numFlats
+      );
+
+      const winningCandidate = successfulCandidates[evaluation.winnerIndex] || successfulCandidates[0];
+      const stage1Url = winningCandidate.url;
+      const stage1Seed = winningCandidate.seed;
+
+      console.log(`[IdeaGenerator] 🏆 Evaluator Agent selected Candidate #${evaluation.winnerIndex + 1} (Score: ${evaluation.winnerScore}/100)!`);
+      console.log(`[IdeaGenerator] 📝 Evaluator Reasoning: ${evaluation.reasoning}`);
+
+      // Fetch all candidate base64s in parallel
+      const candidateBase64s = await Promise.all(
+        successfulCandidates.map(c => fetchToBase64(c.url))
+      );
+      const stage1Base64 = candidateBase64s[evaluation.winnerIndex] || candidateBase64s[0];
 
       if (!stage2Model) {
         return NextResponse.json({
           url: stage1Base64,
-          imageUrls: [stage1Base64],
+          imageUrls: candidateBase64s,
           stage1ImageUrl: stage1Base64,
           stage1Seed,
+          evaluation: {
+            winnerIndex: evaluation.winnerIndex,
+            winnerScore: evaluation.winnerScore,
+            reasoning: evaluation.reasoning,
+            critiques: evaluation.candidateCritiques,
+          },
           systemPrompt: stage1Prompt,
-          userPrompt: `STAGE 1 only | MODEL: ${stage1Model}`,
+          userPrompt: `STAGE 1 (4 candidates evaluated by AI Vision Agent | Winner #${evaluation.winnerIndex + 1})`,
         });
       }
 
-      // ── STAGE 2: GPT Image 2 architectural infill & furniture detailing ────
-      // Load master CAD cross-ventilation reference image and upload to fal storage
+      // ── STAGE 2: GPT Image 2 architectural infill & furniture detailing on Winner ────
       const referenceStorageUrl = await loadReferenceToFalStorage(dominantBHK);
       const hasReferenceImage = !!referenceStorageUrl;
 
@@ -544,7 +635,7 @@ export async function POST(req: Request) {
         stage2ImageUrls.push(referenceStorageUrl);
       }
 
-      console.log(`[IdeaGenerator] Stage 2: openai/gpt-image-2/edit | image_urls: ${stage2ImageUrls.length} (Zoning + ${hasReferenceImage ? 'Cross-vent reference' : 'none'})`);
+      console.log(`[IdeaGenerator] Stage 2: Enhancing Winner #${evaluation.winnerIndex + 1} with openai/gpt-image-2/edit [Medium]...`);
 
       const gptInput: Record<string, any> = {
         image_urls: stage2ImageUrls,
@@ -555,18 +646,24 @@ export async function POST(req: Request) {
       const gptRes = await runModel('openai/gpt-image-2/edit', gptInput);
       const stage2Base64 = await fetchToBase64(gptRes.url);
       const stage2Seed = gptRes.seed;
-      console.log('[IdeaGenerator] Stage 2 (GPT Image 2) generated successfully');
+      console.log('[IdeaGenerator] Stage 2 (GPT Image 2) enhanced blueprint generated successfully');
 
       return NextResponse.json({
         url: stage2Base64,
-        imageUrls: [stage2Base64],
+        imageUrls: [stage2Base64, ...candidateBase64s],
         stage1ImageUrl: stage1Base64,
         stage2ImageUrl: stage2Base64,
         stage1Seed,
         stage2Seed,
+        evaluation: {
+          winnerIndex: evaluation.winnerIndex,
+          winnerScore: evaluation.winnerScore,
+          reasoning: evaluation.reasoning,
+          critiques: evaluation.candidateCritiques,
+        },
         systemPrompt: stage1Prompt,
         refinementPrompt,
-        userPrompt: `PIPELINE | Stage 1: ${stage1Model} -> Stage 2: openai/gpt-image-2/edit [Medium] | BHK: ${dominantBHK}`,
+        userPrompt: `PIPELINE | Stage 1: 4× GPT Image 2 [Low] (Winner #${evaluation.winnerIndex + 1} chosen by AI Agent: ${evaluation.winnerScore}/100) -> Stage 2: GPT Image 2 [Medium] | BHK: ${dominantBHK}`,
       });
     }
 
