@@ -168,22 +168,22 @@ function buildStage1Prompt(opts: {
 
   if (units1BHK > 0) {
     const list = Array.from({ length: units1BHK }, () => `F${flatIdx++}`).join(', ');
-    boxRules.push(`• 1BHK Units (${list}): EXACTLY 4 exterior facade boxes along outer perimeter (1 Living Room + 1 Balcony + 1 Bedroom + 1 Kitchen).`);
+    boxRules.push(`• 1BHK Units (${list}): EXACTLY 4 exterior facade boxes along outer perimeter (1 Attached Balcony + 1 Bedroom + 1 Kitchen + 1 Toilet).`);
     totalBoxes += units1BHK * 4;
   }
   if (units2BHK > 0) {
     const list = Array.from({ length: units2BHK }, () => `F${flatIdx++}`).join(', ');
-    boxRules.push(`• 2BHK Units (${list}): EXACTLY 5 exterior facade boxes along outer perimeter (1 Living Room + 1 Balcony + 2 Bedrooms [Master + Bed 2] + 1 Kitchen).`);
+    boxRules.push(`• 2BHK Units (${list}): EXACTLY 5 exterior facade boxes along outer perimeter (1 Attached Balcony + 2 Bedrooms [Master + Bed 2] + 1 Kitchen + 1 Master Toilet).`);
     totalBoxes += units2BHK * 5;
   }
   if (units3BHK > 0) {
     const list = Array.from({ length: units3BHK }, () => `F${flatIdx++}`).join(', ');
-    boxRules.push(`• 3BHK Units (${list}): EXACTLY 6 exterior facade boxes along outer perimeter (1 Living Room + 1 Balcony + 3 Bedrooms [Master + Bed 2 + Bed 3] + 1 Kitchen).`);
+    boxRules.push(`• 3BHK Units (${list}): EXACTLY 6 exterior facade boxes along outer perimeter (1 Attached Balcony + 3 Bedrooms [Master + Bed 2 + Bed 3] + 1 Kitchen + 1 Master Toilet).`);
     totalBoxes += units3BHK * 6;
   }
   if (units4BHK > 0) {
     const list = Array.from({ length: units4BHK }, () => `F${flatIdx++}`).join(', ');
-    boxRules.push(`• 4BHK Units (${list}): EXACTLY 7 exterior facade boxes along outer perimeter (1 Living Room + 1 Balcony + 4 Bedrooms + 1 Kitchen).`);
+    boxRules.push(`• 4BHK Units (${list}): EXACTLY 7 exterior facade boxes along outer perimeter (1 Attached Balcony + 4 Bedrooms + 1 Kitchen + 1 Master Toilet).`);
     totalBoxes += units4BHK * 7;
   }
 
@@ -191,7 +191,7 @@ function buildStage1Prompt(opts: {
   if (boxRules.length === 0) {
     const boxesPerFlat = bhkType.includes('1') ? 4 : bhkType.includes('3') ? 6 : bhkType.includes('4') ? 7 : 5;
     totalBoxes = numFlats * boxesPerFlat;
-    boxRules.push(`• Every flat zone (${flatLabels}): EXACTLY ${boxesPerFlat} exterior facade boxes along outer perimeter.`);
+    boxRules.push(`• Every flat zone (${flatLabels}): EXACTLY ${boxesPerFlat} exterior facade boxes along outer perimeter (Balcony, Bedrooms, Kitchen, Toilet).`);
   }
 
   const boxCountDescription = boxRules.join('\n');
@@ -347,9 +347,10 @@ IMAGE ROLES — EXTREMELY IMPORTANT
 • IMAGE 2 = CROSS-VENTILATION & ROOM FLOW REFERENCE.
   Study the architectural composition in IMAGE 2:
   1. EXPANSIVE LIVING ROOM: The Living Room sits in the spacious remaining internal/central area of the apartment connecting the foyer to all zones.
-  2. EXTERIOR BALCONY & BEDROOMS: Habitable rooms (Attached Balcony, Bedrooms, Kitchen, Toilet) occupy the EXTERIOR FACADE BOXES along the building perimeter for natural airflow and daylight.
-  3. SOLID KITCHEN PARTITION: Kitchen is an enclosed walled room with a window and a door connecting to Living/Dining.
-  4. FOYER CIRCULATION: Entrance foyer connects directly to Living Room and private bedroom corridors.
+  2. SEAMLESS BALCONY OPENING: Living Room connects directly to the Attached Balcony with NO solid partition wall.
+  3. EXTERIOR BEDROOMS & KITCHEN: Habitable rooms (Attached Balcony, Bedrooms, Kitchen, Toilet) occupy the EXTERIOR FACADE BOXES along the building perimeter for natural airflow and daylight.
+  4. SOLID KITCHEN PARTITION: Kitchen is an enclosed walled room with a window and a door connecting to Living/Dining.
+  5. FOYER CIRCULATION: Entrance foyer connects directly to Living Room and private bedroom corridors.
   Apply this exact architectural layout inside every flat zone of IMAGE 1!
 ` : ''}
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -375,7 +376,7 @@ Fill all ${numFlats} flat zones (${flatLabels}) with EXACTLY their required room
 ${mixDescription}
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-#4 — STRICT ROOM-TO-BOX ASSIGNMENT & VENTILATION LOGIC
+#4 — STRICT ROOM-TO-BOX ASSIGNMENT & BALCONY EXTENSION LOGIC
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 1. EXTERIOR FACADE BOXES (MANDATORY FOR BALCONY, BEDROOMS, KITCHEN & TOILETS):
@@ -388,13 +389,16 @@ ${mixDescription}
 
 2. EXPANSIVE LIVING ROOM & DINING IN REMAINING MAIN AREA:
    • The LIVING ROOM + DINING AREA occupies the main spacious remaining body of the apartment.
-   • It connects directly from the entrance foyer and opens out to the exterior attached balcony.
    • Provides private internal hallway access to bedrooms, kitchen, and bathrooms.
 
-3. KITCHEN WALL ENCLOSURE:
+3. SEAMLESS LIVING-TO-BALCONY EXTENSION (NO SOLID WALL):
+   • The Living Room connects directly into the Attached Balcony with NO solid partition/brick wall between them.
+   • The boundary between Living Room and Balcony is drawn strictly as a full-width SLIDING GLASS DOOR / glazed threshold (thin double line / dashed slider with no opaque wall).
+
+4. KITCHEN WALL ENCLOSURE:
    • Kitchen must be an enclosed room with a solid partition wall and door connecting to Living/Dining (no open-plan kitchen).
 
-4. CIRCULATION SEQUENCE:
+5. CIRCULATION SEQUENCE:
    • Common Corridor → Apartment Entrance Door → Foyer / Living Room → Balcony / Kitchen / Bedroom Hallway & Bathrooms.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -402,12 +406,12 @@ ${mixDescription}
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 • Pure 2D architectural CAD linework on solid white background.
-• Standard door swings (quarter-circle arcs), balcony railings, and double-line window openings along exterior walls.
+• Standard door swings (quarter-circle arcs), balcony railings, sliding glass sliders, and double-line window openings along exterior walls.
 • NO wood textures, NO 3D rendering, NO color fills inside rooms.
 • PRESERVE each flat's unique colored outer boundary outline from IMAGE 1. All internal partition lines remain thin black lines.
 • Keep flat labels (${flatLabels}) near entry doors.
 
-OUTPUT: A complete, functional 2D CAD floor plan with all ${numFlats} units perfectly arranged with Living Room in the main remaining area, and Balcony, Bedrooms, Kitchen, and Toilets in exterior facade boxes inside IMAGE 1.`;
+OUTPUT: A complete, functional 2D CAD floor plan with all ${numFlats} units perfectly arranged with Living Room in the main remaining area seamlessly opening to the Balcony (no solid wall), and Bedrooms, Kitchen, and Toilets in exterior facade boxes inside IMAGE 1.`;
 }
 
 // ── Route Handler ─────────────────────────────────────────────────────────────
