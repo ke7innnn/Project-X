@@ -254,7 +254,7 @@ ${uniqueLabelLines}
 • NO duplicate labels. NO extra unlabeled boxes.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-#5 — STRICT 90° ORTHOGONAL EXTERIOR ROOM BOXES & LARGE HABITABLE DEPTH
+#5 — STRICT 90° ORTHOGONAL & BIGGER EXTERIOR ROOM BOXES (45% – 55% DEPTH)
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 • STRICT ORTHOGONAL 90° T-SQUARE GRID:
@@ -262,9 +262,10 @@ ${uniqueLabelLines}
   - All internal partition lines must run strictly perpendicular (90°) or parallel to outer walls.
   - ZERO slanted lines, ZERO diagonal cuts, ZERO trapezoids.
 
-• LARGE HABITABLE DEPTH (35% – 45% OF WING):
-  - Every exterior room box must be deep and spacious (occupying 35% to 45% of the flat zone's inward depth, with 1:1 square or 1:1.2 rectangular proportions).
-  - DO NOT draw thin, shallow, or skin-deep sliver boxes along the facade.
+• MAKE EXTERIOR ROOM BOXES BIGGER & DEEPER (45% – 55% OF WING DEPTH):
+  - In EVERY color-coded flat zone (for example, F1 with Red boundary, F2 with Green boundary, F3 with Orange boundary, etc.), make all exterior facade room boxes significantly BIGGER, DEEPER, and more spacious!
+  - Exterior room boxes must extend inward 45% to 55% from the outer perimeter wall into the flat zone, ensuring large, generous 90° rectangular room proportions.
+  - DO NOT draw small, thin, or shallow sliver boxes along the facade.
 
 • STRICT EXTERIOR FACADE ROOM BOX COUNT:
   - Along the outer exterior facade/perimeter wall of EACH flat zone, draw EXACTLY the required number of spacious 90° rectangular room boxes:
@@ -283,11 +284,11 @@ ${boxCountDescription}
 #6 — COLOR-CODED BOUNDARIES & VISUAL STYLE
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-• COLOR-CODED UNIT BOUNDARIES: Draw the outer boundary outline of each flat zone in a DIFFERENT, DISTINCT VIVID COLOR (e.g. red, blue, green, orange, purple, teal, crimson, indigo).
+• COLOR-CODED UNIT BOUNDARIES: Draw the outer boundary outline of each flat zone in a DIFFERENT, DISTINCT VIVID COLOR (e.g. red for F1, green for F2, orange for F3, blue for F4, purple for F5, teal for F6).
 • All internal room partition lines remain thin black lines.
 • Pure 2D top-down CAD linework only. Stay 100% inside the white footprint polygon.
 
-OUTPUT: Clean 2D CAD zoning floor plan with EXACTLY ${numFlats} rectangular flat zones (${flatLabels}) with 90° horizontal/vertical divisions, exactly ${totalBoxes} large 90° rectangular exterior room boxes along the outer walls (${boxRules.length > 0 ? '1BHK=4, 2BHK=5, 3BHK=6, 4BHK=7' : ''}), and distinct colored boundaries.`;
+OUTPUT: Clean 2D CAD zoning floor plan with EXACTLY ${numFlats} rectangular flat zones (${flatLabels}) with 90° horizontal/vertical divisions, exactly ${totalBoxes} BIG, DEEP 90° rectangular exterior room boxes along the outer walls (${boxRules.length > 0 ? '1BHK=4, 2BHK=5, 3BHK=6, 4BHK=7' : ''}), and distinct colored boundaries.`;
 }
 
 // ── Stage 2: GPT Image 2 prompt — fill zones using BHK reference ──────────────
@@ -348,7 +349,7 @@ IMAGE ROLES — EXTREMELY IMPORTANT
   Study the architectural composition in IMAGE 2:
   1. EXPANSIVE LIVING ROOM: The Living Room sits in the spacious remaining internal/central area of the apartment connecting the foyer to all zones.
   2. SEAMLESS BALCONY OPENING: Living Room connects directly to the Attached Balcony with NO solid partition wall.
-  3. EXTERIOR BEDROOMS & KITCHEN: Habitable rooms (Attached Balcony, Bedrooms, Kitchen, Toilet) occupy the EXTERIOR FACADE BOXES along the building perimeter for natural airflow and daylight.
+  3. BIG EXTERIOR ROOMS: Habitable rooms (Attached Balcony, Bedrooms, Kitchen, Toilet) occupy BIG, DEEP (45%–55% depth) EXTERIOR FACADE BOXES along the building perimeter for natural airflow and daylight.
   4. SOLID KITCHEN PARTITION: Kitchen is an enclosed walled room with a window and a door connecting to Living/Dining.
   5. FOYER CIRCULATION: Entrance foyer connects directly to Living Room and private bedroom corridors.
   Apply this exact architectural layout inside every flat zone of IMAGE 1!
@@ -359,7 +360,7 @@ IMAGE ROLES — EXTREMELY IMPORTANT
 
 • OUTER FACADE BOUNDARY: LOCKED. Do not alter, stretch, or reshape the building perimeter.
 • CENTRAL CIRCULATION CORE: LOCKED. Keep the core box and shared corridor intact.
-• UNIT BOUNDARIES (${flatLabels}): LOCKED with their unique colors preserved from IMAGE 1.
+• UNIT BOUNDARIES (${flatLabels}): LOCKED with their unique colors preserved from IMAGE 1 (e.g. F1 in Red boundary, F2 in Green boundary, etc.).
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 #2 — CENTRAL CORE LAYOUT
@@ -376,11 +377,11 @@ Fill all ${numFlats} flat zones (${flatLabels}) with EXACTLY their required room
 ${mixDescription}
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-#4 — STRICT ROOM-TO-BOX ASSIGNMENT & BALCONY EXTENSION LOGIC
+#4 — BIG EXTERIOR ROOMS & BALCONY EXTENSION LOGIC
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-1. EXTERIOR FACADE BOXES (MANDATORY FOR BALCONY, BEDROOMS, KITCHEN & TOILETS):
-   • The exterior boxes lining the outer building perimeter MUST be strictly assigned to:
+1. BIG EXTERIOR FACADE ROOMS (MANDATORY FOR BALCONY, BEDROOMS, KITCHEN & TOILETS):
+   • In each flat zone (e.g. F1 in Red, F2 in Green, etc.), the exterior rooms must be BIG, DEEP (45%–55% inward depth), and spacious:
      ① ATTACHED OUTDOOR BALCONY with railing along the outer facade
      ② BEDROOMS (Master Bedroom, Bedroom 2, Bedroom 3, Bedroom 4) with double-line outside windows
      ③ KITCHEN with exterior wall window for natural cooking ventilation
@@ -402,16 +403,29 @@ ${mixDescription}
    • Common Corridor → Apartment Entrance Door → Foyer / Living Room → Balcony / Kitchen / Bedroom Hallway & Bathrooms.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-#5 — GRAPHIC STYLE (STRICT 2D CAD BLUEPRINT)
+#5 — ARCHITECTURAL FURNITURE, FIXTURES & ROOM DECORATION
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Draw elegant, crisp 2D CAD architectural furniture symbols and interior decoration inside EVERY room according to its function:
+• MASTER BEDROOM: King-size double bed with side nightstands, wardrobe closet line, and dresser.
+• BEDROOMS (Bed 2, Bed 3, Bed 4): Queen or single beds with side tables, built-in wardrobes, and study desk with chair.
+• LIVING ROOM: L-shaped sectional sofa set or 3+2 couch with a central rectangular coffee table, slim TV/media wall console, and corner accent indoor potted plant.
+• DINING AREA: 4-seater to 6-seater dining table with neatly arranged chairs.
+• KITCHEN: L-shaped or parallel modular kitchen countertop with 2-bowl sink, cooktop/hob stove, and refrigerator symbol.
+• ATTACHED BALCONY: Outdoor patio seating (2 chairs + small coffee table) and green potted planter boxes along the railing.
+• BATHROOMS / TOILETS: Wall-hung WC commode, vanity washbasin with mirror, and glass shower partition enclosure.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+#6 — GRAPHIC STYLE (STRICT 2D CAD BLUEPRINT)
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 • Pure 2D architectural CAD linework on solid white background.
 • Standard door swings (quarter-circle arcs), balcony railings, sliding glass sliders, and double-line window openings along exterior walls.
-• NO wood textures, NO 3D rendering, NO color fills inside rooms.
-• PRESERVE each flat's unique colored outer boundary outline from IMAGE 1. All internal partition lines remain thin black lines.
+• Clean vector furniture line symbols (NO realistic photo textures, NO 3D rendering).
+• PRESERVE each flat's unique colored outer boundary outline from IMAGE 1 (e.g. F1 in Red, F2 in Green, etc.). All internal partition lines remain thin black lines.
 • Keep flat labels (${flatLabels}) near entry doors.
 
-OUTPUT: A complete, functional 2D CAD floor plan with all ${numFlats} units perfectly arranged with Living Room in the main remaining area seamlessly opening to the Balcony (no solid wall), and Bedrooms, Kitchen, and Toilets in exterior facade boxes inside IMAGE 1.`;
+OUTPUT: A complete, functional, beautifully detailed 2D CAD floor plan with all ${numFlats} units perfectly arranged with big exterior rooms, Living Room seamlessly opening to the Balcony (no solid wall), and tasteful architectural furniture & decor inside IMAGE 1.`;
 }
 
 // ── Route Handler ─────────────────────────────────────────────────────────────
