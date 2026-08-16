@@ -253,11 +253,11 @@ ${uniqueLabelLines}
 ${boxCountDescription}
 • Total exterior facade boxes across all units = EXACTLY ${totalBoxes} boxes.
 • Each exterior box is a clean orthogonal 90° rectangular compartment sitting on the outer building wall for:
-  - 1 Living Room box
   - 1 Attached Balcony box
   - The Bedroom boxes (1 for 1BHK, 2 for 2BHK, 3 for 3BHK, 4 for 4BHK)
-  - 1 Kitchen box
-• Leave internal areas near the core/corridor open for internal toilets and ventilation ducts in the next stage.
+  - 1 Kitchen box (with outside window)
+  - 1 Toilet / Bathroom box (with exterior ventilation)
+• LIVING ROOM / DINING: Occupies the generous remaining central area of each flat zone, connecting the entrance foyer directly to the balcony, kitchen, and private bedroom corridors.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 #5 — COLOR-CODED BOUNDARIES & VISUAL STYLE
@@ -293,24 +293,24 @@ function buildStage2Prompt(opts: {
   let flatIndex = 1;
   if (units1BHK > 0) {
     const list = Array.from({ length: units1BHK }, () => `F${flatIndex++}`).join(', ');
-    mixLines.push(`• ${list}: 1 BHK (1 Living Room with Attached BALCONY + 1 Kitchen + 1 Bedroom in exterior boxes + 1 Internal Bathroom with DUCT)`);
+    mixLines.push(`• ${list}: 1 BHK (Living Room in main remaining area + 1 Attached BALCONY + 1 Kitchen + 1 Bedroom + 1 Toilet in exterior boxes)`);
   }
   if (units2BHK > 0) {
     const list = Array.from({ length: units2BHK }, () => `F${flatIndex++}`).join(', ');
-    mixLines.push(`• ${list}: 2 BHK (1 Living Room with Attached BALCONY + 1 Kitchen + 2 Bedrooms [Master Bed + Bed 2] in exterior boxes + 2 Internal Bathrooms with DUCT)`);
+    mixLines.push(`• ${list}: 2 BHK (Living Room + Dining in main remaining area + 1 Attached BALCONY + 1 Kitchen + 2 Bedrooms [Master Bed + Bed 2] + 1 Master Toilet in exterior boxes)`);
   }
   if (units3BHK > 0) {
     const list = Array.from({ length: units3BHK }, () => `F${flatIndex++}`).join(', ');
-    mixLines.push(`• ${list}: 3 BHK (1 Living Room with Attached BALCONY + 1 Kitchen + 3 Bedrooms [Master Bed + Bed 2 + Bed 3] in exterior boxes + 3 Internal Bathrooms with DUCT)`);
+    mixLines.push(`• ${list}: 3 BHK (Living Room + Dining in main remaining area + 1 Attached BALCONY + 1 Kitchen + 3 Bedrooms [Master Bed + Bed 2 + Bed 3] + 1 Master Toilet in exterior boxes)`);
   }
   if (units4BHK > 0) {
     const list = Array.from({ length: units4BHK }, () => `F${flatIndex++}`).join(', ');
-    mixLines.push(`• ${list}: 4 BHK (1 Living Room with Attached BALCONY + 1 Kitchen + 4 Bedrooms in exterior boxes + 4 Internal Bathrooms with DUCT)`);
+    mixLines.push(`• ${list}: 4 BHK (Living Room + Dining in main remaining area + 1 Attached BALCONY + 1 Kitchen + 4 Bedrooms + 1 Master Toilet in exterior boxes)`);
   }
 
   const mixDescription = mixLines.length > 0
     ? mixLines.join('\n')
-    : `• Every flat zone (${flatLabels}): ${bhkType.toUpperCase()} layout with 1 Living Room + Attached BALCONY + Bedrooms + Kitchen in exterior boxes + Internal Bathrooms with DUCT`;
+    : `• Every flat zone (${flatLabels}): ${bhkType.toUpperCase()} layout with Living Room in main area + Attached BALCONY + Bedrooms + Kitchen + Toilet in exterior boxes`;
 
   const liftsStr = passengerLifts > 0 ? `${passengerLifts} elevator shaft(s)` : '1 elevator shaft';
   const stairsStr = staircases > 0 ? `${staircases} fire staircase flight(s)` : '2 fire staircase flights';
@@ -326,11 +326,10 @@ IMAGE ROLES — EXTREMELY IMPORTANT
 
 • IMAGE 2 = CROSS-VENTILATION & ROOM FLOW REFERENCE.
   Study the architectural composition in IMAGE 2:
-  1. PERIMETER LIVING & BALCONY: Notice that EVERY living room connects directly to an attached exterior BALCONY on the facade.
-  2. PERIMETER BEDROOMS & KITCHEN: Habitable rooms (Living Room, Balcony, Bedrooms, Kitchen) occupy the EXTERIOR FACADE BOXES along the building perimeter for natural airflow and daylight.
-  3. INTERNAL TOILETS WITH DUCTS: Bathrooms sit INTERNALLY adjacent to the corridor/foyer, backed by a vertical ventilation shaft ("DUCT").
-  4. SOLID KITCHEN PARTITION: Kitchen is an enclosed walled room with a door connecting to Living/Dining (no open-plan kitchen).
-  5. FOYER CIRCULATION: Entrance foyer connects directly to all rooms without walking through private spaces.
+  1. EXPANSIVE LIVING ROOM: The Living Room sits in the spacious remaining internal/central area of the apartment connecting the foyer to all zones.
+  2. EXTERIOR BALCONY & BEDROOMS: Habitable rooms (Attached Balcony, Bedrooms, Kitchen, Toilet) occupy the EXTERIOR FACADE BOXES along the building perimeter for natural airflow and daylight.
+  3. SOLID KITCHEN PARTITION: Kitchen is an enclosed walled room with a window and a door connecting to Living/Dining.
+  4. FOYER CIRCULATION: Entrance foyer connects directly to Living Room and private bedroom corridors.
   Apply this exact architectural layout inside every flat zone of IMAGE 1!
 ` : ''}
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -356,27 +355,27 @@ Fill all ${numFlats} flat zones (${flatLabels}) with EXACTLY their required room
 ${mixDescription}
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-#4 — STRICT ROOM-TO-BOX ASSIGNMENT & VENTILATION DUCT LOGIC
+#4 — STRICT ROOM-TO-BOX ASSIGNMENT & VENTILATION LOGIC
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-1. EXTERIOR FACADE BOXES (MANDATORY FOR LIVING, BALCONY, BEDROOMS & KITCHEN):
+1. EXTERIOR FACADE BOXES (MANDATORY FOR BALCONY, BEDROOMS, KITCHEN & TOILETS):
    • The exterior boxes lining the outer building perimeter MUST be strictly assigned to:
-     ① LIVING ROOM with sliding door access to exterior
-     ② ATTACHED OUTDOOR BALCONY with railing along the outer facade
-     ③ BEDROOMS (Master Bedroom, Bedroom 2, Bedroom 3, Bedroom 4) with double-line outside windows
-     ④ KITCHEN with exterior wall window for natural cooking ventilation
-   • Under NO circumstances should any bedroom or living room be landlocked in the interior without external windows.
+     ① ATTACHED OUTDOOR BALCONY with railing along the outer facade
+     ② BEDROOMS (Master Bedroom, Bedroom 2, Bedroom 3, Bedroom 4) with double-line outside windows
+     ③ KITCHEN with exterior wall window for natural cooking ventilation
+     ④ TOILETS / BATHROOMS (Master Bath, Common Bath) sitting in exterior boxes with windows/louvers for direct natural ventilation
+   • Under NO circumstances should any bedroom or kitchen be landlocked without external windows.
 
-2. INTERNAL TOILETS WITH VENTILATION DUCTS (MANDATORY):
-   • Bathrooms / Toilets (Attached Master Bath, Common Bath) MUST be placed INTERNALLY adjacent to the inner corridor or entrance foyer.
-   • EVERY internal bathroom MUST be backed directly by a vertical MEP plumbing & ventilation shaft (labeled "DUCT" or "SHAFT") for mechanical ventilation and drainage risers.
-   • This ensures 100% of the valuable exterior facade length is dedicated to Living Room, Balcony, Bedrooms, and Kitchen!
+2. EXPANSIVE LIVING ROOM & DINING IN REMAINING MAIN AREA:
+   • The LIVING ROOM + DINING AREA occupies the main spacious remaining body of the apartment.
+   • It connects directly from the entrance foyer and opens out to the exterior attached balcony.
+   • Provides private internal hallway access to bedrooms, kitchen, and bathrooms.
 
 3. KITCHEN WALL ENCLOSURE:
    • Kitchen must be an enclosed room with a solid partition wall and door connecting to Living/Dining (no open-plan kitchen).
 
 4. CIRCULATION SEQUENCE:
-   • Common Corridor → Apartment Entrance Door → Foyer / Living Room → Internal Hallway → Bedrooms & Internal Toilets.
+   • Common Corridor → Apartment Entrance Door → Foyer / Living Room → Balcony / Kitchen / Bedroom Hallway & Bathrooms.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 #5 — GRAPHIC STYLE (STRICT 2D CAD BLUEPRINT)
@@ -388,7 +387,7 @@ ${mixDescription}
 • PRESERVE each flat's unique colored outer boundary outline from IMAGE 1. All internal partition lines remain thin black lines.
 • Keep flat labels (${flatLabels}) near entry doors.
 
-OUTPUT: A complete, functional 2D CAD floor plan with all ${numFlats} units perfectly arranged with Living Room, Balcony, Bedrooms, and Kitchen in exterior boxes, and Internal Toilets backed by DUCT shafts inside IMAGE 1.`;
+OUTPUT: A complete, functional 2D CAD floor plan with all ${numFlats} units perfectly arranged with Living Room in the main remaining area, and Balcony, Bedrooms, Kitchen, and Toilets in exterior facade boxes inside IMAGE 1.`;
 }
 
 // ── Route Handler ─────────────────────────────────────────────────────────────
