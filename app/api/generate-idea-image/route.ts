@@ -315,96 +315,59 @@ function buildStage2Prompt(opts: {
   const liftsStr = passengerLifts > 0 ? `${passengerLifts} elevator shaft(s)` : '1 elevator shaft';
   const stairsStr = staircases > 0 ? `${staircases} fire staircase flight(s)` : '2 fire staircase flights';
 
-  return `You are a licensed senior 2D CAD architectural drafter. EDIT THE FIRST UPLOADED IMAGE ONLY.
-
-${hasReferenceImage ? `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-IMAGE ROLES — EXTREMELY IMPORTANT
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-• IMAGE 1 = MASTER ZONING DIAGRAM (EDIT THIS IMAGE).
-  Keep 100% of the outer building perimeter boundary, central CORE position, and flat zone color boundaries (${flatLabels}) from IMAGE 1.
-
-• IMAGE 2 = CROSS-VENTILATION & ROOM FLOW REFERENCE.
-  Study the architectural composition in IMAGE 2:
-  1. EXPANSIVE LIVING ROOM: The Living Room sits in the spacious remaining internal/central area of the apartment connecting the foyer to all zones.
-  2. SEAMLESS BALCONY OPENING: Living Room connects directly to the Attached Balcony with NO solid partition wall.
-  3. BIG EXTERIOR ROOMS: Habitable rooms (Attached Balcony, Bedrooms, Kitchen, Toilet) occupy BIG, DEEP (45%–55% depth) EXTERIOR FACADE BOXES along the building perimeter for natural airflow and daylight.
-  4. SOLID KITCHEN PARTITION: Kitchen is an enclosed walled room with a window and a door connecting to Living/Dining.
-  5. FOYER CIRCULATION: Entrance foyer connects directly to Living Room and private bedroom corridors.
-  Apply this exact architectural layout inside every flat zone of IMAGE 1!
-` : ''}
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-#1 — IMMUTABLE LOCKED GEOMETRY
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-• OUTER FACADE BOUNDARY: LOCKED. Do not alter, stretch, or reshape the building perimeter.
-• CENTRAL CIRCULATION CORE: LOCKED. Keep the core box and shared corridor intact.
-• UNIT BOUNDARIES (${flatLabels}): LOCKED with their unique colors preserved from IMAGE 1 (e.g. F1 in Red boundary, F2 in Green boundary, etc.).
+  return `You are a licensed senior 2D CAD architectural blueprint enhancer and detailer. EDIT THE FIRST UPLOADED IMAGE ONLY.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-#2 — CENTRAL CORE LAYOUT
+PRIMARY DIRECTIVE — PRESERVE 100% COMPOSITION (ENHANCE ONLY)
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-• Inside the central CORE box: Draw ${liftsStr}, ${stairsStr}, and a central ventilation/utility duct shaft.
-• Shared corridor wraps around the core to provide direct, equal access to each flat's front entrance door.
+• THE ARCHITECTURAL COMPOSITION IN IMAGE 1 IS 100% LOCKED AND PERFECT:
+  - DO NOT change, shift, move, resize, add, or delete ANY walls, rooms, corridors, or core boxes.
+  - Keep 100% of the exact room geometry, partition lines, central CORE, and colored unit boundaries (${flatLabels}) from IMAGE 1.
+• YOUR ONLY MISSION: Transform IMAGE 1 into a crisp, high-end, publication-quality 2D CAD architectural floor plan blueprint by adding architectural linework detailing, standard CAD doors/windows, and elegant top-down furniture and decor.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-#3 — EXACT UNIT SPECIFICATION & ROOM CHECKLIST
+#1 — IMMUTABLE LOCKED GEOMETRY & COMPOSITION
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-Fill all ${numFlats} flat zones (${flatLabels}) with EXACTLY their required room inventory — no extra rooms, no missing rooms:
-${mixDescription}
+• OUTER BUILDING SILHOUETTE: 100% LOCKED. Keep the exact outer perimeter contour.
+• CENTRAL CORE & CORRIDORS: 100% LOCKED. Detail the interior of the core box with ${liftsStr}, ${stairsStr}, and a utility shaft.
+• ROOM PARTITION WALLS: 100% LOCKED. Retain every existing room box and wall from IMAGE 1.
+• UNIT BOUNDARIES (${flatLabels}): LOCKED with their distinct vivid boundary colors preserved from IMAGE 1.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-#4 — BIG EXTERIOR ROOMS & BALCONY EXTENSION LOGIC
+#2 — ARCHITECTURAL CAD LINEWORK & OPENINGS
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-1. BIG EXTERIOR FACADE ROOMS (MANDATORY FOR BALCONY, BEDROOMS, KITCHEN & TOILETS):
-   • In each flat zone (e.g. F1 in Red, F2 in Green, etc.), the exterior rooms must be BIG, DEEP (45%–55% inward depth), and spacious:
-     ① ATTACHED OUTDOOR BALCONY with railing along the outer facade
-     ② BEDROOMS (Master Bedroom, Bedroom 2, Bedroom 3, Bedroom 4) with double-line outside windows
-     ③ KITCHEN with exterior wall window for natural cooking ventilation
-     ④ TOILETS / BATHROOMS (Master Bath, Common Bath) sitting in exterior boxes with windows/louvers for direct natural ventilation
-   • Under NO circumstances should any bedroom or kitchen be landlocked without external windows.
-
-2. EXPANSIVE LIVING ROOM & DINING IN REMAINING MAIN AREA:
-   • The LIVING ROOM + DINING AREA occupies the main spacious remaining body of the apartment.
-   • Provides private internal hallway access to bedrooms, kitchen, and bathrooms.
-
-3. SEAMLESS LIVING-TO-BALCONY EXTENSION (NO SOLID WALL):
-   • The Living Room connects directly into the Attached Balcony with NO solid partition/brick wall between them.
-   • The boundary between Living Room and Balcony is drawn strictly as a full-width SLIDING GLASS DOOR / glazed threshold (thin double line / dashed slider with no opaque wall).
-
-4. KITCHEN WALL ENCLOSURE:
-   • Kitchen must be an enclosed room with a solid partition wall and door connecting to Living/Dining (no open-plan kitchen).
-
-5. CIRCULATION SEQUENCE:
-   • Common Corridor → Apartment Entrance Door → Foyer / Living Room → Balcony / Kitchen / Bedroom Hallway & Bathrooms.
+• WALLS: Crisp, sharp, solid black 2D CAD partition lines.
+• DOORS: Standard quarter-circle door swing arcs showing clear opening direction into each room.
+• WINDOWS: Clean double-line architectural window symbols along all exterior walls.
+• SEAMLESS LIVING-TO-BALCONY SLIDER: The connection between the Living Room and Attached Balcony is drawn strictly as a full-width SLIDING GLASS DOOR / glazed threshold (thin double line / dashed slider with NO solid brick/masonry wall).
+• BALCONY RAILING: Clean double-line glass/metal railing along the outer balcony edge.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-#5 — ARCHITECTURAL FURNITURE, FIXTURES & ROOM DECORATION
+#3 — ARCHITECTURAL FURNITURE, FIXTURES & ROOM DECORATION
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-Draw elegant, crisp 2D CAD architectural furniture symbols and interior decoration inside EVERY room according to its function:
-• MASTER BEDROOM: King-size double bed with side nightstands, wardrobe closet line, and dresser.
+Populate each existing room in IMAGE 1 with clean, elegant, top-down 2D CAD vector furniture symbols and decor:
+• MASTER BEDROOM: King-size double bed with pillows & side nightstands, wardrobe line, and dresser.
 • BEDROOMS (Bed 2, Bed 3, Bed 4): Queen or single beds with side tables, built-in wardrobes, and study desk with chair.
-• LIVING ROOM: L-shaped sectional sofa set or 3+2 couch with a central rectangular coffee table, slim TV/media wall console, and corner accent indoor potted plant.
+• LIVING ROOM: L-shaped sectional sofa or 3+2 couch with a central coffee table, slim media/TV wall console, and corner accent indoor potted plant.
 • DINING AREA: 4-seater to 6-seater dining table with neatly arranged chairs.
-• KITCHEN: L-shaped or parallel modular kitchen countertop with 2-bowl sink, cooktop/hob stove, and refrigerator symbol.
+• KITCHEN: L-shaped or parallel modular kitchen counters with 2-bowl sink, cooktop stove, and refrigerator icon.
 • ATTACHED BALCONY: Outdoor patio seating (2 chairs + small coffee table) and green potted planter boxes along the railing.
 • BATHROOMS / TOILETS: Wall-hung WC commode, vanity washbasin with mirror, and glass shower partition enclosure.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-#6 — GRAPHIC STYLE (STRICT 2D CAD BLUEPRINT)
+#4 — GRAPHIC STYLE & TYPOGRAPHY
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-• Pure 2D architectural CAD linework on solid white background.
-• Standard door swings (quarter-circle arcs), balcony railings, sliding glass sliders, and double-line window openings along exterior walls.
-• Clean vector furniture line symbols (NO realistic photo textures, NO 3D rendering).
-• PRESERVE each flat's unique colored outer boundary outline from IMAGE 1 (e.g. F1 in Red, F2 in Green, etc.). All internal partition lines remain thin black lines.
-• Keep flat labels (${flatLabels}) near entry doors.
+• Pure 2D architectural CAD linework on a solid white background.
+• Clean vector furniture line symbols (NO photo textures, NO 3D rendering).
+• PRESERVE each flat's unique colored outer boundary outline from IMAGE 1 (e.g. F1 in Red, F2 in Green, etc.).
+• Clean, crisp, legible architectural room text labels and flat markers (${flatLabels}).
 
-OUTPUT: A complete, functional, beautifully detailed 2D CAD floor plan with all ${numFlats} units perfectly arranged with big exterior rooms, Living Room seamlessly opening to the Balcony (no solid wall), and tasteful architectural furniture & decor inside IMAGE 1.`;
+OUTPUT: A beautiful, publication-grade, professional 2D CAD architectural blueprint that preserves 100% of IMAGE 1's exact composition while enhancing it with crisp CAD walls, doors, windows, and complete architectural furniture and decor.`;
 }
 
 // ── Route Handler ─────────────────────────────────────────────────────────────
