@@ -687,6 +687,8 @@ export async function POST(req: Request) {
         imageUrls: [stage2Base64, ...candidateBase64s],
         stage1ImageUrl: stage1Base64,
         stage2ImageUrl: stage2Base64,
+        stage1Candidates: candidateBase64s,
+        winnerIndex: evaluation.winnerIndex,
         stage1Seed,
         stage2Seed,
         evaluation: {

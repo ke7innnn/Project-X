@@ -387,18 +387,27 @@ STAGE 2 → Refine interior layout, enforce NBC room sizes, verify room complete
         });
 
         setLogs((prev) => [...prev, `[SYS] PIPELINE COMPLETE: ${selectedModel.toUpperCase()}`]);
-        if (resData.evaluation) {
+        if (resData.stage1Candidates && resData.stage1Candidates.length > 0) {
           setLogs(prev => [
             ...prev,
-            `[EVALUATOR AGENT] 🏆 Selected Winner: Candidate #${resData.evaluation.winnerIndex + 1} (Score: ${resData.evaluation.winnerScore}/100)`,
+            `[STAGE 1] ⚡ Generated ${resData.stage1Candidates.length} candidate zoning layouts in parallel (GPT Image 2 Low)`
+          ]);
+        }
+        if (resData.evaluation) {
+          const critiques: string[] = resData.evaluation.critiques || [];
+          setLogs(prev => [
+            ...prev,
+            `[EVALUATOR AGENT] ── AI AGENT EVALUATION (4 CANDIDATES) ──`,
+            ...critiques.map((c: string) => `[EVALUATOR AGENT] 🔍 ${c}`),
+            `[EVALUATOR AGENT] 🏆 WINNER: Candidate #${resData.evaluation.winnerIndex + 1} (Score: ${resData.evaluation.winnerScore}/100)`,
             `[EVALUATOR AGENT] 📝 ${resData.evaluation.reasoning}`
           ]);
         }
         if (resData.stage1ImageUrl) {
-          setLogs(prev => [...prev, `[SYS] STAGE 1 WINNING ZONING LAYOUT: PROCESSED`]);
+          setLogs(prev => [...prev, `[STAGE 1] 🚀 Sent Winner Candidate #${(resData.winnerIndex ?? 0) + 1} to Stage 2`]);
         }
         if (resData.stage2ImageUrl) {
-          setLogs(prev => [...prev, `[SYS] STAGE 2 (GPT IMAGE 2 MEDIUM) CAD DETAILING: COMPLETE`]);
+          setLogs(prev => [...prev, `[STAGE 2] ✨ Final CAD Blueprint enhanced with furniture, doors & windows (GPT Image 2 Medium)`]);
         }
         
         const finalResultImg = resData.url || null;
