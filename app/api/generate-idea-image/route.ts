@@ -431,7 +431,11 @@ You are inspecting ${candidateUrls.length} candidate floor plan zoning layouts a
 4. 90° CAD PARTITIONS & UNIT LABELING (5% WEIGHT):
    • Clean orthogonal linework with exactly ${numFlats} distinct unit zones.
 
-DECISION RULE: Filter for the candidates that have the BEST shape match to Image 0 first. Among those with accurate shape preservation, choose the one with the best exterior ventilation and room layout.
+DECISION RULE:
+• You MUST inspect and compare ALL ${candidateUrls.length} candidate images (Candidate 0, Candidate 1, Candidate 2, Candidate 3) thoroughly against Image 0.
+• You MUST provide an individual evaluation critique for EVERY candidate in candidateCritiques (exactly ${candidateUrls.length} items).
+• Do NOT default to Candidate 0 unless it is genuinely the best. Pick the candidate (0, 1, 2, or 3) that has the highest shape fidelity and best floor plan.
+• Set "winnerIndex" to the exact 0-based integer index (0 to ${candidateUrls.length - 1}) of your chosen best candidate.
 
 Output your evaluation ONLY as a valid JSON object in this exact format:
 {
@@ -455,7 +459,7 @@ Output your evaluation ONLY as a valid JSON object in this exact format:
     ];
 
     candidateUrls.forEach((url, i) => {
-      contentArray.push({ type: 'text', text: `=== CANDIDATE ${i} ===` });
+      contentArray.push({ type: 'text', text: `=== CANDIDATE ${i} (Index: ${i}) ===` });
       contentArray.push({ type: 'image_url', image_url: { url } });
     });
 
