@@ -479,8 +479,8 @@ const ArchitectAdvisorPanel = forwardRef<ArchitectAdvisorRef, Props>(({ onParams
 
     const expW = 1024;
     const expH = 1024;
-    const padding = 72; // Generous margin gap around shape so AI vision never clips or distorts outer edges
-    const targetBox = expW - padding * 2; // 880px
+    const padding = 24;
+    const targetBox = expW - padding * 2; // 976px
 
     // 1. If user edited/stretched vertices, PRESERVE their exact custom shape and orientation!
     // If not edited, find optimal rotation to maximize bounding scale in 1:1 canvas.

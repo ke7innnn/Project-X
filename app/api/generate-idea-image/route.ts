@@ -196,9 +196,23 @@ function buildStage1Prompt(opts: {
 
   const boxCountDescription = boxRules.join('\n');
 
-  return `You are a licensed senior 2D architectural CAD drafter. EDIT THE INPUT IMAGE ONLY.
+  return `You are a licensed senior 2D architectural CAD drafter. EDIT THE FIRST UPLOADED IMAGE ONLY.
 
-The input image shows the EXACT WHITE building footprint on a solid BLACK background.
+${hasReferenceImage ? `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+IMAGE ROLES — EXTREMELY IMPORTANT
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+• IMAGE 1 = TARGET BUILDING FOOTPRINT (EDIT THIS IMAGE).
+  Keep 100% of this exact outer boundary footprint shape. Draw all unit divisions entirely inside this shape.
+
+• IMAGE 2 = 90-DEGREE SQUARES & RECTANGLES ZONING REFERENCE.
+  LOOK AT IMAGE 2 CAREFULLY:
+  - Notice that across all different building geometries (ring/octagon, V-shape, Y-shape), EVERY SINGLE UNIT DIVISION IS COMPOSED STRICTLY OF 90-DEGREE SQUARES AND RECTANGLES.
+  - Notice how corridors run through the shapes and individual flat units are clean orthogonal rectangular/square blocks along the paths with color-coded boundaries.
+  - Do NOT copy the specific building shape from IMAGE 2.
+  - COPY THE PARTITIONING METHOD: Use clean 90° horizontal and vertical cuts to create clean rectangular/square flat unit blocks inside IMAGE 1!
+` : ''}
+The target image (IMAGE 1) shows a WHITE building footprint on a BLACK background.
 Your ONLY task: draw internal floor plan zoning lines INSIDE the white footprint to create EXACTLY ${numFlats} flat zones (${flatLabels}) around a central CORE block.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -429,10 +443,12 @@ export async function POST(req: Request) {
       const dominantBHK = detectDominantBHK(units1BHK, units2BHK, units3BHK, units4BHK);
 
       // ── STAGE 1: Generate N empty flat zone boxes + central core ──────────
-      // Pass ONLY the single target footprint image so the AI never blends or morphs with other shapes
+      const zoningRefUrl = await loadZoningReferenceToFalStorage();
+      const hasZoningRef = !!zoningRefUrl;
+
       const stage1Prompt = buildStage1Prompt({
         numFlats,
-        hasReferenceImage: false,
+        hasReferenceImage: hasZoningRef,
         units1BHK,
         units2BHK,
         units3BHK,
@@ -440,9 +456,12 @@ export async function POST(req: Request) {
         bhkType: dominantBHK,
       });
 
-      console.log(`[IdeaGenerator] Stage 1: ${stage1Model} — drawing ${numFlats} empty flat zones inside exact footprint...`);
+      console.log(`[IdeaGenerator] Stage 1: ${stage1Model} — drawing ${numFlats} empty flat zones inside exact footprint... (hasZoningRef: ${hasZoningRef})`);
 
       const stage1ImageUrls: string[] = [uploadedTraceUrl];
+      if (zoningRefUrl) {
+        stage1ImageUrls.push(zoningRefUrl);
+      }
 
       const isFluxCanny = stage1Model.includes('flux-control-lora-canny');
       const isGrok = stage1Model.includes('grok');
