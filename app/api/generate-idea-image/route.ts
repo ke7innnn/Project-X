@@ -561,7 +561,7 @@ export async function POST(req: Request) {
         });
       }
 
-      // ── STAGE 2 — Dual Model Execution: GPT Image 2 + Nano Banana 2 ────────
+      // ── STAGE 2: GPT Image 2 architectural infill & furniture detailing ────
       // Load master CAD cross-ventilation reference image and upload to fal storage
       const referenceStorageUrl = await loadReferenceToFalStorage(dominantBHK);
       const hasReferenceImage = !!referenceStorageUrl;
@@ -583,58 +583,29 @@ export async function POST(req: Request) {
         stage2ImageUrls.push(referenceStorageUrl);
       }
 
-      console.log(`[IdeaGenerator] Stage 2 dual dispatch (Nano Banana Pro + Nano Banana 2) | image_urls: ${stage2ImageUrls.length} (Zoning + ${hasReferenceImage ? 'Cross-vent reference' : 'none'})`);
+      console.log(`[IdeaGenerator] Stage 2: openai/gpt-image-2/edit | image_urls: ${stage2ImageUrls.length} (Zoning + ${hasReferenceImage ? 'Cross-vent reference' : 'none'})`);
 
-      const proInput: Record<string, any> = {
+      const gptInput: Record<string, any> = {
         image_urls: stage2ImageUrls,
         prompt: refinementPrompt,
+        quality: 'medium',
       };
 
-      const nanoInput: Record<string, any> = {
-        image_urls: stage2ImageUrls,
-        prompt: refinementPrompt,
-      };
-
-      const [proRes, nanoRes] = await Promise.allSettled([
-        runModel('fal-ai/nano-banana-pro/edit', proInput),
-        runModel('fal-ai/nano-banana-2/edit', nanoInput),
-      ]);
-
-      let stage2ProBase64: string | null = null;
-      let stage2ProSeed: number | undefined = undefined;
-      if (proRes.status === 'fulfilled') {
-        stage2ProSeed = proRes.value.seed;
-        stage2ProBase64 = await fetchToBase64(proRes.value.url);
-        console.log('[IdeaGenerator] Stage 2A (Nano Banana Pro) generated successfully');
-      } else {
-        console.warn('[IdeaGenerator] Stage 2A (Nano Banana Pro) failed:', proRes.reason?.message);
-      }
-
-      let stage2NanoBase64: string | null = null;
-      let stage2NanoSeed: number | undefined = undefined;
-      if (nanoRes.status === 'fulfilled') {
-        stage2NanoSeed = nanoRes.value.seed;
-        stage2NanoBase64 = await fetchToBase64(nanoRes.value.url);
-        console.log('[IdeaGenerator] Stage 2B (Nano Banana 2) generated successfully');
-      } else {
-        console.warn('[IdeaGenerator] Stage 2B (Nano Banana 2) failed:', nanoRes.reason?.message);
-      }
-
-      const primaryResult = stage2ProBase64 || stage2NanoBase64 || stage1Base64;
-      const allResults = [stage2ProBase64, stage2NanoBase64].filter((img): img is string => Boolean(img));
+      const gptRes = await runModel('openai/gpt-image-2/edit', gptInput);
+      const stage2Base64 = await fetchToBase64(gptRes.url);
+      const stage2Seed = gptRes.seed;
+      console.log('[IdeaGenerator] Stage 2 (GPT Image 2) generated successfully');
 
       return NextResponse.json({
-        url: primaryResult,
-        imageUrls: allResults.length > 0 ? allResults : [primaryResult],
+        url: stage2Base64,
+        imageUrls: [stage2Base64],
         stage1ImageUrl: stage1Base64,
-        stage2ImageUrl: stage2ProBase64,
-        stage2ProImageUrl: stage2ProBase64,
-        stage2NanoImageUrl: stage2NanoBase64,
+        stage2ImageUrl: stage2Base64,
         stage1Seed,
-        stage2Seed: stage2ProSeed ?? stage2NanoSeed,
+        stage2Seed,
         systemPrompt: stage1Prompt,
         refinementPrompt,
-        userPrompt: `PIPELINE | Stage1: ${stage1Model} -> Stage 2A: Nano Banana Pro + Stage 2B: Nano Banana 2 | BHK: ${dominantBHK}`,
+        userPrompt: `PIPELINE | Stage 1: ${stage1Model} -> Stage 2: openai/gpt-image-2/edit [Medium] | BHK: ${dominantBHK}`,
       });
     }
 
