@@ -639,37 +639,6 @@ export const MASTER_SHAPES_50: ShapeDefinition[] = [
   },
 
   {
-    id: 'courtyard-ring',
-    name: 'COURTYARD RING (O-SHAPE)',
-    category: 'geometric',
-    inspiration: 'European Perimeter Block',
-    description: 'Thick enclosed perimeter ring layout with a central open-to-sky communal atrium courtyard.',
-    efficiency: 80,
-    defaultAspect: '1:1 (Square)',
-    tags: ['Courtyard', 'O-Shape', 'Atrium', 'Perimeter Block'],
-    getPolygon: (cx, cy, w, h) => {
-      const rx = w / 2;
-      const ry = h / 2;
-      return [
-        { x: cx - 0.92 * rx, y: cy - 0.92 * ry },
-        { x: cx + 0.92 * rx, y: cy - 0.92 * ry },
-        { x: cx + 0.92 * rx, y: cy + 0.92 * ry },
-        { x: cx - 0.92 * rx, y: cy + 0.92 * ry },
-      ];
-    },
-    getHoles: (cx, cy, w, h) => {
-      const rx = w / 2;
-      const ry = h / 2;
-      return [[
-        { x: cx - 0.28 * rx, y: cy - 0.28 * ry },
-        { x: cx + 0.28 * rx, y: cy - 0.28 * ry },
-        { x: cx + 0.28 * rx, y: cy + 0.28 * ry },
-        { x: cx - 0.28 * rx, y: cy + 0.28 * ry },
-      ]];
-    }
-  },
-
-  {
     id: 'hexagonal',
     name: 'HEXAGONAL HONEYCOMB',
     category: 'geometric',
@@ -743,31 +712,6 @@ export const MASTER_SHAPES_50: ShapeDefinition[] = [
         { x: cx - 0.45 * rx, y: cy + 0.88 * ry },
         { x: cx - 0.45 * rx, y: cy - 0.10 * ry },
         { x: cx - 0.92 * rx, y: cy - 0.10 * ry },
-      ];
-    },
-  },
-
-  {
-    id: 'z-shape',
-    name: 'Z-SHAPE STAGGERED SLAB',
-    category: 'geometric',
-    inspiration: 'Urban Staggered Shift',
-    description: 'Thick dual opposing offset wings connected by a central elevator lobby with wide floor plate depth.',
-    efficiency: 86,
-    defaultAspect: '3:2 (Landscape)',
-    tags: ['Z-Shape', 'Staggered', 'Sunlight', 'Modernist'],
-    getPolygon: (cx, cy, w, h) => {
-      const rx = w / 2;
-      const ry = h / 2;
-      return [
-        { x: cx - 0.92 * rx, y: cy - 0.88 * ry },
-        { x: cx + 0.35 * rx, y: cy - 0.88 * ry },
-        { x: cx + 0.35 * rx, y: cy - 0.05 * ry },
-        { x: cx + 0.92 * rx, y: cy - 0.05 * ry },
-        { x: cx + 0.92 * rx, y: cy + 0.88 * ry },
-        { x: cx - 0.35 * rx, y: cy + 0.88 * ry },
-        { x: cx - 0.35 * rx, y: cy + 0.05 * ry },
-        { x: cx - 0.92 * rx, y: cy + 0.05 * ry },
       ];
     },
   },
