@@ -216,7 +216,16 @@ The target image (IMAGE 1) shows a WHITE building footprint on a BLACK backgroun
 Your ONLY task: divide the white footprint into EXACTLY ${numFlats} rectangular/square flat zones (${flatLabels}) around a central CORE block.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-#1 — PARTITION WALLS: STRICT HORIZONTAL & VERTICAL ONLY (90°)
+#1 — IMMUTABLE LOCKED EXTERIOR SILHOUETTE
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+• RIGID BOUNDARY LOCK: The outer boundary of the white polygon in IMAGE 1 is 100% LOCKED and IMMUTABLE.
+• Maintain the EXACT footprint geometry, sharp corners, angles, setbacks, and silhouette with pixel-perfect precision.
+• DO NOT round off sharp corners, DO NOT bulge flat facade walls, and DO NOT distort the perimeter contour.
+• 100% INTERNAL INFILL ONLY: Every single room box, partition line, and balcony MUST sit strictly INSIDE the white footprint boundary. ZERO lines, walls, or balconies extending into the solid black background.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+#2 — PARTITION WALLS: STRICT HORIZONTAL & VERTICAL ONLY (90° T-SQUARE)
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 • Draw ONLY straight HORIZONTAL (left-right) and VERTICAL (up-down) partition lines.
@@ -228,7 +237,7 @@ Your ONLY task: divide the white footprint into EXACTLY ${numFlats} rectangular/
 • Even if the outer building footprint has diagonal or slanted boundary walls, ALL internal dividing walls MUST be strictly horizontal or vertical meeting at 90° angles.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-#2 — CENTRAL CIRCULATION CORE
+#3 — CENTRAL CIRCULATION CORE
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 • Place ONE rectangular CORE box (elevator + staircase) centrally inside the footprint.
@@ -236,7 +245,7 @@ Your ONLY task: divide the white footprint into EXACTLY ${numFlats} rectangular/
 • Draw ONE thin straight entrance corridor from the CORE to the nearest outer facade wall.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-#3 — EXACT FLAT COUNT & LABELS
+#4 — EXACT FLAT COUNT & LABELS
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 • Divide into EXACTLY ${numFlats} flat zones (${flatLabels}) of proportional, equal floor area.
@@ -245,29 +254,40 @@ ${uniqueLabelLines}
 • NO duplicate labels. NO extra unlabeled boxes.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-#4 — STRICT EXTERIOR FACADE ROOM BOX COUNT PER UNIT
+#5 — STRICT 90° ORTHOGONAL EXTERIOR ROOM BOXES & LARGE HABITABLE DEPTH
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-• DO NOT create dozens of tiny random boxes along the outer walls.
-• Along the outer exterior facade/perimeter wall of EACH flat zone, draw EXACTLY the required number of spacious 90° rectangular room boxes:
+• STRICT ORTHOGONAL 90° T-SQUARE GRID:
+  - Every exterior room box MUST be a clean, perfect 90° perpendicular rectangle or square.
+  - All internal partition lines must run strictly perpendicular (90°) or parallel to outer walls.
+  - ZERO slanted lines, ZERO diagonal cuts, ZERO trapezoids.
+
+• LARGE HABITABLE DEPTH (35% – 45% OF WING):
+  - Every exterior room box must be deep and spacious (occupying 35% to 45% of the flat zone's inward depth, with 1:1 square or 1:1.2 rectangular proportions).
+  - DO NOT draw thin, shallow, or skin-deep sliver boxes along the facade.
+
+• STRICT EXTERIOR FACADE ROOM BOX COUNT:
+  - Along the outer exterior facade/perimeter wall of EACH flat zone, draw EXACTLY the required number of spacious 90° rectangular room boxes:
 ${boxCountDescription}
-• Total exterior facade boxes across all units = EXACTLY ${totalBoxes} boxes.
-• Each exterior box is a clean orthogonal 90° rectangular compartment sitting on the outer building wall for:
-  - 1 Attached Balcony box
-  - The Bedroom boxes (1 for 1BHK, 2 for 2BHK, 3 for 3BHK, 4 for 4BHK)
-  - 1 Kitchen box (with outside window)
-  - 1 Toilet / Bathroom box (with exterior ventilation)
-• LIVING ROOM / DINING: Occupies the generous remaining central area of each flat zone, connecting the entrance foyer directly to the balcony, kitchen, and private bedroom corridors.
+  - Total exterior facade boxes across all units = EXACTLY ${totalBoxes} boxes.
+  - Each exterior box is a clean orthogonal 90° rectangular compartment sitting on the outer building wall for:
+    ① 1 Attached Balcony box
+    ② The Bedroom boxes (1 for 1BHK, 2 for 2BHK, 3 for 3BHK, 4 for 4BHK)
+    ③ 1 Kitchen box (with outside window)
+    ④ 1 Toilet / Bathroom box (with exterior ventilation)
+
+• EXPANSIVE LIVING ROOM / DINING IN REMAINING MAIN AREA:
+  - Occupies the generous remaining central/main area of each flat zone, connecting the entrance foyer directly to the balcony, kitchen, and private bedroom corridors.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-#5 — COLOR-CODED BOUNDARIES & VISUAL STYLE
+#6 — COLOR-CODED BOUNDARIES & VISUAL STYLE
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 • COLOR-CODED UNIT BOUNDARIES: Draw the outer boundary outline of each flat zone in a DIFFERENT, DISTINCT VIVID COLOR (e.g. red, blue, green, orange, purple, teal, crimson, indigo).
 • All internal room partition lines remain thin black lines.
 • Pure 2D top-down CAD linework only. Stay 100% inside the white footprint polygon.
 
-OUTPUT: Clean 2D CAD zoning floor plan with EXACTLY ${numFlats} rectangular flat zones (${flatLabels}) with 90° horizontal/vertical divisions, exactly ${totalBoxes} sub-divided exterior room boxes along the outer walls (${boxRules.length > 0 ? '1BHK=4, 2BHK=5, 3BHK=6, 4BHK=7' : ''}), and distinct colored boundaries.`;
+OUTPUT: Clean 2D CAD zoning floor plan with EXACTLY ${numFlats} rectangular flat zones (${flatLabels}) with 90° horizontal/vertical divisions, exactly ${totalBoxes} large 90° rectangular exterior room boxes along the outer walls (${boxRules.length > 0 ? '1BHK=4, 2BHK=5, 3BHK=6, 4BHK=7' : ''}), and distinct colored boundaries.`;
 }
 
 // ── Stage 2: GPT Image 2 prompt — fill zones using BHK reference ──────────────
