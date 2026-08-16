@@ -114,6 +114,11 @@ export default function IdeaGenerationPage() {
     traceBase64?: string;
     stage1Prompt?: string;
     stage1OutputUrl?: string;
+    stage1Candidates?: string[];
+    winnerIndex?: number;
+    winnerScore?: number;
+    evaluatorReasoning?: string;
+    candidateCritiques?: string[];
     stage1Seed?: number;
     stage2Prompt?: string;
     stage2ProOutputUrl?: string;
@@ -375,6 +380,11 @@ STAGE 2 → Refine interior layout, enforce NBC room sizes, verify room complete
           traceBase64: strippedBase64,
           stage1Prompt: resData.systemPrompt || promptPreview,
           stage1OutputUrl: resData.stage1ImageUrl,
+          stage1Candidates: resData.stage1Candidates || (resData.stage1ImageUrl ? [resData.stage1ImageUrl] : []),
+          winnerIndex: resData.winnerIndex ?? resData.evaluation?.winnerIndex ?? 0,
+          winnerScore: resData.evaluation?.winnerScore,
+          evaluatorReasoning: resData.evaluation?.reasoning,
+          candidateCritiques: resData.evaluation?.critiques || [],
           stage1Seed: resData.stage1Seed,
           stage2Prompt: resData.refinementPrompt,
           stage2ProOutputUrl: resData.stage2ProImageUrl || resData.stage2ImageUrl,
@@ -1213,51 +1223,133 @@ STAGE 2 → Refine interior layout, enforce NBC room sizes, verify room complete
                   )}
                 </div>
 
-                {/* 2. Stage 1 (Grok) Prompt & Base Output */}
+                {/* 2. Stage 1: 4 Parallel Candidate Zoning Layouts */}
                 <div className="flex flex-col gap-3 border-t border-white/10 pt-4">
-                  <span className="text-[10px] text-amber-400 uppercase tracking-widest font-bold flex items-center gap-1.5">
-                    <span className="w-4 h-4 rounded-full bg-amber-500/20 border border-amber-400 flex items-center justify-center text-[9px]">2</span>
-                    STAGE 1 (GROK) PROMPT & GENERATED BASE IMAGE
-                  </span>
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] text-amber-400 uppercase tracking-widest font-bold flex items-center gap-1.5">
+                      <span className="w-4 h-4 rounded-full bg-amber-500/20 border border-amber-400 flex items-center justify-center text-[9px]">2</span>
+                      STAGE 1: 4 PARALLEL GENERATED CANDIDATE ZONING LAYOUTS (GPT IMAGE 2 LOW)
+                    </span>
+                    {debugPayload.stage1Candidates && debugPayload.stage1Candidates.length > 0 && (
+                      <span className="text-[9px] font-mono px-2 py-0.5 rounded bg-amber-500/10 border border-amber-500/30 text-amber-300 font-bold">
+                        {debugPayload.stage1Candidates.length} CANDIDATES GENERATED
+                      </span>
+                    )}
+                  </div>
                   
-                  {/* Prompt */}
+                  {/* Stage 1 System Prompt */}
                   <div className="p-4 bg-black/60 border border-amber-500/20 rounded-lg text-[11px] text-amber-200/90 font-mono whitespace-pre-wrap leading-relaxed shadow-inner">
                     <span className="text-amber-400 font-bold block mb-1 text-[10px]">STAGE 1 SYSTEM PROMPT:</span>
                     {debugPayload.stage1Prompt || 'Waiting...'}
                   </div>
 
-                  {/* Grok Output Image */}
-                  <div className="flex flex-col gap-1">
-                    <div className="flex items-center justify-between">
-                      <span className="text-[9px] text-amber-400/80 font-bold uppercase tracking-wider">STAGE 1 GENERATED IMAGE (GROK OUTPUT):</span>
-                      {debugPayload.stage1Seed !== undefined && (
-                        <span className="text-[9px] font-mono px-2 py-0.5 rounded bg-amber-500/10 border border-amber-500/30 text-amber-300">
-                          SEED: {debugPayload.stage1Seed}
-                        </span>
-                      )}
+                  {/* 4 Candidates Visual Grid */}
+                  {debugPayload.stage1Candidates && debugPayload.stage1Candidates.length > 0 ? (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                      {debugPayload.stage1Candidates.map((candUrl, idx) => {
+                        const isWinner = idx === (debugPayload.winnerIndex ?? 0);
+                        const critique = debugPayload.candidateCritiques?.[idx] || (isWinner ? 'Selected as best candidate.' : '');
+                        return (
+                          <div 
+                            key={idx}
+                            className={`flex flex-col rounded-xl overflow-hidden border transition-all ${
+                              isWinner 
+                                ? 'border-emerald-500 bg-emerald-950/20 shadow-[0_0_20px_rgba(16,185,129,0.3)] ring-1 ring-emerald-400'
+                                : 'border-white/10 bg-black/60 hover:border-white/20'
+                            }`}
+                          >
+                            <div className={`px-2.5 py-1.5 flex items-center justify-between border-b ${
+                              isWinner ? 'bg-emerald-950/80 border-emerald-500/30' : 'bg-black/80 border-white/10'
+                            }`}>
+                              <span className={`text-[10px] font-bold uppercase tracking-wider flex items-center gap-1 ${
+                                isWinner ? 'text-emerald-300' : 'text-gray-400'
+                              }`}>
+                                {isWinner && <span className="text-xs">🏆</span>}
+                                CANDIDATE #{idx + 1}
+                              </span>
+                              {isWinner ? (
+                                <span className="text-[8px] font-mono font-bold px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-400/40 animate-pulse">
+                                  WINNER {debugPayload.winnerScore ? `(${debugPayload.winnerScore}/100)` : ''}
+                                </span>
+                              ) : (
+                                <span className="text-[8px] font-mono text-gray-500">OPTION {idx + 1}</span>
+                              )}
+                            </div>
+
+                            <div 
+                              className="relative bg-white p-2 flex items-center justify-center cursor-pointer group/img min-h-[180px]"
+                              onClick={() => setLightboxImage({ 
+                                url: candUrl, 
+                                title: `Stage 1: Candidate #${idx + 1}${isWinner ? ' (AI Selected Winner)' : ''}` 
+                              })}
+                            >
+                              <img 
+                                src={candUrl} 
+                                alt={`Candidate ${idx + 1}`}
+                                className="w-full h-auto max-h-[220px] object-contain rounded"
+                              />
+                              <div className="absolute top-2 right-2 p-1 bg-black/70 rounded text-white opacity-0 group-hover/img:opacity-100 transition-opacity border border-white/20 flex items-center gap-1 text-[8px] font-mono pointer-events-none">
+                                <Maximize2 className="w-2.5 h-2.5" /> View
+                              </div>
+                            </div>
+
+                            {critique && (
+                              <div className={`p-2 text-[9px] font-mono border-t leading-tight ${
+                                isWinner ? 'bg-emerald-950/40 text-emerald-200 border-emerald-500/20' : 'bg-black/40 text-gray-400 border-white/5'
+                              }`}>
+                                {critique}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
                     </div>
-                    {debugPayload.stage1OutputUrl ? (
-                      <div className="p-3 bg-black/80 border border-amber-500/30 rounded-lg flex items-center justify-center">
-                        <img 
-                          src={debugPayload.stage1OutputUrl} 
-                          alt="Grok Stage 1 Output"
-                          className="max-w-full max-h-[350px] object-contain border border-amber-500/30 rounded shadow-lg"
-                        />
-                      </div>
-                    ) : (
-                      <div className="p-4 bg-black/40 border border-amber-500/10 rounded-lg text-[11px] text-amber-500/50 font-mono text-center">
-                        Waiting for Stage 1 generation...
-                      </div>
-                    )}
-                  </div>
+                  ) : debugPayload.stage1OutputUrl ? (
+                    <div className="p-3 bg-black/80 border border-amber-500/30 rounded-lg flex items-center justify-center">
+                      <img 
+                        src={debugPayload.stage1OutputUrl} 
+                        alt="Stage 1 Output"
+                        className="max-w-full max-h-[350px] object-contain border border-amber-500/30 rounded shadow-lg"
+                      />
+                    </div>
+                  ) : (
+                    <div className="p-4 bg-black/40 border border-amber-500/10 rounded-lg text-[11px] text-amber-500/50 font-mono text-center">
+                      Waiting for Stage 1 generation...
+                    </div>
+                  )}
                 </div>
 
-                {/* 3. Stage 2 (GPT Image 2) Refinement Prompt */}
+                {/* 3. AI Vision Evaluator Agent Verdict */}
+                {debugPayload.evaluatorReasoning && (
+                  <div className="flex flex-col gap-2 border-t border-white/10 pt-4">
+                    <span className="text-[10px] text-emerald-400 uppercase tracking-widest font-bold flex items-center gap-1.5">
+                      <span className="w-4 h-4 rounded-full bg-emerald-500/20 border border-emerald-400 flex items-center justify-center text-[9px]">3</span>
+                      🤖 AI ARCHITECTURAL EVALUATOR AGENT DECISION
+                    </span>
+                    <div className="p-4 bg-gradient-to-r from-emerald-950/40 to-cyan-950/30 border border-emerald-500/30 rounded-lg text-[11px] font-mono leading-relaxed shadow-lg flex flex-col gap-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-emerald-300 font-bold flex items-center gap-1.5 text-xs">
+                          🏆 CHOSEN WINNER: CANDIDATE #{(debugPayload.winnerIndex ?? 0) + 1}
+                        </span>
+                        {debugPayload.winnerScore && (
+                          <span className="px-2 py-0.5 rounded bg-emerald-500/20 border border-emerald-400/40 text-emerald-300 font-bold text-[10px]">
+                            QUALITY SCORE: {debugPayload.winnerScore}/100
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-emerald-100/90 text-[10px] whitespace-pre-wrap">
+                        {debugPayload.evaluatorReasoning}
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                {/* 4. Stage 2 (GPT Image 2 Medium) Refinement Prompt */}
                 {debugPayload.stage2Prompt && (
                   <div className="flex flex-col gap-2 border-t border-white/10 pt-4">
                     <span className="text-[10px] text-purple-400 uppercase tracking-widest font-bold flex items-center gap-1.5">
-                      <span className="w-4 h-4 rounded-full bg-purple-500/20 border border-purple-400 flex items-center justify-center text-[9px]">3</span>
-                      STAGE 2 (GPT IMAGE 2) REFINEMENT PROMPT
+                      <span className="w-4 h-4 rounded-full bg-purple-500/20 border border-purple-400 flex items-center justify-center text-[9px]">4</span>
+                      STAGE 2 (GPT IMAGE 2 MEDIUM) CAD DETAILING PROMPT
                     </span>
                     <div className="p-4 bg-black/60 border border-purple-500/20 rounded-lg text-[11px] text-purple-200/90 font-mono whitespace-pre-wrap leading-relaxed shadow-inner">
                       <span className="text-purple-400 font-bold block mb-1 text-[10px]">STAGE 2 REFINEMENT PROMPT:</span>
@@ -1266,53 +1358,30 @@ STAGE 2 → Refine interior layout, enforce NBC room sizes, verify room complete
                   </div>
                 )}
 
-                {/* 4A. Stage 2A (Type 1) Schematic Output */}
+                {/* 5. Stage 2 Final Enhanced Architectural Blueprint */}
                 <div className="flex flex-col gap-2 border-t border-white/10 pt-4">
                   <div className="flex items-center justify-between">
-                    <span className="text-[10px] text-emerald-400 uppercase tracking-widest font-bold flex items-center gap-1.5">
-                      <span className="w-4 h-4 rounded-full bg-emerald-500/20 border border-emerald-400 flex items-center justify-center text-[9px]">4A</span>
-                      STAGE 2A: TYPE 1 SCHEMATIC OUTPUT
+                    <span className="text-[10px] text-cyan-400 uppercase tracking-widest font-bold flex items-center gap-1.5">
+                      <span className="w-4 h-4 rounded-full bg-cyan-500/20 border border-cyan-400 flex items-center justify-center text-[9px]">5</span>
+                      STAGE 2: FINAL ENHANCED 2D CAD ARCHITECTURAL BLUEPRINT
                     </span>
                     {debugPayload.stage2Seed !== undefined && (
-                      <span className="text-[9px] font-mono px-2 py-0.5 rounded bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 font-bold">
+                      <span className="text-[9px] font-mono px-2 py-0.5 rounded bg-cyan-500/10 border border-cyan-500/30 text-cyan-300 font-bold">
                         SEED: {debugPayload.stage2Seed}
                       </span>
                     )}
                   </div>
-                  {(debugPayload.stage2ProOutputUrl || debugPayload.stage2GptOutputUrl) ? (
-                    <div className="p-3 bg-black/80 border border-emerald-500/30 rounded-lg flex items-center justify-center">
-                      <img 
-                        src={debugPayload.stage2ProOutputUrl || debugPayload.stage2GptOutputUrl} 
-                        alt="Type 1 Stage 2 Output"
-                        className="max-w-full max-h-[400px] object-contain border border-emerald-500/30 rounded shadow-lg"
-                      />
-                    </div>
-                  ) : (
-                    <div className="p-4 bg-black/40 border border-emerald-500/10 rounded-lg text-[11px] text-emerald-500/50 font-mono text-center">
-                      Waiting for Type 1 generation...
-                    </div>
-                  )}
-                </div>
-
-                {/* 4B. Stage 2B (Type 2) Schematic Output */}
-                <div className="flex flex-col gap-2 border-t border-white/10 pt-4">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[10px] text-cyan-400 uppercase tracking-widest font-bold flex items-center gap-1.5">
-                      <span className="w-4 h-4 rounded-full bg-cyan-500/20 border border-cyan-400 flex items-center justify-center text-[9px]">4B</span>
-                      STAGE 2B: TYPE 2 SCHEMATIC OUTPUT
-                    </span>
-                  </div>
-                  {debugPayload.stage2NanoOutputUrl ? (
+                  {(debugPayload.stage2ProOutputUrl || debugPayload.stage2GptOutputUrl || debugPayload.stage2OutputUrl) ? (
                     <div className="p-3 bg-black/80 border border-cyan-500/30 rounded-lg flex items-center justify-center">
                       <img 
-                        src={debugPayload.stage2NanoOutputUrl} 
-                        alt="Type 2 Stage 2 Output"
-                        className="max-w-full max-h-[400px] object-contain border border-cyan-500/30 rounded shadow-lg"
+                        src={debugPayload.stage2ProOutputUrl || debugPayload.stage2GptOutputUrl || debugPayload.stage2OutputUrl} 
+                        alt="Stage 2 Enhanced Output"
+                        className="max-w-full max-h-[420px] object-contain border border-cyan-500/30 rounded shadow-lg"
                       />
                     </div>
                   ) : (
                     <div className="p-4 bg-black/40 border border-cyan-500/10 rounded-lg text-[11px] text-cyan-500/50 font-mono text-center">
-                      Waiting for Type 2 generation...
+                      Waiting for Stage 2 generation...
                     </div>
                   )}
                 </div>
