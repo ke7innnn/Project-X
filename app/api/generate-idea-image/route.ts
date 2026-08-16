@@ -487,12 +487,10 @@ export async function POST(req: Request) {
       const dominantBHK = detectDominantBHK(units1BHK, units2BHK, units3BHK, units4BHK);
 
       // ── STAGE 1: Generate N empty flat zone boxes + central core ──────────
-      const zoningRefUrl = await loadZoningReferenceToFalStorage();
-      const hasZoningRef = !!zoningRefUrl;
-
+      // Pass ONLY the single target footprint image so the AI never blends or morphs with other shapes
       const stage1Prompt = buildStage1Prompt({
         numFlats,
-        hasReferenceImage: hasZoningRef,
+        hasReferenceImage: false,
         units1BHK,
         units2BHK,
         units3BHK,
@@ -500,12 +498,9 @@ export async function POST(req: Request) {
         bhkType: dominantBHK,
       });
 
-      console.log(`[IdeaGenerator] Stage 1: ${stage1Model} — drawing ${numFlats} empty flat zones... (hasZoningRef: ${hasZoningRef})`);
+      console.log(`[IdeaGenerator] Stage 1: ${stage1Model} — drawing ${numFlats} empty flat zones inside exact footprint...`);
 
       const stage1ImageUrls: string[] = [uploadedTraceUrl];
-      if (zoningRefUrl) {
-        stage1ImageUrls.push(zoningRefUrl);
-      }
 
       const isFluxCanny = stage1Model.includes('flux-control-lora-canny');
       const isGrok = stage1Model.includes('grok');
