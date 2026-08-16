@@ -386,15 +386,19 @@ STAGE 2 → Refine interior layout, enforce NBC room sizes, verify room complete
           workflow: selectedModel,
         });
 
-        setLogs((prev) => [...prev, `[SYS] PIPELINE: ${selectedModel.toUpperCase()} — GENERATION COMPLETE.`]);
+        setLogs((prev) => [...prev, `[SYS] PIPELINE COMPLETE: ${selectedModel.toUpperCase()}`]);
+        if (resData.evaluation) {
+          setLogs(prev => [
+            ...prev,
+            `[EVALUATOR AGENT] 🏆 Selected Winner: Candidate #${resData.evaluation.winnerIndex + 1} (Score: ${resData.evaluation.winnerScore}/100)`,
+            `[EVALUATOR AGENT] 📝 ${resData.evaluation.reasoning}`
+          ]);
+        }
         if (resData.stage1ImageUrl) {
-          setLogs(prev => [...prev, `[SYS] STAGE 1 ZONING OUTPUT: RECEIVED`]);
+          setLogs(prev => [...prev, `[SYS] STAGE 1 WINNING ZONING LAYOUT: PROCESSED`]);
         }
-        if (resData.stage2ProImageUrl || resData.stage2ImageUrl) {
-          setLogs(prev => [...prev, `[SYS] STAGE 2A (NANO BANANA PRO) OUTPUT: RECEIVED`]);
-        }
-        if (resData.stage2NanoImageUrl) {
-          setLogs(prev => [...prev, `[SYS] STAGE 2B (NANO BANANA 2) OUTPUT: RECEIVED`]);
+        if (resData.stage2ImageUrl) {
+          setLogs(prev => [...prev, `[SYS] STAGE 2 (GPT IMAGE 2 MEDIUM) CAD DETAILING: COMPLETE`]);
         }
         
         const finalResultImg = resData.url || null;
