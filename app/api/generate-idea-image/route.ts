@@ -414,19 +414,21 @@ async function evaluateCandidatesWithVisionAgent(
 You are inspecting ${candidateUrls.length} candidate floor plan zoning layouts against the user's TARGET BUILDING FOOTPRINT (Image 0: solid white footprint mask on solid black background).
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-🏆 SUPREME EVALUATION CRITERIA (SHAPE IS THE #1 MAIN PRIORITY)
+🏆 SUPREME EVALUATION CRITERIA (SHAPE #1, LIVING-BALCONY #2)
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-1. SHAPE FIDELITY & CONTOUR ACCURACY (60% OF TOTAL SCORE - HARD KNOCKOUT):
+1. SHAPE FIDELITY & CONTOUR ACCURACY (50% OF TOTAL SCORE — OVERWHELMING #1 PRIORITY / HARD KNOCKOUT):
    • Look at Image 0 (the original white building footprint mask). Compare each candidate (Candidate 0, 1, 2, 3) 1:1 against Image 0.
    • HEAVILY PENALIZE any candidate that rounds off sharp corners, turns angled wings into rectangles/ovals, truncates wings, or bleeds outside the boundary.
-   • AWARD TOP SHAPE POINTS (50-60 pts) ONLY to the candidate that keeps the exact 1:1 geometric silhouette of Image 0.
+   • AWARD TOP SHAPE POINTS (40-50 pts) ONLY to the candidate that keeps the exact 1:1 geometric silhouette of Image 0.
 
-2. FACADE VENTILATION & EXTERIOR ROOMS (25% OF TOTAL SCORE):
-   • Habitable rooms (Attached Balconies, Bedrooms, Kitchens, Toilets) must sit along the outer perimeter facade with external window exposure.
+2. LIVING ROOM DIRECTLY CONNECTED TO BALCONY (25% OF TOTAL SCORE — STRICT #2 MAIN PRIORITY):
+   • In EVERY single flat unit, the central Living Room MUST be directly adjacent and connected to the Attached Balcony on the facade.
+   • Seamless flow between Living Room and Balcony (wide sliding glass threshold, NO solid dividing wall, and NOT tucked away only accessible through a bedroom).
+   • Penalize any candidate where the living room is cut off from the balcony!
 
-3. SPATIAL FLOW & LIVING ROOM REALISM (10% OF TOTAL SCORE):
-   • Living Room in the central zone connecting directly and seamlessly to the Attached Balcony. Central core has elevator/stair access.
+3. FACADE VENTILATION FOR BEDROOMS, KITCHEN & TOILETS (20% OF TOTAL SCORE — #3 PRIORITY):
+   • All bedrooms, kitchen, and toilets must sit along the outer perimeter facade to capture direct exterior windows and cross-ventilation.
 
 4. 90° CAD PARTITIONS & UNIT LABELING (5% OF TOTAL SCORE):
    • Clean orthogonal linework with exactly ${numFlats} distinct unit zones.
@@ -436,19 +438,19 @@ MANDATORY SCORING PROCESS:
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 1. Grade EVERY single candidate independently from 0 to 100 in "candidateScores" ([score0, score1, score2, score3]).
 2. Set "winnerIndex" to the index of whichever candidate earned the HIGHEST score.
-3. In "candidateCritiques", explain the exact pros and cons for each candidate.
+3. In "candidateCritiques", explain the exact pros and cons for each candidate (shape fidelity, living-balcony connection, ventilation).
 
 Output your evaluation ONLY as a valid JSON object in this exact format:
 {
   "candidateScores": [82, 96, 75, 88],
   "winnerIndex": 1,
   "winnerScore": 96,
-  "reasoning": "Candidate 1 scored highest (96/100) because it preserved the exact 1:1 shape silhouette with zero corner rounding, while placing all bedrooms along the exterior facade.",
+  "reasoning": "Candidate 1 scored highest (96/100) because it preserved the exact 1:1 shape silhouette with zero corner rounding (Priority 1) and created a direct seamless sliding connection from the Living Room to the Attached Balcony (Priority 2), while placing all bedrooms along the exterior facade.",
   "candidateCritiques": [
     "Candidate 0 (Score: 82/100): Decent layout, but slight corner rounding on south wing.",
-    "Candidate 1 (Score: 96/100): Flawless 1:1 shape match, crisp 90° corners, bedrooms on exterior facade.",
+    "Candidate 1 (Score: 96/100): Flawless 1:1 shape match, living room directly connected to exterior balcony, bedrooms on facade.",
     "Candidate 2 (Score: 75/100): Warped contour on east wing.",
-    "Candidate 3 (Score: 88/100): Good shape fidelity, but bedroom placement is slightly shallow."
+    "Candidate 3 (Score: 88/100): Good shape fidelity, but living room to balcony connection is slightly narrow."
   ]
 }`;
 
