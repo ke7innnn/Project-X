@@ -417,36 +417,38 @@ You are inspecting ${candidateUrls.length} candidate floor plan zoning layouts a
 🏆 SUPREME EVALUATION CRITERIA (SHAPE IS THE #1 MAIN PRIORITY)
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-1. SHAPE FIDELITY & CONTOUR ACCURACY (OVERWHELMING #1 PRIORITY - 60% WEIGHT / HARD KNOCKOUT):
-   • STRICT COMPARISON: Look at Image 0 (the original white building footprint mask). Does the candidate strictly reproduce the EXACT SAME outer geometric silhouette, sharp corners, wing angles, and setbacks?
-   • ZERO-TOLERANCE WARPING: IMMEDIATELY DISQUALIFY or heavily penalize any candidate that rounds off sharp corners, turns angled wings into plain rectangles/ovals, truncates wings, or bleeds outside the boundary.
-   • THE CANDIDATE WITH THE CLOSEST 1:1 GEOMETRIC MATCH TO IMAGE 0'S EXACT PERIMETER MUST WIN.
+1. SHAPE FIDELITY & CONTOUR ACCURACY (60% OF TOTAL SCORE - HARD KNOCKOUT):
+   • Look at Image 0 (the original white building footprint mask). Compare each candidate (Candidate 0, 1, 2, 3) 1:1 against Image 0.
+   • HEAVILY PENALIZE any candidate that rounds off sharp corners, turns angled wings into rectangles/ovals, truncates wings, or bleeds outside the boundary.
+   • AWARD TOP SHAPE POINTS (50-60 pts) ONLY to the candidate that keeps the exact 1:1 geometric silhouette of Image 0.
 
-2. FACADE VENTILATION & EXTERIOR ROOMS (25% WEIGHT):
-   • All habitable rooms (Attached Balconies, Bedrooms, Kitchens, and Toilets) must sit along the outer perimeter facade to capture direct exterior windows and cross-ventilation.
+2. FACADE VENTILATION & EXTERIOR ROOMS (25% OF TOTAL SCORE):
+   • Habitable rooms (Attached Balconies, Bedrooms, Kitchens, Toilets) must sit along the outer perimeter facade with external window exposure.
 
-3. SPATIAL FLOW & LIVING ROOM REALISM (10% WEIGHT):
-   • Living Room is located in the central zone connecting directly and seamlessly to the Attached Balcony. Central core has elevator and stair access.
+3. SPATIAL FLOW & LIVING ROOM REALISM (10% OF TOTAL SCORE):
+   • Living Room in the central zone connecting directly and seamlessly to the Attached Balcony. Central core has elevator/stair access.
 
-4. 90° CAD PARTITIONS & UNIT LABELING (5% WEIGHT):
+4. 90° CAD PARTITIONS & UNIT LABELING (5% OF TOTAL SCORE):
    • Clean orthogonal linework with exactly ${numFlats} distinct unit zones.
 
-DECISION RULE:
-• You MUST inspect and compare ALL ${candidateUrls.length} candidate images (Candidate 0, Candidate 1, Candidate 2, Candidate 3) thoroughly against Image 0.
-• You MUST provide an individual evaluation critique for EVERY candidate in candidateCritiques (exactly ${candidateUrls.length} items).
-• Do NOT default to Candidate 0 unless it is genuinely the best. Pick the candidate (0, 1, 2, or 3) that has the highest shape fidelity and best floor plan.
-• Set "winnerIndex" to the exact 0-based integer index (0 to ${candidateUrls.length - 1}) of your chosen best candidate.
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+MANDATORY SCORING PROCESS:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+1. Grade EVERY single candidate independently from 0 to 100 in "candidateScores" ([score0, score1, score2, score3]).
+2. Set "winnerIndex" to the index of whichever candidate earned the HIGHEST score.
+3. In "candidateCritiques", explain the exact pros and cons for each candidate.
 
 Output your evaluation ONLY as a valid JSON object in this exact format:
 {
-  "winnerIndex": 0,
+  "candidateScores": [82, 96, 75, 88],
+  "winnerIndex": 1,
   "winnerScore": 96,
-  "reasoning": "Candidate 0 was selected because it achieved the highest shape fidelity to Image 0, perfectly preserving all sharp corner vertices, wing angles, and setbacks without rounding or warping, while successfully positioning all bedrooms and balconies along the outer facade.",
+  "reasoning": "Candidate 1 scored highest (96/100) because it preserved the exact 1:1 shape silhouette with zero corner rounding, while placing all bedrooms along the exterior facade.",
   "candidateCritiques": [
-    "Candidate 0: Flawless 1:1 shape silhouette match, sharp wing corners preserved, all bedrooms along exterior facade.",
-    "Candidate 1: Slight corner rounding on south wing, altering the original footprint.",
-    "Candidate 2: Good interior core, but warped outer contour on east wing.",
-    "Candidate 3: Shape altered significantly from Image 0."
+    "Candidate 0 (Score: 82/100): Decent layout, but slight corner rounding on south wing.",
+    "Candidate 1 (Score: 96/100): Flawless 1:1 shape match, crisp 90° corners, bedrooms on exterior facade.",
+    "Candidate 2 (Score: 75/100): Warped contour on east wing.",
+    "Candidate 3 (Score: 88/100): Good shape fidelity, but bedroom placement is slightly shallow."
   ]
 }`;
 
@@ -492,15 +494,33 @@ Output your evaluation ONLY as a valid JSON object in this exact format:
     }
 
     const json = await res.json();
-    const parsed = JSON.parse(json.choices?.[0]?.message?.content || '{}');
-    const winnerIndex = typeof parsed.winnerIndex === 'number' && parsed.winnerIndex >= 0 && parsed.winnerIndex < candidateUrls.length
-      ? parsed.winnerIndex
-      : 0;
+    const rawContent = json.choices?.[0]?.message?.content || '{}';
+    console.log('[EvaluatorAgent] Vision evaluation raw response:', rawContent);
+    const parsed = JSON.parse(rawContent);
+
+    // Calculate winning index from candidateScores array to eliminate positional bias
+    let winnerIndex = 0;
+    let winnerScore = 92;
+
+    if (Array.isArray(parsed.candidateScores) && parsed.candidateScores.length === candidateUrls.length) {
+      let maxScore = -1;
+      parsed.candidateScores.forEach((score: any, idx: number) => {
+        const numScore = typeof score === 'number' ? score : parseInt(score, 10) || 0;
+        if (numScore > maxScore) {
+          maxScore = numScore;
+          winnerIndex = idx;
+        }
+      });
+      winnerScore = maxScore > 0 ? maxScore : (parsed.winnerScore || 92);
+    } else if (typeof parsed.winnerIndex === 'number' && parsed.winnerIndex >= 0 && parsed.winnerIndex < candidateUrls.length) {
+      winnerIndex = parsed.winnerIndex;
+      winnerScore = parsed.winnerScore || 92;
+    }
 
     return {
       winnerIndex,
-      winnerScore: parsed.winnerScore || 92,
-      reasoning: parsed.reasoning || `Candidate ${winnerIndex + 1} selected as most architecturally sound layout.`,
+      winnerScore,
+      reasoning: parsed.reasoning || `Candidate ${winnerIndex + 1} scored the highest for shape fidelity and architectural layout.`,
       candidateCritiques: Array.isArray(parsed.candidateCritiques) ? parsed.candidateCritiques : [],
     };
   } catch (err: any) {
