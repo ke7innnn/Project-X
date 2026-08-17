@@ -49,13 +49,20 @@ export default function ShapeStudioPage() {
   const [plotWidthM, setPlotWidthM] = useState<number>(80);
   const [plotLengthM, setPlotLengthM] = useState<number>(80);
   
+  // Architectural Unit Partitioning & BHK States
+  const [unitCount, setUnitCount] = useState<number>(4); // 2, 3, 4, 5, 6, 7, 8
+  const [bhkType, setBhkType] = useState<'1bhk' | '2bhk' | '3bhk' | '4bhk'>('3bhk');
+  const [showPartitions, setShowPartitions] = useState<boolean>(true);
+  const [showExteriorBoxes, setShowExteriorBoxes] = useState<boolean>(true);
+  const [showLivingBalconyFlow, setShowLivingBalconyFlow] = useState<boolean>(true);
+
   // Canvas Display Preferences
   const [canvasTheme, setCanvasTheme] = useState<'dark' | 'light'>('dark');
   const [showGrid, setShowGrid] = useState<boolean>(true);
   const [gridSpacingM, setGridSpacingM] = useState<number>(10);
   const [showCore, setShowCore] = useState<boolean>(true);
   const [showDimensions, setShowDimensions] = useState<boolean>(true);
-  const [showVertices, setShowVertices] = useState<boolean>(true);
+  const [showVertices, setShowVertices] = useState<boolean>(false);
   const [zoomLevel, setZoomLevel] = useState<number>(1.0);
   const [copiedJson, setCopiedJson] = useState<boolean>(false);
 
@@ -255,25 +262,33 @@ export default function ShapeStudioPage() {
       ctx.restore();
     }
 
-    // 5. Draw Central Core
-    if (showCore) {
-      const cx = plotWidthM / 2;
-      const cy = plotLengthM / 2;
-      const coreW = Math.max(10, Math.min(22, plotWidthM * 0.16));
-      const coreH = Math.max(10, Math.min(22, plotLengthM * 0.16));
+    // 5. Draw Central Core & Circulation Ring
+    const cx = plotWidthM / 2;
+    const cy = plotLengthM / 2;
+    const coreW = Math.max(12, Math.min(24, plotWidthM * 0.18));
+    const coreH = Math.max(12, Math.min(24, plotLengthM * 0.18));
 
+    if (showCore) {
       const coreCanvasX = toCanvasX(cx - coreW / 2);
       const coreCanvasY = toCanvasY(cy - coreH / 2);
       const coreCanvasW = coreW * scale;
       const coreCanvasH = coreH * scale;
 
+      // Circulation Corridor Ring
+      const corridorPad = 3 * scale;
+      ctx.strokeStyle = isDark ? 'rgba(255, 255, 255, 0.2)' : 'rgba(0, 0, 0, 0.25)';
+      ctx.lineWidth = 1;
+      ctx.setLineDash([3, 3]);
+      ctx.strokeRect(coreCanvasX - corridorPad, coreCanvasY - corridorPad, coreCanvasW + corridorPad * 2, coreCanvasH + corridorPad * 2);
+      ctx.setLineDash([]);
+
       // Core Background
-      ctx.fillStyle = isDark ? 'rgba(245, 158, 11, 0.25)' : 'rgba(217, 119, 6, 0.2)';
+      ctx.fillStyle = isDark ? 'rgba(245, 158, 11, 0.3)' : 'rgba(217, 119, 6, 0.25)';
       ctx.fillRect(coreCanvasX, coreCanvasY, coreCanvasW, coreCanvasH);
 
       // Core Border
       ctx.strokeStyle = isDark ? '#f59e0b' : '#d97706';
-      ctx.lineWidth = 1.5;
+      ctx.lineWidth = 2;
       ctx.strokeRect(coreCanvasX, coreCanvasY, coreCanvasW, coreCanvasH);
 
       // Lift / Stair Internal Markings
@@ -281,12 +296,262 @@ export default function ShapeStudioPage() {
       ctx.fillStyle = isDark ? '#fbbf24' : '#b45309';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.fillText('CORE / LIFTS', toCanvasX(cx), toCanvasY(cy) - 4);
+      ctx.fillText('🛗 LIFTS & 🪜 STAIRS', toCanvasX(cx), toCanvasY(cy) - 6);
       ctx.font = '8px monospace';
-      ctx.fillText(`${Math.round(coreW)}m × ${Math.round(coreH)}m`, toCanvasX(cx), toCanvasY(cy) + 8);
+      ctx.fillText(`CORE (${Math.round(coreW)}m × ${Math.round(coreH)}m)`, toCanvasX(cx), toCanvasY(cy) + 8);
     }
 
-    // 6. Draw Vertices (Nodes)
+    // ── 6. ARCHITECTURAL UNIT PARTITIONS & EXTERIOR ROOM BOXES ──────────────
+    if (showPartitions && polygonPts.length > 2) {
+      const UNIT_THEMES = [
+        { label: 'F1', stroke: '#ef4444', fill: 'rgba(239, 68, 68, 0.12)', badgeBg: '#ef4444' },
+        { label: 'F2', stroke: '#10b981', fill: 'rgba(16, 185, 129, 0.12)', badgeBg: '#10b981' },
+        { label: 'F3', stroke: '#f59e0b', fill: 'rgba(245, 158, 11, 0.12)', badgeBg: '#f59e0b' },
+        { label: 'F4', stroke: '#06b6d4', fill: 'rgba(6, 182, 212, 0.12)', badgeBg: '#06b6d4' },
+        { label: 'F5', stroke: '#8b5cf6', fill: 'rgba(139, 92, 246, 0.12)', badgeBg: '#8b5cf6' },
+        { label: 'F6', stroke: '#14b8a6', fill: 'rgba(20, 184, 166, 0.12)', badgeBg: '#14b8a6' },
+        { label: 'F7', stroke: '#f43f5e', fill: 'rgba(244, 63, 94, 0.12)', badgeBg: '#f43f5e' },
+        { label: 'F8', stroke: '#eab308', fill: 'rgba(234, 179, 8, 0.12)', badgeBg: '#eab308' },
+      ];
+
+      // Room Box Definition per BHK
+      const ROOM_BOX_DEFS: Record<string, { name: string; icon: string; color: string; isBalcony?: boolean }[]> = {
+        '1bhk': [
+          { name: 'BALCONY', icon: '🌿', color: '#10b981', isBalcony: true },
+          { name: 'M. BED', icon: '🛏️', color: '#3b82f6' },
+          { name: 'KITCHEN', icon: '🍳', color: '#f59e0b' },
+          { name: 'TOILET', icon: '🚿', color: '#0ea5e9' },
+        ],
+        '2bhk': [
+          { name: 'BALCONY', icon: '🌿', color: '#10b981', isBalcony: true },
+          { name: 'M. BED', icon: '🛏️', color: '#3b82f6' },
+          { name: 'BED 2', icon: '🛏️', color: '#6366f1' },
+          { name: 'KITCHEN', icon: '🍳', color: '#f59e0b' },
+          { name: 'TOILET', icon: '🚿', color: '#0ea5e9' },
+        ],
+        '3bhk': [
+          { name: 'BALCONY', icon: '🌿', color: '#10b981', isBalcony: true },
+          { name: 'M. BED', icon: '🛏️', color: '#3b82f6' },
+          { name: 'BED 2', icon: '🛏️', color: '#6366f1' },
+          { name: 'BED 3', icon: '🛏️', color: '#8b5cf6' },
+          { name: 'KITCHEN', icon: '🍳', color: '#f59e0b' },
+          { name: 'TOILET', icon: '🚿', color: '#0ea5e9' },
+        ],
+        '4bhk': [
+          { name: 'BALCONY', icon: '🌿', color: '#10b981', isBalcony: true },
+          { name: 'M. BED', icon: '🛏️', color: '#3b82f6' },
+          { name: 'BED 2', icon: '🛏️', color: '#6366f1' },
+          { name: 'BED 3', icon: '🛏️', color: '#8b5cf6' },
+          { name: 'BED 4', icon: '🛏️', color: '#ec4899' },
+          { name: 'KITCHEN', icon: '🍳', color: '#f59e0b' },
+          { name: 'TOILET', icon: '🚿', color: '#0ea5e9' },
+        ],
+      };
+
+      const currentRoomBoxes = ROOM_BOX_DEFS[bhkType] || ROOM_BOX_DEFS['3bhk'];
+      const numUnits = Math.min(8, Math.max(2, unitCount));
+
+      // Raycast helper to find outer perimeter intersection point
+      const raycastPolygon = (angleRad: number): { x: number; y: number } => {
+        const dirX = Math.cos(angleRad);
+        const dirY = Math.sin(angleRad);
+        let closestT = Infinity;
+        let hitX = cx + dirX * 100;
+        let hitY = cy + dirY * 100;
+
+        for (let i = 0; i < polygonPts.length; i++) {
+          const j = (i + 1) % polygonPts.length;
+          const p1 = polygonPts[i];
+          const p2 = polygonPts[j];
+
+          const v1x = cx - p1.x;
+          const v1y = cy - p1.y;
+          const v2x = p2.x - p1.x;
+          const v2y = p2.y - p1.y;
+          const v3x = -dirY;
+          const v3y = dirX;
+
+          const dot = v2x * v3x + v2y * v3y;
+          if (Math.abs(dot) > 0.00001) {
+            const t1 = (v2x * v1y - v2y * v1x) / dot;
+            const t2 = (v1x * v3x + v1y * v3y) / dot;
+            if (t1 > 0 && t2 >= 0 && t2 <= 1) {
+              if (t1 < closestT) {
+                closestT = t1;
+                hitX = cx + dirX * t1;
+                hitY = cy + dirY * t1;
+              }
+            }
+          }
+        }
+        return { x: hitX, y: hitY };
+      };
+
+      // Compute boundary intersection points for all N units
+      const boundaryHits: { x: number; y: number; angle: number }[] = [];
+      for (let i = 0; i < numUnits; i++) {
+        const angle = (i * 2 * Math.PI) / numUnits - Math.PI / 2;
+        const hit = raycastPolygon(angle);
+        boundaryHits.push({ ...hit, angle });
+      }
+
+      // Draw Radial Partition Boundary Lines
+      for (let i = 0; i < numUnits; i++) {
+        const hit = boundaryHits[i];
+        const theme = UNIT_THEMES[i % UNIT_THEMES.length];
+
+        ctx.save();
+        ctx.strokeStyle = isDark ? theme.stroke : theme.stroke;
+        ctx.lineWidth = 2;
+        ctx.setLineDash([4, 3]);
+
+        ctx.beginPath();
+        // Start from outer edge of core
+        const coreBorderRadius = Math.max(coreW, coreH) / 2;
+        const startX = cx + Math.cos(hit.angle) * coreBorderRadius;
+        const startY = cy + Math.sin(hit.angle) * coreBorderRadius;
+
+        ctx.moveTo(toCanvasX(startX), toCanvasY(startY));
+        ctx.lineTo(toCanvasX(hit.x), toCanvasY(hit.y));
+        ctx.stroke();
+        ctx.restore();
+      }
+
+      // Render Each Flat Unit's Exterior Room Boxes & Living Room Flow
+      for (let u = 0; u < numUnits; u++) {
+        const startHit = boundaryHits[u];
+        const nextHit = boundaryHits[(u + 1) % numUnits];
+        const theme = UNIT_THEMES[u % UNIT_THEMES.length];
+        const midAngle = (startHit.angle + nextHit.angle + (nextHit.angle < startHit.angle ? 2 * Math.PI : 0)) / 2;
+
+        // 1. Calculate Flat Zone Midpoint for Label & Living Room
+        const midHit = raycastPolygon(midAngle);
+        const livingDist = (Math.max(coreW, coreH) / 2 + Math.sqrt((midHit.x - cx) ** 2 + (midHit.y - cy) ** 2)) * 0.42;
+        const livingX = cx + Math.cos(midAngle) * livingDist;
+        const livingY = cy + Math.sin(midAngle) * livingDist;
+
+        // 2. Draw Exterior Facade Room Boxes
+        if (showExteriorBoxes) {
+          const numBoxes = currentRoomBoxes.length;
+          let balconyBoxCenter: { x: number; y: number } | null = null;
+
+          for (let b = 0; b < numBoxes; b++) {
+            const tStart = b / numBoxes;
+            const tEnd = (b + 1) / numBoxes;
+            const angleA = startHit.angle + (nextHit.angle - startHit.angle + (nextHit.angle < startHit.angle ? 2 * Math.PI : 0)) * tStart;
+            const angleB = startHit.angle + (nextHit.angle - startHit.angle + (nextHit.angle < startHit.angle ? 2 * Math.PI : 0)) * tEnd;
+
+            const pA = raycastPolygon(angleA);
+            const pB = raycastPolygon(angleB);
+
+            // Calculate inward depth (45% inward towards centroid)
+            const boxDistA = Math.sqrt((pA.x - cx) ** 2 + (pA.y - cy) ** 2);
+            const boxDistB = Math.sqrt((pB.x - cx) ** 2 + (pB.y - cy) ** 2);
+            const depthM = Math.min(10, Math.max(4, Math.min(boxDistA, boxDistB) * 0.40));
+
+            const inA_x = pA.x - Math.cos(angleA) * depthM;
+            const inA_y = pA.y - Math.sin(angleA) * depthM;
+            const inB_x = pB.x - Math.cos(angleB) * depthM;
+            const inB_y = pB.y - Math.sin(angleB) * depthM;
+
+            const boxDef = currentRoomBoxes[b];
+            const boxMidX = (pA.x + pB.x + inA_x + inB_x) / 4;
+            const boxMidY = (pA.y + pB.y + inA_y + inB_y) / 4;
+
+            if (boxDef.isBalcony) {
+              balconyBoxCenter = { x: boxMidX, y: boxMidY };
+            }
+
+            ctx.save();
+            ctx.beginPath();
+            ctx.moveTo(toCanvasX(pA.x), toCanvasY(pA.y));
+            ctx.lineTo(toCanvasX(pB.x), toCanvasY(pB.y));
+            ctx.lineTo(toCanvasX(inB_x), toCanvasY(inB_y));
+            ctx.lineTo(toCanvasX(inA_x), toCanvasY(inA_y));
+            ctx.closePath();
+
+            // Box Fill
+            if (boxDef.isBalcony) {
+              ctx.fillStyle = isDark ? 'rgba(16, 185, 129, 0.35)' : 'rgba(16, 185, 129, 0.25)';
+              ctx.strokeStyle = '#10b981';
+            } else {
+              ctx.fillStyle = isDark ? 'rgba(30, 41, 59, 0.75)' : 'rgba(241, 245, 249, 0.85)';
+              ctx.strokeStyle = isDark ? 'rgba(255, 255, 255, 0.35)' : 'rgba(0, 0, 0, 0.35)';
+            }
+            ctx.lineWidth = boxDef.isBalcony ? 2 : 1;
+            ctx.fill();
+            ctx.stroke();
+
+            // Box Label & Icon
+            ctx.font = 'bold 8px monospace';
+            ctx.fillStyle = boxDef.isBalcony ? '#10b981' : (isDark ? '#e2e8f0' : '#1e293b');
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(`${boxDef.icon} ${boxDef.name}`, toCanvasX(boxMidX), toCanvasY(boxMidY));
+            ctx.restore();
+          }
+
+          // 3. Draw Living Room to Balcony Seamless Sliding Flow
+          if (showLivingBalconyFlow && balconyBoxCenter) {
+            ctx.save();
+            ctx.strokeStyle = '#10b981';
+            ctx.lineWidth = 1.5;
+            ctx.setLineDash([2, 2]);
+            ctx.beginPath();
+            ctx.moveTo(toCanvasX(livingX), toCanvasY(livingY));
+            ctx.lineTo(toCanvasX(balconyBoxCenter.x), toCanvasY(balconyBoxCenter.y));
+            ctx.stroke();
+
+            // Midpoint Flow Badge
+            const flowMidX = (livingX + balconyBoxCenter.x) / 2;
+            const flowMidY = (livingY + balconyBoxCenter.y) / 2;
+            ctx.font = 'bold 7px monospace';
+            ctx.fillStyle = '#10b981';
+            ctx.textAlign = 'center';
+            ctx.fillText('SLIDER ➜', toCanvasX(flowMidX), toCanvasY(flowMidY) - 3);
+            ctx.restore();
+          }
+        }
+
+        // 4. Central Living Room Badge
+        ctx.save();
+        const badgeCanvasX = toCanvasX(livingX);
+        const badgeCanvasY = toCanvasY(livingY);
+
+        ctx.fillStyle = isDark ? '#0f172a' : '#ffffff';
+        ctx.strokeStyle = theme.stroke;
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.roundRect(badgeCanvasX - 32, badgeCanvasY - 14, 64, 28, 4);
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.font = 'bold 9px monospace';
+        ctx.fillStyle = theme.stroke;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(`FLAT ${theme.label}`, badgeCanvasX, badgeCanvasY - 4);
+        ctx.font = '7px monospace';
+        ctx.fillStyle = isDark ? '#94a3b8' : '#64748b';
+        ctx.fillText(`LIVING & DINING`, badgeCanvasX, badgeCanvasY + 6);
+        ctx.restore();
+
+        // 5. Unit Entry Door Marker along Central Corridor
+        const entryRadius = (Math.max(coreW, coreH) / 2) + 2;
+        const entryX = cx + Math.cos(midAngle) * entryRadius;
+        const entryY = cy + Math.sin(midAngle) * entryRadius;
+
+        ctx.save();
+        ctx.font = 'bold 8px monospace';
+        ctx.fillStyle = theme.stroke;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(`🚪 ${theme.label}`, toCanvasX(entryX), toCanvasY(entryY));
+        ctx.restore();
+      }
+    }
+
+    // 7. Draw Vertices (Nodes)
     if (showVertices) {
       for (let i = 0; i < polygonPts.length; i++) {
         const pt = polygonPts[i];
@@ -310,7 +575,7 @@ export default function ShapeStudioPage() {
       }
     }
 
-    // 7. Draw Dimensions Overlays
+    // 8. Draw Dimensions Overlays
     if (showDimensions) {
       ctx.font = 'bold 11px monospace';
       ctx.fillStyle = isDark ? '#38bdf8' : '#0369a1';
@@ -335,7 +600,7 @@ export default function ShapeStudioPage() {
       ctx.restore();
     }
 
-    // 8. North Arrow Compass
+    // 9. North Arrow Compass
     const compassX = width - 45;
     const compassY = 45;
     ctx.save();
@@ -368,7 +633,12 @@ export default function ShapeStudioPage() {
     showVertices,
     zoomLevel,
     polygonPts,
-    holePolygons
+    holePolygons,
+    unitCount,
+    bhkType,
+    showPartitions,
+    showExteriorBoxes,
+    showLivingBalconyFlow
   ]);
 
   // Redraw canvas whenever dependencies change
@@ -402,6 +672,11 @@ export default function ShapeStudioPage() {
       customFootprintText: selectedShape.name,
       overallWidth: plotWidthM.toString(),
       overallLength: plotLengthM.toString(),
+      totalUnits: unitCount.toString(),
+      units1BHK: bhkType === '1bhk' ? unitCount.toString() : '0',
+      units2BHK: bhkType === '2bhk' ? unitCount.toString() : '0',
+      units3BHK: bhkType === '3bhk' ? unitCount.toString() : '0',
+      units4BHK: bhkType === '4bhk' ? unitCount.toString() : '0',
     });
     router.push(`/idea-generation?${params.toString()}`);
   };
@@ -621,8 +896,8 @@ export default function ShapeStudioPage() {
         <main className="flex-1 flex flex-col bg-[#040407] relative overflow-hidden">
           
           {/* Canvas Floating Toolbar */}
-          <div className="h-12 border-b border-white/10 bg-black/40 backdrop-blur px-4 flex items-center justify-between z-10">
-            <div className="flex items-center gap-2">
+          <div className="h-14 border-b border-white/10 bg-black/40 backdrop-blur px-4 flex items-center justify-between z-10 gap-3">
+            <div className="flex items-center gap-2 shrink-0">
               <span className="text-xs font-mono font-bold text-white flex items-center gap-1.5">
                 <Compass className="w-4 h-4 text-cyan-400" />
                 {selectedShape.name}
@@ -632,18 +907,69 @@ export default function ShapeStudioPage() {
               </span>
             </div>
 
+            {/* Quick Unit Count & BHK Type Switchers */}
+            <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-1">
+              {/* Unit Count Selector */}
+              <div className="flex items-center bg-black/50 p-1 rounded-lg border border-white/10 shrink-0">
+                <span className="text-[9px] font-mono font-bold text-gray-400 px-2 uppercase tracking-wider">UNITS:</span>
+                {[2, 3, 4, 5, 6, 7, 8].map(n => (
+                  <button
+                    key={n}
+                    onClick={() => setUnitCount(n)}
+                    className={`px-2 py-0.5 rounded text-[10px] font-mono font-bold transition-all ${
+                      unitCount === n
+                        ? 'bg-cyan-500 text-black shadow-md shadow-cyan-500/30'
+                        : 'text-gray-400 hover:text-white hover:bg-white/5'
+                    }`}
+                  >
+                    {n}F
+                  </button>
+                ))}
+              </div>
+
+              {/* BHK Type Selector */}
+              <div className="flex items-center bg-black/50 p-1 rounded-lg border border-white/10 shrink-0">
+                <span className="text-[9px] font-mono font-bold text-gray-400 px-2 uppercase tracking-wider">BHK:</span>
+                {(['1bhk', '2bhk', '3bhk', '4bhk'] as const).map(b => (
+                  <button
+                    key={b}
+                    onClick={() => setBhkType(b)}
+                    className={`px-2 py-0.5 rounded text-[10px] font-mono font-bold transition-all uppercase ${
+                      bhkType === b
+                        ? 'bg-emerald-500 text-black shadow-md shadow-emerald-500/30'
+                        : 'text-gray-400 hover:text-white hover:bg-white/5'
+                    }`}
+                  >
+                    {b.toUpperCase()}
+                  </button>
+                ))}
+              </div>
+            </div>
+
             {/* Quick Canvas Toggles */}
-            <div className="flex items-center gap-1.5">
+            <div className="flex items-center gap-1.5 shrink-0">
               <button
-                onClick={() => setShowGrid(!showGrid)}
+                onClick={() => setShowPartitions(!showPartitions)}
                 className={`px-2.5 py-1 rounded text-[10px] font-mono flex items-center gap-1 border transition-colors ${
-                  showGrid
-                    ? 'bg-cyan-500/20 border-cyan-400 text-cyan-300'
+                  showPartitions
+                    ? 'bg-purple-500/20 border-purple-400 text-purple-300'
                     : 'bg-white/5 border-white/10 text-gray-400 hover:text-white'
                 }`}
-                title="Toggle 10m Grid"
+                title="Toggle Unit Partition Lines"
               >
-                <Grid className="w-3 h-3" /> Grid
+                <Layers className="w-3 h-3" /> Divisions
+              </button>
+
+              <button
+                onClick={() => setShowExteriorBoxes(!showExteriorBoxes)}
+                className={`px-2.5 py-1 rounded text-[10px] font-mono flex items-center gap-1 border transition-colors ${
+                  showExteriorBoxes
+                    ? 'bg-emerald-500/20 border-emerald-400 text-emerald-300'
+                    : 'bg-white/5 border-white/10 text-gray-400 hover:text-white'
+                }`}
+                title="Toggle Facade Room Boxes"
+              >
+                <Eye className="w-3 h-3" /> Rooms
               </button>
 
               <button
@@ -655,19 +981,7 @@ export default function ShapeStudioPage() {
                 }`}
                 title="Toggle Central Core"
               >
-                <Layers className="w-3 h-3" /> Core
-              </button>
-
-              <button
-                onClick={() => setShowDimensions(!showDimensions)}
-                className={`px-2.5 py-1 rounded text-[10px] font-mono flex items-center gap-1 border transition-colors ${
-                  showDimensions
-                    ? 'bg-emerald-500/20 border-emerald-400 text-emerald-300'
-                    : 'bg-white/5 border-white/10 text-gray-400 hover:text-white'
-                }`}
-                title="Toggle Dimension Lines"
-              >
-                <Sliders className="w-3 h-3" /> Dimensions
+                <Grid className="w-3 h-3" /> Core
               </button>
 
               <div className="h-4 w-px bg-white/10 mx-1" />
@@ -679,7 +993,7 @@ export default function ShapeStudioPage() {
               >
                 <ZoomOut className="w-3.5 h-3.5" />
               </button>
-              <span className="text-[10px] font-mono text-gray-400 w-10 text-center">
+              <span className="text-[10px] font-mono text-gray-400 w-8 text-center">
                 {Math.round(zoomLevel * 100)}%
               </span>
               <button
@@ -795,6 +1109,92 @@ export default function ShapeStudioPage() {
             </p>
           </div>
 
+          {/* Architectural Unit Partitioning & BHK Selector HUD */}
+          <div className="flex flex-col gap-3 p-4 rounded-xl bg-gradient-to-br from-purple-950/20 to-cyan-950/20 border border-purple-500/30">
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] font-mono text-purple-300 uppercase tracking-widest font-bold flex items-center gap-1.5">
+                <Layers className="w-3.5 h-3.5 text-purple-400" />
+                UNIT PARTITIONS & ROOM BOXES
+              </span>
+              <span className="text-[9px] font-mono px-2 py-0.5 rounded bg-purple-500/20 text-purple-300 border border-purple-500/40">
+                {unitCount} UNITS • {bhkType.toUpperCase()}
+              </span>
+            </div>
+
+            {/* Flat Count Pill Selector */}
+            <div className="flex flex-col gap-1.5">
+              <span className="text-[9px] font-mono text-gray-400 uppercase">Select Number of Flats:</span>
+              <div className="grid grid-cols-7 gap-1">
+                {[2, 3, 4, 5, 6, 7, 8].map(n => (
+                  <button
+                    key={n}
+                    onClick={() => setUnitCount(n)}
+                    className={`py-1.5 rounded text-xs font-mono font-bold transition-all ${
+                      unitCount === n
+                        ? 'bg-gradient-to-r from-purple-500 to-cyan-500 text-black shadow-md shadow-purple-500/30 scale-105'
+                        : 'bg-black/40 text-gray-400 hover:text-white border border-white/5 hover:border-white/20'
+                    }`}
+                  >
+                    {n}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* BHK Typology Selector */}
+            <div className="flex flex-col gap-1.5">
+              <span className="text-[9px] font-mono text-gray-400 uppercase">Select Room Box Density (BHK):</span>
+              <div className="grid grid-cols-4 gap-1.5">
+                {[
+                  { key: '1bhk', label: '1 BHK', boxes: '4 Boxes' },
+                  { key: '2bhk', label: '2 BHK', boxes: '5 Boxes' },
+                  { key: '3bhk', label: '3 BHK', boxes: '6 Boxes' },
+                  { key: '4bhk', label: '4 BHK', boxes: '7 Boxes' },
+                ].map(item => (
+                  <button
+                    key={item.key}
+                    onClick={() => setBhkType(item.key as any)}
+                    className={`p-2 rounded-lg text-center flex flex-col items-center gap-0.5 border transition-all ${
+                      bhkType === item.key
+                        ? 'bg-emerald-500/20 border-emerald-400 text-white shadow-md shadow-emerald-950'
+                        : 'bg-black/40 border-white/5 text-gray-400 hover:text-white hover:border-white/20'
+                    }`}
+                  >
+                    <span className={`text-xs font-mono font-bold ${bhkType === item.key ? 'text-emerald-300' : 'text-gray-300'}`}>
+                      {item.label}
+                    </span>
+                    <span className="text-[8px] font-mono text-gray-500">
+                      {item.boxes}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Live Partition Metrics */}
+            <div className="grid grid-cols-2 gap-2 mt-1 pt-2 border-t border-white/10">
+              <div className="flex flex-col">
+                <span className="text-[8px] text-gray-500 font-mono uppercase">Area / Flat</span>
+                <span className="text-xs font-bold text-cyan-300 font-mono">
+                  ~{Math.round(usableAreaM2 / unitCount)} m²
+                </span>
+                <span className="text-[8px] text-gray-400 font-mono">
+                  ~{Math.round((usableAreaM2 / unitCount) * 10.764)} sq.ft
+                </span>
+              </div>
+
+              <div className="flex flex-col">
+                <span className="text-[8px] text-gray-500 font-mono uppercase">Facade Rooms</span>
+                <span className="text-xs font-bold text-emerald-300 font-mono">
+                  {unitCount * (bhkType === '1bhk' ? 4 : bhkType === '2bhk' ? 5 : bhkType === '3bhk' ? 6 : 7)} Rooms
+                </span>
+                <span className="text-[8px] text-gray-400 font-mono">
+                  {unitCount} Attached Balconies
+                </span>
+              </div>
+            </div>
+          </div>
+
           {/* Geometric & Floor Plate Calculations HUD */}
           <div className="flex flex-col gap-2.5">
             <span className="text-[10px] font-mono text-cyan-400 uppercase tracking-widest font-bold flex items-center gap-1.5">
@@ -857,9 +1257,9 @@ export default function ShapeStudioPage() {
                 <span className="text-white font-bold font-mono">~11.5m (Ideal)</span>
               </div>
               <div className="flex items-center justify-between text-[11px]">
-                <span className="text-gray-400">Corner Living Units:</span>
-                <span className="text-cyan-300 font-bold font-mono">
-                  {selectedShape.category === 'architectural' ? '3 to 6 Units' : '4 Units'}
+                <span className="text-gray-400">Living Room Flow:</span>
+                <span className="text-emerald-300 font-bold font-mono">
+                  100% Balcony Connected
                 </span>
               </div>
             </div>
