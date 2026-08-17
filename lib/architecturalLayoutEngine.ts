@@ -225,6 +225,81 @@ export function raycastPolygon(
 /**
  * Generate a specialized architectural floor plan layout based on shape typology, unit count, and BHK mix
  */
+/**
+ * Compute customized architectural radial boundary cut angles matching hand-drawn floorplan divisions
+ */
+export function getShapeCustomBoundaryAngles(shapeId: string, numUnits: number): number[] {
+  const s = shapeId.toLowerCase();
+
+  // 1. Butterfly Wide: Dual-wing split (Left wing & Right wing)
+  if (s.includes('butterfly')) {
+    if (numUnits === 6) {
+      return [
+        -Math.PI / 6, Math.PI / 6, (3 * Math.PI) / 8,
+        (5 * Math.PI) / 8, (5 * Math.PI) / 6, -(5 * Math.PI) / 6,
+      ];
+    }
+    if (numUnits === 8) {
+      return [
+        -Math.PI / 4, -Math.PI / 10, Math.PI / 10, Math.PI / 4,
+        (3 * Math.PI) / 4, (9 * Math.PI) / 10, -(9 * Math.PI) / 10, -(3 * Math.PI) / 4,
+      ];
+    }
+  }
+
+  // 2. Ginkgo Fan Leaf: 6 fan lobes around top central core notch
+  if (s.includes('ginkgo') || s.includes('gingko')) {
+    return [
+      -Math.PI * 0.75, // F1 Top Left
+      -Math.PI,        // F2 Mid Left
+      Math.PI * 0.70,  // F3 Bottom Left
+      Math.PI * 0.30,  // F4 Bottom Right
+      0,               // F5 Mid Right
+      -Math.PI * 0.25, // F6 Top Right
+    ];
+  }
+
+  // 3. Chevron V: 5 units across Left & Right wings
+  if (s.includes('chevron')) {
+    if (numUnits === 5) {
+      return [
+        -Math.PI * 0.85, // F1 Left Wingtip
+        Math.PI * 0.75,  // F2 Left Lower Flank
+        -Math.PI * 0.50, // F3 Left Upper Shoulder
+        -Math.PI * 0.15, // F4 Right Upper Shoulder
+        Math.PI * 0.25,  // F5 Right Lower Flank & Tip
+      ];
+    }
+  }
+
+  // 4. T-Shape: 6 units across Horizontal Bar & Vertical Stem
+  if (s.includes('t-shape')) {
+    return [
+      -Math.PI * 0.80, // F1 Left Top Arm
+      -Math.PI * 0.55, // F2 Left Bottom Arm
+      Math.PI * 0.65,  // F3 Stem Left
+      Math.PI * 0.35,  // F4 Stem Right
+      -Math.PI * 0.45, // F5 Right Bottom Arm
+      -Math.PI * 0.20, // F6 Right Top Arm
+    ];
+  }
+
+  // 5. Double Diamond: 8 quadrant units across twin diamond pods
+  if (s.includes('double-diamond')) {
+    return [
+      -Math.PI * 0.75, -Math.PI * 0.95, Math.PI * 0.75, Math.PI * 0.50,
+      Math.PI * 0.25, 0, -Math.PI * 0.25, -Math.PI * 0.50,
+    ];
+  }
+
+  // Default: Uniform radial partition angles
+  const angles: number[] = [];
+  for (let i = 0; i < numUnits; i++) {
+    angles.push((i * 2 * Math.PI) / numUnits - Math.PI / 2);
+  }
+  return angles;
+}
+
 export function generateSpecializedLayout(
   shapeId: string,
   polygonPts: Array<{ x: number; y: number }>,
@@ -240,8 +315,6 @@ export function generateSpecializedLayout(
   const numUnits = Math.min(8, Math.max(2, unitCount));
 
   // ── Pro Architectural Rectangular Core Specifications ───────────────────
-  // A pro architect uses rectangular cores (e.g. 18m x 8m) instead of square blocks
-  // to maximize unobstructed habitable floor area for large flats.
   let coreX = cx;
   let coreY = cy;
   let coreW = Math.max(16, Math.min(22, widthM * 0.22));
@@ -249,10 +322,28 @@ export function generateSpecializedLayout(
 
   if (sId.includes('nautilus')) {
     // Core Correction for Nautilus Spiral: Positioned in the spiral origin nexus hub
-    coreX = cx - widthM * 0.04;
+    coreX = cx - widthM * 0.05;
     coreY = cy - lengthM * 0.04;
     coreW = Math.max(14, Math.min(18, widthM * 0.18));
     coreH = Math.max(9, Math.min(12, lengthM * 0.13));
+  } else if (sId.includes('ginkgo') || sId.includes('gingko')) {
+    // Core for Ginkgo Fan Leaf: Vertical core in top central notch/crevice
+    coreX = cx;
+    coreY = cy - lengthM * 0.10;
+    coreW = Math.max(10, Math.min(13, widthM * 0.14));
+    coreH = Math.max(18, Math.min(24, lengthM * 0.26));
+  } else if (sId.includes('butterfly')) {
+    // Core for Butterfly Wide: Horizontal central thorax spine
+    coreX = cx;
+    coreY = cy;
+    coreW = Math.max(24, Math.min(32, widthM * 0.32));
+    coreH = Math.max(7.5, Math.min(9.5, lengthM * 0.10));
+  } else if (sId.includes('t-shape')) {
+    // Core for T-Shape: Central T-intersection hub
+    coreX = cx;
+    coreY = cy - lengthM * 0.05;
+    coreW = Math.max(16, Math.min(20, widthM * 0.20));
+    coreH = Math.max(10, Math.min(14, lengthM * 0.14));
   } else if (typology === 'chevron-2wing') {
     // For V/L-shapes: Place core in the inner vertex knuckle to free up entire wings
     coreX = cx;

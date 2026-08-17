@@ -35,7 +35,12 @@ import {
   Eye,
   Grid
 } from 'lucide-react';
-import { generateSpecializedLayout, getShapeTypology, getShapeAllowedUnitCounts } from '@/lib/architecturalLayoutEngine';
+import { 
+  generateSpecializedLayout, 
+  getShapeTypology, 
+  getShapeAllowedUnitCounts, 
+  getShapeCustomBoundaryAngles 
+} from '@/lib/architecturalLayoutEngine';
 
 export default function ShapeStudioPage() {
   const router = useRouter();
@@ -353,7 +358,7 @@ export default function ShapeStudioPage() {
         { label: 'F8', stroke: isDark ? '#eab308' : '#ca8a04', fill: isDark ? 'rgba(234, 179, 8, 0.12)' : '#fef9c3' },
       ];
 
-      const numUnits = Math.min(8, Math.max(2, unitCount === 5 ? 4 : unitCount));
+      const numUnits = Math.min(8, Math.max(2, unitCount));
 
       // Raycast helper to find outer perimeter intersection point
       const raycastPoly = (angleRad: number): { x: number; y: number } => {
@@ -391,10 +396,11 @@ export default function ShapeStudioPage() {
         return { x: hitX, y: hitY };
       };
 
-      // Compute boundary intersection points for all N units
+      // Compute boundary intersection points matching hand-drawn floorplan divisions
+      const customAngles = getShapeCustomBoundaryAngles(selectedShapeId, numUnits);
       const boundaryHits: { x: number; y: number; angle: number }[] = [];
       for (let i = 0; i < numUnits; i++) {
-        const angle = (i * 2 * Math.PI) / numUnits - Math.PI / 2;
+        const angle = customAngles[i % customAngles.length];
         const hit = raycastPoly(angle);
         boundaryHits.push({ ...hit, angle });
       }
