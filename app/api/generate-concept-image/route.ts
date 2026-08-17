@@ -441,8 +441,14 @@ STRICT DESIGN RULES:
    - SOLID SEPARATING PARTY WALLS: Every single flat (FLAT 01 to FLAT ${String(opts.numFlats).padStart(2, '0')}) MUST be bounded by thick, visible, continuous 200mm solid structural demising party walls. Zero room bleeding or chaotic overlapping between adjacent units!
    - INDEPENDENT APARTMENT BOXES: Each flat is a complete self-contained private unit with its own front entrance door (with visible door swing arc) opening from a common circulation corridor.
    - ROOM ANATOMY PER FLAT: Each flat contains its own private Living Lounge, Modular Kitchen, ${bhkLabel === '1 BHK' ? '1 Bedroom, and 1 Bathroom' : bhkLabel === '2 BHK' ? '2 Bedrooms (Master Suite with Ensuite + 2nd Bedroom), and 2 Bathrooms' : bhkLabel === '3 BHK' ? '3 Bedrooms, and 3 Bathrooms' : '4 Bedrooms, and 4 Bathrooms'}, and its own private Attached Facade Balcony.
-   - All bedrooms and living rooms must sit along the outer perimeter facade for direct window ventilation.
-3. 4-PANEL PRESENTATION BOARD COMPOSITION:
+
+3. 🌬️ NATURAL VENTILATION, DAYLIGHT & LIVING ROOM BALCONY INTEGRATION:
+   - LIVING ROOM BALCONY CONNECTION: Every single Living Room MUST be positioned directly along the exterior perimeter facade, seamlessly connected to a wide, expansive curved/wrap-around balcony via full-height sliding glass doors.
+   - NATURAL CROSS-VENTILATION & DAYLIGHT: All living rooms, dining lounges, and bedrooms MUST sit along the building's exterior perimeter with large operable windows to ensure abundant natural daylight, fresh air circulation, and outdoor garden views.
+   - NEVER place a living room or bedroom in an interior windowless dark pocket — every habitable room must touch the exterior facade!
+   - Balconies feature teak wood decking, glass balustrades, outdoor lounge chairs, and lush planter boxes.
+
+4. 4-PANEL PRESENTATION BOARD COMPOSITION:
    - Panel 1 (Left 70%): Full 2D top-down CAD master floor plan with warm travertine/marble flooring, furnished rooms, central core (2 elevators + 2 stairwells), and callout labels for every single unit (FLAT 01 to FLAT ${String(opts.numFlats).padStart(2, '0')}).
    - Panel 2 (Top-Right 30%): "TOP VIEW (BUILDING FORM)" - 3D aerial roof massing render of that EXACT shape from directly above.
    - Panel 3 (Middle-Right 30%): "3D VIEW (BUILDING FORM)" - Photorealistic 3D isometric perspective tower elevation rising in that EXACT shape with matching floor slabs and wrap-around glass balconies.
