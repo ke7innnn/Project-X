@@ -257,14 +257,9 @@ const ArchitectAdvisorPanel = forwardRef<ArchitectAdvisorRef, Props>(({ onParams
     let bestCx = polygonCentroid(plot).x;
     let bestCy = polygonCentroid(plot).y;
     let bestAngle = 0;
-    let bestRatio = { rw: 1.0, rh: 1.0 };
     
-    const baseSize = Math.max(bbox.w, bbox.h) * 0.85;
-    const aspectRatios = [
-      { rw: 1.0, rh: 1.0 },   { rw: 1.25, rh: 1.0 },
-      { rw: 1.5, rh: 1.0 },   { rw: 1.75, rh: 1.0 },
-      { rw: 2.0, rh: 1.0 }
-    ];
+    // Strict 1:1 proportional scaling — zero stretching or squeezing
+    const baseSize = Math.max(bbox.w, bbox.h) * 0.90;
     
     const stepsX = 15;
     const stepsY = 15;
@@ -274,41 +269,36 @@ const ArchitectAdvisorPanel = forwardRef<ArchitectAdvisorRef, Props>(({ onParams
         const testCy = bbox.minY + (bbox.h * iy) / stepsY;
         if (!isPointInPolygon({ x: testCx, y: testCy }, plot)) continue;
         
-        for (const ratio of aspectRatios) {
-          const maxW = baseSize * ratio.rw;
-          const maxH = baseSize * ratio.rh;
-          for (let angle = 0; angle < Math.PI * 2; angle += Math.PI / 12) {
-            const minRequiredScale = Math.sqrt(bestArea / (ratio.rw * ratio.rh));
-            if (minRequiredScale >= 1.0) continue;
-            
-            let localMaxScale = 0;
-            for (let scale = 1.0; scale > minRequiredScale; scale -= 0.02) {
-              const testShapes = getShapePoints(shapeId, testCx, testCy, maxW * scale, maxH * scale);
-              let allInside = true;
-              for (const pts of testShapes) {
-                const rotatedPts = rotateShape(pts, testCx, testCy, angle);
-                const outlinePts = generateShapeOutlinePoints(rotatedPts, 6);
-                for (const pt of outlinePts) {
-                  if (!isPointInPolygon(pt, plot)) { allInside = false; break; }
-                }
-                if (!allInside) break;
+        for (let angle = 0; angle < Math.PI * 2; angle += Math.PI / 12) {
+          const minRequiredScale = Math.sqrt(bestArea);
+          if (minRequiredScale >= 1.0) continue;
+          
+          let localMaxScale = 0;
+          for (let scale = 1.0; scale > minRequiredScale; scale -= 0.02) {
+            const testShapes = getShapePoints(shapeId, testCx, testCy, baseSize * scale, baseSize * scale);
+            let allInside = true;
+            for (const pts of testShapes) {
+              const rotatedPts = rotateShape(pts, testCx, testCy, angle);
+              const outlinePts = generateShapeOutlinePoints(rotatedPts, 6);
+              for (const pt of outlinePts) {
+                if (!isPointInPolygon(pt, plot)) { allInside = false; break; }
               }
-              if (allInside) { localMaxScale = scale; break; }
+              if (!allInside) break;
             }
-            const localArea = ratio.rw * ratio.rh * localMaxScale * localMaxScale;
-            if (localArea > bestArea) {
-              bestArea = localArea; bestScale = localMaxScale; bestCx = testCx; bestCy = testCy; bestAngle = angle; bestRatio = ratio;
-            }
+            if (allInside) { localMaxScale = scale; break; }
+          }
+          const localArea = localMaxScale * localMaxScale;
+          if (localArea > bestArea) {
+            bestArea = localArea; bestScale = localMaxScale; bestCx = testCx; bestCy = testCy; bestAngle = angle;
           }
         }
       }
     }
     
-    const finalScale = bestScale * 0.90;
-    const finalW = baseSize * bestRatio.rw * finalScale;
-    const finalH = baseSize * bestRatio.rh * finalScale;
+    const finalScale = bestScale * 0.92;
+    const finalSize = baseSize * finalScale;
     
-    let shapePolygons = getShapePoints(shapeId, bestCx, bestCy, finalW, finalH);
+    let shapePolygons = getShapePoints(shapeId, bestCx, bestCy, finalSize, finalSize);
     shapePolygons = shapePolygons.map(pts => rotateShape(pts, bestCx, bestCy, bestAngle));
     
     let totalArea = 0;
