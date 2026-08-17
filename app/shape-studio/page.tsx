@@ -58,7 +58,7 @@ export default function ShapeStudioPage() {
   const [showLivingBalconyFlow, setShowLivingBalconyFlow] = useState<boolean>(true);
 
   // Canvas Display Preferences
-  const [canvasTheme, setCanvasTheme] = useState<'dark' | 'light'>('dark');
+  const [canvasTheme, setCanvasTheme] = useState<'dark' | 'light'>('light');
   const [showGrid, setShowGrid] = useState<boolean>(true);
   const [gridSpacingM, setGridSpacingM] = useState<number>(10);
   const [showCore, setShowCore] = useState<boolean>(true);
@@ -246,17 +246,16 @@ export default function ShapeStudioPage() {
         grad.addColorStop(0.7, 'rgba(16, 185, 129, 0.18)');
         grad.addColorStop(1, 'rgba(14, 165, 233, 0.08)');
       } else {
-        grad.addColorStop(0, 'rgba(2, 132, 199, 0.22)');
-        grad.addColorStop(0.7, 'rgba(5, 150, 105, 0.14)');
-        grad.addColorStop(1, 'rgba(56, 189, 248, 0.06)');
+        grad.addColorStop(0, '#ffffff');
+        grad.addColorStop(1, '#f8fafc');
       }
 
       ctx.fillStyle = grad;
       ctx.fill('evenodd');
 
-      // Outline
-      ctx.strokeStyle = isDark ? '#00f0ff' : '#0284c7';
-      ctx.lineWidth = 2.5;
+      // Outline (Crisp Jet Black Architectural Line in Light Mode)
+      ctx.strokeStyle = isDark ? '#00f0ff' : '#0f172a';
+      ctx.lineWidth = isDark ? 2.5 : 2.8;
       ctx.shadowColor = isDark ? 'rgba(0, 240, 255, 0.4)' : 'transparent';
       ctx.shadowBlur = isDark ? 8 : 0;
       ctx.stroke();
@@ -284,10 +283,10 @@ export default function ShapeStudioPage() {
         const shaftCanvasTopY = coreCanvasY + coreCanvasH;
         const shaftCanvasBottomY = toCanvasY(plotLengthM);
 
-        ctx.fillStyle = isDark ? 'rgba(56, 189, 248, 0.18)' : 'rgba(2, 132, 199, 0.15)';
+        ctx.fillStyle = isDark ? 'rgba(56, 189, 248, 0.18)' : 'rgba(224, 242, 254, 0.8)';
         ctx.fillRect(shaftCanvasX, shaftCanvasTopY, shaftCanvasW, shaftCanvasBottomY - shaftCanvasTopY);
         ctx.strokeStyle = isDark ? '#38bdf8' : '#0284c7';
-        ctx.lineWidth = 1.5;
+        ctx.lineWidth = 1.8;
         ctx.setLineDash([4, 3]);
         ctx.strokeRect(shaftCanvasX, shaftCanvasTopY, shaftCanvasW, shaftCanvasBottomY - shaftCanvasTopY);
         ctx.setLineDash([]);
@@ -300,50 +299,50 @@ export default function ShapeStudioPage() {
         const shaftMidY = (shaftCanvasTopY + shaftCanvasBottomY) / 2;
         ctx.fillText('☀️ LIGHT & VENT SHAFT', toCanvasX(cx), shaftMidY - 5);
         ctx.font = '7px monospace';
-        ctx.fillStyle = isDark ? '#94a3b8' : '#64748b';
+        ctx.fillStyle = isDark ? '#94a3b8' : '#475569';
         ctx.fillText('🚪 MAIN ENTRANCE LOBBY', toCanvasX(cx), shaftMidY + 6);
         ctx.restore();
       }
 
       // Circulation Corridor Loop wrapping Core
       const corridorPad = 3.5 * scale;
-      ctx.strokeStyle = isDark ? 'rgba(255, 255, 255, 0.25)' : 'rgba(0, 0, 0, 0.3)';
-      ctx.lineWidth = 1;
+      ctx.strokeStyle = isDark ? 'rgba(255, 255, 255, 0.25)' : '#94a3b8';
+      ctx.lineWidth = 1.2;
       ctx.setLineDash([3, 3]);
       ctx.strokeRect(coreCanvasX - corridorPad, coreCanvasY - corridorPad, coreCanvasW + corridorPad * 2, coreCanvasH + corridorPad * 2);
       ctx.setLineDash([]);
 
       // Core Background & Elevation Lift Bank
-      ctx.fillStyle = isDark ? 'rgba(245, 158, 11, 0.35)' : 'rgba(217, 119, 6, 0.25)';
+      ctx.fillStyle = isDark ? 'rgba(245, 158, 11, 0.35)' : '#fef3c7';
       ctx.fillRect(coreCanvasX, coreCanvasY, coreCanvasW, coreCanvasH);
 
       // Core Border
-      ctx.strokeStyle = isDark ? '#f59e0b' : '#d97706';
-      ctx.lineWidth = 2;
+      ctx.strokeStyle = isDark ? '#f59e0b' : '#b45309';
+      ctx.lineWidth = 2.2;
       ctx.strokeRect(coreCanvasX, coreCanvasY, coreCanvasW, coreCanvasH);
 
       // Lift / Stair Internal Markings
       ctx.font = 'bold 9px monospace';
-      ctx.fillStyle = isDark ? '#fbbf24' : '#b45309';
+      ctx.fillStyle = isDark ? '#fbbf24' : '#78350f';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       ctx.fillText(`🛗 ${core.lifts}× PASSENGER LIFTS`, toCanvasX(core.x), toCanvasY(core.y) - 8);
       ctx.fillText(`🪜 ${core.stairs}× FIRE STAIRS`, toCanvasX(core.x), toCanvasY(core.y) + 4);
       ctx.font = '7px monospace';
-      ctx.fillStyle = isDark ? '#fde68a' : '#78350f';
+      ctx.fillStyle = isDark ? '#fde68a' : '#92400e';
       ctx.fillText(`CORE: ${Math.round(core.width)}m × ${Math.round(core.length)}m`, toCanvasX(core.x), toCanvasY(core.y) + 16);
     }
 
     // ── 6. DRAW REALISTIC ARCHITECTURAL ROOM SUITES & UNIT PARTITIONS ─────
     if (showPartitions && polygonPts.length > 2) {
       const UNIT_THEMES = [
-        { label: 'F1', stroke: '#ef4444', fill: 'rgba(239, 68, 68, 0.12)', text: '#fca5a5' },
-        { label: 'F2', stroke: '#10b981', fill: 'rgba(16, 185, 129, 0.12)', text: '#6ee7b7' },
-        { label: 'F3', stroke: '#f59e0b', fill: 'rgba(245, 158, 11, 0.12)', text: '#fcd34d' },
-        { label: 'F4', stroke: '#06b6d4', fill: 'rgba(6, 182, 212, 0.12)', text: '#67e8f9' },
-        { label: 'F6', stroke: '#8b5cf6', fill: 'rgba(139, 92, 246, 0.12)', text: '#c4b5fd' },
-        { label: 'F7', stroke: '#f43f5e', fill: 'rgba(244, 63, 94, 0.12)', text: '#fda4af' },
-        { label: 'F8', stroke: '#eab308', fill: 'rgba(234, 179, 8, 0.12)', text: '#fde047' },
+        { label: 'F1', stroke: isDark ? '#ef4444' : '#dc2626', fill: isDark ? 'rgba(239, 68, 68, 0.12)' : '#fee2e2' },
+        { label: 'F2', stroke: isDark ? '#10b981' : '#059669', fill: isDark ? 'rgba(16, 185, 129, 0.12)' : '#d1fae5' },
+        { label: 'F3', stroke: isDark ? '#f59e0b' : '#d97706', fill: isDark ? 'rgba(245, 158, 11, 0.12)' : '#fef3c7' },
+        { label: 'F4', stroke: isDark ? '#06b6d4' : '#0284c7', fill: isDark ? 'rgba(6, 182, 212, 0.12)' : '#e0f2fe' },
+        { label: 'F6', stroke: isDark ? '#8b5cf6' : '#7c3aed', fill: isDark ? 'rgba(139, 92, 246, 0.12)' : '#ede9fe' },
+        { label: 'F7', stroke: isDark ? '#f43f5e' : '#e11d48', fill: isDark ? 'rgba(244, 63, 94, 0.12)' : '#ffe4e6' },
+        { label: 'F8', stroke: isDark ? '#eab308' : '#ca8a04', fill: isDark ? 'rgba(234, 179, 8, 0.12)' : '#fef9c3' },
       ];
 
       const numUnits = Math.min(8, Math.max(2, unitCount === 5 ? 4 : unitCount));
@@ -402,15 +401,15 @@ export default function ShapeStudioPage() {
       ctx.closePath();
       ctx.clip();
 
-      // 1. Draw Primary Unit Division Demarcation Walls
+      // 1. Draw Primary Unit Division Demarcation Walls (Crisp Dark CAD lines)
       for (let i = 0; i < numUnits; i++) {
         const hit = boundaryHits[i];
         const theme = UNIT_THEMES[i % UNIT_THEMES.length];
 
         ctx.save();
-        ctx.strokeStyle = theme.stroke;
-        ctx.lineWidth = 2.5;
-        ctx.setLineDash([6, 3]);
+        ctx.strokeStyle = isDark ? theme.stroke : '#1e293b';
+        ctx.lineWidth = isDark ? 2.5 : 2.2;
+        ctx.setLineDash(isDark ? [6, 3] : [5, 2]);
 
         ctx.beginPath();
         const coreBorderRadius = Math.max(layout.core.width, layout.core.length) / 2;
@@ -444,33 +443,36 @@ export default function ShapeStudioPage() {
         const livingY = cy + Math.sin(midAngle) * livingDistM;
 
         if (showExteriorBoxes) {
-          // Determine realistic room modules per flat based on BHK density
-          // (Fewer, larger, high-value rectangular spaces instead of squished micro-teeth)
-          const roomModules = numUnits >= 6 
+          // Dynamic BHK Room Generator: Changes distinctly between 1, 2, 3, and 4 BHK
+          const roomModules = 
+            bhkType === '1bhk'
             ? [
-                { icon: '🌿', frac: 0.35, depth: 3.0, color: '#10b981', isBalcony: true },
-                { icon: '🛏️', frac: 0.45, depth: roomDepthM, color: '#3b82f6' },
-                { icon: '🍳', frac: 0.20, depth: roomDepthM * 0.75, color: '#f59e0b' },
-              ]
-            : bhkType === '1bhk'
-            ? [
-                { icon: '🌿', frac: 0.30, depth: 3.2, color: '#10b981', isBalcony: true },
-                { icon: '🛏️', frac: 0.45, depth: roomDepthM, color: '#3b82f6' },
-                { icon: '🍳', frac: 0.25, depth: roomDepthM * 0.8, color: '#f59e0b' },
+                { icon: '🌿', frac: 0.28, depth: 3.2, color: '#059669', lightFill: '#d1fae5', isBalcony: true },
+                { icon: '🛏️', frac: 0.48, depth: roomDepthM, color: '#2563eb', lightFill: '#dbeafe' },
+                { icon: '🍳', frac: 0.24, depth: roomDepthM * 0.78, color: '#d97706', lightFill: '#fef3c7' },
               ]
             : bhkType === '2bhk'
             ? [
-                { icon: '🌿', frac: 0.25, depth: 3.2, color: '#10b981', isBalcony: true },
-                { icon: '🛏️', frac: 0.35, depth: roomDepthM, color: '#3b82f6' },
-                { icon: '🛏️', frac: 0.25, depth: roomDepthM * 0.9, color: '#6366f1' },
-                { icon: '🍳', frac: 0.15, depth: roomDepthM * 0.75, color: '#f59e0b' },
+                { icon: '🌿', frac: 0.22, depth: 3.2, color: '#059669', lightFill: '#d1fae5', isBalcony: true },
+                { icon: '🛏️', frac: 0.36, depth: roomDepthM, color: '#2563eb', lightFill: '#dbeafe' },
+                { icon: '🛏️', frac: 0.26, depth: roomDepthM * 0.90, color: '#4f46e5', lightFill: '#e0e7ff' },
+                { icon: '🍳', frac: 0.16, depth: roomDepthM * 0.75, color: '#d97706', lightFill: '#fef3c7' },
+              ]
+            : bhkType === '3bhk'
+            ? [
+                { icon: '🌿', frac: 0.18, depth: 3.2, color: '#059669', lightFill: '#d1fae5', isBalcony: true },
+                { icon: '🛏️', frac: 0.30, depth: roomDepthM, color: '#2563eb', lightFill: '#dbeafe' },
+                { icon: '🛏️', frac: 0.22, depth: roomDepthM * 0.90, color: '#4f46e5', lightFill: '#e0e7ff' },
+                { icon: '🛏️', frac: 0.18, depth: roomDepthM * 0.85, color: '#7c3aed', lightFill: '#ede9fe' },
+                { icon: '🍳', frac: 0.12, depth: roomDepthM * 0.75, color: '#d97706', lightFill: '#fef3c7' },
               ]
             : [
-                { icon: '🌿', frac: 0.22, depth: 3.2, color: '#10b981', isBalcony: true },
-                { icon: '🛏️', frac: 0.32, depth: roomDepthM, color: '#3b82f6' },
-                { icon: '🛏️', frac: 0.24, depth: roomDepthM * 0.9, color: '#6366f1' },
-                { icon: '🛏️', frac: 0.14, depth: roomDepthM * 0.85, color: '#8b5cf6' },
-                { icon: '🍳', frac: 0.08, depth: roomDepthM * 0.75, color: '#f59e0b' },
+                { icon: '🌿', frac: 0.15, depth: 3.2, color: '#059669', lightFill: '#d1fae5', isBalcony: true },
+                { icon: '🛏️', frac: 0.26, depth: roomDepthM, color: '#2563eb', lightFill: '#dbeafe' },
+                { icon: '🛏️', frac: 0.20, depth: roomDepthM * 0.90, color: '#4f46e5', lightFill: '#e0e7ff' },
+                { icon: '🛏️', frac: 0.16, depth: roomDepthM * 0.85, color: '#7c3aed', lightFill: '#ede9fe' },
+                { icon: '🛏️', frac: 0.13, depth: roomDepthM * 0.80, color: '#db2777', lightFill: '#fce7f3' },
+                { icon: '🍳', frac: 0.10, depth: roomDepthM * 0.75, color: '#d97706', lightFill: '#fef3c7' },
               ];
 
           let curFrac = 0;
@@ -515,14 +517,14 @@ export default function ShapeStudioPage() {
 
             if (mod.isBalcony) {
               // Sleek Emerald Attached Balcony Deck
-              ctx.fillStyle = isDark ? 'rgba(16, 185, 129, 0.45)' : 'rgba(16, 185, 129, 0.35)';
-              ctx.strokeStyle = '#10b981';
-              ctx.lineWidth = 2.5;
+              ctx.fillStyle = isDark ? 'rgba(16, 185, 129, 0.45)' : mod.lightFill;
+              ctx.strokeStyle = isDark ? '#10b981' : '#059669';
+              ctx.lineWidth = isDark ? 2.5 : 2.2;
               ctx.fill();
               ctx.stroke();
 
               // Open Sliding Glass Door Line to Living Room
-              ctx.strokeStyle = '#34d399';
+              ctx.strokeStyle = isDark ? '#34d399' : '#10b981';
               ctx.lineWidth = 2;
               ctx.setLineDash([3, 3]);
               ctx.beginPath();
@@ -532,15 +534,15 @@ export default function ShapeStudioPage() {
               ctx.setLineDash([]);
             } else {
               // Deep, Crisp Spacious Room Box
-              ctx.fillStyle = isDark ? 'rgba(15, 23, 42, 0.88)' : 'rgba(241, 245, 249, 0.92)';
-              ctx.strokeStyle = mod.color;
-              ctx.lineWidth = 1.8;
+              ctx.fillStyle = isDark ? 'rgba(15, 23, 42, 0.88)' : mod.lightFill;
+              ctx.strokeStyle = isDark ? mod.color : '#334155';
+              ctx.lineWidth = isDark ? 1.8 : 1.6;
               ctx.fill();
               ctx.stroke();
 
               // Outer Facade Accent Line
               ctx.strokeStyle = mod.color;
-              ctx.lineWidth = 3;
+              ctx.lineWidth = isDark ? 3 : 2.5;
               ctx.beginPath();
               ctx.moveTo(toCanvasX(p0.x), toCanvasY(p0.y));
               ctx.lineTo(toCanvasX(p1.x), toCanvasY(p1.y));
@@ -559,7 +561,7 @@ export default function ShapeStudioPage() {
           if (showLivingBalconyFlow && balconyCenterPt) {
             const bPt = balconyCenterPt as { x: number; y: number };
             ctx.save();
-            ctx.strokeStyle = '#10b981';
+            ctx.strokeStyle = isDark ? '#10b981' : '#059669';
             ctx.lineWidth = 1.8;
             ctx.setLineDash([3, 2]);
             ctx.beginPath();
@@ -576,7 +578,7 @@ export default function ShapeStudioPage() {
         const badgeY = toCanvasY(livingY);
 
         ctx.fillStyle = isDark ? '#090d16' : '#ffffff';
-        ctx.strokeStyle = theme.stroke;
+        ctx.strokeStyle = isDark ? theme.stroke : '#0f172a';
         ctx.lineWidth = 2;
         ctx.beginPath();
         ctx.arc(badgeX, badgeY, 15, 0, 2 * Math.PI);
@@ -584,7 +586,7 @@ export default function ShapeStudioPage() {
         ctx.stroke();
 
         ctx.font = 'bold 11px monospace';
-        ctx.fillStyle = theme.stroke;
+        ctx.fillStyle = isDark ? theme.stroke : '#0f172a';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         ctx.fillText(theme.label, badgeX, badgeY);
@@ -597,7 +599,7 @@ export default function ShapeStudioPage() {
 
         ctx.save();
         ctx.font = 'bold 8.5px monospace';
-        ctx.fillStyle = theme.stroke;
+        ctx.fillStyle = isDark ? theme.stroke : '#0f172a';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         ctx.fillText(`🚪 ${theme.label}`, toCanvasX(entryX), toCanvasY(entryY));
