@@ -195,7 +195,6 @@ export default function ConceptGeneratorPage() {
                     setWidthM(preset.widthM);
                     setLengthM(preset.lengthM);
                     setNumFlats(preset.numFlats);
-                    setRoomConfig(preset.roomConfig as any);
                   }}
                   className="px-2.5 py-1 rounded-md bg-white/5 hover:bg-cyan-500/20 border border-white/10 hover:border-cyan-500/40 text-[10px] font-mono text-slate-300 hover:text-cyan-300 transition-all cursor-pointer"
                 >
