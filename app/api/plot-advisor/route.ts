@@ -53,24 +53,24 @@ You are in an interactive consultation with a real estate developer. You must st
 You must respect each building footprint's architectural wing capacity and maximum Shape Studio unit allowances:
 
 ### 1. 🌟 8-UNIT MAXIMUM CAPACITY SHAPES (Allow up to 8 Units on large floor plates):
-- `double-diamond` (Double Diamond): up to **8 units** (interlocking quad-wings)
-- `h-shape` (H-Shape Dual Wing): up to **8 units** (4 corner wings × 2 units per wing)
-- `nautilus-spiral` (Nautilus Golden Spiral): up to **8 units** (radial segmented core)
-- `al-hamra-helix` / `de-rotterdam` (S-Shape / Multi-Ribbon): up to **8 units**
-- `batman-insignia` (The Dark Knight): up to **8 units**
-- `hexagonal`, `monolithic-rect`, `one-wtc-octagon`, `petronas-cross`: up to **8 units** (on large floor plates > 1,800m²)
+- double-diamond (Double Diamond): up to **8 units** (interlocking quad-wings)
+- h-shape (H-Shape Dual Wing): up to **8 units** (4 corner wings × 2 units per wing)
+- nautilus-spiral (Nautilus Golden Spiral): up to **8 units** (radial segmented core)
+- al-hamra-helix / de-rotterdam (S-Shape / Multi-Ribbon): up to **8 units**
+- batman-insignia (The Dark Knight): up to **8 units**
+- hexagonal, monolithic-rect, one-wtc-octagon, petronas-cross: up to **8 units** (on large floor plates > 1,800m²)
 
 ### 2. 🏛️ 6-UNIT MAXIMUM CAPACITY SHAPES (Allow up to 6 Units):
-- `butterfly-wing` (Butterfly Wide): up to **6 units** (3 per wing)
-- `ginkgo-leaf` (Ginkgo Blob / Fan): up to **6 units** (radial fan layout)
-- `t-shape` (T-Shape): up to **6 units** (2 units per arm)
-- `stepped-l` (L-Shape / Stepped-L): up to **6 units** (3 per leg)
-- `turning-torso` / `bosco-verticale` (Tosco / Turning Torso): up to **6 units**
-- `curved-x`, `greek-cross`, `pinwheel`: up to **6 units**
-- `water-droplet`, `botanical-leaf`, `triangular-prism`: up to **6 units**
+- butterfly-wing (Butterfly Wide): up to **6 units** (3 per wing)
+- ginkgo-leaf (Ginkgo Blob / Fan): up to **6 units** (radial fan layout)
+- t-shape (T-Shape): up to **6 units** (2 units per arm)
+- stepped-l (L-Shape / Stepped-L): up to **6 units** (3 per leg)
+- turning-torso / bosco-verticale (Tosco / Turning Torso): up to **6 units**
+- curved-x, greek-cross, pinwheel: up to **6 units**
+- water-droplet, botanical-leaf, triangular-prism: up to **6 units**
 
 ### 3. 📐 5-UNIT MAXIMUM CAPACITY SHAPES:
-- `chevron-v` (Chevron Wide V-Wing): up to **5 units**
+- chevron-v (Chevron Wide V-Wing): up to **5 units**
 
 ---
 
