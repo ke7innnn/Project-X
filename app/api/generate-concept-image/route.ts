@@ -322,10 +322,20 @@ The image is a professional, high-resolution architectural presentation board sh
 BUILDING SPECIFICATIONS:
 • TARGET CONCEPT: "${userPrompt}" (${shapeName})
 • DIMENSIONS: ${widthM}m Width × ${lengthM}m Length
-• EXACT CAPACITY: ${numFlats} Apartment Units
-
 AESTHETICS:
 Crisp architectural CAD linework, warm cream and sand presentation backdrop, ultra-clean publication-ready presentation board layout, photorealistic rendering.`;
+}
+
+// ── Resolve reference image URL (optional user upload) ─────────────────────────
+
+async function getUploadedReferenceUrl(customBase64?: string | null): Promise<string | null> {
+  if (customBase64 && customBase64.length > 50) {
+    const base64Data = customBase64.replace(/^data:image\/\w+;base64,/, '');
+    const buffer = Buffer.from(base64Data, 'base64');
+    const file = new File([new Blob([buffer], { type: 'image/png' })], 'user_ref.png', { type: 'image/png' });
+    return await fal.storage.upload(file);
+  }
+  return null;
 }
 
 async function compileArchitecturalPromptWithAgent(opts: {
