@@ -38,8 +38,7 @@ import {
 import { 
   generateSpecializedLayout, 
   getShapeTypology, 
-  getShapeAllowedUnitCounts, 
-  getShapeCustomBoundaryAngles 
+  getShapeAllowedUnitCounts 
 } from '@/lib/architecturalLayoutEngine';
 
 export default function ShapeStudioPage() {
@@ -396,11 +395,10 @@ export default function ShapeStudioPage() {
         return { x: hitX, y: hitY };
       };
 
-      // Compute boundary intersection points matching hand-drawn floorplan divisions
-      const customAngles = getShapeCustomBoundaryAngles(selectedShapeId, numUnits);
+      // Compute boundary intersection points for all N units
       const boundaryHits: { x: number; y: number; angle: number }[] = [];
       for (let i = 0; i < numUnits; i++) {
-        const angle = customAngles[i % customAngles.length];
+        const angle = (i * 2 * Math.PI) / numUnits - Math.PI / 2;
         const hit = raycastPoly(angle);
         boundaryHits.push({ ...hit, angle });
       }
