@@ -557,13 +557,14 @@ export default function ShapeStudioPage() {
 
           // Direct Glazed Sliding Connection from Living Room to Balcony
           if (showLivingBalconyFlow && balconyCenterPt) {
+            const bPt = balconyCenterPt as { x: number; y: number };
             ctx.save();
             ctx.strokeStyle = '#10b981';
             ctx.lineWidth = 1.8;
             ctx.setLineDash([3, 2]);
             ctx.beginPath();
             ctx.moveTo(toCanvasX(livingX), toCanvasY(livingY));
-            ctx.lineTo(toCanvasX(balconyCenterPt.x), toCanvasY(balconyCenterPt.y));
+            ctx.lineTo(toCanvasX(bPt.x), toCanvasY(bPt.y));
             ctx.stroke();
             ctx.restore();
           }
