@@ -35,7 +35,7 @@ import {
   Eye,
   Grid
 } from 'lucide-react';
-import { generateSpecializedLayout, getShapeTypology } from '@/lib/architecturalLayoutEngine';
+import { generateSpecializedLayout, getShapeTypology, getShapeAllowedUnitCounts } from '@/lib/architecturalLayoutEngine';
 
 export default function ShapeStudioPage() {
   const router = useRouter();
@@ -51,11 +51,19 @@ export default function ShapeStudioPage() {
   const [plotLengthM, setPlotLengthM] = useState<number>(80);
   
   // Architectural Unit Partitioning & BHK States
-  const [unitCount, setUnitCount] = useState<number>(4); // 2, 3, 4, 5, 6, 7, 8
+  const allowedUnits = useMemo(() => getShapeAllowedUnitCounts(selectedShapeId), [selectedShapeId]);
+  const [unitCount, setUnitCount] = useState<number>(4);
   const [bhkType, setBhkType] = useState<'1bhk' | '2bhk' | '3bhk' | '4bhk'>('3bhk');
   const [showPartitions, setShowPartitions] = useState<boolean>(true);
   const [showExteriorBoxes, setShowExteriorBoxes] = useState<boolean>(true);
   const [showLivingBalconyFlow, setShowLivingBalconyFlow] = useState<boolean>(true);
+
+  // Auto-clamp unitCount when shape changes if not supported
+  useEffect(() => {
+    if (!allowedUnits.includes(unitCount)) {
+      setUnitCount(allowedUnits[allowedUnits.length - 1]);
+    }
+  }, [allowedUnits, unitCount]);
 
   // Canvas Display Preferences
   const [canvasTheme, setCanvasTheme] = useState<'dark' | 'light'>('light');
@@ -1039,7 +1047,7 @@ export default function ShapeStudioPage() {
               {/* Unit Count Selector */}
               <div className="flex items-center bg-black/50 p-1 rounded-lg border border-white/10 shrink-0">
                 <span className="text-[9px] font-mono font-bold text-gray-400 px-2 uppercase tracking-wider">UNITS:</span>
-                {[2, 3, 4, 6, 7, 8].map(n => (
+                {allowedUnits.map(n => (
                   <button
                     key={n}
                     onClick={() => setUnitCount(n)}
@@ -1261,9 +1269,12 @@ export default function ShapeStudioPage() {
 
             {/* Flat Count Pill Selector */}
             <div className="flex flex-col gap-1.5">
-              <span className="text-[9px] font-mono text-gray-400 uppercase">Select Number of Flats:</span>
-              <div className="grid grid-cols-6 gap-1">
-                {[2, 3, 4, 6, 7, 8].map(n => (
+              <div className="flex items-center justify-between">
+                <span className="text-[9px] font-mono text-gray-400 uppercase">Select Number of Flats:</span>
+                <span className="text-[8px] font-mono text-cyan-400">MAX {allowedUnits[allowedUnits.length - 1]}F</span>
+              </div>
+              <div className="grid grid-flow-col auto-cols-fr gap-1">
+                {allowedUnits.map(n => (
                   <button
                     key={n}
                     onClick={() => setUnitCount(n)}

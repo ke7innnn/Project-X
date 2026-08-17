@@ -71,6 +71,48 @@ export const UNIT_PALETTES = [
 ];
 
 /**
+ * Return shape-specific allowed unit counts based on architectural floorplate capacity
+ */
+export function getShapeAllowedUnitCounts(shapeId: string): number[] {
+  const s = shapeId.toLowerCase();
+
+  // 1. Butterfly Wide — Max 6 Units
+  if (s.includes('butterfly')) return [2, 3, 4, 6];
+
+  // 2. Ginkgo Blob / Fan Leaf — Max 6 Units
+  if (s.includes('ginkgo') || s.includes('gingko')) return [2, 3, 4, 6];
+
+  // 3. Nautilus Spiral — 8 Units (with core correction)
+  if (s.includes('nautilus')) return [2, 3, 4, 6, 7, 8];
+
+  // 4. Chevron V — Exactly 5 Units (or 2, 3, 4, 5)
+  if (s.includes('chevron')) return [2, 3, 4, 5];
+
+  // 5. Double Diamond — 8 Units
+  if (s.includes('double-diamond')) return [2, 3, 4, 6, 7, 8];
+
+  // 6. T-Shape — Max 6 Units
+  if (s.includes('t-shape')) return [2, 3, 4, 6];
+
+  // 7. S-Shape / Waveform (Aqua / Al Hamra) — 8 Units
+  if (s.includes('es-shape') || s.includes('s-shape') || s.includes('aqua') || s.includes('al-hamra')) {
+    return [2, 3, 4, 6, 7, 8];
+  }
+
+  // 8. H-Shape — 8 Units
+  if (s.includes('h-shape')) return [2, 3, 4, 6, 7, 8];
+
+  // 9. Stepped-L — Max 6 Units
+  if (s.includes('stepped-l') || s === 'l') return [2, 3, 4, 6];
+
+  // 10. Bosco Verticale (Tosco) — Max 6 Units
+  if (s.includes('bosco') || s.includes('tosco')) return [2, 3, 4, 6];
+
+  // Default unit options for general towers
+  return [2, 3, 4, 6, 7, 8];
+}
+
+/**
  * Automatically determine the most optimal architectural typology for any shape
  */
 export function getShapeTypology(shapeId: string): ArchitecturalTypology {
@@ -192,9 +234,10 @@ export function generateSpecializedLayout(
   bhkType: '1bhk' | '2bhk' | '3bhk' | '4bhk'
 ): TypologyLayoutResult {
   const typology = getShapeTypology(shapeId);
+  const sId = shapeId.toLowerCase();
   const cx = widthM / 2;
   const cy = lengthM / 2;
-  const numUnits = Math.min(8, Math.max(2, unitCount === 5 ? 4 : unitCount));
+  const numUnits = Math.min(8, Math.max(2, unitCount));
 
   // ── Pro Architectural Rectangular Core Specifications ───────────────────
   // A pro architect uses rectangular cores (e.g. 18m x 8m) instead of square blocks
@@ -204,7 +247,13 @@ export function generateSpecializedLayout(
   let coreW = Math.max(16, Math.min(22, widthM * 0.22));
   let coreH = Math.max(8, Math.min(11, lengthM * 0.12));
 
-  if (typology === 'chevron-2wing') {
+  if (sId.includes('nautilus')) {
+    // Core Correction for Nautilus Spiral: Positioned in the spiral origin nexus hub
+    coreX = cx - widthM * 0.04;
+    coreY = cy - lengthM * 0.04;
+    coreW = Math.max(14, Math.min(18, widthM * 0.18));
+    coreH = Math.max(9, Math.min(12, lengthM * 0.13));
+  } else if (typology === 'chevron-2wing') {
     // For V/L-shapes: Place core in the inner vertex knuckle to free up entire wings
     coreX = cx;
     coreY = cy + lengthM * 0.08;
