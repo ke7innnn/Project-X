@@ -35,6 +35,7 @@ import {
   Eye,
   Grid
 } from 'lucide-react';
+import { generateSpecializedLayout, getShapeTypology } from '@/lib/architecturalLayoutEngine';
 
 export default function ShapeStudioPage() {
   const router = useRouter();
@@ -262,56 +263,47 @@ export default function ShapeStudioPage() {
       ctx.restore();
     }
 
-    // 5. Draw Central Core & Natural Light / Ventilation / Entrance Corridor
-    const cx = plotWidthM / 2;
-    const cy = plotLengthM / 2;
-    const coreW = Math.max(12, Math.min(22, plotWidthM * 0.18));
-    const coreH = Math.max(12, Math.min(22, plotLengthM * 0.18));
+    // 5. Generate Specialized Architectural Typology Layout (Tailored to Shape's Wings)
+    const layout = generateSpecializedLayout(selectedShapeId, polygonPts, plotWidthM, plotLengthM, unitCount, bhkType);
 
+    // 5a. Draw Central Core & Natural Light / Ventilation / Entrance Corridor
     if (showCore) {
-      const coreCanvasX = toCanvasX(cx - coreW / 2);
-      const coreCanvasY = toCanvasY(cy - coreH / 2);
-      const coreCanvasW = coreW * scale;
-      const coreCanvasH = coreH * scale;
+      const core = layout.core;
+      const coreCanvasX = toCanvasX(core.x - core.width / 2);
+      const coreCanvasY = toCanvasY(core.y - core.length / 2);
+      const coreCanvasW = core.width * scale;
+      const coreCanvasH = core.length * scale;
 
-      // 5a. Core Natural Daylight, Smoke Ventilation & Main Entrance Corridor to Exterior Facade
-      const shaftWidthM = 4.5;
-      const shaftBottomY = plotLengthM; // extends to south/exterior facade
-      const shaftCanvasX = toCanvasX(cx - shaftWidthM / 2);
-      const shaftCanvasW = shaftWidthM * scale;
-      const shaftCanvasTopY = coreCanvasY + coreCanvasH;
-      const shaftCanvasBottomY = toCanvasY(shaftBottomY);
+      // Daylight / Smoke Ventilation / Main Entrance Shaft
+      if (layout.lightShaft) {
+        const shaft = layout.lightShaft;
+        const shaftCanvasX = toCanvasX(shaft.x);
+        const shaftCanvasW = shaft.width * scale;
+        const shaftCanvasTopY = coreCanvasY + coreCanvasH;
+        const shaftCanvasBottomY = toCanvasY(plotLengthM);
 
-      // Core Ventilation Shaft Fill & Linework
-      ctx.fillStyle = isDark ? 'rgba(56, 189, 248, 0.18)' : 'rgba(2, 132, 199, 0.15)';
-      ctx.fillRect(shaftCanvasX, shaftCanvasTopY, shaftCanvasW, shaftCanvasBottomY - shaftCanvasTopY);
-      ctx.strokeStyle = isDark ? '#38bdf8' : '#0284c7';
-      ctx.lineWidth = 1.5;
-      ctx.setLineDash([4, 3]);
-      ctx.strokeRect(shaftCanvasX, shaftCanvasTopY, shaftCanvasW, shaftCanvasBottomY - shaftCanvasTopY);
-      ctx.setLineDash([]);
+        ctx.fillStyle = isDark ? 'rgba(56, 189, 248, 0.18)' : 'rgba(2, 132, 199, 0.15)';
+        ctx.fillRect(shaftCanvasX, shaftCanvasTopY, shaftCanvasW, shaftCanvasBottomY - shaftCanvasTopY);
+        ctx.strokeStyle = isDark ? '#38bdf8' : '#0284c7';
+        ctx.lineWidth = 1.5;
+        ctx.setLineDash([4, 3]);
+        ctx.strokeRect(shaftCanvasX, shaftCanvasTopY, shaftCanvasW, shaftCanvasBottomY - shaftCanvasTopY);
+        ctx.setLineDash([]);
 
-      // Exterior Glass Threshold Marker at Facade
-      ctx.strokeStyle = '#10b981';
-      ctx.lineWidth = 3;
-      ctx.beginPath();
-      ctx.moveTo(shaftCanvasX, shaftCanvasBottomY);
-      ctx.lineTo(shaftCanvasX + shaftCanvasW, shaftCanvasBottomY);
-      ctx.stroke();
+        // Label
+        ctx.save();
+        ctx.font = 'bold 8px monospace';
+        ctx.fillStyle = isDark ? '#38bdf8' : '#0369a1';
+        ctx.textAlign = 'center';
+        const shaftMidY = (shaftCanvasTopY + shaftCanvasBottomY) / 2;
+        ctx.fillText('☀️ LIGHT & VENT SHAFT', toCanvasX(cx), shaftMidY - 5);
+        ctx.font = '7px monospace';
+        ctx.fillStyle = isDark ? '#94a3b8' : '#64748b';
+        ctx.fillText('🚪 MAIN ENTRANCE LOBBY', toCanvasX(cx), shaftMidY + 6);
+        ctx.restore();
+      }
 
-      // Shaft Label
-      ctx.save();
-      ctx.font = 'bold 8px monospace';
-      ctx.fillStyle = isDark ? '#38bdf8' : '#0369a1';
-      ctx.textAlign = 'center';
-      const shaftMidY = (shaftCanvasTopY + shaftCanvasBottomY) / 2;
-      ctx.fillText('☀️ LIGHT & VENT SHAFT', toCanvasX(cx), shaftMidY - 5);
-      ctx.font = '7px monospace';
-      ctx.fillStyle = isDark ? '#94a3b8' : '#64748b';
-      ctx.fillText('🚪 MAIN ENTRANCE LOBBY', toCanvasX(cx), shaftMidY + 6);
-      ctx.restore();
-
-      // 5b. Circulation Corridor Loop wrapping Core
+      // Circulation Corridor Loop wrapping Core
       const corridorPad = 3.5 * scale;
       ctx.strokeStyle = isDark ? 'rgba(255, 255, 255, 0.25)' : 'rgba(0, 0, 0, 0.3)';
       ctx.lineWidth = 1;
@@ -319,7 +311,7 @@ export default function ShapeStudioPage() {
       ctx.strokeRect(coreCanvasX - corridorPad, coreCanvasY - corridorPad, coreCanvasW + corridorPad * 2, coreCanvasH + corridorPad * 2);
       ctx.setLineDash([]);
 
-      // 5c. Core Background & Elevation Lift Bank
+      // Core Background & Elevation Lift Bank
       ctx.fillStyle = isDark ? 'rgba(245, 158, 11, 0.35)' : 'rgba(217, 119, 6, 0.25)';
       ctx.fillRect(coreCanvasX, coreCanvasY, coreCanvasW, coreCanvasH);
 
@@ -333,73 +325,16 @@ export default function ShapeStudioPage() {
       ctx.fillStyle = isDark ? '#fbbf24' : '#b45309';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.fillText('🛗 2× PASSENGER LIFTS', toCanvasX(cx), toCanvasY(cy) - 8);
-      ctx.fillText('🪜 2× FIRE STAIRS', toCanvasX(cx), toCanvasY(cy) + 4);
+      ctx.fillText(`🛗 ${core.lifts}× PASSENGER LIFTS`, toCanvasX(core.x), toCanvasY(core.y) - 8);
+      ctx.fillText(`🪜 ${core.stairs}× FIRE STAIRS`, toCanvasX(core.x), toCanvasY(core.y) + 4);
       ctx.font = '7px monospace';
       ctx.fillStyle = isDark ? '#fde68a' : '#78350f';
-      ctx.fillText(`CORE: ${Math.round(coreW)}m × ${Math.round(coreH)}m`, toCanvasX(cx), toCanvasY(cy) + 16);
+      ctx.fillText(`CORE: ${Math.round(core.width)}m × ${Math.round(core.length)}m`, toCanvasX(core.x), toCanvasY(core.y) + 16);
     }
 
-    // ── 6. ARCHITECTURAL UNIT PARTITIONS & CLEAN CAD ROOM ZONING ───────────
+    // ── 6. DRAW SPECIALIZED ARCHITECTURAL UNIT WINGS & ROOMS ───────────────
     if (showPartitions && polygonPts.length > 2) {
-      const UNIT_THEMES = [
-        { label: 'F1', stroke: '#ef4444', fill: 'rgba(239, 68, 68, 0.08)', text: '#fca5a5' },
-        { label: 'F2', stroke: '#10b981', fill: 'rgba(16, 185, 129, 0.08)', text: '#6ee7b7' },
-        { label: 'F3', stroke: '#f59e0b', fill: 'rgba(245, 158, 11, 0.08)', text: '#fcd34d' },
-        { label: 'F4', stroke: '#06b6d4', fill: 'rgba(6, 182, 212, 0.08)', text: '#67e8f9' },
-        { label: 'F5', stroke: '#8b5cf6', fill: 'rgba(139, 92, 246, 0.08)', text: '#c4b5fd' },
-        { label: 'F6', stroke: '#14b8a6', fill: 'rgba(20, 184, 166, 0.08)', text: '#5eead4' },
-        { label: 'F7', stroke: '#f43f5e', fill: 'rgba(244, 63, 94, 0.08)', text: '#fda4af' },
-        { label: 'F8', stroke: '#eab308', fill: 'rgba(234, 179, 8, 0.08)', text: '#fde047' },
-      ];
-
-      const numUnits = Math.min(8, Math.max(2, unitCount));
-
-      // Raycast helper to find outer perimeter intersection point
-      const raycastPolygon = (angleRad: number): { x: number; y: number } => {
-        const dirX = Math.cos(angleRad);
-        const dirY = Math.sin(angleRad);
-        let closestT = Infinity;
-        let hitX = cx + dirX * 100;
-        let hitY = cy + dirY * 100;
-
-        for (let i = 0; i < polygonPts.length; i++) {
-          const j = (i + 1) % polygonPts.length;
-          const p1 = polygonPts[i];
-          const p2 = polygonPts[j];
-
-          const v1x = cx - p1.x;
-          const v1y = cy - p1.y;
-          const v2x = p2.x - p1.x;
-          const v2y = p2.y - p1.y;
-          const v3x = -dirY;
-          const v3y = dirX;
-
-          const dot = v2x * v3x + v2y * v3y;
-          if (Math.abs(dot) > 0.00001) {
-            const t1 = (v2x * v1y - v2y * v1x) / dot;
-            const t2 = (v1x * v3x + v1y * v3y) / dot;
-            if (t1 > 0 && t2 >= 0 && t2 <= 1) {
-              if (t1 < closestT) {
-                closestT = t1;
-                hitX = cx + dirX * t1;
-                hitY = cy + dirY * t1;
-              }
-            }
-          }
-        }
-        return { x: hitX, y: hitY };
-      };
-
-      // Compute boundary intersection points for all N units
-      const boundaryHits: { x: number; y: number; angle: number }[] = [];
-      for (let i = 0; i < numUnits; i++) {
-        const angle = (i * 2 * Math.PI) / numUnits - Math.PI / 2;
-        const hit = raycastPolygon(angle);
-        boundaryHits.push({ ...hit, angle });
-      }
-
-      // ── STRICT POLYGON CLIPPING: Nothing can ever bleed outside ──────────
+      // STRICT POLYGON CLIPPING: Nothing can ever bleed outside the facade
       ctx.save();
       ctx.beginPath();
       ctx.moveTo(toCanvasX(polygonPts[0].x), toCanvasY(polygonPts[0].y));
@@ -409,208 +344,83 @@ export default function ShapeStudioPage() {
       ctx.closePath();
       ctx.clip();
 
-      // 1. Draw Primary Unit Division Walls (from Core to Outer Facade)
-      for (let i = 0; i < numUnits; i++) {
-        const hit = boundaryHits[i];
-        const theme = UNIT_THEMES[i % UNIT_THEMES.length];
-
-        ctx.save();
-        ctx.strokeStyle = theme.stroke;
-        ctx.lineWidth = 2.5;
-        ctx.setLineDash([6, 3]);
-
-        ctx.beginPath();
-        const coreBorderRadius = Math.max(coreW, coreH) / 2;
-        const startX = cx + Math.cos(hit.angle) * coreBorderRadius;
-        const startY = cy + Math.sin(hit.angle) * coreBorderRadius;
-
-        ctx.moveTo(toCanvasX(startX), toCanvasY(startY));
-        ctx.lineTo(toCanvasX(hit.x), toCanvasY(hit.y));
-        ctx.stroke();
-        ctx.restore();
-      }
-
-      // 2. Draw Clean Architectural Rooms Inside Each Unit Zone
-      for (let u = 0; u < numUnits; u++) {
-        const startHit = boundaryHits[u];
-        const nextHit = boundaryHits[(u + 1) % numUnits];
-        const theme = UNIT_THEMES[u % UNIT_THEMES.length];
-        const spanAngle = nextHit.angle - startHit.angle + (nextHit.angle < startHit.angle ? 2 * Math.PI : 0);
-        const midAngle = startHit.angle + spanAngle / 2;
-
-        const midHit = raycastPolygon(midAngle);
-        const maxDist = Math.sqrt((midHit.x - cx) ** 2 + (midHit.y - cy) ** 2);
-        const coreRadius = Math.max(coreW, coreH) / 2 + 2;
-
-        // Inward Demarcation Line separating Exterior Rooms from Central Living
-        const roomZoneDepth = Math.min(8.5, Math.max(4.5, (maxDist - coreRadius) * 0.48));
-        const roomWallRadius = maxDist - roomZoneDepth;
-
-        // 2a. Draw Concentric / Orthogonal Room Demarcation Wall
-        ctx.save();
-        ctx.strokeStyle = isDark ? 'rgba(255, 255, 255, 0.35)' : 'rgba(0, 0, 0, 0.4)';
-        ctx.lineWidth = 1.5;
-        ctx.beginPath();
-
-        const arcSteps = 16;
-        for (let s = 0; s <= arcSteps; s++) {
-          const a = startHit.angle + (spanAngle * s) / arcSteps;
-          const hitA = raycastPolygon(a);
-          const distA = Math.sqrt((hitA.x - cx) ** 2 + (hitA.y - cy) ** 2);
-          const rA = Math.max(coreRadius + 3, distA - roomZoneDepth);
-          const wx = cx + Math.cos(a) * rA;
-          const wy = cy + Math.sin(a) * rA;
-
-          if (s === 0) ctx.moveTo(toCanvasX(wx), toCanvasY(wy));
-          else ctx.lineTo(toCanvasX(wx), toCanvasY(wy));
+      layout.units.forEach((unit) => {
+        // 1. Draw Unit Demarcation Walls
+        if (unit.boundaryPts.length > 1) {
+          ctx.save();
+          ctx.strokeStyle = unit.stroke;
+          ctx.lineWidth = 2;
+          ctx.setLineDash([5, 3]);
+          ctx.beginPath();
+          ctx.moveTo(toCanvasX(unit.boundaryPts[0].x), toCanvasY(unit.boundaryPts[0].y));
+          for (let p = 1; p < unit.boundaryPts.length; p++) {
+            ctx.lineTo(toCanvasX(unit.boundaryPts[p].x), toCanvasY(unit.boundaryPts[p].y));
+          }
+          ctx.stroke();
+          ctx.restore();
         }
-        ctx.stroke();
-        ctx.restore();
 
-        // 2b. Partition Exterior Room Zone into Rooms
+        // 2. Draw Specialized Rooms Inside the Wing
         if (showExteriorBoxes) {
-          // Room types per BHK
-          const roomsConfig = bhkType === '1bhk'
-            ? [
-                { name: 'BALCONY', icon: '🌿', widthFraction: 0.30, color: '#10b981', isBalcony: true },
-                { name: 'MASTER BEDROOM', icon: '🛏️', widthFraction: 0.40, color: '#3b82f6' },
-                { name: 'KITCHEN', icon: '🍳', widthFraction: 0.18, color: '#f59e0b' },
-                { name: 'TOILET', icon: '🚿', widthFraction: 0.12, color: '#0ea5e9' },
-              ]
-            : bhkType === '2bhk'
-            ? [
-                { name: 'BALCONY', icon: '🌿', widthFraction: 0.22, color: '#10b981', isBalcony: true },
-                { name: 'MASTER BEDROOM', icon: '🛏️', widthFraction: 0.32, color: '#3b82f6' },
-                { name: 'BEDROOM 2', icon: '🛏️', widthFraction: 0.26, color: '#6366f1' },
-                { name: 'KITCHEN', icon: '🍳', widthFraction: 0.12, color: '#f59e0b' },
-                { name: 'TOILET', icon: '🚿', widthFraction: 0.08, color: '#0ea5e9' },
-              ]
-            : bhkType === '3bhk'
-            ? [
-                { name: 'BALCONY', icon: '🌿', widthFraction: 0.18, color: '#10b981', isBalcony: true },
-                { name: 'MASTER BEDROOM', icon: '🛏️', widthFraction: 0.28, color: '#3b82f6' },
-                { name: 'BEDROOM 2', icon: '🛏️', widthFraction: 0.22, color: '#6366f1' },
-                { name: 'BEDROOM 3', icon: '🛏️', widthFraction: 0.18, color: '#8b5cf6' },
-                { name: 'KITCHEN', icon: '🍳', widthFraction: 0.08, color: '#f59e0b' },
-                { name: 'TOILET', icon: '🚿', widthFraction: 0.06, color: '#0ea5e9' },
-              ]
-            : [
-                { name: 'BALCONY', icon: '🌿', widthFraction: 0.16, color: '#10b981', isBalcony: true },
-                { name: 'MASTER BEDROOM', icon: '🛏️', widthFraction: 0.25, color: '#3b82f6' },
-                { name: 'BEDROOM 2', icon: '🛏️', widthFraction: 0.20, color: '#6366f1' },
-                { name: 'BEDROOM 3', icon: '🛏️', widthFraction: 0.16, color: '#8b5cf6' },
-                { name: 'BEDROOM 4', icon: '🛏️', widthFraction: 0.13, color: '#ec4899' },
-                { name: 'KITCHEN', icon: '🍳', widthFraction: 0.06, color: '#f59e0b' },
-                { name: 'TOILET', icon: '🚿', widthFraction: 0.04, color: '#0ea5e9' },
-              ];
-
-          let curFrac = 0;
-          let balconyMidX = 0;
-          let balconyMidY = 0;
-
-          roomsConfig.forEach((rm, idx) => {
-            const startAngleRm = startHit.angle + spanAngle * curFrac;
-            const endAngleRm = startHit.angle + spanAngle * (curFrac + rm.widthFraction);
-            const midAngleRm = (startAngleRm + endAngleRm) / 2;
-            curFrac += rm.widthFraction;
-
-            // Draw dividing wall between rooms
-            if (idx > 0) {
-              const wallHit = raycastPolygon(startAngleRm);
-              const wallDist = Math.sqrt((wallHit.x - cx) ** 2 + (wallHit.y - cy) ** 2);
-              const wallInDist = Math.max(coreRadius + 2, wallDist - (rm.isBalcony ? 2.5 : roomZoneDepth));
-
-              const wx1 = cx + Math.cos(startAngleRm) * wallInDist;
-              const wy1 = cy + Math.sin(startAngleRm) * wallInDist;
-              const wx2 = wallHit.x;
-              const wy2 = wallHit.y;
-
+          unit.rooms.forEach((rm) => {
+            if (rm.pts.length > 1) {
               ctx.save();
-              ctx.strokeStyle = isDark ? 'rgba(255, 255, 255, 0.4)' : 'rgba(0, 0, 0, 0.45)';
-              ctx.lineWidth = 1.5;
               ctx.beginPath();
-              ctx.moveTo(toCanvasX(wx1), toCanvasY(wy1));
-              ctx.lineTo(toCanvasX(wx2), toCanvasY(wy2));
-              ctx.stroke();
+              ctx.moveTo(toCanvasX(rm.pts[0].x), toCanvasY(rm.pts[0].y));
+              for (let p = 1; p < rm.pts.length; p++) {
+                ctx.lineTo(toCanvasX(rm.pts[p].x), toCanvasY(rm.pts[p].y));
+              }
+              ctx.closePath();
+
+              if (rm.isBalcony) {
+                // Sleek Emerald Balcony Deck
+                ctx.fillStyle = isDark ? 'rgba(16, 185, 129, 0.35)' : 'rgba(16, 185, 129, 0.25)';
+                ctx.strokeStyle = '#10b981';
+                ctx.lineWidth = 2.5;
+                ctx.fill();
+                ctx.stroke();
+              } else {
+                ctx.fillStyle = isDark ? 'rgba(15, 23, 42, 0.75)' : 'rgba(241, 245, 249, 0.85)';
+                ctx.strokeStyle = isDark ? 'rgba(255, 255, 255, 0.35)' : 'rgba(0, 0, 0, 0.35)';
+                ctx.lineWidth = 1.2;
+                ctx.fill();
+                ctx.stroke();
+
+                // Room Accent Line
+                ctx.strokeStyle = rm.color;
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.moveTo(toCanvasX(rm.pts[0].x), toCanvasY(rm.pts[0].y));
+                ctx.lineTo(toCanvasX(rm.pts[1].x), toCanvasY(rm.pts[1].y));
+                ctx.stroke();
+              }
+
+              // Room Centroid Label
+              const midX = rm.pts.reduce((acc, p) => acc + p.x, 0) / rm.pts.length;
+              const midY = rm.pts.reduce((acc, p) => acc + p.y, 0) / rm.pts.length;
+
+              ctx.font = 'bold 7.5px monospace';
+              ctx.fillStyle = rm.isBalcony ? '#10b981' : (isDark ? '#f8fafc' : '#0f172a');
+              ctx.textAlign = 'center';
+              ctx.textBaseline = 'middle';
+              ctx.fillText(`${rm.icon} ${rm.name}`, toCanvasX(midX), toCanvasY(midY));
               ctx.restore();
             }
-
-            // Room Centroid
-            const rmHit = raycastPolygon(midAngleRm);
-            const rmDist = Math.sqrt((rmHit.x - cx) ** 2 + (rmHit.y - cy) ** 2);
-            const centerDist = rm.isBalcony
-              ? rmDist - 1.2 // very thin sleek balcony along facade
-              : rmDist - roomZoneDepth / 2;
-
-            const rmCenterX = cx + Math.cos(midAngleRm) * centerDist;
-            const rmCenterY = cy + Math.sin(midAngleRm) * centerDist;
-
-            if (rm.isBalcony) {
-              balconyMidX = rmCenterX;
-              balconyMidY = rmCenterY;
-
-              // Balcony Deck Line (Green Accent)
-              ctx.save();
-              ctx.strokeStyle = '#10b981';
-              ctx.lineWidth = 2.5;
-              const bHit1 = raycastPolygon(startAngleRm);
-              const bHit2 = raycastPolygon(endAngleRm);
-              ctx.beginPath();
-              ctx.moveTo(toCanvasX(bHit1.x), toCanvasY(bHit1.y));
-              ctx.lineTo(toCanvasX(bHit2.x), toCanvasY(bHit2.y));
-              ctx.stroke();
-
-              // Sliding Glass Door line with living room (No Solid Wall)
-              const sliderDist = rmDist - 2.2;
-              const sx1 = cx + Math.cos(startAngleRm) * sliderDist;
-              const sy1 = cy + Math.sin(startAngleRm) * sliderDist;
-              const sx2 = cx + Math.cos(endAngleRm) * sliderDist;
-              const sy2 = cy + Math.sin(endAngleRm) * sliderDist;
-
-              ctx.strokeStyle = '#34d399';
-              ctx.lineWidth = 2;
-              ctx.setLineDash([4, 3]);
-              ctx.beginPath();
-              ctx.moveTo(toCanvasX(sx1), toCanvasY(sy1));
-              ctx.lineTo(toCanvasX(sx2), toCanvasY(sy2));
-              ctx.stroke();
-              ctx.setLineDash([]);
-              ctx.restore();
-            }
-
-            // Room Name Label
-            ctx.save();
-            const fontSize = rm.widthFraction < 0.10 ? 6.5 : (rm.widthFraction < 0.20 ? 7.5 : 8.5);
-            ctx.font = `bold ${fontSize}px monospace`;
-            ctx.fillStyle = rm.isBalcony ? '#10b981' : (isDark ? '#f8fafc' : '#0f172a');
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'middle';
-
-            if (rm.widthFraction >= 0.12) {
-              ctx.fillText(`${rm.icon} ${rm.name}`, toCanvasX(rmCenterX), toCanvasY(rmCenterY));
-            } else {
-              ctx.fillText(rm.icon, toCanvasX(rmCenterX), toCanvasY(rmCenterY) - 3);
-              ctx.fillText(rm.name.slice(0, 4), toCanvasX(rmCenterX), toCanvasY(rmCenterY) + 5);
-            }
-            ctx.restore();
           });
 
-          // 2c. Direct Living Room to Balcony Slider Connection
-          if (showLivingBalconyFlow && balconyMidX && balconyMidY) {
-            const livingCenterX = cx + Math.cos(midAngle) * (coreRadius + 7);
-            const livingCenterY = cy + Math.sin(midAngle) * (coreRadius + 7);
-
+          // Living Room to Balcony Seamless Sliding Flow
+          if (showLivingBalconyFlow && unit.balconyCenter) {
             ctx.save();
             ctx.strokeStyle = '#10b981';
             ctx.lineWidth = 1.5;
             ctx.setLineDash([3, 2]);
             ctx.beginPath();
-            ctx.moveTo(toCanvasX(livingCenterX), toCanvasY(livingCenterY));
-            ctx.lineTo(toCanvasX(balconyMidX), toCanvasY(balconyMidY));
+            ctx.moveTo(toCanvasX(unit.livingRoomCenter.x), toCanvasY(unit.livingRoomCenter.y));
+            ctx.lineTo(toCanvasX(unit.balconyCenter.x), toCanvasY(unit.balconyCenter.y));
             ctx.stroke();
 
-            const flowMidX = (livingCenterX + balconyMidX) / 2;
-            const flowMidY = (livingCenterY + balconyMidY) / 2;
+            const flowMidX = (unit.livingRoomCenter.x + unit.balconyCenter.x) / 2;
+            const flowMidY = (unit.livingRoomCenter.y + unit.balconyCenter.y) / 2;
             ctx.font = 'bold 7px monospace';
             ctx.fillStyle = '#10b981';
             ctx.textAlign = 'center';
@@ -619,17 +429,13 @@ export default function ShapeStudioPage() {
           }
         }
 
-        // 2d. Central Expansive Living & Dining Hall Badge
-        const livingDistM = coreRadius + (maxDist - roomZoneDepth - coreRadius) * 0.48;
-        const livingX = cx + Math.cos(midAngle) * livingDistM;
-        const livingY = cy + Math.sin(midAngle) * livingDistM;
-
+        // 3. Central Expansive Living & Dining Hall Badge
         ctx.save();
-        const badgeX = toCanvasX(livingX);
-        const badgeY = toCanvasY(livingY);
+        const badgeX = toCanvasX(unit.livingRoomCenter.x);
+        const badgeY = toCanvasY(unit.livingRoomCenter.y);
 
         ctx.fillStyle = isDark ? '#090d16' : '#ffffff';
-        ctx.strokeStyle = theme.stroke;
+        ctx.strokeStyle = unit.stroke;
         ctx.lineWidth = 1.8;
         ctx.beginPath();
         ctx.roundRect(badgeX - 42, badgeY - 16, 84, 32, 6);
@@ -637,28 +443,24 @@ export default function ShapeStudioPage() {
         ctx.stroke();
 
         ctx.font = 'bold 9px monospace';
-        ctx.fillStyle = theme.stroke;
+        ctx.fillStyle = unit.stroke;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        ctx.fillText(`FLAT ${theme.label} LIVING`, badgeX, badgeY - 5);
+        ctx.fillText(`FLAT ${unit.label} LIVING`, badgeX, badgeY - 5);
         ctx.font = '7.5px monospace';
         ctx.fillStyle = isDark ? '#94a3b8' : '#64748b';
         ctx.fillText(`& DINING HALL`, badgeX, badgeY + 7);
         ctx.restore();
 
-        // 2e. Dedicated Unit Entrance Door at Central Corridor
-        const entryRadiusM = coreRadius + 1.5;
-        const entryX = cx + Math.cos(midAngle) * entryRadiusM;
-        const entryY = cy + Math.sin(midAngle) * entryRadiusM;
-
+        // 4. Unit Entrance Door along Central Corridor
         ctx.save();
         ctx.font = 'bold 8px monospace';
-        ctx.fillStyle = theme.stroke;
+        ctx.fillStyle = unit.stroke;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        ctx.fillText(`🚪 ${theme.label} ENTRY`, toCanvasX(entryX), toCanvasY(entryY));
+        ctx.fillText(`🚪 ${unit.label} ENTRY`, toCanvasX(unit.entranceDoor.x), toCanvasY(unit.entranceDoor.y));
         ctx.restore();
-      }
+      });
 
       ctx.restore(); // Close strict polygon clipping
     }
@@ -1226,10 +1028,21 @@ export default function ShapeStudioPage() {
             <div className="flex items-center justify-between">
               <span className="text-[10px] font-mono text-purple-300 uppercase tracking-widest font-bold flex items-center gap-1.5">
                 <Layers className="w-3.5 h-3.5 text-purple-400" />
-                UNIT PARTITIONS & ROOM BOXES
+                SPECIALIZED WING LAYOUT
               </span>
               <span className="text-[9px] font-mono px-2 py-0.5 rounded bg-purple-500/20 text-purple-300 border border-purple-500/40">
                 {unitCount} UNITS • {bhkType.toUpperCase()}
+              </span>
+            </div>
+
+            {/* Architectural Typology Identifier Pill */}
+            <div className="p-2 rounded-lg bg-black/50 border border-cyan-500/30 flex items-center justify-between">
+              <span className="text-[9px] font-mono text-gray-400 uppercase">TYPOLOGY:</span>
+              <span className="text-[10px] font-mono font-bold text-cyan-300 uppercase">
+                {getShapeTypology(selectedShapeId) === 'cross-4wing' ? '✖️ 4-WING CROSS' :
+                 getShapeTypology(selectedShapeId) === 'triad-3wing' ? '🔱 3-WING TRIAD' :
+                 getShapeTypology(selectedShapeId) === 'chevron-2wing' ? '📐 2-WING CHEVRON' :
+                 getShapeTypology(selectedShapeId) === 'linear-slab' ? '🏢 LINEAR SLAB' : '💎 MULTI-FACETED'}
               </span>
             </div>
 
