@@ -464,45 +464,53 @@ export default function ShapeStudioPage() {
         if (showExteriorBoxes) {
           const numBoxes = currentRoomBoxes.length;
           let balconyBoxCenter: { x: number; y: number } | null = null;
-          let runningWeight = 0;
 
+          // 1. Calculate cumulative boundary cut angles and depths
+          const cutPoints: Array<{ pOut: { x: number; y: number }; pIn: { x: number; y: number }; angle: number }> = [];
+          let runningFrac = 0;
+
+          for (let k = 0; k <= numBoxes; k++) {
+            const frac = k === 0 ? 0 : k === numBoxes ? 1 : runningFrac;
+            const angleK = startHit.angle + spanAngle * frac;
+            const pOut = raycastPoly(angleK);
+
+            // Calculate inward vector toward centroid
+            const vDx = cx - pOut.x;
+            const vDy = cy - pOut.y;
+            const vLen = Math.sqrt(vDx * vDx + vDy * vDy) || 1;
+            const inDirX = vDx / vLen;
+            const inDirY = vDy / vLen;
+
+            // Inward room depth (average of adjacent box depths)
+            const boxBefore = k > 0 ? currentRoomBoxes[k - 1] : currentRoomBoxes[0];
+            const boxAfter = k < numBoxes ? currentRoomBoxes[k] : currentRoomBoxes[numBoxes - 1];
+            const depthM = (boxBefore.depthM + boxAfter.depthM) / 2;
+
+            const pIn = {
+              x: pOut.x + inDirX * depthM,
+              y: pOut.y + inDirY * depthM,
+            };
+
+            cutPoints.push({ pOut, pIn, angle: angleK });
+
+            if (k < numBoxes) {
+              runningFrac += currentRoomBoxes[k].widthWeight;
+            }
+          }
+
+          // 2. Render Each Non-Overlapping Shared-Wall Room Box
           for (let b = 0; b < numBoxes; b++) {
             const boxDef = currentRoomBoxes[b];
-            const tStart = runningWeight;
-            const tEnd = runningWeight + boxDef.widthWeight;
-            runningWeight += boxDef.widthWeight;
+            const pt0 = cutPoints[b];
+            const pt1 = cutPoints[b + 1];
 
-            const angleA = startHit.angle + spanAngle * tStart;
-            const angleB = startHit.angle + spanAngle * tEnd;
+            const pA = pt0.pOut;
+            const pB = pt1.pOut;
+            const inB = pt1.pIn;
+            const inA = pt0.pIn;
 
-            const pA = raycastPoly(angleA);
-            const pB = raycastPoly(angleB);
-
-            // Calculate exact 90° orthogonal inward normal vector from facade segment
-            const edgeDx = pB.x - pA.x;
-            const edgeDy = pB.y - pA.y;
-            const edgeLen = Math.sqrt(edgeDx * edgeDx + edgeDy * edgeDy) || 1;
-            
-            let normX = -edgeDy / edgeLen;
-            let normY = edgeDx / edgeLen;
-
-            // Ensure normal points inward toward centroid (cx, cy)
-            const midEdgeX = (pA.x + pB.x) / 2;
-            const midEdgeY = (pA.y + pB.y) / 2;
-            if (normX * (cx - midEdgeX) + normY * (cy - midEdgeY) < 0) {
-              normX = -normX;
-              normY = -normY;
-            }
-
-            // Inward depth based on room type
-            const depthM = boxDef.depthM;
-            const inA_x = pA.x + normX * depthM;
-            const inA_y = pA.y + normY * depthM;
-            const inB_x = pB.x + normX * depthM;
-            const inB_y = pB.y + normY * depthM;
-
-            const boxMidX = (pA.x + pB.x + inA_x + inB_x) / 4;
-            const boxMidY = (pA.y + pB.y + inA_y + inB_y) / 4;
+            const boxMidX = (pA.x + pB.x + inA.x + inB.x) / 4;
+            const boxMidY = (pA.y + pB.y + inA.y + inB.y) / 4;
 
             if (boxDef.isBalcony) {
               balconyBoxCenter = { x: boxMidX, y: boxMidY };
@@ -512,8 +520,8 @@ export default function ShapeStudioPage() {
             ctx.beginPath();
             ctx.moveTo(toCanvasX(pA.x), toCanvasY(pA.y));
             ctx.lineTo(toCanvasX(pB.x), toCanvasY(pB.y));
-            ctx.lineTo(toCanvasX(inB_x), toCanvasY(inB_y));
-            ctx.lineTo(toCanvasX(inA_x), toCanvasY(inA_y));
+            ctx.lineTo(toCanvasX(inB.x), toCanvasY(inB.y));
+            ctx.lineTo(toCanvasX(inA.x), toCanvasY(inA.y));
             ctx.closePath();
 
             // Sharp CAD Box Fill & Stroke
@@ -529,8 +537,8 @@ export default function ShapeStudioPage() {
               ctx.lineWidth = 2;
               ctx.setLineDash([3, 3]);
               ctx.beginPath();
-              ctx.moveTo(toCanvasX(inA_x), toCanvasY(inA_y));
-              ctx.lineTo(toCanvasX(inB_x), toCanvasY(inB_y));
+              ctx.moveTo(toCanvasX(inA.x), toCanvasY(inA.y));
+              ctx.lineTo(toCanvasX(inB.x), toCanvasY(inB.y));
               ctx.stroke();
               ctx.setLineDash([]);
             } else {
@@ -549,7 +557,7 @@ export default function ShapeStudioPage() {
               ctx.stroke();
             }
 
-            // Clean Minimal Icon (NO text clutter)
+            // Clean Minimal Icon (Zero text clutter)
             ctx.font = '11px monospace';
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
