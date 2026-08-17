@@ -334,86 +334,238 @@ export default function ShapeStudioPage() {
       ctx.fillText(`CORE: ${Math.round(core.width)}m × ${Math.round(core.length)}m`, toCanvasX(core.x), toCanvasY(core.y) + 16);
     }
 
-    // ── 6. DRAW SPECIALIZED ARCHITECTURAL UNIT WINGS & ROOMS ───────────────
+    // ── 6. DRAW EXTERIOR FACADE ROOM BOXES & UNIT PARTITIONS ─────────────
     if (showPartitions && polygonPts.length > 2) {
-      // STRICT POLYGON CLIPPING: Nothing can ever bleed outside the facade
-      ctx.save();
-      ctx.beginPath();
-      ctx.moveTo(toCanvasX(polygonPts[0].x), toCanvasY(polygonPts[0].y));
-      for (let i = 1; i < polygonPts.length; i++) {
-        ctx.lineTo(toCanvasX(polygonPts[i].x), toCanvasY(polygonPts[i].y));
-      }
-      ctx.closePath();
-      ctx.clip();
+      const UNIT_THEMES = [
+        { label: 'F1', stroke: '#ef4444', fill: 'rgba(239, 68, 68, 0.10)' },
+        { label: 'F2', stroke: '#10b981', fill: 'rgba(16, 185, 129, 0.10)' },
+        { label: 'F3', stroke: '#f59e0b', fill: 'rgba(245, 158, 11, 0.10)' },
+        { label: 'F4', stroke: '#06b6d4', fill: 'rgba(6, 182, 212, 0.10)' },
+        { label: 'F6', stroke: '#8b5cf6', fill: 'rgba(139, 92, 246, 0.10)' },
+        { label: 'F7', stroke: '#f43f5e', fill: 'rgba(244, 63, 94, 0.10)' },
+        { label: 'F8', stroke: '#eab308', fill: 'rgba(234, 179, 8, 0.10)' },
+      ];
 
-      layout.units.forEach((unit) => {
-        // 1. Draw Unit Demarcation Walls
-        if (unit.boundaryPts.length > 1) {
-          ctx.save();
-          ctx.strokeStyle = unit.stroke;
-          ctx.lineWidth = 2;
-          ctx.setLineDash([5, 3]);
-          ctx.beginPath();
-          ctx.moveTo(toCanvasX(unit.boundaryPts[0].x), toCanvasY(unit.boundaryPts[0].y));
-          for (let p = 1; p < unit.boundaryPts.length; p++) {
-            ctx.lineTo(toCanvasX(unit.boundaryPts[p].x), toCanvasY(unit.boundaryPts[p].y));
-          }
-          ctx.stroke();
-          ctx.restore();
-        }
+      // Proportional Room Box Definitions along Exterior Facade
+      const ROOM_BOX_DEFS: Record<string, { icon: string; widthWeight: number; depthM: number; color: string; isBalcony?: boolean }[]> = {
+        '1bhk': [
+          { icon: '🌿', widthWeight: 0.28, depthM: 2.8, color: '#10b981', isBalcony: true },
+          { icon: '🛏️', widthWeight: 0.38, depthM: 8.5, color: '#3b82f6' },
+          { icon: '🍳', widthWeight: 0.20, depthM: 6.0, color: '#f59e0b' },
+          { icon: '🚿', widthWeight: 0.14, depthM: 4.5, color: '#0ea5e9' },
+        ],
+        '2bhk': [
+          { icon: '🌿', widthWeight: 0.22, depthM: 2.8, color: '#10b981', isBalcony: true },
+          { icon: '🛏️', widthWeight: 0.32, depthM: 8.5, color: '#3b82f6' },
+          { icon: '🛏️', widthWeight: 0.24, depthM: 7.5, color: '#6366f1' },
+          { icon: '🍳', widthWeight: 0.14, depthM: 6.0, color: '#f59e0b' },
+          { icon: '🚿', widthWeight: 0.08, depthM: 4.5, color: '#0ea5e9' },
+        ],
+        '3bhk': [
+          { icon: '🌿', widthWeight: 0.18, depthM: 2.8, color: '#10b981', isBalcony: true },
+          { icon: '🛏️', widthWeight: 0.28, depthM: 9.0, color: '#3b82f6' },
+          { icon: '🛏️', widthWeight: 0.22, depthM: 7.8, color: '#6366f1' },
+          { icon: '🛏️', widthWeight: 0.18, depthM: 7.0, color: '#8b5cf6' },
+          { icon: '🍳', widthWeight: 0.08, depthM: 6.0, color: '#f59e0b' },
+          { icon: '🚿', widthWeight: 0.06, depthM: 4.5, color: '#0ea5e9' },
+        ],
+        '4bhk': [
+          { icon: '🌿', widthWeight: 0.16, depthM: 2.8, color: '#10b981', isBalcony: true },
+          { icon: '🛏️', widthWeight: 0.25, depthM: 9.2, color: '#3b82f6' },
+          { icon: '🛏️', widthWeight: 0.20, depthM: 7.8, color: '#6366f1' },
+          { icon: '🛏️', widthWeight: 0.16, depthM: 7.2, color: '#8b5cf6' },
+          { icon: '🛏️', widthWeight: 0.13, depthM: 6.8, color: '#ec4899' },
+          { icon: '🍳', widthWeight: 0.06, depthM: 6.0, color: '#f59e0b' },
+          { icon: '🚿', widthWeight: 0.04, depthM: 4.5, color: '#0ea5e9' },
+        ],
+      };
 
-        // 2. Draw Specialized Rooms Inside the Wing
-        if (showExteriorBoxes) {
-          unit.rooms.forEach((rm) => {
-            if (rm.pts.length > 1) {
-              ctx.save();
-              ctx.beginPath();
-              ctx.moveTo(toCanvasX(rm.pts[0].x), toCanvasY(rm.pts[0].y));
-              for (let p = 1; p < rm.pts.length; p++) {
-                ctx.lineTo(toCanvasX(rm.pts[p].x), toCanvasY(rm.pts[p].y));
+      const currentRoomBoxes = ROOM_BOX_DEFS[bhkType] || ROOM_BOX_DEFS['3bhk'];
+      const numUnits = Math.min(8, Math.max(2, unitCount === 5 ? 4 : unitCount));
+
+      // Raycast helper to find outer perimeter intersection point
+      const raycastPoly = (angleRad: number): { x: number; y: number } => {
+        const dirX = Math.cos(angleRad);
+        const dirY = Math.sin(angleRad);
+        let closestT = Infinity;
+        let hitX = cx + dirX * 100;
+        let hitY = cy + dirY * 100;
+
+        for (let i = 0; i < polygonPts.length; i++) {
+          const j = (i + 1) % polygonPts.length;
+          const p1 = polygonPts[i];
+          const p2 = polygonPts[j];
+
+          const v1x = cx - p1.x;
+          const v1y = cy - p1.y;
+          const v2x = p2.x - p1.x;
+          const v2y = p2.y - p1.y;
+          const v3x = -dirY;
+          const v3y = dirX;
+
+          const dot = v2x * v3x + v2y * v3y;
+          if (Math.abs(dot) > 0.00001) {
+            const t1 = (v2x * v1y - v2y * v1x) / dot;
+            const t2 = (v1x * v3x + v1y * v3y) / dot;
+            if (t1 > 0 && t2 >= 0 && t2 <= 1) {
+              if (t1 < closestT) {
+                closestT = t1;
+                hitX = cx + dirX * t1;
+                hitY = cy + dirY * t1;
               }
-              ctx.closePath();
-
-              if (rm.isBalcony) {
-                // Sleek Emerald Balcony Deck
-                ctx.fillStyle = isDark ? 'rgba(16, 185, 129, 0.45)' : 'rgba(16, 185, 129, 0.35)';
-                ctx.strokeStyle = '#10b981';
-                ctx.lineWidth = 2.5;
-                ctx.fill();
-                ctx.stroke();
-              } else {
-                ctx.fillStyle = isDark ? 'rgba(15, 23, 42, 0.85)' : 'rgba(241, 245, 249, 0.9)';
-                ctx.strokeStyle = rm.color;
-                ctx.lineWidth = 1.8;
-                ctx.fill();
-                ctx.stroke();
-
-                // Distinct Corner Accent Tab
-                ctx.fillStyle = rm.color;
-                ctx.fillRect(toCanvasX(rm.pts[0].x), toCanvasY(rm.pts[0].y), 4, 4);
-              }
-
-              // Clean Icon Only (No Text Clutter)
-              const midX = rm.pts.reduce((acc, p) => acc + p.x, 0) / rm.pts.length;
-              const midY = rm.pts.reduce((acc, p) => acc + p.y, 0) / rm.pts.length;
-
-              ctx.font = '11px monospace';
-              ctx.textAlign = 'center';
-              ctx.textBaseline = 'middle';
-              ctx.fillText(rm.icon, toCanvasX(midX), toCanvasY(midY));
-              ctx.restore();
             }
-          });
+          }
+        }
+        return { x: hitX, y: hitY };
+      };
 
-          // Living Room to Balcony Seamless Sliding Flow (Clean Minimal Line)
-          if (showLivingBalconyFlow && unit.balconyCenter) {
+      // Compute boundary intersection points for all N units
+      const boundaryHits: { x: number; y: number; angle: number }[] = [];
+      for (let i = 0; i < numUnits; i++) {
+        const angle = (i * 2 * Math.PI) / numUnits - Math.PI / 2;
+        const hit = raycastPoly(angle);
+        boundaryHits.push({ ...hit, angle });
+      }
+
+      // 1. Draw Stepped / Interlocking Radial Partition Boundary Lines
+      for (let i = 0; i < numUnits; i++) {
+        const hit = boundaryHits[i];
+        const theme = UNIT_THEMES[i % UNIT_THEMES.length];
+
+        ctx.save();
+        ctx.strokeStyle = theme.stroke;
+        ctx.lineWidth = 2;
+        ctx.setLineDash([5, 3]);
+
+        ctx.beginPath();
+        const coreBorderRadius = Math.max(layout.core.width, layout.core.length) / 2;
+        const startX = cx + Math.cos(hit.angle) * coreBorderRadius;
+        const startY = cy + Math.sin(hit.angle) * coreBorderRadius;
+
+        ctx.moveTo(toCanvasX(startX), toCanvasY(startY));
+        ctx.lineTo(toCanvasX(hit.x), toCanvasY(hit.y));
+        ctx.stroke();
+        ctx.restore();
+      }
+
+      // 2. Render Each Flat Unit's Exterior Facade Room Boxes
+      for (let u = 0; u < numUnits; u++) {
+        const startHit = boundaryHits[u];
+        const nextHit = boundaryHits[(u + 1) % numUnits];
+        const theme = UNIT_THEMES[u % UNIT_THEMES.length];
+        const spanAngle = nextHit.angle - startHit.angle + (nextHit.angle < startHit.angle ? 2 * Math.PI : 0);
+        const midAngle = startHit.angle + spanAngle / 2;
+
+        const midHit = raycastPoly(midAngle);
+        const livingDist = (Math.max(layout.core.width, layout.core.length) / 2 + Math.sqrt((midHit.x - cx) ** 2 + (midHit.y - cy) ** 2)) * 0.42;
+        const livingX = cx + Math.cos(midAngle) * livingDist;
+        const livingY = cy + Math.sin(midAngle) * livingDist;
+
+        if (showExteriorBoxes) {
+          const numBoxes = currentRoomBoxes.length;
+          let balconyBoxCenter: { x: number; y: number } | null = null;
+          let runningWeight = 0;
+
+          for (let b = 0; b < numBoxes; b++) {
+            const boxDef = currentRoomBoxes[b];
+            const tStart = runningWeight;
+            const tEnd = runningWeight + boxDef.widthWeight;
+            runningWeight += boxDef.widthWeight;
+
+            const angleA = startHit.angle + spanAngle * tStart;
+            const angleB = startHit.angle + spanAngle * tEnd;
+
+            const pA = raycastPoly(angleA);
+            const pB = raycastPoly(angleB);
+
+            // Calculate exact 90° orthogonal inward normal vector from facade segment
+            const edgeDx = pB.x - pA.x;
+            const edgeDy = pB.y - pA.y;
+            const edgeLen = Math.sqrt(edgeDx * edgeDx + edgeDy * edgeDy) || 1;
+            
+            let normX = -edgeDy / edgeLen;
+            let normY = edgeDx / edgeLen;
+
+            // Ensure normal points inward toward centroid (cx, cy)
+            const midEdgeX = (pA.x + pB.x) / 2;
+            const midEdgeY = (pA.y + pB.y) / 2;
+            if (normX * (cx - midEdgeX) + normY * (cy - midEdgeY) < 0) {
+              normX = -normX;
+              normY = -normY;
+            }
+
+            // Inward depth based on room type
+            const depthM = boxDef.depthM;
+            const inA_x = pA.x + normX * depthM;
+            const inA_y = pA.y + normY * depthM;
+            const inB_x = pB.x + normX * depthM;
+            const inB_y = pB.y + normY * depthM;
+
+            const boxMidX = (pA.x + pB.x + inA_x + inB_x) / 4;
+            const boxMidY = (pA.y + pB.y + inA_y + inB_y) / 4;
+
+            if (boxDef.isBalcony) {
+              balconyBoxCenter = { x: boxMidX, y: boxMidY };
+            }
+
+            ctx.save();
+            ctx.beginPath();
+            ctx.moveTo(toCanvasX(pA.x), toCanvasY(pA.y));
+            ctx.lineTo(toCanvasX(pB.x), toCanvasY(pB.y));
+            ctx.lineTo(toCanvasX(inB_x), toCanvasY(inB_y));
+            ctx.lineTo(toCanvasX(inA_x), toCanvasY(inA_y));
+            ctx.closePath();
+
+            // Sharp CAD Box Fill & Stroke
+            if (boxDef.isBalcony) {
+              ctx.fillStyle = isDark ? 'rgba(16, 185, 129, 0.45)' : 'rgba(16, 185, 129, 0.35)';
+              ctx.strokeStyle = '#10b981';
+              ctx.lineWidth = 2.5;
+              ctx.fill();
+              ctx.stroke();
+
+              // Open Sliding Glass Door Line to Living Room
+              ctx.strokeStyle = '#34d399';
+              ctx.lineWidth = 2;
+              ctx.setLineDash([3, 3]);
+              ctx.beginPath();
+              ctx.moveTo(toCanvasX(inA_x), toCanvasY(inA_y));
+              ctx.lineTo(toCanvasX(inB_x), toCanvasY(inB_y));
+              ctx.stroke();
+              ctx.setLineDash([]);
+            } else {
+              ctx.fillStyle = isDark ? 'rgba(15, 23, 42, 0.90)' : 'rgba(241, 245, 249, 0.92)';
+              ctx.strokeStyle = boxDef.color;
+              ctx.lineWidth = 1.8;
+              ctx.fill();
+              ctx.stroke();
+
+              // Accent facade rim stroke
+              ctx.strokeStyle = boxDef.color;
+              ctx.lineWidth = 3;
+              ctx.beginPath();
+              ctx.moveTo(toCanvasX(pA.x), toCanvasY(pA.y));
+              ctx.lineTo(toCanvasX(pB.x), toCanvasY(pB.y));
+              ctx.stroke();
+            }
+
+            // Clean Minimal Icon (NO text clutter)
+            ctx.font = '11px monospace';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(boxDef.icon, toCanvasX(boxMidX), toCanvasY(boxMidY));
+            ctx.restore();
+          }
+
+          // Living Room to Balcony Seamless Sliding Flow
+          if (showLivingBalconyFlow && balconyBoxCenter) {
             ctx.save();
             ctx.strokeStyle = '#10b981';
             ctx.lineWidth = 1.8;
             ctx.setLineDash([3, 2]);
             ctx.beginPath();
-            ctx.moveTo(toCanvasX(unit.livingRoomCenter.x), toCanvasY(unit.livingRoomCenter.y));
-            ctx.lineTo(toCanvasX(unit.balconyCenter.x), toCanvasY(unit.balconyCenter.y));
+            ctx.moveTo(toCanvasX(livingX), toCanvasY(livingY));
+            ctx.lineTo(toCanvasX(balconyBoxCenter.x), toCanvasY(balconyBoxCenter.y));
             ctx.stroke();
             ctx.restore();
           }
@@ -421,11 +573,11 @@ export default function ShapeStudioPage() {
 
         // 3. Sleek Minimal Unit Badge (Just F1, F2, F3...)
         ctx.save();
-        const badgeX = toCanvasX(unit.livingRoomCenter.x);
-        const badgeY = toCanvasY(unit.livingRoomCenter.y);
+        const badgeX = toCanvasX(livingX);
+        const badgeY = toCanvasY(livingY);
 
         ctx.fillStyle = isDark ? '#090d16' : '#ffffff';
-        ctx.strokeStyle = unit.stroke;
+        ctx.strokeStyle = theme.stroke;
         ctx.lineWidth = 2;
         ctx.beginPath();
         ctx.arc(badgeX, badgeY, 14, 0, 2 * Math.PI);
@@ -433,23 +585,25 @@ export default function ShapeStudioPage() {
         ctx.stroke();
 
         ctx.font = 'bold 11px monospace';
-        ctx.fillStyle = unit.stroke;
+        ctx.fillStyle = theme.stroke;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        ctx.fillText(unit.label, badgeX, badgeY);
+        ctx.fillText(theme.label, badgeX, badgeY);
         ctx.restore();
 
         // 4. Unit Entrance Door along Central Corridor
+        const entryRadius = (Math.max(layout.core.width, layout.core.length) / 2) + 2.5;
+        const entryX = cx + Math.cos(midAngle) * entryRadius;
+        const entryY = cy + Math.sin(midAngle) * entryRadius;
+
         ctx.save();
         ctx.font = 'bold 8.5px monospace';
-        ctx.fillStyle = unit.stroke;
+        ctx.fillStyle = theme.stroke;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        ctx.fillText(`🚪 ${unit.label}`, toCanvasX(unit.entranceDoor.x), toCanvasY(unit.entranceDoor.y));
+        ctx.fillText(`🚪 ${theme.label}`, toCanvasX(entryX), toCanvasY(entryY));
         ctx.restore();
-      });
-
-      ctx.restore(); // Close strict polygon clipping
+      }
     }
 
     // 7. Draw Vertices (Nodes)
