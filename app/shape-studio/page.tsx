@@ -376,91 +376,76 @@ export default function ShapeStudioPage() {
 
               if (rm.isBalcony) {
                 // Sleek Emerald Balcony Deck
-                ctx.fillStyle = isDark ? 'rgba(16, 185, 129, 0.35)' : 'rgba(16, 185, 129, 0.25)';
+                ctx.fillStyle = isDark ? 'rgba(16, 185, 129, 0.45)' : 'rgba(16, 185, 129, 0.35)';
                 ctx.strokeStyle = '#10b981';
                 ctx.lineWidth = 2.5;
                 ctx.fill();
                 ctx.stroke();
               } else {
-                ctx.fillStyle = isDark ? 'rgba(15, 23, 42, 0.75)' : 'rgba(241, 245, 249, 0.85)';
-                ctx.strokeStyle = isDark ? 'rgba(255, 255, 255, 0.35)' : 'rgba(0, 0, 0, 0.35)';
-                ctx.lineWidth = 1.2;
+                ctx.fillStyle = isDark ? 'rgba(15, 23, 42, 0.85)' : 'rgba(241, 245, 249, 0.9)';
+                ctx.strokeStyle = rm.color;
+                ctx.lineWidth = 1.8;
                 ctx.fill();
                 ctx.stroke();
 
-                // Room Accent Line
-                ctx.strokeStyle = rm.color;
-                ctx.lineWidth = 2;
-                ctx.beginPath();
-                ctx.moveTo(toCanvasX(rm.pts[0].x), toCanvasY(rm.pts[0].y));
-                ctx.lineTo(toCanvasX(rm.pts[1].x), toCanvasY(rm.pts[1].y));
-                ctx.stroke();
+                // Distinct Corner Accent Tab
+                ctx.fillStyle = rm.color;
+                ctx.fillRect(toCanvasX(rm.pts[0].x), toCanvasY(rm.pts[0].y), 4, 4);
               }
 
-              // Room Centroid Label
+              // Clean Icon Only (No Text Clutter)
               const midX = rm.pts.reduce((acc, p) => acc + p.x, 0) / rm.pts.length;
               const midY = rm.pts.reduce((acc, p) => acc + p.y, 0) / rm.pts.length;
 
-              ctx.font = 'bold 7.5px monospace';
-              ctx.fillStyle = rm.isBalcony ? '#10b981' : (isDark ? '#f8fafc' : '#0f172a');
+              ctx.font = '11px monospace';
               ctx.textAlign = 'center';
               ctx.textBaseline = 'middle';
-              ctx.fillText(`${rm.icon} ${rm.name}`, toCanvasX(midX), toCanvasY(midY));
+              ctx.fillText(rm.icon, toCanvasX(midX), toCanvasY(midY));
               ctx.restore();
             }
           });
 
-          // Living Room to Balcony Seamless Sliding Flow
+          // Living Room to Balcony Seamless Sliding Flow (Clean Minimal Line)
           if (showLivingBalconyFlow && unit.balconyCenter) {
             ctx.save();
             ctx.strokeStyle = '#10b981';
-            ctx.lineWidth = 1.5;
+            ctx.lineWidth = 1.8;
             ctx.setLineDash([3, 2]);
             ctx.beginPath();
             ctx.moveTo(toCanvasX(unit.livingRoomCenter.x), toCanvasY(unit.livingRoomCenter.y));
             ctx.lineTo(toCanvasX(unit.balconyCenter.x), toCanvasY(unit.balconyCenter.y));
             ctx.stroke();
-
-            const flowMidX = (unit.livingRoomCenter.x + unit.balconyCenter.x) / 2;
-            const flowMidY = (unit.livingRoomCenter.y + unit.balconyCenter.y) / 2;
-            ctx.font = 'bold 7px monospace';
-            ctx.fillStyle = '#10b981';
-            ctx.textAlign = 'center';
-            ctx.fillText('SLIDING DOOR (NO WALL) ➜', toCanvasX(flowMidX), toCanvasY(flowMidY) - 3);
             ctx.restore();
           }
         }
 
-        // 3. Central Expansive Living & Dining Hall Badge
+        // 3. Sleek Minimal Unit Badge (Just F1, F2, F3...)
         ctx.save();
         const badgeX = toCanvasX(unit.livingRoomCenter.x);
         const badgeY = toCanvasY(unit.livingRoomCenter.y);
 
         ctx.fillStyle = isDark ? '#090d16' : '#ffffff';
         ctx.strokeStyle = unit.stroke;
-        ctx.lineWidth = 1.8;
+        ctx.lineWidth = 2;
         ctx.beginPath();
-        ctx.roundRect(badgeX - 42, badgeY - 16, 84, 32, 6);
+        ctx.arc(badgeX, badgeY, 14, 0, 2 * Math.PI);
         ctx.fill();
         ctx.stroke();
 
-        ctx.font = 'bold 9px monospace';
+        ctx.font = 'bold 11px monospace';
         ctx.fillStyle = unit.stroke;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        ctx.fillText(`FLAT ${unit.label} LIVING`, badgeX, badgeY - 5);
-        ctx.font = '7.5px monospace';
-        ctx.fillStyle = isDark ? '#94a3b8' : '#64748b';
-        ctx.fillText(`& DINING HALL`, badgeX, badgeY + 7);
+        ctx.fillText(unit.label, badgeX, badgeY);
         ctx.restore();
 
         // 4. Unit Entrance Door along Central Corridor
         ctx.save();
-        ctx.font = 'bold 8px monospace';
+        ctx.font = 'bold 8.5px monospace';
         ctx.fillStyle = unit.stroke;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        ctx.fillText(`🚪 ${unit.label} ENTRY`, toCanvasX(unit.entranceDoor.x), toCanvasY(unit.entranceDoor.y));
+        ctx.fillText(`🚪 ${unit.label}`, toCanvasX(unit.entranceDoor.x), toCanvasY(unit.entranceDoor.y));
         ctx.restore();
       });
 
