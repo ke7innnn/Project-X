@@ -92,6 +92,87 @@ function getShapeGeometricDirectives(prompt: string, numFlats: number): { shapeN
     };
   }
 
+  if (p.includes('batman') || p.includes('dark knight') || p.includes('batwing')) {
+    return {
+      shapeName: 'BATMAN INSIGNIA',
+      directives: `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🚨 CRITICAL BATMAN INSIGNIA GEOMETRIC SILHOUETTE MANDATE:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+• The 2D building footprint MUST BE the iconic BATMAN INSIGNIA silhouette with dual pointed ears at top, scalloped side wings, and tapered bottom tail!
+• The negative space between the ears and wing scallops is open outdoor space.
+• The 3D views must match this exact sculptural Batman tower!`,
+    };
+  }
+
+  if (p.includes('torso') || p.includes('twisted') || p.includes('turning')) {
+    return {
+      shapeName: 'TURNING TORSO',
+      directives: `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🚨 CRITICAL TURNING TORSO GEOMETRIC SILHOUETTE MANDATE:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+• The 2D building footprint MUST BE a sleek rhomboid / parallelogram with a central core.
+• The 3D Perspective Elevation MUST show the dramatic 90-degree twisting spiral skyscraper form!`,
+    };
+  }
+
+  if (p.includes('wave') || p.includes('s-shape') || p.includes('aqua') || p.includes('al hamra') || p.includes('al-hamra')) {
+    return {
+      shapeName: 'S-SHAPE WAVEFORM',
+      directives: `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🚨 CRITICAL S-SHAPE / WAVEFORM GEOMETRIC SILHOUETTE MANDATE:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+• The 2D building footprint MUST BE a continuous double-curved S-SHAPED serpentine ribbon with alternating concave/convex bays!
+• The 3D views must match this exact undulating wave skyscraper!`,
+    };
+  }
+
+  if (p.includes('triang') || p.includes('3-wing') || p.includes('burj') || p.includes('trefoil') || p.includes('y-shape')) {
+    return {
+      shapeName: 'TRI-WING Y-PRISM',
+      directives: `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🚨 CRITICAL TRI-WING Y-SHAPE GEOMETRIC SILHOUETTE MANDATE:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+• The 2D building footprint MUST BE a 3-winged Y-SHAPED / trefoil layout radiating 120° from a central triangular hub!
+• The 3 open bays between the wings are open outdoor space.
+• The 3D views must match this exact 3-winged tower!`,
+    };
+  }
+
+  if (p.includes('pinwheel')) {
+    return {
+      shapeName: 'DYNAMIC PINWHEEL',
+      directives: `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🚨 CRITICAL PINWHEEL GEOMETRIC SILHOUETTE MANDATE:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+• The 2D building footprint MUST BE a dynamic 4-wing rotating PINWHEEL geometry with 4 staggered projecting arms!
+• The 3D views must match this exact pinwheel skyscraper!`,
+    };
+  }
+
+  if (p.includes('t-shape') || p.includes('t shape')) {
+    return {
+      shapeName: 'T-SHAPE SLAB',
+      directives: `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🚨 CRITICAL T-SHAPE GEOMETRIC SILHOUETTE MANDATE:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+• The 2D building footprint MUST BE a distinct T-SHAPE with a wide horizontal bar and a vertical spine leg!
+• The two side quadrants flanking the vertical leg are open outdoor space.
+• The 3D views must match this exact T-shaped tower!`,
+    };
+  }
+
+  if (p.includes('h-shape') || p.includes('h shape')) {
+    return {
+      shapeName: 'H-SHAPE DUAL WING',
+      directives: `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🚨 CRITICAL H-SHAPE GEOMETRIC SILHOUETTE MANDATE:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+• The 2D building footprint MUST BE an H-SHAPE with two parallel residential wings connected by a central circulation bridge!
+• The top and bottom central courtyards are open outdoor space.
+• The 3D views must match this exact H-shaped dual wing tower!`,
+    };
+  }
+
   if (p.includes('ginkgo') || p.includes('fan') || p.includes('leaf')) {
     return {
       shapeName: 'GINKGO FAN LEAF',
@@ -147,13 +228,26 @@ function getShapeGeometricDirectives(prompt: string, numFlats: number): { shapeN
     };
   }
 
-  return {
-    shapeName: 'CUSTOM ARCHITECTURAL',
-    directives: `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-🚨 CRITICAL GEOMETRIC SILHOUETTE MANDATE:
+  if (p.includes('octagon') || p.includes('star') || p.includes('petronas') || p.includes('wtc')) {
+    return {
+      shapeName: 'OCTAGONAL STAR',
+      directives: `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🚨 CRITICAL OCTAGONAL / STARBURST GEOMETRIC SILHOUETTE MANDATE:
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-• The 2D building footprint MUST strictly follow the sculpted outer contour of: "${prompt}".
-• The 2D floor plan, 3D roof plan, and 3D isometric tower render MUST ALL BE 100% VISUALLY AND GEOMETRICALLY IDENTICAL!`,
+• The 2D building footprint MUST BE an 8-sided faceted octagon or 8-point geometric starburst!
+• The 3D views must match this exact multi-faceted faceted tower!`,
+    };
+  }
+
+  // Universal Custom Shape Fallback
+  return {
+    shapeName: prompt.split(/\s+/).slice(0, 3).join(' ').toUpperCase(),
+    directives: `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🚨 CRITICAL CUSTOM GEOMETRIC SILHOUETTE MANDATE:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+• The 2D building footprint MUST BE sculpted into the EXACT authentic outer silhouette of: "${prompt}".
+• NEGATIVE SPACE MANDATE: DO NOT fill the canvas with a solid rectangular box or barrel! The outer boundary must distinctly show the exact contours, curves, notches, wings, or facets of this shape, surrounded by clean presentation board backdrop.
+• 3-WAY SYNCHRONIZATION: The 2D floor plan (left), 3D roof top view (top-right), and 3D isometric perspective elevation (mid-right) MUST ALL BE 100% VISUALLY AND GEOMETRICALLY IDENTICAL to this exact shape!`,
   };
 }
 
