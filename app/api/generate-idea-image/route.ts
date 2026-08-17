@@ -633,17 +633,15 @@ export async function POST(req: Request) {
         stage1ImageUrls.push(zoningRefUrl);
       }
 
-      console.log(`[IdeaGenerator] Stage 1: Generating 4 parallel candidate zoning layouts with openai/gpt-image-2/edit [Low] with unique seeds...`);
+      console.log(`[IdeaGenerator] Stage 1: Generating 4 parallel candidate zoning layouts with openai/gpt-image-2/edit [Low]...`);
 
-      const candidatePromises = Array.from({ length: 4 }, (_, idx) => {
-        const uniqueSeed = Math.floor(Math.random() * 9000000) + (idx + 1) * 7919;
-        return runModel('openai/gpt-image-2/edit', {
+      const candidatePromises = Array.from({ length: 4 }, () =>
+        runModel('openai/gpt-image-2/edit', {
           image_urls: stage1ImageUrls,
           prompt: stage1Prompt,
           quality: 'low',
-          seed: uniqueSeed,
-        });
-      });
+        })
+      );
 
       const candidateResults = await Promise.allSettled(candidatePromises);
       const successfulCandidates: Array<{ url: string; seed?: number; index: number }> = [];
