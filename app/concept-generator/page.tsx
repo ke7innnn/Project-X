@@ -340,12 +340,12 @@ export default function ConceptGeneratorPage() {
             </div>
           </div>
 
-          {/* Master Reference Board Style Card */}
+          {/* Custom Reference Image Upload (Optional) */}
           <div className="flex flex-col gap-2 p-3.5 rounded-xl bg-black/40 border border-white/10">
             <div className="flex items-center justify-between">
               <span className="text-[10px] font-mono font-bold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
                 <ImageIcon className="w-3.5 h-3.5 text-cyan-400" />
-                REFERENCE BOARD STYLE
+                REFERENCE SKETCH / IMAGE (OPTIONAL)
               </span>
               {customRefBase64 && (
                 <button
@@ -353,49 +353,40 @@ export default function ConceptGeneratorPage() {
                     setCustomRefBase64(null);
                     setCustomRefPreview(null);
                   }}
-                  className="text-[9px] font-mono text-red-400 hover:underline"
+                  className="text-[9px] font-mono text-red-400 hover:underline cursor-pointer"
                 >
-                  Reset Default
+                  Remove
                 </button>
               )}
             </div>
 
-            <div className="flex items-center gap-3">
-              {/* Thumbnail */}
-              <div className="w-20 h-24 rounded-lg bg-black/80 border border-cyan-500/40 overflow-hidden relative group shrink-0">
-                <img
-                  src={customRefPreview || '/references/master_presentation_board.jpg'}
-                  alt="Reference Board Style"
-                  className="w-full h-full object-cover"
-                />
-                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                  <span className="text-[8px] font-mono text-white text-center px-1">Active Style</span>
+            {customRefBase64 ? (
+              <div className="flex items-center gap-3 p-2 rounded-lg bg-slate-900 border border-cyan-500/40">
+                <div className="w-16 h-16 rounded-md overflow-hidden bg-black shrink-0 border border-white/10">
+                  <img src={customRefPreview!} alt="Custom Reference" className="w-full h-full object-cover" />
+                </div>
+                <div className="flex flex-col flex-1">
+                  <span className="text-xs font-bold text-cyan-300">Custom Reference Active</span>
+                  <span className="text-[9px] text-slate-400">AI will use your sketch to guide the design</span>
                 </div>
               </div>
-
-              {/* Upload custom reference button */}
-              <div className="flex flex-col gap-1.5 flex-1">
-                <p className="text-[10px] text-slate-400 leading-tight">
-                  {customRefBase64 
-                    ? 'Using your custom uploaded floor plan reference.' 
-                    : 'Using default Master Presentation Board (2D Plan + 3D Massing + 3D Elevation).'}
-                </p>
-                <button
-                  onClick={() => fileInputRef.current?.click()}
-                  className="px-2.5 py-1.5 rounded-lg bg-cyan-500/20 hover:bg-cyan-500/30 border border-cyan-400/50 text-cyan-300 text-[10px] font-mono font-bold flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
-                >
-                  <Upload className="w-3 h-3" />
-                  <span>UPLOAD CUSTOM REF</span>
-                </button>
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="image/*"
-                  onChange={handleFileUpload}
-                  className="hidden"
-                />
+            ) : (
+              <div 
+                onClick={() => fileInputRef.current?.click()}
+                className="flex items-center justify-center gap-2 p-3 rounded-lg border border-dashed border-white/15 hover:border-cyan-400/50 bg-slate-900/40 hover:bg-cyan-950/20 text-slate-400 hover:text-cyan-300 transition-all cursor-pointer"
+              >
+                <Upload className="w-4 h-4 text-cyan-400" />
+                <span className="text-[10px] font-mono font-medium">Add Reference Sketch / Elevation (Optional)</span>
               </div>
-            </div>
+            )}
+
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              onChange={handleFileUpload}
+              className="hidden"
+            />
           </div>
 
           {/* Action Generate Button */}
