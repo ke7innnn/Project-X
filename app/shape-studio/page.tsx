@@ -532,8 +532,14 @@ export default function ShapeStudioPage() {
               ctx.lineTo(toCanvasX(q1.x), toCanvasY(q1.y));
               ctx.stroke();
               ctx.setLineDash([]);
-            } else {
-              // Deep, Crisp Spacious Room Box
+
+              // Balcony Icon
+              ctx.font = '12px monospace';
+              ctx.textAlign = 'center';
+              ctx.textBaseline = 'middle';
+              ctx.fillText(mod.icon, toCanvasX(midX), toCanvasY(midY));
+            } else if (mod.icon === '🛏️') {
+              // Deep, Crisp Master / Bedroom Suite Box
               ctx.fillStyle = isDark ? 'rgba(15, 23, 42, 0.88)' : mod.lightFill;
               ctx.strokeStyle = isDark ? mod.color : '#334155';
               ctx.lineWidth = isDark ? 1.8 : 1.6;
@@ -547,13 +553,76 @@ export default function ShapeStudioPage() {
               ctx.moveTo(toCanvasX(p0.x), toCanvasY(p0.y));
               ctx.lineTo(toCanvasX(p1.x), toCanvasY(p1.y));
               ctx.stroke();
+
+              // ── EN-SUITE ATTACHED TOILET BOX (Along External Facade) ──
+              const aToilet = a0 + (a1 - a0) * 0.32;
+              const pToilet = raycastPoly(aToilet);
+              const distToilet = Math.sqrt((pToilet.x - cx) ** 2 + (pToilet.y - cy) ** 2);
+              const tDepth = 2.8;
+
+              const q0T = {
+                x: cx + Math.cos(a0) * Math.max(coreRadius + 2, dist0 - tDepth),
+                y: cy + Math.sin(a0) * Math.max(coreRadius + 2, dist0 - tDepth),
+              };
+              const q1T = {
+                x: cx + Math.cos(aToilet) * Math.max(coreRadius + 2, distToilet - tDepth),
+                y: cy + Math.sin(aToilet) * Math.max(coreRadius + 2, distToilet - tDepth),
+              };
+
+              // Draw En-suite Toilet Box
+              ctx.save();
+              ctx.beginPath();
+              ctx.moveTo(toCanvasX(p0.x), toCanvasY(p0.y));
+              ctx.lineTo(toCanvasX(pToilet.x), toCanvasY(pToilet.y));
+              ctx.lineTo(toCanvasX(q1T.x), toCanvasY(q1T.y));
+              ctx.lineTo(toCanvasX(q0T.x), toCanvasY(q0T.y));
+              ctx.closePath();
+
+              ctx.fillStyle = isDark ? 'rgba(14, 116, 144, 0.45)' : '#cffafe';
+              ctx.strokeStyle = isDark ? '#06b6d4' : '#0891b2';
+              ctx.lineWidth = 1.5;
+              ctx.fill();
+              ctx.stroke();
+
+              // Toilet Icon
+              const tMidX = (p0.x + pToilet.x + q1T.x + q0T.x) / 4;
+              const tMidY = (p0.y + pToilet.y + q1T.y + q0T.y) / 4;
+              ctx.font = '9px monospace';
+              ctx.textAlign = 'center';
+              ctx.textBaseline = 'middle';
+              ctx.fillText('🚿', toCanvasX(tMidX), toCanvasY(tMidY));
+              ctx.restore();
+
+              // Bed Suite Icon (Centered in remaining bedroom space)
+              const bedMidX = (pToilet.x + p1.x + q1.x + q0.x) / 4;
+              const bedMidY = (pToilet.y + p1.y + q1.y + q0.y) / 4;
+              ctx.font = '12px monospace';
+              ctx.textAlign = 'center';
+              ctx.textBaseline = 'middle';
+              ctx.fillText(mod.icon, toCanvasX(bedMidX), toCanvasY(bedMidY));
+            } else {
+              // Kitchen / Utility Box
+              ctx.fillStyle = isDark ? 'rgba(15, 23, 42, 0.88)' : mod.lightFill;
+              ctx.strokeStyle = isDark ? mod.color : '#334155';
+              ctx.lineWidth = isDark ? 1.8 : 1.6;
+              ctx.fill();
+              ctx.stroke();
+
+              // Outer Facade Accent Line
+              ctx.strokeStyle = mod.color;
+              ctx.lineWidth = isDark ? 3 : 2.5;
+              ctx.beginPath();
+              ctx.moveTo(toCanvasX(p0.x), toCanvasY(p0.y));
+              ctx.lineTo(toCanvasX(p1.x), toCanvasY(p1.y));
+              ctx.stroke();
+
+              // Kitchen Icon
+              ctx.font = '12px monospace';
+              ctx.textAlign = 'center';
+              ctx.textBaseline = 'middle';
+              ctx.fillText(mod.icon, toCanvasX(midX), toCanvasY(midY));
             }
 
-            // Room Icon Only (Centered & Crisp)
-            ctx.font = '12px monospace';
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'middle';
-            ctx.fillText(mod.icon, toCanvasX(midX), toCanvasY(midY));
             ctx.restore();
           });
 
