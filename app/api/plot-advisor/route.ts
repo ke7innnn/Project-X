@@ -5,7 +5,6 @@ export const maxDuration = 60;
 const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY!;
 
 const SHAPE_STUDIO_UNIT_LIMITS: Record<string, number> = {
-  'butterfly-wing': 6,
   'ginkgo-leaf': 6,
   't-shape': 6,
   'stepped-l': 6,
@@ -65,7 +64,7 @@ const systemPrompt = `You are ARIA — an AI Senior Architect with 25+ years of 
 2. The TOTAL units per floor (totalUnits = units1BHK + units2BHK + units3BHK + units4BHK) MUST BE BETWEEN 2 AND MAX 8 UNITS!
 3. NEVER SUGGEST 10, 15, 20+ UNITS! Do NOT multiply by tower floors/stories.
 4. Total units per floor in every option MUST strictly respect the shape's Shape Studio limit:
-   - Butterfly Wide, Ginkgo Fan, T-Shape, L-Shape (Stepped-L), Tosco (Turning Torso), Curved-X, Greek Cross, Pinwheel, Water Droplet: MAX 6 units per floor
+   - Ginkgo Fan, T-Shape, L-Shape (Stepped-L), Tosco (Turning Torso), Curved-X, Greek Cross, Pinwheel, Water Droplet: MAX 6 units per floor
    - H-Shape, Nautilus Spiral, S-Shape (Al Hamra), Batman Insignia, Hexagonal, Octagonal: MAX 8 units per floor
 5. If the user asks for more units than the shape allows, explain mathematically why it exceeds the shape's wing and facade ventilation capacity, and recommend the maximum allowable count (e.g. 6 or 8 units).
 
@@ -85,7 +84,7 @@ You are in an interactive consultation with a real estate developer. You must st
 \`\`\`
 - The client UI's physics engine will automatically calculate the optimal rotation, scale, and setback positioning to fit that shape inside the user's plot!
 - State your intelligent wing-based recommendation based on the shape's typology and Shape Studio limits:
-  * For 6-Unit Shapes (Butterfly Wide, Ginkgo Fan, T-Shape, Stepped-L, Turning Torso): "I've placed the [Shape Name] footprint! This is optimized for up to **6 units per floor**. What unit mix do you prefer?"
+  * For 6-Unit Shapes (Ginkgo Fan, T-Shape, Stepped-L, Turning Torso): "I've placed the [Shape Name] footprint! This is optimized for up to **6 units per floor**. What unit mix do you prefer?"
   * For 8-Unit Shapes (H-Shape, Nautilus Spiral, Al Hamra, Batman): "I've placed the [Shape Name] footprint! On a large plate, this supports up to **8 units per floor**. What unit mix do you prefer?"
 
 **PHASE 3: Unit Mix Requirements**
@@ -113,7 +112,6 @@ You must respect each building footprint's architectural wing capacity and maxim
 - hexagonal, monolithic-rect, one-wtc-octagon, petronas-cross: up to **8 units** (on large floor plates > 1,800m²)
 
 ### 2. 🏛️ 6-UNIT MAXIMUM CAPACITY SHAPES (Allow up to 6 Units):
-- butterfly-wing (Butterfly Wide): up to **6 units** (3 per wing)
 - ginkgo-leaf (Ginkgo Blob / Fan): up to **6 units** (radial fan layout)
 - t-shape (T-Shape): up to **6 units** (2 units per arm)
 - stepped-l (L-Shape / Stepped-L): up to **6 units** (3 per leg)
@@ -177,7 +175,6 @@ ARIA must use senior architectural intelligence to recommend realistic unit coun
 - ginkgo-leaf: GINKGO BILOBA (FAN LEAF / BLOB), maxUnits: 6, efficiency: 80%
 - starflower-5petal: 5-PETAL STARFLOWER (PENTAGRAM), maxUnits: 6, efficiency: 74%
 - clover-4leaf: 4-LEAF CLOVER (QUADRIFOIL), maxUnits: 6, efficiency: 75%
-- butterfly-wing: BUTTERFLY (WIDE BIAXIAL PODS), maxUnits: 6, efficiency: 78%
 - lotus-blossom: LOTUS BLOSSOM (BIOPHILIC POD), maxUnits: 6, efficiency: 80%
 - scallop-shell: SCALLOP SHELL (BIVALVE ARC), maxUnits: 6, efficiency: 80%
 - biophilic-triad: TRI-CLUSTER POD (3-HEXAGON UNION), maxUnits: 6, efficiency: 82%

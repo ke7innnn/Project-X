@@ -922,35 +922,6 @@ export const MASTER_SHAPES_50: ShapeDefinition[] = [
   },
 
   {
-    id: 'butterfly-wing',
-    name: 'BUTTERFLY (WIDE BIAXIAL PODS)',
-    category: 'biophilic',
-    inspiration: 'Lepidoptera Wing Aerodynamics',
-    description: 'Thick bilateral symmetric upper and lower wide wing lobes taking huge usable area.',
-    efficiency: 85,
-    defaultAspect: '16:9 (Landscape)',
-    tags: ['Butterfly', 'Lepidoptera', 'Biaxial Wings', 'Organic'],
-    getPolygon: (cx, cy, w, h) => {
-      const rx = w / 2;
-      const ry = h / 2;
-      return [
-        { x: cx,             y: cy - 0.30 * ry },
-        { x: cx + 0.50 * rx, y: cy - 0.90 * ry },
-        { x: cx + 0.92 * rx, y: cy - 0.45 * ry },
-        { x: cx + 0.78 * rx, y: cy },
-        { x: cx + 0.92 * rx, y: cy + 0.60 * ry },
-        { x: cx + 0.50 * rx, y: cy + 0.90 * ry },
-        { x: cx,             y: cy + 0.35 * ry },
-        { x: cx - 0.50 * rx, y: cy + 0.90 * ry },
-        { x: cx - 0.92 * rx, y: cy + 0.60 * ry },
-        { x: cx - 0.78 * rx, y: cy },
-        { x: cx - 0.92 * rx, y: cy - 0.45 * ry },
-        { x: cx - 0.50 * rx, y: cy - 0.90 * ry },
-      ];
-    },
-  },
-
-  {
     id: 'lotus-blossom',
     name: 'LOTUS BLOSSOM (BIOPHILIC POD)',
     category: 'biophilic',
