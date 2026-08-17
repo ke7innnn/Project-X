@@ -213,7 +213,7 @@ IMAGE ROLES — EXTREMELY IMPORTANT
   - COPY THE PARTITIONING METHOD: Use clean 90° horizontal and vertical cuts to create clean rectangular/square flat unit blocks inside IMAGE 1!
 ` : ''}
 The target image (IMAGE 1) shows a WHITE building footprint on a BLACK background.
-Your ONLY task: draw internal floor plan zoning lines INSIDE the white footprint to create EXACTLY ${numFlats} flat zones (${flatLabels}) around a central CORE block.
+Your ONLY task: draw internal floor plan zoning lines INSIDE the white footprint to create EXACTLY ${numFlats} flat zones (${flatLabels}) connected to an architecturally optimized CORE block.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 #1 — 100% IMMUTABLE OUTER BUILDING FOOTPRINT (RIGID LOCK)
@@ -230,12 +230,16 @@ Your ONLY task: draw internal floor plan zoning lines INSIDE the white footprint
   - Balconies are strictly INSET / FLUSH inside the outer facade line (never cantilevered outward into black space).
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-#2 — CENTRAL CIRCULATION CORE & CORRIDORS
+#2 — ARCHITECTURAL CIRCULATION CORE PLACEMENT (SMART TYPOLOGY LOCATION)
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-• Place ONE rectangular CORE box (elevator shafts + fire staircases) centrally inside the footprint.
-• Draw a shared corridor ring wrapping around the core so each flat zone has direct front entrance access.
-• Draw ONE straight entrance corridor from the CORE to the outer facade.
+• Intelligently locate ONE compact rectangular circulation CORE (elevator shafts + fire staircases) in the most functionally optimal position for this specific building geometry:
+  - For V-Shapes, Chevrons & L-Shapes: Position the core at the inner vertex knuckle / hinge corner so wings remain wide, continuous, and filled with natural perimeter daylight.
+  - For T-Shapes & Triad Wings: Position the core at the main intersection junction where the wings meet.
+  - For Symmetrical Radial / Hexagonal Towers: Position the core in the central structural hub.
+  - For Linear / Elongated Slabs: Position the core along the rear or spine with an efficient circulation corridor.
+• NEVER force the core into the dead geometric center if it splits a habitable wing or blocks exterior facade windows! Place it where it serves all ${numFlats} units with equal, minimal corridor length.
+• Draw shared access corridors connecting the core directly to each flat unit entrance.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 #3 — COLOR-CODED FLAT ZONES & SINGLE LABELS
@@ -345,7 +349,7 @@ PRIMARY DIRECTIVE — PRESERVE 100% COMPOSITION (ENHANCE ONLY)
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 • OUTER BUILDING SILHOUETTE: 100% LOCKED. Keep the exact outer perimeter contour.
-• CENTRAL CORE & CORRIDORS: 100% LOCKED. Detail the interior of the core box with ${liftsStr}, ${stairsStr}, and a utility shaft.
+• CIRCULATION CORE & CORRIDORS: 100% LOCKED. Detail the interior of the core box with ${liftsStr}, ${stairsStr}, and a utility shaft.
 • ROOM PARTITION WALLS: 100% LOCKED. Retain every existing room box and wall from IMAGE 1.
 • UNIT BOUNDARIES (${flatLabels}): LOCKED with their distinct vivid boundary colors preserved from IMAGE 1.
 
