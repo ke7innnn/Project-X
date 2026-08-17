@@ -262,11 +262,11 @@ export default function ShapeStudioPage() {
       ctx.restore();
     }
 
-    // 5. Draw Central Core & Circulation Ring
+    // 5. Draw Central Core & Natural Light / Ventilation / Entrance Corridor
     const cx = plotWidthM / 2;
     const cy = plotLengthM / 2;
-    const coreW = Math.max(12, Math.min(24, plotWidthM * 0.18));
-    const coreH = Math.max(12, Math.min(24, plotLengthM * 0.18));
+    const coreW = Math.max(12, Math.min(22, plotWidthM * 0.18));
+    const coreH = Math.max(12, Math.min(22, plotLengthM * 0.18));
 
     if (showCore) {
       const coreCanvasX = toCanvasX(cx - coreW / 2);
@@ -274,16 +274,53 @@ export default function ShapeStudioPage() {
       const coreCanvasW = coreW * scale;
       const coreCanvasH = coreH * scale;
 
-      // Circulation Corridor Ring
-      const corridorPad = 3 * scale;
-      ctx.strokeStyle = isDark ? 'rgba(255, 255, 255, 0.2)' : 'rgba(0, 0, 0, 0.25)';
+      // 5a. Core Natural Daylight, Smoke Ventilation & Main Entrance Corridor to Exterior Facade
+      const shaftWidthM = 4.5;
+      const shaftBottomY = plotLengthM; // extends to south/exterior facade
+      const shaftCanvasX = toCanvasX(cx - shaftWidthM / 2);
+      const shaftCanvasW = shaftWidthM * scale;
+      const shaftCanvasTopY = coreCanvasY + coreCanvasH;
+      const shaftCanvasBottomY = toCanvasY(shaftBottomY);
+
+      // Core Ventilation Shaft Fill & Linework
+      ctx.fillStyle = isDark ? 'rgba(56, 189, 248, 0.18)' : 'rgba(2, 132, 199, 0.15)';
+      ctx.fillRect(shaftCanvasX, shaftCanvasTopY, shaftCanvasW, shaftCanvasBottomY - shaftCanvasTopY);
+      ctx.strokeStyle = isDark ? '#38bdf8' : '#0284c7';
+      ctx.lineWidth = 1.5;
+      ctx.setLineDash([4, 3]);
+      ctx.strokeRect(shaftCanvasX, shaftCanvasTopY, shaftCanvasW, shaftCanvasBottomY - shaftCanvasTopY);
+      ctx.setLineDash([]);
+
+      // Exterior Glass Threshold Marker at Facade
+      ctx.strokeStyle = '#10b981';
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.moveTo(shaftCanvasX, shaftCanvasBottomY);
+      ctx.lineTo(shaftCanvasX + shaftCanvasW, shaftCanvasBottomY);
+      ctx.stroke();
+
+      // Shaft Label
+      ctx.save();
+      ctx.font = 'bold 8px monospace';
+      ctx.fillStyle = isDark ? '#38bdf8' : '#0369a1';
+      ctx.textAlign = 'center';
+      const shaftMidY = (shaftCanvasTopY + shaftCanvasBottomY) / 2;
+      ctx.fillText('☀️ LIGHT & VENT SHAFT', toCanvasX(cx), shaftMidY - 5);
+      ctx.font = '7px monospace';
+      ctx.fillStyle = isDark ? '#94a3b8' : '#64748b';
+      ctx.fillText('🚪 MAIN ENTRANCE LOBBY', toCanvasX(cx), shaftMidY + 6);
+      ctx.restore();
+
+      // 5b. Circulation Corridor Loop wrapping Core
+      const corridorPad = 3.5 * scale;
+      ctx.strokeStyle = isDark ? 'rgba(255, 255, 255, 0.25)' : 'rgba(0, 0, 0, 0.3)';
       ctx.lineWidth = 1;
       ctx.setLineDash([3, 3]);
       ctx.strokeRect(coreCanvasX - corridorPad, coreCanvasY - corridorPad, coreCanvasW + corridorPad * 2, coreCanvasH + corridorPad * 2);
       ctx.setLineDash([]);
 
-      // Core Background
-      ctx.fillStyle = isDark ? 'rgba(245, 158, 11, 0.3)' : 'rgba(217, 119, 6, 0.25)';
+      // 5c. Core Background & Elevation Lift Bank
+      ctx.fillStyle = isDark ? 'rgba(245, 158, 11, 0.35)' : 'rgba(217, 119, 6, 0.25)';
       ctx.fillRect(coreCanvasX, coreCanvasY, coreCanvasW, coreCanvasH);
 
       // Core Border
@@ -296,12 +333,14 @@ export default function ShapeStudioPage() {
       ctx.fillStyle = isDark ? '#fbbf24' : '#b45309';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.fillText('🛗 LIFTS & 🪜 STAIRS', toCanvasX(cx), toCanvasY(cy) - 6);
-      ctx.font = '8px monospace';
-      ctx.fillText(`CORE (${Math.round(coreW)}m × ${Math.round(coreH)}m)`, toCanvasX(cx), toCanvasY(cy) + 8);
+      ctx.fillText('🛗 2× PASSENGER LIFTS', toCanvasX(cx), toCanvasY(cy) - 8);
+      ctx.fillText('🪜 2× FIRE STAIRS', toCanvasX(cx), toCanvasY(cy) + 4);
+      ctx.font = '7px monospace';
+      ctx.fillStyle = isDark ? '#fde68a' : '#78350f';
+      ctx.fillText(`CORE: ${Math.round(coreW)}m × ${Math.round(coreH)}m`, toCanvasX(cx), toCanvasY(cy) + 16);
     }
 
-    // ── 6. ARCHITECTURAL UNIT PARTITIONS & EXTERIOR ROOM BOXES ──────────────
+    // ── 6. ARCHITECTURAL UNIT PARTITIONS & 90° ORTHOGONAL ROOM BOXES ────────
     if (showPartitions && polygonPts.length > 2) {
       const UNIT_THEMES = [
         { label: 'F1', stroke: '#ef4444', fill: 'rgba(239, 68, 68, 0.12)', badgeBg: '#ef4444' },
@@ -314,37 +353,38 @@ export default function ShapeStudioPage() {
         { label: 'F8', stroke: '#eab308', fill: 'rgba(234, 179, 8, 0.12)', badgeBg: '#eab308' },
       ];
 
-      // Room Box Definition per BHK
-      const ROOM_BOX_DEFS: Record<string, { name: string; icon: string; color: string; isBalcony?: boolean }[]> = {
+      // Proportional Room Box Definitions (Distinct Sizes based on Architectural Standards)
+      // widthWeight determines % of facade width; depthM determines inward room depth
+      const ROOM_BOX_DEFS: Record<string, { name: string; icon: string; widthWeight: number; depthM: number; color: string; isBalcony?: boolean }[]> = {
         '1bhk': [
-          { name: 'BALCONY', icon: '🌿', color: '#10b981', isBalcony: true },
-          { name: 'M. BED', icon: '🛏️', color: '#3b82f6' },
-          { name: 'KITCHEN', icon: '🍳', color: '#f59e0b' },
-          { name: 'TOILET', icon: '🚿', color: '#0ea5e9' },
+          { name: 'BALCONY', icon: '🌿', widthWeight: 0.28, depthM: 2.0, color: '#10b981', isBalcony: true },
+          { name: 'MASTER BEDROOM', icon: '🛏️', widthWeight: 0.38, depthM: 6.0, color: '#3b82f6' },
+          { name: 'KITCHEN', icon: '🍳', widthWeight: 0.20, depthM: 4.2, color: '#f59e0b' },
+          { name: 'TOILET', icon: '🚿', widthWeight: 0.14, depthM: 2.8, color: '#0ea5e9' },
         ],
         '2bhk': [
-          { name: 'BALCONY', icon: '🌿', color: '#10b981', isBalcony: true },
-          { name: 'M. BED', icon: '🛏️', color: '#3b82f6' },
-          { name: 'BED 2', icon: '🛏️', color: '#6366f1' },
-          { name: 'KITCHEN', icon: '🍳', color: '#f59e0b' },
-          { name: 'TOILET', icon: '🚿', color: '#0ea5e9' },
+          { name: 'BALCONY', icon: '🌿', widthWeight: 0.22, depthM: 2.0, color: '#10b981', isBalcony: true },
+          { name: 'MASTER BEDROOM', icon: '🛏️', widthWeight: 0.30, depthM: 6.2, color: '#3b82f6' },
+          { name: 'BEDROOM 2', icon: '🛏️', widthWeight: 0.24, depthM: 5.2, color: '#6366f1' },
+          { name: 'KITCHEN', icon: '🍳', widthWeight: 0.14, depthM: 4.2, color: '#f59e0b' },
+          { name: 'TOILET', icon: '🚿', widthWeight: 0.10, depthM: 2.8, color: '#0ea5e9' },
         ],
         '3bhk': [
-          { name: 'BALCONY', icon: '🌿', color: '#10b981', isBalcony: true },
-          { name: 'M. BED', icon: '🛏️', color: '#3b82f6' },
-          { name: 'BED 2', icon: '🛏️', color: '#6366f1' },
-          { name: 'BED 3', icon: '🛏️', color: '#8b5cf6' },
-          { name: 'KITCHEN', icon: '🍳', color: '#f59e0b' },
-          { name: 'TOILET', icon: '🚿', color: '#0ea5e9' },
+          { name: 'BALCONY', icon: '🌿', widthWeight: 0.18, depthM: 2.0, color: '#10b981', isBalcony: true },
+          { name: 'MASTER BEDROOM', icon: '🛏️', widthWeight: 0.26, depthM: 6.5, color: '#3b82f6' },
+          { name: 'BEDROOM 2', icon: '🛏️', widthWeight: 0.20, depthM: 5.2, color: '#6366f1' },
+          { name: 'BEDROOM 3', icon: '🛏️', widthWeight: 0.18, depthM: 4.8, color: '#8b5cf6' },
+          { name: 'KITCHEN', icon: '🍳', widthWeight: 0.10, depthM: 4.2, color: '#f59e0b' },
+          { name: 'TOILET', icon: '🚿', widthWeight: 0.08, depthM: 2.8, color: '#0ea5e9' },
         ],
         '4bhk': [
-          { name: 'BALCONY', icon: '🌿', color: '#10b981', isBalcony: true },
-          { name: 'M. BED', icon: '🛏️', color: '#3b82f6' },
-          { name: 'BED 2', icon: '🛏️', color: '#6366f1' },
-          { name: 'BED 3', icon: '🛏️', color: '#8b5cf6' },
-          { name: 'BED 4', icon: '🛏️', color: '#ec4899' },
-          { name: 'KITCHEN', icon: '🍳', color: '#f59e0b' },
-          { name: 'TOILET', icon: '🚿', color: '#0ea5e9' },
+          { name: 'BALCONY', icon: '🌿', widthWeight: 0.16, depthM: 2.0, color: '#10b981', isBalcony: true },
+          { name: 'MASTER BEDROOM', icon: '🛏️', widthWeight: 0.24, depthM: 6.8, color: '#3b82f6' },
+          { name: 'BEDROOM 2', icon: '🛏️', widthWeight: 0.18, depthM: 5.2, color: '#6366f1' },
+          { name: 'BEDROOM 3', icon: '🛏️', widthWeight: 0.16, depthM: 4.8, color: '#8b5cf6' },
+          { name: 'BEDROOM 4', icon: '🛏️', widthWeight: 0.14, depthM: 4.5, color: '#ec4899' },
+          { name: 'KITCHEN', icon: '🍳', widthWeight: 0.07, depthM: 4.2, color: '#f59e0b' },
+          { name: 'TOILET', icon: '🚿', widthWeight: 0.05, depthM: 2.8, color: '#0ea5e9' },
         ],
       };
 
@@ -417,44 +457,61 @@ export default function ShapeStudioPage() {
         ctx.restore();
       }
 
-      // Render Each Flat Unit's Exterior Room Boxes & Living Room Flow
+      // Render Each Flat Unit's Proportional 90° Orthogonal Room Boxes & Living Room
       for (let u = 0; u < numUnits; u++) {
         const startHit = boundaryHits[u];
         const nextHit = boundaryHits[(u + 1) % numUnits];
         const theme = UNIT_THEMES[u % UNIT_THEMES.length];
         const midAngle = (startHit.angle + nextHit.angle + (nextHit.angle < startHit.angle ? 2 * Math.PI : 0)) / 2;
 
-        // 1. Calculate Flat Zone Midpoint for Label & Living Room
+        // 1. Calculate Flat Zone Midpoint for Central Living Room
         const midHit = raycastPolygon(midAngle);
-        const livingDist = (Math.max(coreW, coreH) / 2 + Math.sqrt((midHit.x - cx) ** 2 + (midHit.y - cy) ** 2)) * 0.42;
+        const livingDist = (Math.max(coreW, coreH) / 2 + Math.sqrt((midHit.x - cx) ** 2 + (midHit.y - cy) ** 2)) * 0.40;
         const livingX = cx + Math.cos(midAngle) * livingDist;
         const livingY = cy + Math.sin(midAngle) * livingDist;
 
-        // 2. Draw Exterior Facade Room Boxes
+        // 2. Draw 90° Orthogonal Facade Room Boxes with Proportional Sizing
         if (showExteriorBoxes) {
           const numBoxes = currentRoomBoxes.length;
           let balconyBoxCenter: { x: number; y: number } | null = null;
+          let runningWeight = 0;
 
           for (let b = 0; b < numBoxes; b++) {
-            const tStart = b / numBoxes;
-            const tEnd = (b + 1) / numBoxes;
+            const boxDef = currentRoomBoxes[b];
+            const tStart = runningWeight;
+            const tEnd = runningWeight + boxDef.widthWeight;
+            runningWeight += boxDef.widthWeight;
+
             const angleA = startHit.angle + (nextHit.angle - startHit.angle + (nextHit.angle < startHit.angle ? 2 * Math.PI : 0)) * tStart;
             const angleB = startHit.angle + (nextHit.angle - startHit.angle + (nextHit.angle < startHit.angle ? 2 * Math.PI : 0)) * tEnd;
 
             const pA = raycastPolygon(angleA);
             const pB = raycastPolygon(angleB);
 
-            // Calculate inward depth (45% inward towards centroid)
-            const boxDistA = Math.sqrt((pA.x - cx) ** 2 + (pA.y - cy) ** 2);
-            const boxDistB = Math.sqrt((pB.x - cx) ** 2 + (pB.y - cy) ** 2);
-            const depthM = Math.min(10, Math.max(4, Math.min(boxDistA, boxDistB) * 0.40));
+            // Calculate exact 90° orthogonal inward normal vector from facade segment
+            const edgeDx = pB.x - pA.x;
+            const edgeDy = pB.y - pA.y;
+            const edgeLen = Math.sqrt(edgeDx * edgeDx + edgeDy * edgeDy) || 1;
+            
+            // Inward normal perpendicular to facade
+            let normX = -edgeDy / edgeLen;
+            let normY = edgeDx / edgeLen;
 
-            const inA_x = pA.x - Math.cos(angleA) * depthM;
-            const inA_y = pA.y - Math.sin(angleA) * depthM;
-            const inB_x = pB.x - Math.cos(angleB) * depthM;
-            const inB_y = pB.y - Math.sin(angleB) * depthM;
+            // Ensure normal points inward toward centroid (cx, cy)
+            const midEdgeX = (pA.x + pB.x) / 2;
+            const midEdgeY = (pA.y + pB.y) / 2;
+            if (normX * (cx - midEdgeX) + normY * (cy - midEdgeY) < 0) {
+              normX = -normX;
+              normY = -normY;
+            }
 
-            const boxDef = currentRoomBoxes[b];
+            // Inward depth based on room type
+            const depthM = boxDef.depthM;
+            const inA_x = pA.x + normX * depthM;
+            const inA_y = pA.y + normY * depthM;
+            const inB_x = pB.x + normX * depthM;
+            const inB_y = pB.y + normY * depthM;
+
             const boxMidX = (pA.x + pB.x + inA_x + inB_x) / 4;
             const boxMidY = (pA.y + pB.y + inA_y + inB_y) / 4;
 
@@ -470,59 +527,89 @@ export default function ShapeStudioPage() {
             ctx.lineTo(toCanvasX(inA_x), toCanvasY(inA_y));
             ctx.closePath();
 
-            // Box Fill
+            // Box Fill & Stroke
             if (boxDef.isBalcony) {
+              // Thin Balcony Deck (1.5-2m depth) - Highlighted Green
               ctx.fillStyle = isDark ? 'rgba(16, 185, 129, 0.35)' : 'rgba(16, 185, 129, 0.25)';
               ctx.strokeStyle = '#10b981';
-            } else {
-              ctx.fillStyle = isDark ? 'rgba(30, 41, 59, 0.75)' : 'rgba(241, 245, 249, 0.85)';
-              ctx.strokeStyle = isDark ? 'rgba(255, 255, 255, 0.35)' : 'rgba(0, 0, 0, 0.35)';
-            }
-            ctx.lineWidth = boxDef.isBalcony ? 2 : 1;
-            ctx.fill();
-            ctx.stroke();
+              ctx.lineWidth = 2;
+              ctx.fill();
+              ctx.stroke();
 
-            // Box Label & Icon
-            ctx.font = 'bold 8px monospace';
-            ctx.fillStyle = boxDef.isBalcony ? '#10b981' : (isDark ? '#e2e8f0' : '#1e293b');
+              // Open Sliding Glass Door Threshold (NO SOLID WALL between living & balcony)
+              ctx.strokeStyle = '#34d399';
+              ctx.lineWidth = 2.5;
+              ctx.setLineDash([3, 3]);
+              ctx.beginPath();
+              ctx.moveTo(toCanvasX(inA_x), toCanvasY(inA_y));
+              ctx.lineTo(toCanvasX(inB_x), toCanvasY(inB_y));
+              ctx.stroke();
+              ctx.setLineDash([]);
+            } else {
+              // Clean 90° Orthogonal Room Box
+              ctx.fillStyle = isDark ? 'rgba(15, 23, 42, 0.85)' : 'rgba(248, 250, 252, 0.9)';
+              ctx.strokeStyle = isDark ? 'rgba(255, 255, 255, 0.45)' : 'rgba(0, 0, 0, 0.45)';
+              ctx.lineWidth = 1.5;
+              ctx.fill();
+              ctx.stroke();
+
+              // Color-coded Room Category Accent Line
+              ctx.strokeStyle = boxDef.color;
+              ctx.lineWidth = 2.5;
+              ctx.beginPath();
+              ctx.moveTo(toCanvasX(pA.x), toCanvasY(pA.y));
+              ctx.lineTo(toCanvasX(pB.x), toCanvasY(pB.y));
+              ctx.stroke();
+            }
+
+            // Box Label & Icon (Font size scaled to room box width)
+            const fontSize = boxDef.widthWeight < 0.12 ? 6.5 : (boxDef.widthWeight < 0.20 ? 7.5 : 8.5);
+            ctx.font = `bold ${fontSize}px monospace`;
+            ctx.fillStyle = boxDef.isBalcony ? '#10b981' : (isDark ? '#f8fafc' : '#0f172a');
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
-            ctx.fillText(`${boxDef.icon} ${boxDef.name}`, toCanvasX(boxMidX), toCanvasY(boxMidY));
+            
+            if (boxDef.widthWeight >= 0.12) {
+              ctx.fillText(`${boxDef.icon} ${boxDef.name}`, toCanvasX(boxMidX), toCanvasY(boxMidY));
+            } else {
+              ctx.fillText(boxDef.icon, toCanvasX(boxMidX), toCanvasY(boxMidY) - 3);
+              ctx.fillText(boxDef.name.slice(0, 4), toCanvasX(boxMidX), toCanvasY(boxMidY) + 5);
+            }
             ctx.restore();
           }
 
-          // 3. Draw Living Room to Balcony Seamless Sliding Flow
+          // 3. Direct Seamless Glazed Slider Flow from Living Room to Balcony
           if (showLivingBalconyFlow && balconyBoxCenter) {
             ctx.save();
             ctx.strokeStyle = '#10b981';
-            ctx.lineWidth = 1.5;
-            ctx.setLineDash([2, 2]);
+            ctx.lineWidth = 2;
+            ctx.setLineDash([3, 2]);
             ctx.beginPath();
             ctx.moveTo(toCanvasX(livingX), toCanvasY(livingY));
             ctx.lineTo(toCanvasX(balconyBoxCenter.x), toCanvasY(balconyBoxCenter.y));
             ctx.stroke();
 
-            // Midpoint Flow Badge
+            // Flow Label Badge (Direct Living-to-Balcony Access)
             const flowMidX = (livingX + balconyBoxCenter.x) / 2;
             const flowMidY = (livingY + balconyBoxCenter.y) / 2;
             ctx.font = 'bold 7px monospace';
             ctx.fillStyle = '#10b981';
             ctx.textAlign = 'center';
-            ctx.fillText('SLIDER ➜', toCanvasX(flowMidX), toCanvasY(flowMidY) - 3);
+            ctx.fillText('GLAZED SLIDER (NO WALL) ➜', toCanvasX(flowMidX), toCanvasY(flowMidY) - 4);
             ctx.restore();
           }
         }
 
-        // 4. Central Living Room Badge
+        // 4. Central Expansive Living & Dining Room Badge
         ctx.save();
         const badgeCanvasX = toCanvasX(livingX);
         const badgeCanvasY = toCanvasY(livingY);
 
         ctx.fillStyle = isDark ? '#0f172a' : '#ffffff';
         ctx.strokeStyle = theme.stroke;
-        ctx.lineWidth = 1.5;
+        ctx.lineWidth = 2;
         ctx.beginPath();
-        ctx.roundRect(badgeCanvasX - 32, badgeCanvasY - 14, 64, 28, 4);
+        ctx.roundRect(badgeCanvasX - 36, badgeCanvasY - 16, 72, 32, 5);
         ctx.fill();
         ctx.stroke();
 
@@ -530,23 +617,23 @@ export default function ShapeStudioPage() {
         ctx.fillStyle = theme.stroke;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        ctx.fillText(`FLAT ${theme.label}`, badgeCanvasX, badgeCanvasY - 4);
+        ctx.fillText(`FLAT ${theme.label} LIVING`, badgeCanvasX, badgeCanvasY - 5);
         ctx.font = '7px monospace';
         ctx.fillStyle = isDark ? '#94a3b8' : '#64748b';
-        ctx.fillText(`LIVING & DINING`, badgeCanvasX, badgeCanvasY + 6);
+        ctx.fillText(`& DINING HALL`, badgeCanvasX, badgeCanvasY + 7);
         ctx.restore();
 
         // 5. Unit Entry Door Marker along Central Corridor
-        const entryRadius = (Math.max(coreW, coreH) / 2) + 2;
+        const entryRadius = (Math.max(coreW, coreH) / 2) + 2.5;
         const entryX = cx + Math.cos(midAngle) * entryRadius;
         const entryY = cy + Math.sin(midAngle) * entryRadius;
 
         ctx.save();
-        ctx.font = 'bold 8px monospace';
+        ctx.font = 'bold 8.5px monospace';
         ctx.fillStyle = theme.stroke;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        ctx.fillText(`🚪 ${theme.label}`, toCanvasX(entryX), toCanvasY(entryY));
+        ctx.fillText(`🚪 ENTRY ${theme.label}`, toCanvasX(entryX), toCanvasY(entryY));
         ctx.restore();
       }
     }
