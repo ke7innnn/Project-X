@@ -332,6 +332,10 @@ const ArchitectAdvisorPanel = forwardRef<ArchitectAdvisorRef, Props>(({ onParams
   const [plotData, setPlotData] = useState<PlotData | null>(null);
   const [suggestedShape, setSuggestedShape] = useState<string | null>(null);
   const [appliedOptionId, setAppliedOptionId] = useState<string | null>(null);
+
+  // ── Custom Footprint Drawing State ──────────────────────────────────────────
+  const [isDrawingCustomFootprint, setIsDrawingCustomFootprint] = useState(false);
+  const [customFootprintPts, setCustomFootprintPts] = useState<Point[]>([]);
   
   // ── 50-Shape Selector Modal / Dropdown State ──────────────────────────────
   const [isShapePickerOpen, setIsShapePickerOpen] = useState(false);
@@ -722,6 +726,32 @@ const ArchitectAdvisorPanel = forwardRef<ArchitectAdvisorRef, Props>(({ onParams
         ctx.stroke();
         ctx.setLineDash([]);
 
+        // Draw in-progress custom footprint polygon
+        if (isDrawingCustomFootprint && customFootprintPts.length > 0) {
+          ctx.save();
+          ctx.strokeStyle = '#10b981';
+          ctx.lineWidth = 2.5;
+          ctx.setLineDash([4, 2]);
+          ctx.beginPath();
+          ctx.moveTo(customFootprintPts[0].x, customFootprintPts[0].y);
+          customFootprintPts.slice(1).forEach(p => ctx.lineTo(p.x, p.y));
+          if (hoverPt) ctx.lineTo(hoverPt.x, hoverPt.y);
+          ctx.stroke();
+          ctx.setLineDash([]);
+
+          // Draw vertex handles
+          customFootprintPts.forEach((pt, idx) => {
+            ctx.fillStyle = idx === 0 ? '#10b981' : '#00f0ff';
+            ctx.beginPath();
+            ctx.arc(pt.x, pt.y, idx === 0 ? 7 : 5, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.strokeStyle = '#ffffff';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+          });
+          ctx.restore();
+        }
+
         // Suggested shape overlay
         if (suggestedShape) {
           let shapePolygons: Point[][] = [];
@@ -771,7 +801,7 @@ const ArchitectAdvisorPanel = forwardRef<ArchitectAdvisorRef, Props>(({ onParams
           ctx.textAlign = 'center';
           
           // Rotate text to match building orientation if needed (optional, keeping horizontal for readability)
-          ctx.fillText('BUILDING SHAPE', textCx, textCy);
+          ctx.fillText(suggestedShape === 'custom-footprint' ? 'CUSTOM FOOTPRINT' : 'BUILDING SHAPE', textCx, textCy);
           ctx.textAlign = 'left';
           
           ctx.restore();
@@ -1271,6 +1301,16 @@ const ArchitectAdvisorPanel = forwardRef<ArchitectAdvisorRef, Props>(({ onParams
     }
   };
 
+  const finishCustomFootprint = useCallback(() => {
+    if (customFootprintPts.length < 3) return;
+    setIsDrawingCustomFootprint(false);
+    finalShapePolygonsRef.current = [customFootprintPts];
+    setSuggestedShape('custom-footprint');
+    setShapeWasModified(true);
+    const area = polygonAreaM2(customFootprintPts);
+    buildingAreaRef.current = area;
+  }, [customFootprintPts, polygonAreaM2]);
+
   const handleCanvasClick = (e: React.MouseEvent<HTMLCanvasElement>) => {
     if (isEditingShape) return; // editing mode handles its own clicks in mouseDown
     if (hasDraggedImg) {
@@ -1281,9 +1321,23 @@ const ArchitectAdvisorPanel = forwardRef<ArchitectAdvisorRef, Props>(({ onParams
       alert("Please enter the Overall Width and Length and click 'SET' before tracing.");
       return;
     }
-    if (isTracingClosed) return;
+
     const raw = getCanvasCoords(e);
     const snapped = snapToGrid(raw.x, raw.y);
+
+    if (isDrawingCustomFootprint) {
+      if (customFootprintPts.length >= 3) {
+        const first = customFootprintPts[0];
+        if (Math.hypot(snapped.x - first.x, snapped.y - first.y) < cellPx * 0.8) {
+          finishCustomFootprint();
+          return;
+        }
+      }
+      setCustomFootprintPts(prev => [...prev, snapped]);
+      return;
+    }
+
+    if (isTracingClosed) return;
 
     if (polygon.length >= 3) {
       const first = polygon[0];
@@ -1343,6 +1397,8 @@ const ArchitectAdvisorPanel = forwardRef<ArchitectAdvisorRef, Props>(({ onParams
   const resetTrace = () => {
     setPolygon([]);
     setIsTracingClosed(false);
+    setIsDrawingCustomFootprint(false);
+    setCustomFootprintPts([]);
     setHasAnalyzed(false);
     setPlotData(null);
     setSuggestedShape(null);
@@ -1894,6 +1950,29 @@ Use these measurements to determine which apartment types can physically fit in 
               <span>📐 SELECT SHAPE (50)</span>
               <ChevronDown className="w-3 h-3 text-emerald-300" />
             </button>
+
+            {/* Custom Footprint Drawing Tool Button */}
+            {isTracingClosed && (
+              <button
+                onClick={() => {
+                  if (isDrawingCustomFootprint) {
+                    if (customFootprintPts.length >= 3) finishCustomFootprint();
+                    else setIsDrawingCustomFootprint(false);
+                  } else {
+                    setIsDrawingCustomFootprint(true);
+                    setCustomFootprintPts([]);
+                  }
+                }}
+                className={`flex items-center gap-1 px-2.5 py-1 rounded-md text-[9px] font-bold border cursor-pointer tracking-wider transition-all ${
+                  isDrawingCustomFootprint
+                    ? 'bg-gradient-to-r from-cyan-500/40 to-emerald-500/40 border-cyan-300 text-white shadow-[0_0_15px_rgba(0,240,255,0.4)] animate-pulse'
+                    : 'bg-cyan-950/40 border-cyan-500/40 text-cyan-300 hover:bg-cyan-900/50 hover:border-cyan-400'
+                }`}
+                title="Click vertices directly on the canvas to draw your own custom building shape"
+              >
+                <span>{isDrawingCustomFootprint ? (customFootprintPts.length >= 3 ? '✓ FINISH FOOTPRINT' : '✕ CANCEL') : '✏️ DRAW FOOTPRINT'}</span>
+              </button>
+            )}
 
             <button
               onClick={() => setIsFullscreen(!isFullscreen)}

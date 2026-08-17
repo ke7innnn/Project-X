@@ -51,65 +51,40 @@ function buildPrompt(opts: {
   isSingle: boolean; buildingType: string; numFlats: number;
   hasDividers: boolean; hasCore: boolean;
   roomItems: string; roomListLabelHint: string; verifyChecks: string;
+  widthM?: number; lengthM?: number; stories?: number; userPrompt?: string;
 }): string {
-  const { isSingle, buildingType, numFlats, hasDividers, hasCore, roomItems, roomListLabelHint, verifyChecks } = opts;
+  const { isSingle, buildingType, numFlats, roomItems, userPrompt, widthM = 80, lengthM = 80, stories = 10 } = opts;
 
-  const rawRooms = roomItems.split('\n').map(line => line.split(' = ')[1]?.trim()).filter(Boolean);
-  let checklist = 'Apartment validation checklist:\n';
-  if (!isSingle && buildingType === 'multi-residential') {
-    for (let i = 1; i <= numFlats; i++) {
-      checklist += `Flat ${i}\n`;
-      rawRooms.forEach(r => { checklist += `[*] ${r}\n`; });
-      checklist += '\n';
-    }
-  } else {
-    checklist = 'Required rooms:\n';
-    rawRooms.forEach(r => { checklist += `[*] ${r}\n`; });
-  }
+  return `Create a high-end, award-winning MASTER ARCHITECTURAL PRESENTATION BOARD floor plan drawing matching the exact format and render style of the reference presentation board image.
 
-  return `Task: Design a professional architectural floor plan using the uploaded building footprint (WHITE) as the exact outer boundary.
-Preserve the exterior shape exactly. The white boundary is immutable.
+${userPrompt ? `USER CONCEPT BRIEF: ${userPrompt}` : ''}
+BUILDING DIMENSIONS: ${widthM}m Width × ${lengthM}m Length | Target Height: ${stories} Stories
 
-${hasDividers ? 'The solid colored regions dictate apartment boundaries. Never cross region borders.' : ''}
+BOARD COMPOSITION & MULTI-VIEW LAYOUT:
+1. MAIN LEFT REGION (70% Canvas Width) — FULL 2D MASTER RESIDENTIAL FLOOR PLAN:
+   - Complete architectural layout showing ${numFlats} luxury residential apartments (${isSingle ? '1 unified villa penthouse' : `${numFlats} independent residential flats`}).
+   - Realistic warm architectural textures: polished travertine/marble flooring tiles, warm hardwood floor in master suites, textured tile in kitchens and balconies.
+   - Fully furnished room layouts: master bedrooms with king beds & side tables, ensuite attached toilets/bathrooms with glass showers & sanitaryware, living/dining lounges with sofas & dining tables, modern modular kitchens with breakfast counters, attached balconies with lush potted greenery.
+   - Central Core: Central staircase with step treads & UP/DN directional arrows, and 2× Passenger Lifts with clear elevator car doors.
+   - Clean architectural callout text boxes with leader lines: "FLAT 01 - 1 BHK", "FLAT 02 - 1 BHK", "FLAT 04 - 2 BHK", etc.
+   - Distinct North Arrow indicator in the top-left corner.
 
-Create ${isSingle ? `1 unified ${buildingType} layout` : `${numFlats} independent residential apartments, each approximately equal in area (if practical).`}
+2. TOP-RIGHT PANEL (30% Canvas Width, Upper Box) — "TOP VIEW (BUILDING FORM)":
+   - Realistic 3D aerial architectural massing roof render of the building silhouette from directly above, showing aerodynamic architectural roof skin and site integration.
 
-${hasCore ? 'Design a central circulation core with stairs and lift centered EXACTLY on the CYAN square.' : (isSingle ? '' : 'Design a central circulation core with main staircase, lift, and shared corridor.')}
+3. MIDDLE-RIGHT PANEL (30% Canvas Width, Middle Box) — "3D VIEW (BUILDING FORM)":
+   - Photorealistic 3D isometric perspective architectural render of the complete tower elevation, showing modern glass facade, continuous curved wrap-around balconies, and sculptural crown.
 
-Use realistic architectural planning, COMPACT miniature rooms, and strict Vastu principles.
-A tiny room is always better than a missing room. Micro-size rooms if needed. Pack rooms tightly.
+4. BOTTOM-RIGHT CARD — "FLOOR PLAN SUMMARY" & "FLAT LEGEND":
+   - Elegant architectural summary card with clean typography:
+     • Total Unit Mix breakdown (e.g. 4 × 1 BHK FLATS, 2 × 2 BHK FLATS)
+     • Central Staircase & Two Lifts
+     • Symmetrical / Aerodynamic Arrangement
+   - Color-coded FLAT LEGEND key table with distinct pastel color chips matching each flat on the floor plan.
+   - Architectural footnote: "NOTE: PLAN IS CONCEPTUAL AND CAN BE MODIFIED AS PER SITE CONDITIONS".
 
-Show: Thick black exterior walls, interior partition walls, doors with swings, windows, room labels, flat numbering, clean CAD style, white background.
-
-${checklist}
-Validate every unit contains these exact rooms before finalizing. Do not omit any room.
-
-CRITICAL ZONING GRADIENT:
-Design every flat logically as a gradient from public to private spaces:
-- "public" zone (Living Room, Dining, Entrance/Foyer) must be near the entry corridor/road side.
-- "service" zone (Kitchen, Utility, Common Bath, Store) acts as a buffer between public and private.
-- "private" zone (Bedrooms, Ensuite Bathrooms) must be placed at the deepest point of the flat, furthest from the entrance.
-
-CRITICAL CIRCULATION, DOOR PLACEMENT & ADJACENCY:
-1. Every room MUST have a physical door swing (clearly drawn arc) connecting it to another room or hallway. No landlocked or doorless rooms.
-2. Flat entrance door must open directly into the Living Room or Foyer.
-3. Adjacencies: Dining must touch Kitchen; Kitchen must touch the Utility balcony.
-4. Bathrooms must connect directly to a Bedroom (as ensuite) or a Common Hallway. NEVER make a bathroom door open directly into the Living Room, Dining Room, or Kitchen.
-5. Wall layouts must align cleanly at 90-degree angles to make functional rectangular spaces. No awkward floating walls or random interior shapes.
-
-CRITICAL LIGHT & VENTILATION (EXTERNAL WALLS):
-Bedrooms, Living Rooms, and Kitchens MUST touch an external wall to allow large windows for natural light and ventilation. Internal baths, corridors, and stores can be placed in the interior core without direct light.
-
-VAASTU RULES (Highly Weighted):
-- Kitchen: Position towards the South-East (SE) corner of the flat layout.
-- Master Bedroom: Position towards the South-West (SW) corner of the flat.
-- Main Entrance: Position towards the North-East (NE) corner of the flat.
-- Toilet/Bathroom: Avoid placing in the North-East (NE) corner.
-
-Specify architectural constraints:
-150 mm exterior walls, 100 mm partition walls, 900 mm doors, 1200 mm corridor.
-
-After completion, draw one red outline around the exterior walls (#FF0000).`;
+AESTHETICS:
+Crisp drafting linework, warm sand and cream presentation board backdrop, ultra-detailed architectural rendering, no blurry artifacts, publication-ready presentation board.`;
 }
 
 function buildRefinementPrompt(opts: {
@@ -221,48 +196,66 @@ Output the redesigned floor plan image only.`;
 
 
 
+import fs from 'fs';
+import path from 'path';
+
+async function getReferenceImageUrl(uploadedRefBase64?: string | null): Promise<string> {
+  if (uploadedRefBase64 && uploadedRefBase64.length > 50) {
+    const base64Data = uploadedRefBase64.replace(/^data:image\/\w+;base64,/, '');
+    const imageBuffer = Buffer.from(base64Data, 'base64');
+    const file = new File([new Blob([imageBuffer], { type: 'image/jpeg' })], 'user_ref.jpg', { type: 'image/jpeg' });
+    return await fal.storage.upload(file);
+  }
+
+  // Use master presentation board reference by default
+  const masterPath = path.join(process.cwd(), 'public', 'references', 'master_presentation_board.jpg');
+  if (fs.existsSync(masterPath)) {
+    const buffer = fs.readFileSync(masterPath);
+    const file = new File([new Blob([buffer], { type: 'image/jpeg' })], 'master_ref.jpg', { type: 'image/jpeg' });
+    return await fal.storage.upload(file);
+  }
+
+  throw new Error('Master presentation board reference not found');
+}
+
 // ── Route Handler ─────────────────────────────────────────────────────────────
 
 export async function POST(req: Request) {
   try {
     const {
-      traceCanvasBase64, buildingType = 'multi-residential', roomConfig = 'auto',
-      workflow = 'grok-solo', flatCount = 'auto', hasDividers = false,
+      traceCanvasBase64, referenceImageBase64, userPrompt, widthM = 80, lengthM = 80,
+      stories = 10, buildingType = 'multi-residential', roomConfig = 'auto',
+      workflow = 'gpt-solo', flatCount = 'auto', hasDividers = false,
       hasCore = false, numRegions = 1
     } = await req.json();
 
-    if (!traceCanvasBase64) {
-      return NextResponse.json({ error: 'Missing traceCanvasBase64' }, { status: 400 });
-    }
-
     // Map workflow -> stage1 model + optional stage2 model
     const WORKFLOWS: Record<string, { stage1: string; stage2?: string; label: string }> = {
+      'gpt-solo':         { stage1: 'openai/gpt-image-2/edit',                        label: 'GPT Image 2 (Master Board)' },
       'grok-gpt':         { stage1: 'xai/grok-imagine-image/edit',                   stage2: 'openai/gpt-image-2/edit', label: 'Grok -> GPT Image 2' },
       'grok-nano':        { stage1: 'xai/grok-imagine-image/edit',                   stage2: 'fal-ai/nano-banana-pro/edit', label: 'Grok -> Nano Banana Pro' },
-      'grok-kontext':     { stage1: 'xai/grok-imagine-image/edit',                   stage2: 'fal-ai/flux-pro/kontext', label: 'Grok -> FLUX Kontext' },
       'flux-klein-gpt':   { stage1: 'fal-ai/flux-2/klein/9b/edit',                   stage2: 'openai/gpt-image-2/edit', label: 'FLUX Klein -> GPT Image 2' },
-      'flux-klein-nano':  { stage1: 'fal-ai/flux-2/klein/9b/edit',                   stage2: 'fal-ai/nano-banana-pro/edit', label: 'FLUX Klein -> Nano Banana Pro' },
-      'flux-kontext-gpt': { stage1: 'fal-ai/flux-pro/kontext',                        stage2: 'openai/gpt-image-2/edit', label: 'FLUX Kontext -> GPT Image 2' },
-      'grok-solo':        { stage1: 'xai/grok-imagine-image/edit',                   label: 'Grok only' },
-      'flux-klein-solo':  { stage1: 'fal-ai/flux-2/klein/9b/edit',                   label: 'FLUX Klein only' },
-      'flux-kontext-solo':{ stage1: 'fal-ai/flux-pro/kontext',                        label: 'FLUX Kontext [pro] only' },
-      'gpt-solo':         { stage1: 'openai/gpt-image-2/edit',                        label: 'GPT Image 2 only' },
       'gemini-solo':      { stage1: 'fal-ai/gemini-3.1-flash-image-preview/edit',     label: 'Gemini only' },
-      'flux-canny-solo':  { stage1: 'fal-ai/flux-control-lora-canny',                 label: 'FLUX Canny only' },
+      'grok-solo':        { stage1: 'xai/grok-imagine-image/edit',                   label: 'Grok only' },
     };
 
-    const wf = WORKFLOWS[workflow] || WORKFLOWS['grok-gpt'];
+    const wf = WORKFLOWS[workflow] || WORKFLOWS['gpt-solo'];
     const stage1Model = wf.stage1;
     const stage2Model = wf.stage2 || null;
 
     console.log(`[ConceptGenerator] Workflow: ${wf.label} | stage1=${stage1Model} stage2=${stage2Model || 'none'}`);
 
-    // Upload trace image to fal storage
-    const base64Data = traceCanvasBase64.replace(/^data:image\/\w+;base64,/, '');
-    const imageBuffer = Buffer.from(base64Data, 'base64');
-    const traceFile = new File([new Blob([imageBuffer], { type: 'image/png' })], 'trace.png', { type: 'image/png' });
-    const uploadedTraceUrl = await fal.storage.upload(traceFile);
-    console.log('[ConceptGenerator] Trace uploaded:', uploadedTraceUrl);
+    // Resolve reference image URL (either user trace, user uploaded reference, or default master presentation board)
+    let uploadedReferenceUrl: string;
+    if (traceCanvasBase64 && traceCanvasBase64.length > 50) {
+      const base64Data = traceCanvasBase64.replace(/^data:image\/\w+;base64,/, '');
+      const imageBuffer = Buffer.from(base64Data, 'base64');
+      const traceFile = new File([new Blob([imageBuffer], { type: 'image/png' })], 'trace.png', { type: 'image/png' });
+      uploadedReferenceUrl = await fal.storage.upload(traceFile);
+    } else {
+      uploadedReferenceUrl = await getReferenceImageUrl(referenceImageBase64);
+    }
+    console.log('[ConceptGenerator] Reference Image uploaded to FAL storage:', uploadedReferenceUrl);
 
     const isSingle = buildingType === 'single-residential';
     const numFlats = isSingle ? 1 : ((hasDividers && numRegions > 1) ? numRegions : (flatCount !== 'auto' ? parseInt(flatCount, 10) : 4));
@@ -273,14 +266,6 @@ export async function POST(req: Request) {
       roomItems = 'L = Living\nK = Kitchen\nMB = Master Bedroom\nB2 = Bedroom 2\nT1 = Master Toilet\nT2 = Common Toilet\nFOY = Foyer\nUTI = Utility';
       roomListLabelHint = 'L K MB B2 T1 T2 FOY UTI';
       verifyChecks = '- Exactly 1 Foyer.\n- Exactly 1 Living room.\n- Exactly 1 Kitchen.\n- Exactly 2 Bedrooms.\n- Exactly 2 Bathrooms.';
-    } else if (buildingType === 'office') {
-      roomItems = 'REC = Reception\nOPEN = Open Office Workspace\nCAB = Private Cabin\nMEET = Meeting Room\nPAN = Pantry\nST = Store\nT = Toilet';
-      roomListLabelHint = 'REC OPEN CAB-1 CAB-2 CAB-3 MEET PAN ST T-1 T-2';
-      verifyChecks = '- Exactly 1 Reception.\n- Exactly 1 Open Workspace.\n- Exactly 3 Cabins.\n- Exactly 2 Toilets.';
-    } else if (buildingType === 'healthcare') {
-      roomItems = 'REC = Reception/Waiting\nC = Consultation Room\nNS = Nurse Station\nW = Patient Ward\nPHAR = Pharmacy\nLAB = Laboratory\nST = Store\nT = Toilet';
-      roomListLabelHint = 'REC C-1 C-2 NS W-1 W-2 PHAR LAB ST T-1';
-      verifyChecks = '- Exactly 1 Reception.\n- Exactly 2 Consultation Rooms.\n- Exactly 2 Patient Wards.\n- Exactly 1 Pharmacy.';
     } else {
       if (roomConfig === '1bhk') {
         roomItems = 'L-i = Living\nK-i = Kitchen\nB-i = Bedroom\nT-i = Bathroom';
@@ -301,11 +286,24 @@ export async function POST(req: Request) {
       }
     }
 
-    const promptOpts = { isSingle, buildingType, numFlats, hasDividers, hasCore, roomItems, roomListLabelHint, verifyChecks };
+    const promptOpts = { 
+      isSingle, 
+      buildingType, 
+      numFlats, 
+      hasDividers, 
+      hasCore, 
+      roomItems, 
+      roomListLabelHint, 
+      verifyChecks,
+      widthM,
+      lengthM,
+      stories,
+      userPrompt
+    };
     const stage1Prompt = buildPrompt(promptOpts);
 
     // ── STAGE 1 ──────────────────────────────────────────────────────────────
-    const stage1Input = buildFalInput(stage1Model, uploadedTraceUrl, stage1Prompt);
+    const stage1Input = buildFalInput(stage1Model, uploadedReferenceUrl, stage1Prompt);
     console.log('[ConceptGenerator] Stage 1 input keys:', Object.keys(stage1Input));
     const stage1Url = await runModel(stage1Model, stage1Input);
     console.log('[ConceptGenerator] Stage 1 output:', stage1Url);
