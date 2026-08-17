@@ -334,53 +334,18 @@ export default function ShapeStudioPage() {
       ctx.fillText(`CORE: ${Math.round(core.width)}m × ${Math.round(core.length)}m`, toCanvasX(core.x), toCanvasY(core.y) + 16);
     }
 
-    // ── 6. DRAW EXTERIOR FACADE ROOM BOXES & UNIT PARTITIONS ─────────────
+    // ── 6. DRAW REALISTIC ARCHITECTURAL ROOM SUITES & UNIT PARTITIONS ─────
     if (showPartitions && polygonPts.length > 2) {
       const UNIT_THEMES = [
-        { label: 'F1', stroke: '#ef4444', fill: 'rgba(239, 68, 68, 0.10)' },
-        { label: 'F2', stroke: '#10b981', fill: 'rgba(16, 185, 129, 0.10)' },
-        { label: 'F3', stroke: '#f59e0b', fill: 'rgba(245, 158, 11, 0.10)' },
-        { label: 'F4', stroke: '#06b6d4', fill: 'rgba(6, 182, 212, 0.10)' },
-        { label: 'F6', stroke: '#8b5cf6', fill: 'rgba(139, 92, 246, 0.10)' },
-        { label: 'F7', stroke: '#f43f5e', fill: 'rgba(244, 63, 94, 0.10)' },
-        { label: 'F8', stroke: '#eab308', fill: 'rgba(234, 179, 8, 0.10)' },
+        { label: 'F1', stroke: '#ef4444', fill: 'rgba(239, 68, 68, 0.12)', text: '#fca5a5' },
+        { label: 'F2', stroke: '#10b981', fill: 'rgba(16, 185, 129, 0.12)', text: '#6ee7b7' },
+        { label: 'F3', stroke: '#f59e0b', fill: 'rgba(245, 158, 11, 0.12)', text: '#fcd34d' },
+        { label: 'F4', stroke: '#06b6d4', fill: 'rgba(6, 182, 212, 0.12)', text: '#67e8f9' },
+        { label: 'F6', stroke: '#8b5cf6', fill: 'rgba(139, 92, 246, 0.12)', text: '#c4b5fd' },
+        { label: 'F7', stroke: '#f43f5e', fill: 'rgba(244, 63, 94, 0.12)', text: '#fda4af' },
+        { label: 'F8', stroke: '#eab308', fill: 'rgba(234, 179, 8, 0.12)', text: '#fde047' },
       ];
 
-      // Proportional Room Box Definitions along Exterior Facade
-      const ROOM_BOX_DEFS: Record<string, { icon: string; widthWeight: number; depthM: number; color: string; isBalcony?: boolean }[]> = {
-        '1bhk': [
-          { icon: '🌿', widthWeight: 0.28, depthM: 2.8, color: '#10b981', isBalcony: true },
-          { icon: '🛏️', widthWeight: 0.38, depthM: 8.5, color: '#3b82f6' },
-          { icon: '🍳', widthWeight: 0.20, depthM: 6.0, color: '#f59e0b' },
-          { icon: '🚿', widthWeight: 0.14, depthM: 4.5, color: '#0ea5e9' },
-        ],
-        '2bhk': [
-          { icon: '🌿', widthWeight: 0.22, depthM: 2.8, color: '#10b981', isBalcony: true },
-          { icon: '🛏️', widthWeight: 0.32, depthM: 8.5, color: '#3b82f6' },
-          { icon: '🛏️', widthWeight: 0.24, depthM: 7.5, color: '#6366f1' },
-          { icon: '🍳', widthWeight: 0.14, depthM: 6.0, color: '#f59e0b' },
-          { icon: '🚿', widthWeight: 0.08, depthM: 4.5, color: '#0ea5e9' },
-        ],
-        '3bhk': [
-          { icon: '🌿', widthWeight: 0.18, depthM: 2.8, color: '#10b981', isBalcony: true },
-          { icon: '🛏️', widthWeight: 0.28, depthM: 9.0, color: '#3b82f6' },
-          { icon: '🛏️', widthWeight: 0.22, depthM: 7.8, color: '#6366f1' },
-          { icon: '🛏️', widthWeight: 0.18, depthM: 7.0, color: '#8b5cf6' },
-          { icon: '🍳', widthWeight: 0.08, depthM: 6.0, color: '#f59e0b' },
-          { icon: '🚿', widthWeight: 0.06, depthM: 4.5, color: '#0ea5e9' },
-        ],
-        '4bhk': [
-          { icon: '🌿', widthWeight: 0.16, depthM: 2.8, color: '#10b981', isBalcony: true },
-          { icon: '🛏️', widthWeight: 0.25, depthM: 9.2, color: '#3b82f6' },
-          { icon: '🛏️', widthWeight: 0.20, depthM: 7.8, color: '#6366f1' },
-          { icon: '🛏️', widthWeight: 0.16, depthM: 7.2, color: '#8b5cf6' },
-          { icon: '🛏️', widthWeight: 0.13, depthM: 6.8, color: '#ec4899' },
-          { icon: '🍳', widthWeight: 0.06, depthM: 6.0, color: '#f59e0b' },
-          { icon: '🚿', widthWeight: 0.04, depthM: 4.5, color: '#0ea5e9' },
-        ],
-      };
-
-      const currentRoomBoxes = ROOM_BOX_DEFS[bhkType] || ROOM_BOX_DEFS['3bhk'];
       const numUnits = Math.min(8, Math.max(2, unitCount === 5 ? 4 : unitCount));
 
       // Raycast helper to find outer perimeter intersection point
@@ -427,15 +392,25 @@ export default function ShapeStudioPage() {
         boundaryHits.push({ ...hit, angle });
       }
 
-      // 1. Draw Stepped / Interlocking Radial Partition Boundary Lines
+      // ── STRICT POLYGON CLIPPING: Nothing can ever bleed outside ──────────
+      ctx.save();
+      ctx.beginPath();
+      ctx.moveTo(toCanvasX(polygonPts[0].x), toCanvasY(polygonPts[0].y));
+      for (let i = 1; i < polygonPts.length; i++) {
+        ctx.lineTo(toCanvasX(polygonPts[i].x), toCanvasY(polygonPts[i].y));
+      }
+      ctx.closePath();
+      ctx.clip();
+
+      // 1. Draw Primary Unit Division Demarcation Walls
       for (let i = 0; i < numUnits; i++) {
         const hit = boundaryHits[i];
         const theme = UNIT_THEMES[i % UNIT_THEMES.length];
 
         ctx.save();
         ctx.strokeStyle = theme.stroke;
-        ctx.lineWidth = 2;
-        ctx.setLineDash([5, 3]);
+        ctx.lineWidth = 2.5;
+        ctx.setLineDash([6, 3]);
 
         ctx.beginPath();
         const coreBorderRadius = Math.max(layout.core.width, layout.core.length) / 2;
@@ -448,7 +423,7 @@ export default function ShapeStudioPage() {
         ctx.restore();
       }
 
-      // 2. Render Each Flat Unit's Exterior Facade Room Boxes
+      // 2. Render Realistic, Spacious Architectural Rooms Inside Each Flat
       for (let u = 0; u < numUnits; u++) {
         const startHit = boundaryHits[u];
         const nextHit = boundaryHits[(u + 1) % numUnits];
@@ -457,75 +432,89 @@ export default function ShapeStudioPage() {
         const midAngle = startHit.angle + spanAngle / 2;
 
         const midHit = raycastPoly(midAngle);
-        const livingDist = (Math.max(layout.core.width, layout.core.length) / 2 + Math.sqrt((midHit.x - cx) ** 2 + (midHit.y - cy) ** 2)) * 0.42;
-        const livingX = cx + Math.cos(midAngle) * livingDist;
-        const livingY = cy + Math.sin(midAngle) * livingDist;
+        const maxDist = Math.sqrt((midHit.x - cx) ** 2 + (midHit.y - cy) ** 2);
+        const coreRadius = Math.max(layout.core.width, layout.core.length) / 2 + 2;
+
+        // Generous room depth (50% of available wing span, min 8m, max 14m)
+        const roomDepthM = Math.min(14, Math.max(8, (maxDist - coreRadius) * 0.52));
+
+        // Living room centroid
+        const livingDistM = coreRadius + (maxDist - roomDepthM - coreRadius) * 0.50;
+        const livingX = cx + Math.cos(midAngle) * livingDistM;
+        const livingY = cy + Math.sin(midAngle) * livingDistM;
 
         if (showExteriorBoxes) {
-          const numBoxes = currentRoomBoxes.length;
-          let balconyBoxCenter: { x: number; y: number } | null = null;
+          // Determine realistic room modules per flat based on BHK density
+          // (Fewer, larger, high-value rectangular spaces instead of squished micro-teeth)
+          const roomModules = numUnits >= 6 
+            ? [
+                { icon: '🌿', frac: 0.35, depth: 3.0, color: '#10b981', isBalcony: true },
+                { icon: '🛏️', frac: 0.45, depth: roomDepthM, color: '#3b82f6' },
+                { icon: '🍳', frac: 0.20, depth: roomDepthM * 0.75, color: '#f59e0b' },
+              ]
+            : bhkType === '1bhk'
+            ? [
+                { icon: '🌿', frac: 0.30, depth: 3.2, color: '#10b981', isBalcony: true },
+                { icon: '🛏️', frac: 0.45, depth: roomDepthM, color: '#3b82f6' },
+                { icon: '🍳', frac: 0.25, depth: roomDepthM * 0.8, color: '#f59e0b' },
+              ]
+            : bhkType === '2bhk'
+            ? [
+                { icon: '🌿', frac: 0.25, depth: 3.2, color: '#10b981', isBalcony: true },
+                { icon: '🛏️', frac: 0.35, depth: roomDepthM, color: '#3b82f6' },
+                { icon: '🛏️', frac: 0.25, depth: roomDepthM * 0.9, color: '#6366f1' },
+                { icon: '🍳', frac: 0.15, depth: roomDepthM * 0.75, color: '#f59e0b' },
+              ]
+            : [
+                { icon: '🌿', frac: 0.22, depth: 3.2, color: '#10b981', isBalcony: true },
+                { icon: '🛏️', frac: 0.32, depth: roomDepthM, color: '#3b82f6' },
+                { icon: '🛏️', frac: 0.24, depth: roomDepthM * 0.9, color: '#6366f1' },
+                { icon: '🛏️', frac: 0.14, depth: roomDepthM * 0.85, color: '#8b5cf6' },
+                { icon: '🍳', frac: 0.08, depth: roomDepthM * 0.75, color: '#f59e0b' },
+              ];
 
-          // 1. Calculate cumulative boundary cut angles and depths
-          const cutPoints: Array<{ pOut: { x: number; y: number }; pIn: { x: number; y: number }; angle: number }> = [];
-          let runningFrac = 0;
+          let curFrac = 0;
+          let balconyCenterPt: { x: number; y: number } | null = null;
 
-          for (let k = 0; k <= numBoxes; k++) {
-            const frac = k === 0 ? 0 : k === numBoxes ? 1 : runningFrac;
-            const angleK = startHit.angle + spanAngle * frac;
-            const pOut = raycastPoly(angleK);
+          roomModules.forEach((mod) => {
+            const a0 = startHit.angle + spanAngle * curFrac;
+            const a1 = startHit.angle + spanAngle * (curFrac + mod.frac);
+            curFrac += mod.frac;
 
-            // Calculate inward vector toward centroid
-            const vDx = cx - pOut.x;
-            const vDy = cy - pOut.y;
-            const vLen = Math.sqrt(vDx * vDx + vDy * vDy) || 1;
-            const inDirX = vDx / vLen;
-            const inDirY = vDy / vLen;
+            const p0 = raycastPoly(a0);
+            const p1 = raycastPoly(a1);
 
-            // Inward room depth (average of adjacent box depths)
-            const boxBefore = k > 0 ? currentRoomBoxes[k - 1] : currentRoomBoxes[0];
-            const boxAfter = k < numBoxes ? currentRoomBoxes[k] : currentRoomBoxes[numBoxes - 1];
-            const depthM = (boxBefore.depthM + boxAfter.depthM) / 2;
+            // Calculate inner wall points along radial rays
+            const dist0 = Math.sqrt((p0.x - cx) ** 2 + (p0.y - cy) ** 2);
+            const dist1 = Math.sqrt((p1.x - cx) ** 2 + (p1.y - cy) ** 2);
 
-            const pIn = {
-              x: pOut.x + inDirX * depthM,
-              y: pOut.y + inDirY * depthM,
+            const q0 = {
+              x: cx + Math.cos(a0) * Math.max(coreRadius + 2, dist0 - mod.depth),
+              y: cy + Math.sin(a0) * Math.max(coreRadius + 2, dist0 - mod.depth),
             };
 
-            cutPoints.push({ pOut, pIn, angle: angleK });
+            const q1 = {
+              x: cx + Math.cos(a1) * Math.max(coreRadius + 2, dist1 - mod.depth),
+              y: cy + Math.sin(a1) * Math.max(coreRadius + 2, dist1 - mod.depth),
+            };
 
-            if (k < numBoxes) {
-              runningFrac += currentRoomBoxes[k].widthWeight;
-            }
-          }
+            const midX = (p0.x + p1.x + q0.x + q1.x) / 4;
+            const midY = (p0.y + p1.y + q0.y + q1.y) / 4;
 
-          // 2. Render Each Non-Overlapping Shared-Wall Room Box
-          for (let b = 0; b < numBoxes; b++) {
-            const boxDef = currentRoomBoxes[b];
-            const pt0 = cutPoints[b];
-            const pt1 = cutPoints[b + 1];
-
-            const pA = pt0.pOut;
-            const pB = pt1.pOut;
-            const inB = pt1.pIn;
-            const inA = pt0.pIn;
-
-            const boxMidX = (pA.x + pB.x + inA.x + inB.x) / 4;
-            const boxMidY = (pA.y + pB.y + inA.y + inB.y) / 4;
-
-            if (boxDef.isBalcony) {
-              balconyBoxCenter = { x: boxMidX, y: boxMidY };
+            if (mod.isBalcony) {
+              balconyCenterPt = { x: midX, y: midY };
             }
 
             ctx.save();
             ctx.beginPath();
-            ctx.moveTo(toCanvasX(pA.x), toCanvasY(pA.y));
-            ctx.lineTo(toCanvasX(pB.x), toCanvasY(pB.y));
-            ctx.lineTo(toCanvasX(inB.x), toCanvasY(inB.y));
-            ctx.lineTo(toCanvasX(inA.x), toCanvasY(inA.y));
+            ctx.moveTo(toCanvasX(p0.x), toCanvasY(p0.y));
+            ctx.lineTo(toCanvasX(p1.x), toCanvasY(p1.y));
+            ctx.lineTo(toCanvasX(q1.x), toCanvasY(q1.y));
+            ctx.lineTo(toCanvasX(q0.x), toCanvasY(q0.y));
             ctx.closePath();
 
-            // Sharp CAD Box Fill & Stroke
-            if (boxDef.isBalcony) {
+            if (mod.isBalcony) {
+              // Sleek Emerald Attached Balcony Deck
               ctx.fillStyle = isDark ? 'rgba(16, 185, 129, 0.45)' : 'rgba(16, 185, 129, 0.35)';
               ctx.strokeStyle = '#10b981';
               ctx.lineWidth = 2.5;
@@ -537,43 +526,44 @@ export default function ShapeStudioPage() {
               ctx.lineWidth = 2;
               ctx.setLineDash([3, 3]);
               ctx.beginPath();
-              ctx.moveTo(toCanvasX(inA.x), toCanvasY(inA.y));
-              ctx.lineTo(toCanvasX(inB.x), toCanvasY(inB.y));
+              ctx.moveTo(toCanvasX(q0.x), toCanvasY(q0.y));
+              ctx.lineTo(toCanvasX(q1.x), toCanvasY(q1.y));
               ctx.stroke();
               ctx.setLineDash([]);
             } else {
-              ctx.fillStyle = isDark ? 'rgba(15, 23, 42, 0.90)' : 'rgba(241, 245, 249, 0.92)';
-              ctx.strokeStyle = boxDef.color;
+              // Deep, Crisp Spacious Room Box
+              ctx.fillStyle = isDark ? 'rgba(15, 23, 42, 0.88)' : 'rgba(241, 245, 249, 0.92)';
+              ctx.strokeStyle = mod.color;
               ctx.lineWidth = 1.8;
               ctx.fill();
               ctx.stroke();
 
-              // Accent facade rim stroke
-              ctx.strokeStyle = boxDef.color;
+              // Outer Facade Accent Line
+              ctx.strokeStyle = mod.color;
               ctx.lineWidth = 3;
               ctx.beginPath();
-              ctx.moveTo(toCanvasX(pA.x), toCanvasY(pA.y));
-              ctx.lineTo(toCanvasX(pB.x), toCanvasY(pB.y));
+              ctx.moveTo(toCanvasX(p0.x), toCanvasY(p0.y));
+              ctx.lineTo(toCanvasX(p1.x), toCanvasY(p1.y));
               ctx.stroke();
             }
 
-            // Clean Minimal Icon (Zero text clutter)
-            ctx.font = '11px monospace';
+            // Room Icon Only (Centered & Crisp)
+            ctx.font = '12px monospace';
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
-            ctx.fillText(boxDef.icon, toCanvasX(boxMidX), toCanvasY(boxMidY));
+            ctx.fillText(mod.icon, toCanvasX(midX), toCanvasY(midY));
             ctx.restore();
-          }
+          });
 
-          // Living Room to Balcony Seamless Sliding Flow
-          if (showLivingBalconyFlow && balconyBoxCenter) {
+          // Direct Glazed Sliding Connection from Living Room to Balcony
+          if (showLivingBalconyFlow && balconyCenterPt) {
             ctx.save();
             ctx.strokeStyle = '#10b981';
             ctx.lineWidth = 1.8;
             ctx.setLineDash([3, 2]);
             ctx.beginPath();
             ctx.moveTo(toCanvasX(livingX), toCanvasY(livingY));
-            ctx.lineTo(toCanvasX(balconyBoxCenter.x), toCanvasY(balconyBoxCenter.y));
+            ctx.lineTo(toCanvasX(balconyCenterPt.x), toCanvasY(balconyCenterPt.y));
             ctx.stroke();
             ctx.restore();
           }
@@ -588,7 +578,7 @@ export default function ShapeStudioPage() {
         ctx.strokeStyle = theme.stroke;
         ctx.lineWidth = 2;
         ctx.beginPath();
-        ctx.arc(badgeX, badgeY, 14, 0, 2 * Math.PI);
+        ctx.arc(badgeX, badgeY, 15, 0, 2 * Math.PI);
         ctx.fill();
         ctx.stroke();
 
@@ -599,7 +589,7 @@ export default function ShapeStudioPage() {
         ctx.fillText(theme.label, badgeX, badgeY);
         ctx.restore();
 
-        // 4. Unit Entrance Door along Central Corridor
+        // 4. Dedicated Unit Entrance Door along Central Corridor
         const entryRadius = (Math.max(layout.core.width, layout.core.length) / 2) + 2.5;
         const entryX = cx + Math.cos(midAngle) * entryRadius;
         const entryY = cy + Math.sin(midAngle) * entryRadius;
@@ -612,6 +602,8 @@ export default function ShapeStudioPage() {
         ctx.fillText(`🚪 ${theme.label}`, toCanvasX(entryX), toCanvasY(entryY));
         ctx.restore();
       }
+
+      ctx.restore(); // Close strict polygon clipping
     }
 
     // 7. Draw Vertices (Nodes)
