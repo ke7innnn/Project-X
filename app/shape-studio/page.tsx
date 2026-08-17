@@ -828,7 +828,7 @@ export default function ShapeStudioPage() {
               {/* Unit Count Selector */}
               <div className="flex items-center bg-black/50 p-1 rounded-lg border border-white/10 shrink-0">
                 <span className="text-[9px] font-mono font-bold text-gray-400 px-2 uppercase tracking-wider">UNITS:</span>
-                {[2, 3, 4, 5, 6, 7, 8].map(n => (
+                {[2, 3, 4, 6, 7, 8].map(n => (
                   <button
                     key={n}
                     onClick={() => setUnitCount(n)}
@@ -1051,8 +1051,8 @@ export default function ShapeStudioPage() {
             {/* Flat Count Pill Selector */}
             <div className="flex flex-col gap-1.5">
               <span className="text-[9px] font-mono text-gray-400 uppercase">Select Number of Flats:</span>
-              <div className="grid grid-cols-7 gap-1">
-                {[2, 3, 4, 5, 6, 7, 8].map(n => (
+              <div className="grid grid-cols-6 gap-1">
+                {[2, 3, 4, 6, 7, 8].map(n => (
                   <button
                     key={n}
                     onClick={() => setUnitCount(n)}

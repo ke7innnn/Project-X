@@ -194,18 +194,48 @@ export function generateSpecializedLayout(
   const typology = getShapeTypology(shapeId);
   const cx = widthM / 2;
   const cy = lengthM / 2;
-  const numUnits = Math.min(8, Math.max(2, unitCount));
+  const numUnits = Math.min(8, Math.max(2, unitCount === 5 ? 4 : unitCount));
 
-  // Central Core Dimensions
-  const coreW = Math.max(12, Math.min(22, widthM * 0.18));
-  const coreH = Math.max(12, Math.min(22, lengthM * 0.18));
+  // ── Pro Architectural Rectangular Core Specifications ───────────────────
+  // A pro architect uses rectangular cores (e.g. 18m x 8m) instead of square blocks
+  // to maximize unobstructed habitable floor area for large flats.
+  let coreX = cx;
+  let coreY = cy;
+  let coreW = Math.max(16, Math.min(22, widthM * 0.22));
+  let coreH = Math.max(8, Math.min(11, lengthM * 0.12));
 
-  // Light shaft extending from core south to exterior facade
+  if (typology === 'chevron-2wing') {
+    // For V/L-shapes: Place core in the inner vertex knuckle to free up entire wings
+    coreX = cx;
+    coreY = cy + lengthM * 0.08;
+    coreW = Math.max(14, Math.min(18, widthM * 0.18));
+    coreH = Math.max(9, Math.min(12, lengthM * 0.14));
+  } else if (typology === 'linear-slab') {
+    // For Linear Slabs: Sleek horizontal core spine
+    coreX = cx;
+    coreY = cy;
+    coreW = Math.max(20, Math.min(28, widthM * 0.28));
+    coreH = Math.max(7.5, Math.min(9.5, lengthM * 0.10));
+  } else if (typology === 'cross-4wing') {
+    // For 4-Wing Cross: Compact central nexus core
+    coreX = cx;
+    coreY = cy;
+    coreW = Math.max(15, Math.min(19, widthM * 0.20));
+    coreH = Math.max(8.5, Math.min(11, lengthM * 0.12));
+  } else if (typology === 'triad-3wing') {
+    // For 3-Wing Triad: 3-way central hub
+    coreX = cx;
+    coreY = cy + lengthM * 0.02;
+    coreW = Math.max(14, Math.min(18, widthM * 0.18));
+    coreH = Math.max(9, Math.min(12, lengthM * 0.13));
+  }
+
+  // Light shaft extending from core to exterior facade
   const lightShaft = {
-    x: cx - 2.25,
-    y: cy + coreH / 2,
+    x: coreX - 2.25,
+    y: coreY + coreH / 2,
     width: 4.5,
-    length: lengthM - (cy + coreH / 2),
+    length: lengthM - (coreY + coreH / 2),
   };
 
   const units: UnitLayout[] = [];
