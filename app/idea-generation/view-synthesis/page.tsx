@@ -325,7 +325,7 @@ export default function ViewSynthesisPage() {
             className="p-2 border border-cyan-500/30 hover:border-cyan-400 hover:text-white rounded bg-cyan-950/20 text-cyan-500/80 transition-all cursor-pointer flex items-center gap-1.5 text-xs tracking-wider"
           >
             <ArrowLeft className="w-3.5 h-3.5" />
-            <span>RETURN TO IDEATION</span>
+            <span>RETURN TO FLOOR PLAN GENERATOR</span>
           </button>
           <span className="h-6 w-px bg-cyan-500/20" />
           <div className="text-left">

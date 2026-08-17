@@ -59,7 +59,7 @@ function formatUptime(ms: number): string {
 
 const lastToolLabelMap: Record<string, string> = {
   'concept-generator': 'CONCEPT GENERATOR',
-  'idea-generation': 'IDEA GENERATION',
+  'idea-generation': 'FLOOR PLAN GENERATOR',
   'edit': 'EDIT',
   '3d-render': '3D RENDER',
   'enhancement': 'ENHANCEMENT',
@@ -171,7 +171,7 @@ export default function StartScreen() {
 
   const startScreenStages: { id: string; label: string; badge?: string }[] = [
     { id: 'concept-generator', label: 'CONCEPT GENERATOR', badge: 'NEW' },
-    { id: 'idea-generation', label: 'IDEA GENERATION', badge: 'GPT' },
+    { id: 'idea-generation', label: 'FLOOR PLAN GENERATOR', badge: 'GPT' },
     { id: 'edit', label: 'EDIT' },
     { id: '3d-render', label: '3D RENDER' },
     { id: 'enhancement', label: 'ENHANCEMENT', badge: 'NEW' },
@@ -1503,7 +1503,7 @@ NOTE: Each time Master Umesh asks for the brief, these stories are shuffled rand
         router.push('/concept-generator');
       });
     } else if (stageId === 'idea-generation') {
-      speak("Initiating generative idea suite, Master Umesh.", () => {
+      speak("Initiating Floor Plan Generator, Master Umesh.", () => {
         router.push('/idea-generation');
       });
     } else if (stageId === 'flythrough') {
