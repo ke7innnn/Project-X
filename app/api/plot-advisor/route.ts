@@ -4,6 +4,53 @@ export const maxDuration = 60;
 
 const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY!;
 
+const SHAPE_STUDIO_UNIT_LIMITS: Record<string, number> = {
+  'butterfly-wing': 6,
+  'ginkgo-leaf': 6,
+  't-shape': 6,
+  'stepped-l': 6,
+  'turning-torso': 6,
+  'bosco-verticale': 6,
+  'curved-x': 6,
+  'greek-cross': 6,
+  'pinwheel': 6,
+  'water-droplet': 6,
+  'botanical-leaf': 6,
+  'triangular-prism': 6,
+  'shanghai-tower': 6,
+  'gherkin-torpedo': 6,
+  'torre-glories': 6,
+  'the-shard': 6,
+  'hearst-prism': 6,
+  'marilyn-monroe': 6,
+  'vesica-piscis': 6,
+  'starflower-5petal': 6,
+  'clover-4leaf': 6,
+  'lotus-blossom': 6,
+  'scallop-shell': 6,
+  'biophilic-triad': 6,
+  'ripple-oval': 6,
+  'diamond-quadrant': 6,
+  'flame-teardrop': 6,
+  'triple-honeycomb': 6,
+  'seed-capsule': 6,
+  'chevron-v': 5,
+  'double-diamond': 8,
+  'h-shape': 8,
+  'nautilus-spiral': 8,
+  'al-hamra-helix': 8,
+  'de-rotterdam': 8,
+  'batman-insignia': 8,
+  'hexagonal': 8,
+  'monolithic-rect': 8,
+  'one-wtc-octagon': 8,
+  'petronas-cross': 8,
+  'taipei-101': 8,
+  'chrysler-starburst': 8,
+  'aqua-waveform': 8,
+  'octagram-star': 8,
+};
+
 export async function POST(req: Request) {
   try {
     const { messages, plotData } = await req.json();
@@ -13,6 +60,18 @@ export async function POST(req: Request) {
     }
 
 const systemPrompt = `You are ARIA — an AI Senior Architect with 25+ years of experience in high-rise residential tower design, specializing in maximum unit density optimization.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🚨 ABSOLUTE HARD CONSTRAINT — PER-FLOOR TYPICAL PLATE UNITS ONLY (NEVER SUGGEST 10, 15, 20+ UNITS!)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+1. You are designing a SINGLE TYPICAL FLOOR PLAN PLATE only.
+2. The TOTAL units per floor (totalUnits = units1BHK + units2BHK + units3BHK + units4BHK) MUST BE BETWEEN 2 AND MAX 8 UNITS!
+3. NEVER SUGGEST 10, 15, 20+ UNITS! Do NOT multiply by tower floors/stories.
+4. Total units per floor in every option MUST strictly respect the shape's Shape Studio limit:
+   - Chevron: MAX 5 units per floor
+   - Butterfly Wide, Ginkgo Fan, T-Shape, L-Shape (Stepped-L), Tosco (Turning Torso), Curved-X, Greek Cross, Pinwheel, Water Droplet: MAX 6 units per floor
+   - Double Diamond, H-Shape, Nautilus Spiral, S-Shape (Al Hamra), Batman Insignia, Hexagonal, Octagonal: MAX 8 units per floor
+5. If the user asks for more units than the shape allows (e.g. asking for 10 units on a Chevron or T-Shape), explain mathematically why it exceeds the shape's wing and facade ventilation capacity, and recommend the maximum allowable count (e.g. 5 or 6 units).
 
 ## Your Role & Workflow
 You are in an interactive consultation with a real estate developer. You must strictly follow this 4-Phase workflow. Do NOT skip ahead.
@@ -29,18 +88,17 @@ You are in an interactive consultation with a real estate developer. You must st
 {"shapeId": "[EXACT_MATCHED_SHAPE_ID]"}
 \`\`\`
 - The client UI's physics engine will automatically calculate the optimal rotation, scale, and setback positioning to fit that shape inside the user's plot!
-- State your intelligent wing-based recommendation based on the shape's typology:
-  * For 2-Wing Slender/V-Shapes (Chevron, Stepped-L, Double Diamond): "I've placed the [Shape Name] footprint! Because this is a 2-wing typology, it naturally fits **2 to 3 units per floor** (less than 4) so each flat gets a full wing. What unit mix do you prefer?"
-  * For Compact Multi-Faced Shapes (Hexagon, Monolithic Rect, Octagon): "I've placed the [Shape Name] footprint! With its high-capacity multi-faceted floor plate, this can support **3 to 5 units per floor**. What unit mix do you prefer?"
-  * For 3-Wing Triad Shapes (T-Shape, Triad Prism): "I've placed the [Shape Name] footprint! With 3 distinct wings, it naturally fits **3 units per floor** (1 flat per wing). What unit mix do you prefer?"
-  * For 4-Wing Cross Shapes (H-Shape, Greek Cross, Pinwheel, Curved-X, Batman): "I've placed the [Shape Name] footprint! With 4 dedicated wings, this is optimized for **4 units per floor** (1 per wing). What unit mix do you prefer?"
+- State your intelligent wing-based recommendation based on the shape's typology and Shape Studio limits:
+  * For 2-Wing Slender/V-Shapes (Chevron): "I've placed the Chevron footprint! This fits up to **5 units per floor**. What unit mix do you prefer?"
+  * For 6-Unit Shapes (Butterfly Wide, Ginkgo Fan, T-Shape, Stepped-L, Turning Torso): "I've placed the [Shape Name] footprint! This is optimized for up to **6 units per floor**. What unit mix do you prefer?"
+  * For 8-Unit Shapes (Double Diamond, H-Shape, Nautilus Spiral, Al Hamra, Batman): "I've placed the [Shape Name] footprint! On a large plate, this supports up to **8 units per floor**. What unit mix do you prefer?"
 
 **PHASE 3: Unit Mix Requirements**
 - Wait for the user to provide their flat requirements.
 - Validate the request against the shape's wing capacity.
 
 **PHASE 4: Validation & Final Options**
-- If the requested flats are IMPOSSIBLE or violate wing geometry: Explain mathematically why it's physically impossible. Then suggest 3 realistic options that fit 100% within the shape's wing constraints.
+- If the requested flats exceed the shape's maximum capacity (e.g., > 5 for Chevron, > 6 for T-Shape/Butterfly, > 8 for H-Shape): Explain mathematically why it violates the shape's wing and facade ventilation limits. Then suggest 3 realistic options that fit 100% within the shape's wing constraints.
 - If POSSIBLE: Generate 3 options optimized around their request.
 - **CRITICAL**: Only in Phase 4, you MUST output the options block in this exact format at the end of your message:
 \`\`\`options
@@ -231,6 +289,44 @@ Polygon Vertices (meters): ${plotData.polygonVertices ? JSON.stringify(plotData.
       } catch (e) {
         console.error('[plot-advisor] Failed to parse shape suggestion JSON:', e);
       }
+    }
+
+    // HARD CODE-LEVEL CLAMP: Guarantee that parsedOptions NEVER exceed the shape's Shape Studio limit!
+    if (Array.isArray(parsedOptions)) {
+      parsedOptions = parsedOptions.map((opt: any) => {
+        const shapeId = opt.footprintShape || parsedShape?.shapeId || 'generic';
+        const maxAllowed = SHAPE_STUDIO_UNIT_LIMITS[shapeId] || 8;
+        
+        let u1 = Number(opt.units1BHK) || 0;
+        let u2 = Number(opt.units2BHK) || 0;
+        let u3 = Number(opt.units3BHK) || 0;
+        let u4 = Number(opt.units4BHK) || 0;
+        let total = u1 + u2 + u3 + u4;
+
+        if (total > maxAllowed) {
+          // Scale down proportionally so total <= maxAllowed
+          const factor = maxAllowed / total;
+          u1 = Math.round(u1 * factor);
+          u2 = Math.round(u2 * factor);
+          u3 = Math.round(u3 * factor);
+          u4 = Math.round(u4 * factor);
+          if (u1 + u2 + u3 + u4 === 0) u2 = 2; // fallback
+          while (u1 + u2 + u3 + u4 > maxAllowed) {
+            if (u1 > 0) u1--;
+            else if (u2 > 0) u2--;
+            else if (u3 > 0) u3--;
+            else if (u4 > 0) u4--;
+          }
+          opt.units1BHK = u1;
+          opt.units2BHK = u2;
+          opt.units3BHK = u3;
+          opt.units4BHK = u4;
+          opt.totalUnits = u1 + u2 + u3 + u4;
+        } else {
+          opt.totalUnits = total;
+        }
+        return opt;
+      });
     }
 
     // Strip the raw command blocks from displayed message
