@@ -55,10 +55,16 @@ function buildPrompt(opts: {
 }): string {
   const { isSingle, buildingType, numFlats, roomItems, userPrompt, widthM = 80, lengthM = 80, stories = 10 } = opts;
 
-  return `Create a high-end, award-winning MASTER ARCHITECTURAL PRESENTATION BOARD floor plan drawing matching the exact format and render style of the reference presentation board image.
+  return `TASK: Create a brand new, high-end MASTER ARCHITECTURAL PRESENTATION BOARD floor plan drawing.
 
-${userPrompt ? `USER CONCEPT BRIEF: ${userPrompt}` : ''}
-BUILDING DIMENSIONS: ${widthM}m Width × ${lengthM}m Length | Target Height: ${stories} Stories
+CRITICAL ROLE OF REFERENCE IMAGE:
+- The attached reference image serves STRICTLY AS A PRESENTATION BOARD FORMAT, MULTI-VIEW COMPOSITION & RENDERING STYLE TEMPLATE.
+- Adopt its graphic structure: (1) Main 2D Floorplan on the left 70%, (2) 3D Top View Building Form on top-right, (3) 3D Perspective Elevation on mid-right, and (4) Floor Plan Summary & Flat Legend table on bottom-right.
+- Adopt its warm architectural textures: polished travertine/marble tile, realistic wood finishes, furnished rooms, balcony planters, and clean callouts.
+- DO NOT blindly copy the water droplet shape unless requested — DESIGN A UNIQUE BUILDING FOOTPRINT AND FLOOR PLAN TAILORED TO THE USER CONCEPT BRIEF AND DIMENSIONS BELOW:
+
+${userPrompt ? `USER CONCEPT BRIEF & BUILDING SHAPE: ${userPrompt}` : ''}
+BUILDING DIMENSIONS: ${widthM}m Width × ${lengthM}m Length | Target Height: ${stories} Stories | Target Units: ${numFlats} Flats (${roomItems ? roomItems : 'Standard Residential'})
 
 BOARD COMPOSITION & MULTI-VIEW LAYOUT:
 1. MAIN LEFT REGION (70% Canvas Width) — FULL 2D MASTER RESIDENTIAL FLOOR PLAN:
