@@ -48,7 +48,20 @@ async function urlToFalStorage(url: string): Promise<string> {
   return fal.storage.upload(file);
 }
 
-// ── Build prompts ─────────────────────────────────────────────────────────────
+function getFlatRoomAnatomy(bhk: string): string {
+  switch (bhk) {
+    case '1bhk':
+      return '[1× Master Bedroom (Queen Bed), 1× Attached Bathroom/Toilet, 1× Living/Dining Lounge (Sofa + Dining Set), 1× Modular Kitchen with Breakfast Bar, 1× Attached Facade Balcony]';
+    case '2bhk':
+      return '[1× Master Suite (King Bed + Ensuite Bath), 1× Secondary Bedroom (Queen Bed), 1× Common Bathroom, 1× Open-Concept Living & Dining Lounge, 1× Modular Kitchen, 1× Attached Facade Balcony]';
+    case '3bhk':
+      return '[1× Master Suite (King Bed + Walk-in Wardrobe + Ensuite Spa Bath), 1× Bedroom 2 (Queen Bed), 1× Bedroom 3 (Twin Beds), 3× Bathrooms, 1× Grand Living Lounge, 1× Formal Dining Room, 1× Chef Kitchen, 1× Wrap-around Balcony]';
+    case '4bhk':
+      return '[1× Presidential Master Suite, 3× En-suite Bedrooms, 4× Bathrooms, 1× Grand Living Hall, 1× Formal Dining, 1× Family Lounge, 1× Chef Kitchen with Pantry, 1× Panoramic Balconies]';
+    default:
+      return '[1× Master Bedroom, 1× Bedroom 2, 2× Bathrooms, 1× Living/Dining Room, 1× Kitchen, 1× Balcony]';
+  }
+}
 
 function buildPrompt(opts: {
   isSingle: boolean; buildingType: string; numFlats: number;
@@ -63,14 +76,22 @@ function buildPrompt(opts: {
 
   const flatLabelsList = Array.from({ length: numFlats }, (_, i) => `"FLAT ${String(i + 1).padStart(2, '0')} - ${bhkLabel}"`).join(', ');
 
+  const itemizedFlatRoster = Array.from({ length: numFlats }, (_, i) => 
+    `• FLAT ${String(i + 1).padStart(2, '0')} (${bhkLabel}): ${getFlatRoomAnatomy(roomConfig)}`
+  ).join('\n');
+
   return `High-end MASTER ARCHITECTURAL PRESENTATION BOARD floor plan drawing of a luxury residential building.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-🚨 ABSOLUTE MANDATORY HARD REQUIREMENT — EXACTLY ${numFlats} × ${bhkLabel} UNITS PER FLOOR PLATE
+🚨 MANDATORY APARTMENT PARTITIONING SCHEDULE (EXACTLY ${numFlats} × ${bhkLabel} UNITS)
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-• You MUST partition and divide the 2D floor plan plate into EXACTLY ${numFlats} INDEPENDENT APARTMENTS (${numFlats}× ${bhkLabel} Units)!
-• DO NOT reduce or default to 3 or 4 units! The floor plan MUST visibly contain all ${numFlats} separate flats: ${flatLabelsList}.
-• Each of the ${numFlats} flats has its own private entrance door from the central corridor, its own living lounge, modular kitchen, ${bhkLabel === '1 BHK' ? '1 bedroom, and 1 bathroom' : bhkLabel === '2 BHK' ? '2 bedrooms, and 2 bathrooms' : bhkLabel === '3 BHK' ? '3 bedrooms, and 3 bathrooms' : '4 bedrooms, and 4 bathrooms'}, and its own private facade balcony.
+The 2D floor plan plate MUST be partitioned and divided into EXACTLY ${numFlats} INDEPENDENT APARTMENTS (${numFlats}× ${bhkLabel} Units):
+${itemizedFlatRoster}
+
+CRITICAL SPATIAL RULES:
+1. TOTAL VISIBLE APARTMENTS: Exactly ${numFlats} distinct private flats on the floor plan (${flatLabelsList}). DO NOT reduce or default to 3 or 4 units!
+2. PERIMETER FACADE ALLOCATION: Distribute all ${numFlats} flats symmetrically along the outer curved/faceted perimeter of the "${conceptShape}" so that every bedroom and living room captures direct exterior windows and natural ventilation.
+3. CENTRAL EGRESS & CIRCULATION: Central service core with 2× Passenger Elevators and 2× Fire Stairwells with step treads. A continuous common corridor provides private front door entrances (with visible door swing arcs) to all ${numFlats} units.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 🏆 PRESENTATION BOARD COMPOSITION & MULTI-VIEW FORMAT
