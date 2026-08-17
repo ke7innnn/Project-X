@@ -55,42 +55,57 @@ function buildPrompt(opts: {
 }): string {
   const { isSingle, buildingType, numFlats, roomItems, userPrompt, widthM = 80, lengthM = 80, stories = 10 } = opts;
 
-  return `TASK: Create a brand new, high-end MASTER ARCHITECTURAL PRESENTATION BOARD floor plan drawing.
+  const conceptShape = userPrompt?.trim() || 'Modern Luxury Residential Tower';
 
-CRITICAL ROLE OF REFERENCE IMAGE:
-- The attached reference image serves STRICTLY AS A PRESENTATION BOARD FORMAT, MULTI-VIEW COMPOSITION & RENDERING STYLE TEMPLATE.
-- Adopt its graphic structure: (1) Main 2D Floorplan on the left 70%, (2) 3D Top View Building Form on top-right, (3) 3D Perspective Elevation on mid-right, and (4) Floor Plan Summary & Flat Legend table on bottom-right.
-- Adopt its warm architectural textures: polished travertine/marble tile, realistic wood finishes, furnished rooms, balcony planters, and clean callouts.
-- DO NOT blindly copy the water droplet shape unless requested — DESIGN A UNIQUE BUILDING FOOTPRINT AND FLOOR PLAN TAILORED TO THE USER CONCEPT BRIEF AND DIMENSIONS BELOW:
+  return `TASK: Redraw and generate a world-class, ultra-luxury MASTER ARCHITECTURAL PRESENTATION BOARD floor plan drawing.
 
-${userPrompt ? `USER CONCEPT BRIEF & BUILDING SHAPE: ${userPrompt}` : ''}
-BUILDING DIMENSIONS: ${widthM}m Width × ${lengthM}m Length | Target Height: ${stories} Stories | Target Units: ${numFlats} Flats (${roomItems ? roomItems : 'Standard Residential'})
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🚨 MANDATORY DIRECTIVE: 100% 3-WAY GEOMETRIC SHAPE SYNCHRONIZATION ACROSS ALL PANELS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+The user's requested building shape and architectural brief is:
+⭐ TARGET CONCEPT & SHAPE: "${conceptShape}"
+BUILDING DIMENSIONS: ${widthM}m Width × ${lengthM}m Length | Height: ${stories} Stories | Target Units: ${numFlats} Flats (${roomItems ? roomItems : 'Standard Luxury Residential'})
 
+YOU MUST COMPLETELY RE-RENDER AND SYNCHRONIZE ALL THREE VISUAL PANELS TO THIS EXACT SAME BUILDING SHAPE:
+1. PANEL 1 (Main 2D Floor Plan - Left 70%): Must be drawn with the exact outer silhouette and footprint of the "${conceptShape}"!
+2. PANEL 2 (Top View 3D Building Form - Top Right): Must be a 3D aerial roof massing render of THAT EXACT SAME "${conceptShape}" silhouette from above!
+3. PANEL 3 (3D Perspective View - Middle Right): Must be a photorealistic 3D perspective tower render rising up in THAT EXACT SAME "${conceptShape}" geometry with matching floor slabs, matching curved/faceted wrap-around glass balconies, and architectural crown!
+4. ZERO RESIDUE OF OLD REFERENCE SHAPES: Under NO circumstances leave the old reference droplet or wedge massing in the 3D panels. The 3D tower on the right MUST BE the exact 3D extrusion of the 2D floor plan on the left!
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 BOARD COMPOSITION & MULTI-VIEW LAYOUT:
-1. MAIN LEFT REGION (70% Canvas Width) — FULL 2D MASTER RESIDENTIAL FLOOR PLAN:
-   - Complete architectural layout showing ${numFlats} luxury residential apartments (${isSingle ? '1 unified villa penthouse' : `${numFlats} independent residential flats`}).
-   - Realistic warm architectural textures: polished travertine/marble flooring tiles, warm hardwood floor in master suites, textured tile in kitchens and balconies.
-   - Fully furnished room layouts: master bedrooms with king beds & side tables, ensuite attached toilets/bathrooms with glass showers & sanitaryware, living/dining lounges with sofas & dining tables, modern modular kitchens with breakfast counters, attached balconies with lush potted greenery.
-   - Central Core: Central staircase with step treads & UP/DN directional arrows, and 2× Passenger Lifts with clear elevator car doors.
-   - Clean architectural callout text boxes with leader lines: "FLAT 01 - 1 BHK", "FLAT 02 - 1 BHK", "FLAT 04 - 2 BHK", etc.
-   - Distinct North Arrow indicator in the top-left corner.
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+1. MAIN LEFT REGION (70% Canvas Width) — 2D MASTER RESIDENTIAL FLOOR PLAN:
+   - Complete, highly detailed architectural floor plan sculpted into the exact outer perimeter contour of "${conceptShape}".
+   - Subdivided into ${numFlats} luxury residential apartments (${isSingle ? '1 expansive penthouse layout' : `${numFlats} private luxury flats`}).
+   - Architectural Textures: Polished cream travertine / Italian calacatta marble flooring in living and dining zones, warm honey oak herringbone hardwood in master bedroom suites, light textured porcelain in kitchens and bathrooms.
+   - Designer Vector Furniture:
+     • Master Suites: King-size beds with floating nightstands, glass walk-in wardrobe closets, and ensuite spa bathrooms with double vanities, freestanding tubs, and glass walk-in rainshowers.
+     • Secondary Bedrooms: Queen/single beds with study workstations and built-in wardrobes.
+     • Living & Dining Lounges: Deep curved / L-shaped Italian designer sectional sofas, round travertine coffee tables, slim TV media consoles, and 6-to-8-seater marble dining tables.
+     • Modular Chef's Kitchens: Sleek quartz island breakfast counters with barstools, double undermount sinks, and gas cooktops.
+     • Wrap-around Facade Balconies: Floor-to-ceiling sliding glass doors opening seamlessly onto continuous curved balconies with teak wood decking, outdoor lounge seating, and lush tropical green planter boxes.
+   - Central Core: Central fire staircase with realistic step treads & UP/DN arrows, and 2× Passenger Lifts with clear elevator car doors.
+   - Distinct North Arrow indicator and callout leader lines: "FLAT 01 - 1 BHK", "FLAT 02 - 2 BHK", etc.
 
 2. TOP-RIGHT PANEL (30% Canvas Width, Upper Box) — "TOP VIEW (BUILDING FORM)":
-   - Realistic 3D aerial architectural massing roof render of the building silhouette from directly above, showing aerodynamic architectural roof skin and site integration.
+   - Realistic 3D aerial architectural massing render of the roof plate from directly above, sculpted into the EXACT "${conceptShape}" silhouette with landscaped rooftop sky terrace, solar canopy, and architectural crown.
 
 3. MIDDLE-RIGHT PANEL (30% Canvas Width, Middle Box) — "3D VIEW (BUILDING FORM)":
-   - Photorealistic 3D isometric perspective architectural render of the complete tower elevation, showing modern glass facade, continuous curved wrap-around balconies, and sculptural crown.
+   - Photorealistic 3D isometric perspective architectural render of the complete ${stories}-story tower elevation.
+   - Must showcase the exact "${conceptShape}" geometry with floor-to-floor curved glass curtain walls, cantilevered wrap-around balcony slabs with warm LED under-soffit lighting, and a sculpted aerodynamic crown.
 
 4. BOTTOM-RIGHT CARD — "FLOOR PLAN SUMMARY" & "FLAT LEGEND":
-   - Elegant architectural summary card with clean typography:
-     • Total Unit Mix breakdown (e.g. 4 × 1 BHK FLATS, 2 × 2 BHK FLATS)
-     • Central Staircase & Two Lifts
-     • Symmetrical / Aerodynamic Arrangement
-   - Color-coded FLAT LEGEND key table with distinct pastel color chips matching each flat on the floor plan.
-   - Architectural footnote: "NOTE: PLAN IS CONCEPTUAL AND CAN BE MODIFIED AS PER SITE CONDITIONS".
+   - Clean architectural summary card with modern typography:
+     • Title: ${conceptShape.toUpperCase()} RESIDENTIAL TOWER
+     • Dimension & Stories: ${widthM}m × ${lengthM}m | ${stories} Levels
+     • Total Unit Mix breakdown matching the flats on the plan
+     • Color-coded Flat Legend key table matching each flat's pastel tint.
+     • Footnote: "NOTE: PLAN IS CONCEPTUAL AND CAN BE MODIFIED AS PER SITE CONDITIONS".
 
 AESTHETICS:
-Crisp drafting linework, warm sand and cream presentation board backdrop, ultra-detailed architectural rendering, no blurry artifacts, publication-ready presentation board.`;
+Crisp architectural CAD linework, warm cream and sand presentation backdrop, ultra-clean publication-ready presentation board layout, photorealistic rendering.`;
 }
 
 function buildRefinementPrompt(opts: {
