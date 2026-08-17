@@ -815,33 +815,7 @@ export const MASTER_SHAPES_50: ShapeDefinition[] = [
     },
   },
 
-  {
-    id: 'nautilus-spiral',
-    name: 'NAUTILUS (GOLDEN RATIO SPIRAL)',
-    category: 'biophilic',
-    inspiration: 'Nautilus Pompilius Logarithmic Spiral',
-    description: 'Thick golden ratio spiral chamber layout creating escalating unit terraces around a wide mantle.',
-    efficiency: 84,
-    defaultAspect: '1:1 (Square)',
-    tags: ['Nautilus', 'Golden Ratio', 'Logarithmic Spiral', 'Fibonacci'],
-    getPolygon: (cx, cy, w, h) => {
-      const rx = w / 2;
-      const ry = h / 2;
-      const pts: Array<{ x: number; y: number }> = [];
-      const N = 32;
-      for (let i = 0; i <= N; i++) {
-        const t = (i / N) * 2 * PI;
-        const r = 0.55 + 0.38 * (t / (2 * PI));
-        pts.push({
-          x: cx + r * cos(t) * rx,
-          y: cy + r * sin(t) * ry,
-        });
-      }
-      pts.push({ x: cx + 0.75 * rx, y: cy - 0.15 * ry });
-      pts.push({ x: cx + 0.50 * rx, y: cy - 0.20 * ry });
-      return pts;
-    },
-  },
+
 
   {
     id: 'ginkgo-leaf',
