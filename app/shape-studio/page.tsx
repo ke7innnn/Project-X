@@ -264,6 +264,8 @@ export default function ShapeStudioPage() {
     }
 
     // 5. Generate Specialized Architectural Typology Layout (Tailored to Shape's Wings)
+    const cx = plotWidthM / 2;
+    const cy = plotLengthM / 2;
     const layout = generateSpecializedLayout(selectedShapeId, polygonPts, plotWidthM, plotLengthM, unitCount, bhkType);
 
     // 5a. Draw Central Core & Natural Light / Ventilation / Entrance Corridor
