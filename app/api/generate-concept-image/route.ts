@@ -63,15 +63,109 @@ function getFlatRoomAnatomy(bhk: string): string {
   }
 }
 
+function getShapeGeometricDirectives(prompt: string, numFlats: number): { shapeName: string; directives: string } {
+  const p = prompt.toLowerCase();
+  
+  if (p.includes('arc') || p.includes('crescent') || p.includes('bow')) {
+    return {
+      shapeName: 'ARC / CRESCENT',
+      directives: `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🚨 CRITICAL ARC / CRESCENT GEOMETRIC SILHOUETTE MANDATE:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+• The 2D building footprint MUST BE a dramatic, unmistakable, sweeping C-SHAPED CRESCENT ARC RIBBON!
+• THE INNER CONCAVE REGION IS OPEN AIR / OUTDOOR VOID: DO NOT fill the center with solid rooms into a square or barrel box! The inner curve must clearly show the white/cream presentation board background outside the building.
+• APARTMENT LAYOUT: All ${numFlats} apartments are distributed sequentially along the curved ribbon from the left tip to the right tip of the arc.
+• 3-WAY SYNCHRONIZATION: The 3D Top View (roof) and the 3D Perspective Elevation MUST BE the EXACT SAME C-shaped curved crescent tower with continuous curved balconies!
+• FORBIDDEN: DO NOT draw a solid rectangle, block, or barrel!`,
+    };
+  }
+  
+  if (p.includes('stepped') || p.includes('l-shape') || p.includes('l shape')) {
+    return {
+      shapeName: 'STEPPED L-SHAPE',
+      directives: `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🚨 CRITICAL STEPPED L-SHAPE GEOMETRIC SILHOUETTE MANDATE:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+• The 2D building footprint MUST BE an unmistakable 2-wing L-SHAPED building with stepped terraced corners!
+• The corner quadrant outside the L is open outdoor space (not solid rooms).
+• The 3D Top View and 3D Perspective Elevation MUST BE the exact same L-shaped multi-story tower!`,
+    };
+  }
+
+  if (p.includes('ginkgo') || p.includes('fan') || p.includes('leaf')) {
+    return {
+      shapeName: 'GINKGO FAN LEAF',
+      directives: `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🚨 CRITICAL GINKGO FAN LEAF GEOMETRIC SILHOUETTE MANDATE:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+• The 2D building footprint MUST BE a distinct curved FAN LEAF shape with radial lobes and an indented base notch!
+• The 3D Top View and 3D Perspective Elevation MUST BE the exact same organic fan-leaf profile!`,
+    };
+  }
+
+  if (p.includes('cross') || p.includes('4-wing') || p.includes('plus') || p.includes('x-shape')) {
+    return {
+      shapeName: '4-WING CROSS',
+      directives: `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🚨 CRITICAL 4-WING CROSS GEOMETRIC SILHOUETTE MANDATE:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+• The 2D building footprint MUST BE a 4-winged symmetrical cross / plus shape with 4 distinct projecting wings and open corner voids!
+• The 3D views must match this exact 4-winged cross tower!`,
+    };
+  }
+
+  if (p.includes('diamond')) {
+    return {
+      shapeName: 'DOUBLE DIAMOND',
+      directives: `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🚨 CRITICAL DOUBLE DIAMOND GEOMETRIC SILHOUETTE MANDATE:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+• The 2D building footprint MUST BE two interlocking faceted diamond lozenge wings with sharp angled facade points!
+• The 3D views must match this exact faceted diamond tower!`,
+    };
+  }
+
+  if (p.includes('droplet') || p.includes('teardrop')) {
+    return {
+      shapeName: 'WATER DROPLET',
+      directives: `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🚨 CRITICAL WATER DROPLET GEOMETRIC SILHOUETTE MANDATE:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+• The 2D building footprint MUST BE a sleek aerodynamic teardrop with a rounded bulbous base and a tapered nose!
+• The 3D views must match this exact teardrop massing!`,
+    };
+  }
+
+  if (p.includes('hexagon') || p.includes('honeycomb')) {
+    return {
+      shapeName: 'HEXAGONAL HONEYCOMB',
+      directives: `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🚨 CRITICAL HEXAGONAL HONEYCOMB GEOMETRIC SILHOUETTE MANDATE:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+• The 2D building footprint MUST BE a clean 6-sided faceted hexagon with open space outside all 6 outer facets!
+• The 3D views must match this exact 6-sided hexagonal tower!`,
+    };
+  }
+
+  return {
+    shapeName: 'CUSTOM ARCHITECTURAL',
+    directives: `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🚨 CRITICAL GEOMETRIC SILHOUETTE MANDATE:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+• The 2D building footprint MUST strictly follow the sculpted outer contour of: "${prompt}".
+• The 2D floor plan, 3D roof plan, and 3D isometric tower render MUST ALL BE 100% VISUALLY AND GEOMETRICALLY IDENTICAL!`,
+  };
+}
+
 function buildPrompt(opts: {
   isSingle: boolean; buildingType: string; numFlats: number;
   hasDividers: boolean; hasCore: boolean;
   roomItems: string; roomListLabelHint: string; verifyChecks: string;
   widthM?: number; lengthM?: number; roomConfig?: string; userPrompt?: string;
 }): string {
-  const { isSingle, numFlats = 6, roomConfig = '2bhk', userPrompt, widthM = 80, lengthM = 80 } = opts;
+  const { isSingle, numFlats = 6, roomConfig = '2bhk', userPrompt = '', widthM = 80, lengthM = 80 } = opts;
 
-  const conceptShape = userPrompt?.trim() || 'Modern Luxury Residential Tower';
+  const { shapeName, directives: geometricDirectives } = getShapeGeometricDirectives(userPrompt, numFlats);
   const bhkLabel = roomConfig === '1bhk' ? '1 BHK' : roomConfig === '2bhk' ? '2 BHK' : roomConfig === '3bhk' ? '3 BHK' : roomConfig === '4bhk' ? '4 BHK' : '2 BHK';
 
   const flatLabelsList = Array.from({ length: numFlats }, (_, i) => `"FLAT ${String(i + 1).padStart(2, '0')} - ${bhkLabel}"`).join(', ');
@@ -82,6 +176,8 @@ function buildPrompt(opts: {
 
   return `High-end MASTER ARCHITECTURAL PRESENTATION BOARD floor plan drawing of a luxury residential building.
 
+${geometricDirectives}
+
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 🚨 MANDATORY APARTMENT PARTITIONING SCHEDULE (EXACTLY ${numFlats} × ${bhkLabel} UNITS)
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -90,7 +186,7 @@ ${itemizedFlatRoster}
 
 CRITICAL SPATIAL RULES:
 1. TOTAL VISIBLE APARTMENTS: Exactly ${numFlats} distinct private flats on the floor plan (${flatLabelsList}). DO NOT reduce or default to 3 or 4 units!
-2. PERIMETER FACADE ALLOCATION: Distribute all ${numFlats} flats symmetrically along the outer curved/faceted perimeter of the "${conceptShape}" so that every bedroom and living room captures direct exterior windows and natural ventilation.
+2. PERIMETER FACADE ALLOCATION: Distribute all ${numFlats} flats along the outer perimeter facade of the ${shapeName} building so that every bedroom and living room captures direct exterior windows and natural ventilation.
 3. CENTRAL EGRESS & CIRCULATION: Central service core with 2× Passenger Elevators and 2× Fire Stairwells with step treads. A continuous common corridor provides private front door entrances (with visible door swing arcs) to all ${numFlats} units.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -100,8 +196,8 @@ The image is a professional, high-resolution architectural presentation board sh
 
 1. 🌟 MAIN 2D FLOOR PLAN (LEFT 70% OF SHEET):
    - A complete, highly detailed top-down 2D architectural CAD floor plan layout.
-   - OUTER FOOTPRINT & GEOMETRY: Sculpted into the exact shape described: "${conceptShape}".
-   - Visible Internal Partitioning: EXACTLY ${numFlats} independent residential apartment units (${flatLabelsList}) arranged around the central core.
+   - OUTER FOOTPRINT & GEOMETRY: Sculpted into the exact ${shapeName} silhouette with dramatic, authentic negative space outside the perimeter.
+   - Visible Internal Partitioning: EXACTLY ${numFlats} independent residential apartment units (${flatLabelsList}) arranged around the core.
    - Architectural Textures & Materials: Polished cream travertine / Italian calacatta marble floor tiles in living and dining rooms, warm honey oak herringbone hardwood in master bedrooms, textured light porcelain in kitchens and bathrooms.
    - Designer Vector CAD Furniture:
      • Master Suites: King-size beds with floating nightstands, glass walk-in wardrobe closets, ensuite spa bathrooms with double vanities, freestanding bathtubs, and glass shower partitions.
@@ -114,15 +210,15 @@ The image is a professional, high-resolution architectural presentation board sh
 
 2. 🏙️ TOP-RIGHT PANEL — "TOP VIEW (BUILDING FORM)":
    - Realistic 3D aerial architectural massing render of the roof plate from directly above.
-   - Must show the EXACT SAME "${conceptShape}" silhouette as the 2D floor plan, with landscaped rooftop sky terrace, solar canopy, and architectural crown.
+   - Must show the EXACT SAME ${shapeName} silhouette as the 2D floor plan, with landscaped rooftop sky terrace, solar canopy, and architectural crown.
 
 3. 🏢 MIDDLE-RIGHT PANEL — "3D VIEW (BUILDING FORM)":
    - Photorealistic 3D isometric perspective architectural render of the complete tower elevation.
-   - Rising in the EXACT SAME "${conceptShape}" geometry with floor-to-floor curved glass curtain walls, cantilevered wrap-around balcony slabs with warm LED under-soffit lighting, and a sculpted aerodynamic crown.
+   - Rising in the EXACT SAME ${shapeName} geometry with floor-to-floor curved glass curtain walls, cantilevered wrap-around balcony slabs with warm LED under-soffit lighting, and a sculpted aerodynamic crown.
 
 4. 📊 BOTTOM-RIGHT CARD — "FLOOR PLAN SUMMARY" & "FLAT LEGEND":
    - Elegant architectural summary card with clean typography:
-     • Title: ${conceptShape.toUpperCase()} RESIDENTIAL TOWER
+     • Title: ${shapeName} LUXURY RESIDENTIAL TOWER
      • Dimension: ${widthM}m × ${lengthM}m
      • Total Unit Mix: EXACTLY ${numFlats} × ${bhkLabel} FLATS
      • Central Staircase & Dual Elevator Core
@@ -131,7 +227,7 @@ The image is a professional, high-resolution architectural presentation board sh
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 BUILDING SPECIFICATIONS:
-• TARGET CONCEPT & SHAPE: "${conceptShape}"
+• TARGET CONCEPT: "${userPrompt}" (${shapeName})
 • DIMENSIONS: ${widthM}m Width × ${lengthM}m Length
 • EXACT CAPACITY: ${numFlats} × ${bhkLabel} Flats
 
