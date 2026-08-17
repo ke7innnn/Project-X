@@ -19,17 +19,16 @@ import {
   Building,
   Image as ImageIcon,
   CheckCircle2,
-  FileCode,
-  Info
+  FileCode
 } from 'lucide-react';
 
 const CONCEPT_PRESETS = [
   {
     title: '💧 Water Droplet Tower',
-    prompt: 'Water droplet shaped luxury residential floor plan with 4x 1BHK and 2x 2BHK units, central staircase and double elevator core, and wide curved facade balconies with planters.',
+    prompt: 'Water droplet shaped luxury residential floor plan with 6x 2BHK units, central staircase and double elevator core, and wide curved facade balconies with planters.',
     widthM: 80,
     lengthM: 80,
-    stories: 12,
+    numFlats: 6,
     roomConfig: '2bhk',
   },
   {
@@ -37,31 +36,31 @@ const CONCEPT_PRESETS = [
     prompt: 'Biophilic Ginkgo fan leaf residential floor plan with 6 spacious luxury apartments, radial structural columns, central service core, and panoramic curved glass terraces.',
     widthM: 85,
     lengthM: 75,
-    stories: 16,
+    numFlats: 6,
     roomConfig: '3bhk',
   },
   {
     title: '📐 Stepped L-Shape Tower',
-    prompt: 'Stepped L-shape high-rise residential floor plan with 4 corner bedroom suites, central circulation corridor, dual elevators, and cascading corner terraces.',
+    prompt: 'Stepped L-shape high-rise residential floor plan with 6 apartment suites, central circulation corridor, dual elevators, and cascading corner terraces.',
     widthM: 70,
     lengthM: 70,
-    stories: 14,
+    numFlats: 6,
     roomConfig: '2bhk',
   },
   {
-    title: '🏛️ 4-Wing Luxury Penthouse',
-    prompt: 'Symmetrical 4-wing cross luxury residential floor plan with 4 master suites, open-concept living/dining halls, central fire egress core, and wrap-around balconies.',
+    title: '🏛️ 4-Wing Luxury Cross',
+    prompt: 'Symmetrical 4-wing cross luxury residential floor plan with 8 apartment suites, open-concept living/dining halls, central fire egress core, and wrap-around balconies.',
     widthM: 90,
     lengthM: 90,
-    stories: 20,
-    roomConfig: '3bhk',
+    numFlats: 8,
+    roomConfig: '2bhk',
   },
   {
     title: '💎 Double Diamond Suite',
-    prompt: 'Double diamond residential floor plan with angled wing units, central bridging service core, en-suite bathrooms along external facade, and modern modular kitchens.',
+    prompt: 'Double diamond residential floor plan with 8 units, central bridging service core, en-suite bathrooms along external facade, and modern modular kitchens.',
     widthM: 85,
     lengthM: 85,
-    stories: 15,
+    numFlats: 8,
     roomConfig: '2bhk',
   },
 ];
@@ -71,38 +70,18 @@ export default function ConceptGeneratorPage() {
 
   // Input states
   const [prompt, setPrompt] = useState<string>(
-    'Water droplet shaped luxury residential floor plan with 4x 1BHK and 2x 2BHK units, central staircase and double elevator core, and wide curved facade balconies with planters.'
+    'Arc shaped luxury residential floor plan with 6x 2BHK units, central staircase and double elevator core, and wide curved facade balconies with planters.'
   );
   const [widthM, setWidthM] = useState<number>(80);
   const [lengthM, setLengthM] = useState<number>(80);
-  const [stories, setStories] = useState<number>(12);
+  const [numFlats, setNumFlats] = useState<number>(6);
   const [roomConfig, setRoomConfig] = useState<'1bhk' | '2bhk' | '3bhk' | '4bhk' | 'auto'>('2bhk');
-  
-  // Custom Reference Upload state
-  const [customRefBase64, setCustomRefBase64] = useState<string | null>(null);
-  const [customRefPreview, setCustomRefPreview] = useState<string | null>(null);
-  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   // Generation & Output states
   const [isGenerating, setIsGenerating] = useState<boolean>(false);
   const [progressStep, setProgressStep] = useState<string>('');
   const [generatedImage, setGeneratedImage] = useState<string | null>(null);
   const [copied, setCopied] = useState<boolean>(false);
-  const [zoomLevel, setZoomLevel] = useState<number>(1.0);
-
-  // Handle custom image upload
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const b64 = event.target?.result as string;
-      setCustomRefBase64(b64);
-      setCustomRefPreview(b64);
-    };
-    reader.readAsDataURL(file);
-  };
 
   // Generate Concept Presentation Board
   const handleGenerate = async () => {
@@ -124,9 +103,8 @@ export default function ConceptGeneratorPage() {
           userPrompt: prompt,
           widthM,
           lengthM,
-          stories,
+          numFlats,
           roomConfig,
-          referenceImageBase64: customRefBase64,
           workflow: 'gpt-solo',
         }),
       });
@@ -164,63 +142,58 @@ export default function ConceptGeneratorPage() {
       await navigator.clipboard.write([new ClipboardItem({ [blob.type]: blob })]);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
-    } catch {
-      alert('Unable to copy image directly to clipboard. Please use the Download button.');
+    } catch (err) {
+      console.error('Copy failed:', err);
     }
   };
 
   return (
-    <div className="flex flex-col h-screen w-screen bg-[#070b14] text-white overflow-hidden font-sans select-none">
-      
-      {/* ── Top Navigation Bar ──────────────────────────────────────────────── */}
-      <header className="h-14 border-b border-cyan-500/20 bg-slate-950/80 backdrop-blur-md px-6 flex items-center justify-between z-20 shrink-0">
+    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans select-none overflow-hidden">
+      {/* ── Header ── */}
+      <header className="h-14 border-b border-white/10 bg-slate-900/80 backdrop-blur-md flex items-center justify-between px-5 shrink-0 z-30">
         <div className="flex items-center gap-4">
           <Link
-            href="/"
-            className="flex items-center gap-2 text-xs font-mono text-cyan-400 hover:text-cyan-200 transition-colors px-2.5 py-1.5 rounded-lg bg-cyan-950/40 border border-cyan-500/30 hover:border-cyan-400"
+            href="/workspace/default"
+            className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-slate-300 hover:text-white border border-white/10 text-xs font-mono transition-all"
           >
-            <ArrowLeft className="w-4 h-4" />
-            <span>BACK TO WORKSPACE</span>
+            <ArrowLeft className="w-3.5 h-3.5" />
+            BACK TO WORKSPACE
           </Link>
-
-          <div className="h-4 w-px bg-white/10" />
-
-          <div className="flex items-center gap-2.5">
-            <div className="p-1.5 rounded-lg bg-cyan-500/20 border border-cyan-400/50 shadow-[0_0_12px_rgba(0,240,255,0.3)]">
-              <Sparkles className="w-4 h-4 text-cyan-300 animate-pulse" />
+          <div className="h-4 w-[1px] bg-white/10" />
+          <div className="flex items-center gap-2">
+            <div className="p-1.5 rounded-md bg-gradient-to-br from-cyan-500/20 to-blue-500/20 border border-cyan-500/30 text-cyan-400">
+              <Sparkles className="w-4 h-4" />
             </div>
             <div>
-              <h1 className="text-sm font-black tracking-widest text-transparent bg-clip-text bg-gradient-to-r from-white via-cyan-200 to-cyan-400 uppercase font-mono">
+              <h1 className="text-xs font-bold font-mono tracking-wider text-white uppercase">
                 CONCEPT GENERATOR STUDIO
               </h1>
-              <p className="text-[10px] text-cyan-400/70 font-mono">
-                Prompt-to-Presentation-Board Floor Plan Engine
+              <p className="text-[10px] text-slate-400 font-mono">
+                Text-to-Image Presentation Board Engine (2D Floor Plan + 3D Massing + 3D Elevation)
               </p>
             </div>
           </div>
         </div>
 
         <div className="flex items-center gap-3">
-          <div className="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-black/50 border border-white/10 text-[10px] font-mono text-slate-400">
-            <Building className="w-3.5 h-3.5 text-cyan-400" />
-            <span>BOARD FORMAT: 2D FLOOR PLAN + 3D MASSING + 3D ELEVATION</span>
-          </div>
+          <span className="text-[10px] font-mono px-2.5 py-1 rounded-md bg-cyan-950/60 border border-cyan-500/30 text-cyan-400 flex items-center gap-1.5">
+            <FileCode className="w-3 h-3" />
+            BOARD FORMAT: 2D FLOOR PLAN + 3D MASSING + 3D ELEVATION
+          </span>
         </div>
       </header>
 
-      {/* ── Main 2-Column Studio Layout ─────────────────────────────────────── */}
+      {/* ── Main Layout: Sidebar Controls (Left) + Viewport (Right) ── */}
       <div className="flex-1 flex overflow-hidden">
-        
-        {/* ── Left Inspector Panel: Prompt & Parameters (380px) ──────────────── */}
-        <aside className="w-[420px] border-r border-white/10 bg-[#090e1a] flex flex-col overflow-y-auto p-5 gap-5 shrink-0 no-scrollbar">
-          
-          {/* Quick Concept Presets */}
-          <div className="flex flex-col gap-2">
-            <label className="text-[10px] font-mono font-bold text-cyan-400 tracking-wider uppercase flex items-center gap-1.5">
-              <Sparkles className="w-3.5 h-3.5" />
-              QUICK CONCEPT TEMPLATES
-            </label>
-            <div className="grid grid-cols-2 gap-1.5">
+        {/* Left Control Panel */}
+        <aside className="w-[420px] shrink-0 border-r border-white/10 bg-slate-900/50 backdrop-blur-md flex flex-col overflow-y-auto p-4 gap-4">
+          {/* Presets Bar */}
+          <div className="flex flex-col gap-1.5">
+            <span className="text-[10px] font-mono font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1">
+              <Compass className="w-3.5 h-3.5 text-cyan-400" />
+              INSPIRATION SHAPE PRESETS
+            </span>
+            <div className="flex flex-wrap gap-1.5">
               {CONCEPT_PRESETS.map((preset, idx) => (
                 <button
                   key={idx}
@@ -228,34 +201,32 @@ export default function ConceptGeneratorPage() {
                     setPrompt(preset.prompt);
                     setWidthM(preset.widthM);
                     setLengthM(preset.lengthM);
-                    setStories(preset.stories);
+                    setNumFlats(preset.numFlats);
                     setRoomConfig(preset.roomConfig as any);
                   }}
-                  className="px-2.5 py-2 rounded-lg bg-slate-900/80 hover:bg-cyan-950/40 border border-white/10 hover:border-cyan-500/50 text-left transition-all group"
+                  className="px-2.5 py-1 rounded-md bg-white/5 hover:bg-cyan-500/20 border border-white/10 hover:border-cyan-500/40 text-[10px] font-mono text-slate-300 hover:text-cyan-300 transition-all cursor-pointer"
                 >
-                  <span className="text-xs font-bold text-slate-200 group-hover:text-cyan-300 transition-colors block truncate">
-                    {preset.title}
-                  </span>
-                  <span className="text-[9px] font-mono text-slate-500 block">
-                    {preset.widthM}m × {preset.lengthM}m • {preset.stories}F
-                  </span>
+                  {preset.title}
                 </button>
               ))}
             </div>
           </div>
 
-          {/* Architectural Brief / Text Prompt Area */}
-          <div className="flex flex-col gap-2">
-            <label className="text-[10px] font-mono font-bold text-cyan-400 tracking-wider uppercase flex items-center justify-between">
-              <span>ARCHITECTURAL PROMPT BRIEF</span>
-              <span className="text-[9px] text-slate-500 font-normal">Describe shape, units & amenities</span>
-            </label>
+          {/* Prompt Brief */}
+          <div className="flex flex-col gap-1.5">
+            <div className="flex items-center justify-between">
+              <label className="text-[10px] font-mono font-bold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
+                <Sparkles className="w-3.5 h-3.5 text-cyan-400" />
+                ARCHITECTURAL PROMPT BRIEF
+              </label>
+              <span className="text-[9px] font-mono text-slate-500">DESCRIBE SHAPE & AMENITIES</span>
+            </div>
             <textarea
+              rows={3}
               value={prompt}
               onChange={(e) => setPrompt(e.target.value)}
-              rows={4}
-              placeholder="e.g. Water droplet shaped luxury residential floor plan with 4x 1BHK and 2x 2BHK units, central staircase and double elevator core, and wide curved facade balconies with planters."
-              className="w-full p-3 rounded-xl bg-black/60 border border-cyan-500/30 text-xs text-cyan-100 placeholder-slate-500 focus:outline-none focus:border-cyan-400 focus:ring-1 focus:ring-cyan-400 font-sans leading-relaxed resize-none shadow-inner"
+              placeholder="e.g. Arc shaped luxury residential floor plan with 6x 2BHK units, central staircase and double elevator core, and wide curved facade balconies with planters."
+              className="w-full p-3 bg-black/60 border border-white/10 rounded-xl text-xs font-mono text-slate-200 focus:outline-none focus:border-cyan-400/80 focus:ring-1 focus:ring-cyan-400/40 resize-none transition-all placeholder:text-slate-600"
             />
           </div>
 
@@ -263,59 +234,68 @@ export default function ConceptGeneratorPage() {
           <div className="flex flex-col gap-2.5 p-3.5 rounded-xl bg-black/40 border border-white/10">
             <span className="text-[10px] font-mono font-bold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
               <Sliders className="w-3.5 h-3.5 text-cyan-400" />
-              BUILDING DIMENSIONS & HEIGHT
+              BUILDING FOOTPRINT DIMENSIONS
             </span>
 
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-2 gap-2.5">
               {/* Width */}
               <div className="flex flex-col gap-1">
                 <span className="text-[9px] font-mono text-slate-400">WIDTH (M)</span>
                 <input
                   type="number"
-                  min={30}
-                  max={200}
-                  step={5}
                   value={widthM}
                   onChange={(e) => setWidthM(Number(e.target.value))}
                   className="w-full px-2.5 py-1.5 bg-slate-900 border border-white/10 rounded-lg text-xs font-mono font-bold text-cyan-300 text-center focus:outline-none focus:border-cyan-400"
                 />
               </div>
-
               {/* Length */}
               <div className="flex flex-col gap-1">
                 <span className="text-[9px] font-mono text-slate-400">LENGTH (M)</span>
                 <input
                   type="number"
-                  min={30}
-                  max={200}
-                  step={5}
                   value={lengthM}
                   onChange={(e) => setLengthM(Number(e.target.value))}
-                  className="w-full px-2.5 py-1.5 bg-slate-900 border border-white/10 rounded-lg text-xs font-mono font-bold text-cyan-300 text-center focus:outline-none focus:border-cyan-400"
-                />
-              </div>
-
-              {/* Stories */}
-              <div className="flex flex-col gap-1">
-                <span className="text-[9px] font-mono text-slate-400">STORIES</span>
-                <input
-                  type="number"
-                  min={1}
-                  max={60}
-                  step={1}
-                  value={stories}
-                  onChange={(e) => setStories(Number(e.target.value))}
                   className="w-full px-2.5 py-1.5 bg-slate-900 border border-white/10 rounded-lg text-xs font-mono font-bold text-cyan-300 text-center focus:outline-none focus:border-cyan-400"
                 />
               </div>
             </div>
           </div>
 
+          {/* Number of Flats (Max 10) */}
+          <div className="flex flex-col gap-2 p-3.5 rounded-xl bg-black/40 border border-white/10">
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] font-mono font-bold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
+                <Building className="w-3.5 h-3.5 text-cyan-400" />
+                NUMBER OF FLATS (PER FLOOR)
+              </span>
+              <span className="text-xs font-mono font-bold text-cyan-400 px-2 py-0.5 rounded bg-cyan-950/80 border border-cyan-500/30">
+                {numFlats} FLATS
+              </span>
+            </div>
+
+            {/* Quick 1 to 10 Button Grid */}
+            <div className="grid grid-cols-5 gap-1.5 mt-1">
+              {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((num) => (
+                <button
+                  key={num}
+                  onClick={() => setNumFlats(num)}
+                  className={`py-1.5 rounded-lg text-xs font-mono font-bold transition-all ${
+                    numFlats === num
+                      ? 'bg-cyan-400 text-black shadow-md shadow-cyan-500/30 scale-105'
+                      : 'bg-slate-900/80 text-slate-400 hover:text-white border border-white/10'
+                  }`}
+                >
+                  {num}
+                </button>
+              ))}
+            </div>
+          </div>
+
           {/* Unit Mix / Room Configuration */}
-          <div className="flex flex-col gap-2">
+          <div className="flex flex-col gap-2 p-3.5 rounded-xl bg-black/40 border border-white/10">
             <span className="text-[10px] font-mono font-bold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
               <Layers className="w-3.5 h-3.5 text-cyan-400" />
-              UNIT MIX DENSITY
+              UNIT TYPE (BHK MIX)
             </span>
 
             <div className="grid grid-cols-4 gap-1.5">
@@ -340,55 +320,6 @@ export default function ConceptGeneratorPage() {
             </div>
           </div>
 
-          {/* Custom Reference Image Upload (Optional) */}
-          <div className="flex flex-col gap-2 p-3.5 rounded-xl bg-black/40 border border-white/10">
-            <div className="flex items-center justify-between">
-              <span className="text-[10px] font-mono font-bold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
-                <ImageIcon className="w-3.5 h-3.5 text-cyan-400" />
-                REFERENCE SKETCH / IMAGE (OPTIONAL)
-              </span>
-              {customRefBase64 && (
-                <button
-                  onClick={() => {
-                    setCustomRefBase64(null);
-                    setCustomRefPreview(null);
-                  }}
-                  className="text-[9px] font-mono text-red-400 hover:underline cursor-pointer"
-                >
-                  Remove
-                </button>
-              )}
-            </div>
-
-            {customRefBase64 ? (
-              <div className="flex items-center gap-3 p-2 rounded-lg bg-slate-900 border border-cyan-500/40">
-                <div className="w-16 h-16 rounded-md overflow-hidden bg-black shrink-0 border border-white/10">
-                  <img src={customRefPreview!} alt="Custom Reference" className="w-full h-full object-cover" />
-                </div>
-                <div className="flex flex-col flex-1">
-                  <span className="text-xs font-bold text-cyan-300">Custom Reference Active</span>
-                  <span className="text-[9px] text-slate-400">AI will use your sketch to guide the design</span>
-                </div>
-              </div>
-            ) : (
-              <div 
-                onClick={() => fileInputRef.current?.click()}
-                className="flex items-center justify-center gap-2 p-3 rounded-lg border border-dashed border-white/15 hover:border-cyan-400/50 bg-slate-900/40 hover:bg-cyan-950/20 text-slate-400 hover:text-cyan-300 transition-all cursor-pointer"
-              >
-                <Upload className="w-4 h-4 text-cyan-400" />
-                <span className="text-[10px] font-mono font-medium">Add Reference Sketch / Elevation (Optional)</span>
-              </div>
-            )}
-
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/*"
-              onChange={handleFileUpload}
-              className="hidden"
-            />
-          </div>
-
           {/* Action Generate Button */}
           <button
             onClick={handleGenerate}
@@ -402,7 +333,7 @@ export default function ConceptGeneratorPage() {
             {isGenerating ? (
               <>
                 <Loader2 className="w-4 h-4 animate-spin" />
-                <span>RENDERING PRESENTATION BOARD...</span>
+                <span>RENDERING BOARD...</span>
               </>
             ) : (
               <>

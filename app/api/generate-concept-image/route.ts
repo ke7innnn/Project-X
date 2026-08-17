@@ -54,13 +54,23 @@ function buildPrompt(opts: {
   isSingle: boolean; buildingType: string; numFlats: number;
   hasDividers: boolean; hasCore: boolean;
   roomItems: string; roomListLabelHint: string; verifyChecks: string;
-  widthM?: number; lengthM?: number; stories?: number; userPrompt?: string;
+  widthM?: number; lengthM?: number; roomConfig?: string; userPrompt?: string;
 }): string {
-  const { isSingle, buildingType, numFlats, roomItems, userPrompt, widthM = 80, lengthM = 80, stories = 10 } = opts;
+  const { isSingle, numFlats = 6, roomConfig = '2bhk', userPrompt, widthM = 80, lengthM = 80 } = opts;
 
   const conceptShape = userPrompt?.trim() || 'Modern Luxury Residential Tower';
+  const bhkLabel = roomConfig === '1bhk' ? '1 BHK' : roomConfig === '2bhk' ? '2 BHK' : roomConfig === '3bhk' ? '3 BHK' : roomConfig === '4bhk' ? '4 BHK' : '2 BHK';
+
+  const flatLabelsList = Array.from({ length: numFlats }, (_, i) => `"FLAT ${String(i + 1).padStart(2, '0')} - ${bhkLabel}"`).join(', ');
 
   return `High-end MASTER ARCHITECTURAL PRESENTATION BOARD floor plan drawing of a luxury residential building.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🚨 ABSOLUTE MANDATORY HARD REQUIREMENT — EXACTLY ${numFlats} × ${bhkLabel} UNITS PER FLOOR PLATE
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+• You MUST partition and divide the 2D floor plan plate into EXACTLY ${numFlats} INDEPENDENT APARTMENTS (${numFlats}× ${bhkLabel} Units)!
+• DO NOT reduce or default to 3 or 4 units! The floor plan MUST visibly contain all ${numFlats} separate flats: ${flatLabelsList}.
+• Each of the ${numFlats} flats has its own private entrance door from the central corridor, its own living lounge, modular kitchen, ${bhkLabel === '1 BHK' ? '1 bedroom, and 1 bathroom' : bhkLabel === '2 BHK' ? '2 bedrooms, and 2 bathrooms' : bhkLabel === '3 BHK' ? '3 bedrooms, and 3 bathrooms' : '4 bedrooms, and 4 bathrooms'}, and its own private facade balcony.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 🏆 PRESENTATION BOARD COMPOSITION & MULTI-VIEW FORMAT
@@ -70,38 +80,39 @@ The image is a professional, high-resolution architectural presentation board sh
 1. 🌟 MAIN 2D FLOOR PLAN (LEFT 70% OF SHEET):
    - A complete, highly detailed top-down 2D architectural CAD floor plan layout.
    - OUTER FOOTPRINT & GEOMETRY: Sculpted into the exact shape described: "${conceptShape}".
-   - Subdivided into ${numFlats} luxury residential apartments (${isSingle ? '1 expansive penthouse layout' : `${numFlats} private luxury flats`}).
+   - Visible Internal Partitioning: EXACTLY ${numFlats} independent residential apartment units (${flatLabelsList}) arranged around the central core.
    - Architectural Textures & Materials: Polished cream travertine / Italian calacatta marble floor tiles in living and dining rooms, warm honey oak herringbone hardwood in master bedrooms, textured light porcelain in kitchens and bathrooms.
    - Designer Vector CAD Furniture:
      • Master Suites: King-size beds with floating nightstands, glass walk-in wardrobe closets, ensuite spa bathrooms with double vanities, freestanding bathtubs, and glass shower partitions.
      • Secondary Bedrooms: Queen/single beds with study workstations and built-in wardrobes.
-     • Living & Dining Lounges: Deep curved / L-shaped Italian designer sectional sofas, round travertine coffee tables, slim TV media consoles, and 6-to-8-seater marble dining tables.
+     • Living & Dining Lounges: Deep curved / L-shaped Italian designer sectional sofas, round travertine coffee tables, slim TV media consoles, and marble dining tables.
      • Modular Chef's Kitchens: Sleek quartz island breakfast counters with barstools, double undermount sinks, and gas cooktops.
      • Wrap-around Facade Balconies: Floor-to-ceiling sliding glass doors opening seamlessly onto continuous curved balconies with teak wood decking, outdoor lounge seating, and lush tropical green planter boxes.
    - Central Core: Central fire staircase with realistic step treads & UP/DN arrows, and 2× Passenger Lifts with clear elevator car doors.
-   - Callout leader lines and labels: "FLAT 01 - 1 BHK", "FLAT 02 - 2 BHK", etc., with a distinct North Arrow indicator in the top-left.
+   - Callout leader lines and labels for every single unit: ${flatLabelsList}, with a distinct North Arrow indicator in the top-left.
 
 2. 🏙️ TOP-RIGHT PANEL — "TOP VIEW (BUILDING FORM)":
    - Realistic 3D aerial architectural massing render of the roof plate from directly above.
    - Must show the EXACT SAME "${conceptShape}" silhouette as the 2D floor plan, with landscaped rooftop sky terrace, solar canopy, and architectural crown.
 
 3. 🏢 MIDDLE-RIGHT PANEL — "3D VIEW (BUILDING FORM)":
-   - Photorealistic 3D isometric perspective architectural render of the complete ${stories}-story tower elevation.
+   - Photorealistic 3D isometric perspective architectural render of the complete tower elevation.
    - Rising in the EXACT SAME "${conceptShape}" geometry with floor-to-floor curved glass curtain walls, cantilevered wrap-around balcony slabs with warm LED under-soffit lighting, and a sculpted aerodynamic crown.
 
 4. 📊 BOTTOM-RIGHT CARD — "FLOOR PLAN SUMMARY" & "FLAT LEGEND":
    - Elegant architectural summary card with clean typography:
      • Title: ${conceptShape.toUpperCase()} RESIDENTIAL TOWER
-     • Dimension & Stories: ${widthM}m × ${lengthM}m | ${stories} Levels
-     • Total Unit Mix breakdown matching the flats on the plan
-     • Color-coded Flat Legend key table matching each flat's pastel tint.
+     • Dimension: ${widthM}m × ${lengthM}m
+     • Total Unit Mix: EXACTLY ${numFlats} × ${bhkLabel} FLATS
+     • Central Staircase & Dual Elevator Core
+     • Color-coded Flat Legend key table matching all ${numFlats} flats with distinct pastel chips.
      • Footnote: "NOTE: PLAN IS CONCEPTUAL AND CAN BE MODIFIED AS PER SITE CONDITIONS".
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 BUILDING SPECIFICATIONS:
 • TARGET CONCEPT & SHAPE: "${conceptShape}"
-• DIMENSIONS: ${widthM}m Width × ${lengthM}m Length | Height: ${stories} Stories
-• TARGET CAPACITY: ${numFlats} Flats (${roomItems ? roomItems : 'Standard Luxury Residential'})
+• DIMENSIONS: ${widthM}m Width × ${lengthM}m Length
+• EXACT CAPACITY: ${numFlats} × ${bhkLabel} Flats
 
 AESTHETICS:
 Crisp architectural CAD linework, warm cream and sand presentation backdrop, ultra-clean publication-ready presentation board layout, photorealistic rendering.`;
@@ -196,8 +207,8 @@ export async function POST(req: Request) {
   try {
     const {
       traceCanvasBase64, referenceImageBase64, userPrompt, widthM = 80, lengthM = 80,
-      stories = 10, buildingType = 'multi-residential', roomConfig = 'auto',
-      workflow = 'gpt-solo', flatCount = 'auto', hasDividers = false,
+      buildingType = 'multi-residential', roomConfig = '2bhk',
+      workflow = 'gpt-solo', flatCount = 'auto', numFlats: reqNumFlats, hasDividers = false,
       hasCore = false, numRegions = 1
     } = await req.json();
 
@@ -220,7 +231,7 @@ export async function POST(req: Request) {
     console.log(`[ConceptGenerator] Mode: ${hasCustomRef ? 'IMAGE-TO-IMAGE (Custom Sketch)' : 'TEXT-TO-IMAGE (Master Presentation Board)'} | Model: ${stage1Model}`);
 
     const isSingle = buildingType === 'single-residential';
-    const numFlats = isSingle ? 1 : ((hasDividers && numRegions > 1) ? numRegions : (flatCount !== 'auto' ? parseInt(flatCount, 10) : 4));
+    const numFlats = isSingle ? 1 : (reqNumFlats ? Math.max(1, Math.min(10, Number(reqNumFlats))) : (flatCount && flatCount !== 'auto' ? Math.max(1, Math.min(10, parseInt(flatCount, 10))) : 6));
 
     // Room definitions
     let roomItems = '', roomListLabelHint = '', verifyChecks = '';
@@ -244,7 +255,7 @@ export async function POST(req: Request) {
       } else {
         roomItems = 'L-i = Living\nK-i = Kitchen\nB-i = Bedroom\nT-i = Bathroom';
         roomListLabelHint = 'L-i K-i B-i T-i';
-        verifyChecks = `- Exactly ${numFlats} Living rooms.\n- Exactly ${numFlats} Kitchens.\n- Exactly ${numFlats * 2} Bedrooms.\n- Exactly ${numFlats * 2} Bathrooms.`;
+        verifyChecks = `- Exactly ${numFlats} Living rooms.\n- Exactly ${numFlats} Kitchens.\n- Exactly ${numFlats * 4} Bedrooms.\n- Exactly ${numFlats * 4} Bathrooms.`;
       }
     }
 
@@ -259,7 +270,7 @@ export async function POST(req: Request) {
       verifyChecks,
       widthM,
       lengthM,
-      stories,
+      roomConfig,
       userPrompt
     };
     const stage1Prompt = buildPrompt(promptOpts);
