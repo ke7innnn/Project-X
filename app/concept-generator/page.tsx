@@ -25,43 +25,38 @@ import {
 const CONCEPT_PRESETS = [
   {
     title: '💧 Water Droplet Tower',
-    prompt: 'Water droplet shaped luxury residential floor plan with 6x 2BHK units, central staircase and double elevator core, and wide curved facade balconies with planters.',
+    prompt: 'Water droplet shaped luxury residential floor plan with 6x apartment units, central staircase and double elevator core, and wide curved facade balconies with planters.',
     widthM: 80,
     lengthM: 80,
     numFlats: 6,
-    roomConfig: '2bhk',
   },
   {
     title: '🌿 Biophilic Ginkgo Fan',
-    prompt: 'Biophilic Ginkgo fan leaf residential floor plan with 6 spacious luxury apartments, radial structural columns, central service core, and panoramic curved glass terraces.',
+    prompt: 'Biophilic Ginkgo fan leaf residential floor plan with 6x apartment units, radial structural columns, central service core, and panoramic curved glass terraces.',
     widthM: 85,
     lengthM: 75,
     numFlats: 6,
-    roomConfig: '3bhk',
   },
   {
     title: '📐 Stepped L-Shape Tower',
-    prompt: 'Stepped L-shape high-rise residential floor plan with 6 apartment suites, central circulation corridor, dual elevators, and cascading corner terraces.',
+    prompt: 'Stepped L-shape high-rise residential floor plan with 6x apartment units, central circulation corridor, dual elevators, and cascading corner terraces.',
     widthM: 70,
     lengthM: 70,
     numFlats: 6,
-    roomConfig: '2bhk',
   },
   {
     title: '🏛️ 4-Wing Luxury Cross',
-    prompt: 'Symmetrical 4-wing cross luxury residential floor plan with 8 apartment suites, open-concept living/dining halls, central fire egress core, and wrap-around balconies.',
+    prompt: 'Symmetrical 4-wing cross luxury residential floor plan with 8x apartment units, open-concept living/dining halls, central fire egress core, and wrap-around balconies.',
     widthM: 90,
     lengthM: 90,
     numFlats: 8,
-    roomConfig: '2bhk',
   },
   {
     title: '💎 Double Diamond Suite',
-    prompt: 'Double diamond residential floor plan with 8 units, central bridging service core, en-suite bathrooms along external facade, and modern modular kitchens.',
+    prompt: 'Double diamond residential floor plan with 8x apartment units, central bridging service core, en-suite bathrooms along external facade, and modern modular kitchens.',
     widthM: 85,
     lengthM: 85,
     numFlats: 8,
-    roomConfig: '2bhk',
   },
 ];
 
@@ -70,12 +65,11 @@ export default function ConceptGeneratorPage() {
 
   // Input states
   const [prompt, setPrompt] = useState<string>(
-    'Arc shaped luxury residential floor plan with 6x 2BHK units, central staircase and double elevator core, and wide curved facade balconies with planters.'
+    'Arc shaped luxury residential floor plan with 6x apartment units, central staircase and double elevator core, and wide curved facade balconies with planters.'
   );
   const [widthM, setWidthM] = useState<number>(80);
   const [lengthM, setLengthM] = useState<number>(80);
   const [numFlats, setNumFlats] = useState<number>(6);
-  const [roomConfig, setRoomConfig] = useState<'1bhk' | '2bhk' | '3bhk' | '4bhk' | 'auto'>('2bhk');
 
   // Generation & Output states
   const [isGenerating, setIsGenerating] = useState<boolean>(false);
@@ -104,7 +98,6 @@ export default function ConceptGeneratorPage() {
           widthM,
           lengthM,
           numFlats,
-          roomConfig,
           workflow: 'gpt-solo',
         }),
       });
@@ -286,35 +279,6 @@ export default function ConceptGeneratorPage() {
                   }`}
                 >
                   {num}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Unit Mix / Room Configuration */}
-          <div className="flex flex-col gap-2 p-3.5 rounded-xl bg-black/40 border border-white/10">
-            <span className="text-[10px] font-mono font-bold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
-              <Layers className="w-3.5 h-3.5 text-cyan-400" />
-              UNIT TYPE (BHK MIX)
-            </span>
-
-            <div className="grid grid-cols-4 gap-1.5">
-              {[
-                { id: '1bhk', label: '1 BHK' },
-                { id: '2bhk', label: '2 BHK' },
-                { id: '3bhk', label: '3 BHK' },
-                { id: '4bhk', label: '4 BHK' },
-              ].map((item) => (
-                <button
-                  key={item.id}
-                  onClick={() => setRoomConfig(item.id as any)}
-                  className={`py-2 rounded-lg text-xs font-mono font-bold uppercase transition-all ${
-                    roomConfig === item.id
-                      ? 'bg-gradient-to-r from-cyan-500 to-blue-500 text-black shadow-md shadow-cyan-500/30 scale-105'
-                      : 'bg-slate-900/80 text-slate-400 hover:text-white border border-white/10'
-                  }`}
-                >
-                  {item.label}
                 </button>
               ))}
             </div>

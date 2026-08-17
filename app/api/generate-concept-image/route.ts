@@ -255,17 +255,16 @@ function buildPrompt(opts: {
   isSingle: boolean; buildingType: string; numFlats: number;
   hasDividers: boolean; hasCore: boolean;
   roomItems: string; roomListLabelHint: string; verifyChecks: string;
-  widthM?: number; lengthM?: number; roomConfig?: string; userPrompt?: string;
+  widthM?: number; lengthM?: number; userPrompt?: string;
 }): string {
-  const { isSingle, numFlats = 6, roomConfig = '2bhk', userPrompt = '', widthM = 80, lengthM = 80 } = opts;
+  const { isSingle, numFlats = 6, userPrompt = '', widthM = 80, lengthM = 80 } = opts;
 
   const { shapeName, directives: geometricDirectives } = getShapeGeometricDirectives(userPrompt, numFlats);
-  const bhkLabel = roomConfig === '1bhk' ? '1 BHK' : roomConfig === '2bhk' ? '2 BHK' : roomConfig === '3bhk' ? '3 BHK' : roomConfig === '4bhk' ? '4 BHK' : '2 BHK';
 
-  const flatLabelsList = Array.from({ length: numFlats }, (_, i) => `"FLAT ${String(i + 1).padStart(2, '0')} - ${bhkLabel}"`).join(', ');
+  const flatLabelsList = Array.from({ length: numFlats }, (_, i) => `"FLAT ${String(i + 1).padStart(2, '0')}"`).join(', ');
 
   const itemizedFlatRoster = Array.from({ length: numFlats }, (_, i) => 
-    `• FLAT ${String(i + 1).padStart(2, '0')} (${bhkLabel}): ${getFlatRoomAnatomy(roomConfig)}`
+    `• FLAT ${String(i + 1).padStart(2, '0')}: [1× Master Suite with Ensuite Bath, 1× Secondary Bedroom, 2× Bathrooms, 1× Living & Dining Lounge, 1× Modular Kitchen, 1× Attached Facade Balcony]`
   ).join('\n');
 
   return `High-end MASTER ARCHITECTURAL PRESENTATION BOARD floor plan drawing of a luxury residential building.
@@ -273,9 +272,9 @@ function buildPrompt(opts: {
 ${geometricDirectives}
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-🚨 MANDATORY APARTMENT PARTITIONING SCHEDULE (EXACTLY ${numFlats} × ${bhkLabel} UNITS)
+🚨 MANDATORY APARTMENT PARTITIONING SCHEDULE (EXACTLY ${numFlats} APARTMENT UNITS)
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-The 2D floor plan plate MUST be partitioned and divided into EXACTLY ${numFlats} INDEPENDENT APARTMENTS (${numFlats}× ${bhkLabel} Units):
+The 2D floor plan plate MUST be partitioned and divided into EXACTLY ${numFlats} INDEPENDENT APARTMENTS (${numFlats} Apartment Units):
 ${itemizedFlatRoster}
 
 CRITICAL SPATIAL RULES:
@@ -314,7 +313,7 @@ The image is a professional, high-resolution architectural presentation board sh
    - Elegant architectural summary card with clean typography:
      • Title: ${shapeName} LUXURY RESIDENTIAL TOWER
      • Dimension: ${widthM}m × ${lengthM}m
-     • Total Unit Mix: EXACTLY ${numFlats} × ${bhkLabel} FLATS
+     • Total Unit Mix: EXACTLY ${numFlats} APARTMENT UNITS
      • Central Staircase & Dual Elevator Core
      • Color-coded Flat Legend key table matching all ${numFlats} flats with distinct pastel chips.
      • Footnote: "NOTE: PLAN IS CONCEPTUAL AND CAN BE MODIFIED AS PER SITE CONDITIONS".
@@ -323,110 +322,22 @@ The image is a professional, high-resolution architectural presentation board sh
 BUILDING SPECIFICATIONS:
 • TARGET CONCEPT: "${userPrompt}" (${shapeName})
 • DIMENSIONS: ${widthM}m Width × ${lengthM}m Length
-• EXACT CAPACITY: ${numFlats} × ${bhkLabel} Flats
+• EXACT CAPACITY: ${numFlats} Apartment Units
 
 AESTHETICS:
 Crisp architectural CAD linework, warm cream and sand presentation backdrop, ultra-clean publication-ready presentation board layout, photorealistic rendering.`;
 }
-
-function buildRefinementPrompt(opts: {
-  isSingle: boolean; buildingType: string; numFlats: number; roomConfig: string;
-  roomItems: string;
-}): string {
-  const { isSingle, buildingType, numFlats, roomConfig, roomItems } = opts;
-
-  let countedRooms: string[] = [];
-  if (roomConfig === '1bhk') {
-    countedRooms = ['1x Living Room', '1x Kitchen', '1x Bedroom', '1x Bathroom'];
-  } else if (roomConfig === '2bhk') {
-    countedRooms = ['1x Living Room', '1x Kitchen', '2x Bedrooms', '2x Bathrooms'];
-  } else if (roomConfig === '3bhk') {
-    countedRooms = ['1x Living Room', '1x Kitchen', '3x Bedrooms', '3x Bathrooms'];
-  } else if (isSingle) {
-    countedRooms = ['1x Foyer', '1x Living Room', '1x Kitchen', '2x Bedrooms', '2x Bathrooms', '1x Utility'];
-  } else if (buildingType === 'office') {
-    countedRooms = ['1x Reception', '1x Open Workspace', '3x Cabins', '1x Meeting Room', '1x Pantry', '2x Toilets'];
-  } else if (buildingType === 'healthcare') {
-    countedRooms = ['1x Reception/Waiting', '2x Consultation Rooms', '1x Nurse Station', '2x Patient Wards', '1x Pharmacy', '1x Laboratory', '2x Toilets'];
-  } else {
-    countedRooms = roomItems.split('\n').map(line => line.split(' = ')[1]?.trim()).filter(Boolean).map(r => `1x ${r}`);
-  }
-
-  const countedRoomsStr = countedRooms.join(', ');
-
-  let perFlatChecklist = '';
-  if (!isSingle && buildingType === 'multi-residential') {
-    for (let i = 1; i <= numFlats; i++) {
-      perFlatChecklist += `\nFlat ${i}: ${countedRoomsStr}`;
-    }
-  }
-
-  return `You are an expert architectural drafter. The image you received is a CAD floor plan generated by AI.
-
-YOUR TASK: Redesign the interior of this floor plan while keeping the exterior building boundary exactly as shown, producing a code-aware, dimensioned 2D floor plan.
-
-PRIORITY ORDER (highest to lowest):
-1. Preserve the uploaded exterior footprint exactly.
-2. Life safety: correct means of egress.
-3. Every room meets minimum habitable size.
-4. All required rooms present, labeled, and dimensioned.
-5. Realistic circulation, adjacency, ventilation, and Vaastu.
-6. Clean professional presentation.
-
-CRITICAL RULE #1 — EXTERIOR FOOTPRINT:
-Preserve the uploaded exterior footprint exactly. Outer wall polyline, angles, proportions, and building shape remain unchanged. Modify only interior partitions.
-
-CRITICAL RULE #2 — EGRESS (LIFE SAFETY, NON-NEGOTIABLE):
-Any floor with 3 or more apartments MUST have TWO separate staircases. Every apartment entrance must reach at least one staircase via the common corridor.
-
-CRITICAL RULE #3 — MINIMUM ROOM SIZES (NON-NEGOTIABLE):
-- Bedroom: min 9.5 sq.m, min width 2.4 m
-- Master Bedroom: min 11 sq.m
-- Living Room: min 11 sq.m
-- Kitchen: min 5 sq.m, min width 1.8 m
-- Bathroom/Toilet: min 1.8 sq.m, min width 1.2 m
-- Corridor width: min 1.0 m
-
-CRITICAL RULE #5 — ROOM COMPLETENESS:
-Each apartment must visibly contain its labeled Living Room, Kitchen, Bedroom(s), Bathroom(s), and Entrance.
-${perFlatChecklist}
-
-DRAWING & ANNOTATION REQUIREMENTS:
-- Thick black exterior walls, thin interior partitions.
-- Swing doors shown with arc; window ticks on exterior walls.
-- Room labels prefixed with flat number (F1-Living, F1-Kitchen).
-- White background, clean professional 2D CAD style.
-
-Output the redesigned floor plan image only.`;
-}
-
-// ── Resolve reference image URL (optional user upload) ─────────────────────────
-
-async function getUploadedReferenceUrl(customBase64?: string | null): Promise<string | null> {
-  if (customBase64 && customBase64.length > 50) {
-    const base64Data = customBase64.replace(/^data:image\/\w+;base64,/, '');
-    const buffer = Buffer.from(base64Data, 'base64');
-    const file = new File([new Blob([buffer], { type: 'image/png' })], 'user_ref.png', { type: 'image/png' });
-    return await fal.storage.upload(file);
-  }
-  return null;
-}
-
-
 
 async function compileArchitecturalPromptWithAgent(opts: {
   userPrompt: string;
   widthM: number;
   lengthM: number;
   numFlats: number;
-  roomConfig: string;
 }): Promise<string> {
   const openRouterKey = process.env.OPENROUTER_API_KEY || process.env.NEXT_PUBLIC_OPENROUTER_API_KEY;
   if (!openRouterKey) {
-    return buildPrompt({ isSingle: false, buildingType: 'multi-residential', numFlats: opts.numFlats, hasDividers: false, hasCore: true, roomItems: '', roomListLabelHint: '', verifyChecks: '', widthM: opts.widthM, lengthM: opts.lengthM, roomConfig: opts.roomConfig, userPrompt: opts.userPrompt });
+    return buildPrompt({ isSingle: false, buildingType: 'multi-residential', numFlats: opts.numFlats, hasDividers: false, hasCore: true, roomItems: '', roomListLabelHint: '', verifyChecks: '', widthM: opts.widthM, lengthM: opts.lengthM, userPrompt: opts.userPrompt });
   }
-
-  const bhkLabel = opts.roomConfig === '1bhk' ? '1 BHK' : opts.roomConfig === '2bhk' ? '2 BHK' : opts.roomConfig === '3bhk' ? '3 BHK' : opts.roomConfig === '4bhk' ? '4 BHK' : '2 BHK';
 
   const systemMessage = `You are a Principal Architectural Prompt Engineer for high-end master presentation boards.
 Your mission is to write a single, ultra-detailed, laser-focused prompt for an image diffusion model (OpenAI GPT-Image-2) to generate a complete master architectural presentation board.
@@ -437,10 +348,10 @@ STRICT DESIGN RULES:
    - Write explicit geometric contour directives ONLY for this exact shape. Do NOT mention, describe, or mix with other unrelated shapes.
    - AUTHENTIC NEGATIVE SPACE: Open void/air outside the shape must clearly show clean presentation board background. NEVER draw a solid rectangular box or barrel.
 2. CRITICAL UNIT SEPARATION & DEMISING WALLS:
-   - Partition the 2D floor plan into EXACTLY ${opts.numFlats} INDEPENDENT APARTMENTS (${opts.numFlats} × ${bhkLabel} FLATS).
-   - SOLID SEPARATING PARTY WALLS: Every single flat (FLAT 01 to FLAT ${String(opts.numFlats).padStart(2, '0')}) MUST be bounded by thick, visible, continuous 200mm solid structural demising party walls. Zero room bleeding or chaotic overlapping between adjacent units!
+   - Partition the 2D floor plan into EXACTLY ${opts.numFlats} INDEPENDENT APARTMENT UNITS (FLAT 01 to FLAT ${String(opts.numFlats).padStart(2, '0')}).
+   - SOLID SEPARATING PARTY WALLS: Every single flat MUST be bounded by thick, visible, continuous 200mm solid structural demising party walls. Zero room bleeding or chaotic overlapping between adjacent units!
    - INDEPENDENT APARTMENT BOXES: Each flat is a complete self-contained private unit with its own front entrance door (with visible door swing arc) opening from a common circulation corridor.
-   - ROOM ANATOMY PER FLAT: Each flat contains its own private Living Lounge, Modular Kitchen, ${bhkLabel === '1 BHK' ? '1 Bedroom, and 1 Bathroom' : bhkLabel === '2 BHK' ? '2 Bedrooms (Master Suite with Ensuite + 2nd Bedroom), and 2 Bathrooms' : bhkLabel === '3 BHK' ? '3 Bedrooms, and 3 Bathrooms' : '4 Bedrooms, and 4 Bathrooms'}, and its own private Attached Facade Balcony.
+   - ROOM ANATOMY PER FLAT: Each flat contains its own private Living Lounge, Modular Kitchen, Ensuite Bedrooms, Bathrooms, and its own private Attached Facade Balcony (natural luxury mixed apartment density).
 
 3. 🌬️ NATURAL VENTILATION, DAYLIGHT & LIVING ROOM BALCONY INTEGRATION:
    - LIVING ROOM BALCONY CONNECTION: Every single Living Room MUST be positioned directly along the exterior perimeter facade, seamlessly connected to a wide, expansive curved/wrap-around balcony via full-height sliding glass doors.
@@ -452,7 +363,7 @@ STRICT DESIGN RULES:
    - Panel 1 (Left 70%): Full 2D top-down CAD master floor plan with warm travertine/marble flooring, furnished rooms, central core (2 elevators + 2 stairwells), and callout labels for every single unit (FLAT 01 to FLAT ${String(opts.numFlats).padStart(2, '0')}).
    - Panel 2 (Top-Right 30%): "TOP VIEW (BUILDING FORM)" - 3D aerial roof massing render of that EXACT shape from directly above.
    - Panel 3 (Middle-Right 30%): "3D VIEW (BUILDING FORM)" - Photorealistic 3D isometric perspective tower elevation rising in that EXACT shape with matching floor slabs and wrap-around glass balconies.
-   - Panel 4 (Bottom-Right 30%): "FLOOR PLAN SUMMARY" & "FLAT LEGEND" card displaying Title, Dimensions (${opts.widthM}m × ${opts.lengthM}m), Total Unit Mix (${opts.numFlats} × ${bhkLabel} FLATS), and color-coded legend table.
+   - Panel 4 (Bottom-Right 30%): "FLOOR PLAN SUMMARY" & "FLAT LEGEND" card displaying Title, Dimensions (${opts.widthM}m × ${opts.lengthM}m), Total Unit Mix (${opts.numFlats} APARTMENT UNITS), and color-coded legend table.
 
 Return ONLY the raw prompt text to send to the image generation model. No conversational introductory or concluding remarks.`;
 
@@ -470,7 +381,7 @@ Return ONLY the raw prompt text to send to the image generation model. No conver
         model: 'google/gemini-2.5-flash',
         messages: [
           { role: 'system', content: systemMessage },
-          { role: 'user', content: `USER ARCHITECTURAL BRIEF: "${opts.userPrompt}"\nBUILDING DIMENSIONS: ${opts.widthM}m × ${opts.lengthM}m\nEXACT FLATS PER FLOOR: ${opts.numFlats} FLATS\nUNIT TYPE: ${bhkLabel}` }
+          { role: 'user', content: `USER ARCHITECTURAL BRIEF: "${opts.userPrompt}"\nBUILDING DIMENSIONS: ${opts.widthM}m × ${opts.lengthM}m\nEXACT FLATS PER FLOOR: ${opts.numFlats} APARTMENT UNITS` }
         ],
         temperature: 0.2,
         max_tokens: 1200,
@@ -490,7 +401,7 @@ Return ONLY the raw prompt text to send to the image generation model. No conver
     console.warn('[ConceptGenerator] Prompt Compiler Agent failed, using algorithmic fallback:', err.message);
   }
 
-  return buildPrompt({ isSingle: false, buildingType: 'multi-residential', numFlats: opts.numFlats, hasDividers: false, hasCore: true, roomItems: '', roomListLabelHint: '', verifyChecks: '', widthM: opts.widthM, lengthM: opts.lengthM, roomConfig: opts.roomConfig, userPrompt: opts.userPrompt });
+  return buildPrompt({ isSingle: false, buildingType: 'multi-residential', numFlats: opts.numFlats, hasDividers: false, hasCore: true, roomItems: '', roomListLabelHint: '', verifyChecks: '', widthM: opts.widthM, lengthM: opts.lengthM, userPrompt: opts.userPrompt });
 }
 
 // ── Route Handler ─────────────────────────────────────────────────────────────
@@ -531,7 +442,6 @@ export async function POST(req: Request) {
       widthM,
       lengthM,
       numFlats,
-      roomConfig,
     });
 
     console.log('[ConceptGenerator] Final Prompt length:', stage1Prompt.length);
