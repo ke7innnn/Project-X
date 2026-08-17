@@ -340,55 +340,19 @@ export default function ShapeStudioPage() {
       ctx.fillText(`CORE: ${Math.round(coreW)}m × ${Math.round(coreH)}m`, toCanvasX(cx), toCanvasY(cy) + 16);
     }
 
-    // ── 6. ARCHITECTURAL UNIT PARTITIONS & 90° ORTHOGONAL ROOM BOXES ────────
+    // ── 6. ARCHITECTURAL UNIT PARTITIONS & CLEAN CAD ROOM ZONING ───────────
     if (showPartitions && polygonPts.length > 2) {
       const UNIT_THEMES = [
-        { label: 'F1', stroke: '#ef4444', fill: 'rgba(239, 68, 68, 0.12)', badgeBg: '#ef4444' },
-        { label: 'F2', stroke: '#10b981', fill: 'rgba(16, 185, 129, 0.12)', badgeBg: '#10b981' },
-        { label: 'F3', stroke: '#f59e0b', fill: 'rgba(245, 158, 11, 0.12)', badgeBg: '#f59e0b' },
-        { label: 'F4', stroke: '#06b6d4', fill: 'rgba(6, 182, 212, 0.12)', badgeBg: '#06b6d4' },
-        { label: 'F5', stroke: '#8b5cf6', fill: 'rgba(139, 92, 246, 0.12)', badgeBg: '#8b5cf6' },
-        { label: 'F6', stroke: '#14b8a6', fill: 'rgba(20, 184, 166, 0.12)', badgeBg: '#14b8a6' },
-        { label: 'F7', stroke: '#f43f5e', fill: 'rgba(244, 63, 94, 0.12)', badgeBg: '#f43f5e' },
-        { label: 'F8', stroke: '#eab308', fill: 'rgba(234, 179, 8, 0.12)', badgeBg: '#eab308' },
+        { label: 'F1', stroke: '#ef4444', fill: 'rgba(239, 68, 68, 0.08)', text: '#fca5a5' },
+        { label: 'F2', stroke: '#10b981', fill: 'rgba(16, 185, 129, 0.08)', text: '#6ee7b7' },
+        { label: 'F3', stroke: '#f59e0b', fill: 'rgba(245, 158, 11, 0.08)', text: '#fcd34d' },
+        { label: 'F4', stroke: '#06b6d4', fill: 'rgba(6, 182, 212, 0.08)', text: '#67e8f9' },
+        { label: 'F5', stroke: '#8b5cf6', fill: 'rgba(139, 92, 246, 0.08)', text: '#c4b5fd' },
+        { label: 'F6', stroke: '#14b8a6', fill: 'rgba(20, 184, 166, 0.08)', text: '#5eead4' },
+        { label: 'F7', stroke: '#f43f5e', fill: 'rgba(244, 63, 94, 0.08)', text: '#fda4af' },
+        { label: 'F8', stroke: '#eab308', fill: 'rgba(234, 179, 8, 0.08)', text: '#fde047' },
       ];
 
-      // Proportional Room Box Definitions (Distinct Sizes based on Architectural Standards)
-      // widthWeight determines % of facade width; depthM determines inward room depth
-      const ROOM_BOX_DEFS: Record<string, { name: string; icon: string; widthWeight: number; depthM: number; color: string; isBalcony?: boolean }[]> = {
-        '1bhk': [
-          { name: 'BALCONY', icon: '🌿', widthWeight: 0.28, depthM: 2.0, color: '#10b981', isBalcony: true },
-          { name: 'MASTER BEDROOM', icon: '🛏️', widthWeight: 0.38, depthM: 6.0, color: '#3b82f6' },
-          { name: 'KITCHEN', icon: '🍳', widthWeight: 0.20, depthM: 4.2, color: '#f59e0b' },
-          { name: 'TOILET', icon: '🚿', widthWeight: 0.14, depthM: 2.8, color: '#0ea5e9' },
-        ],
-        '2bhk': [
-          { name: 'BALCONY', icon: '🌿', widthWeight: 0.22, depthM: 2.0, color: '#10b981', isBalcony: true },
-          { name: 'MASTER BEDROOM', icon: '🛏️', widthWeight: 0.30, depthM: 6.2, color: '#3b82f6' },
-          { name: 'BEDROOM 2', icon: '🛏️', widthWeight: 0.24, depthM: 5.2, color: '#6366f1' },
-          { name: 'KITCHEN', icon: '🍳', widthWeight: 0.14, depthM: 4.2, color: '#f59e0b' },
-          { name: 'TOILET', icon: '🚿', widthWeight: 0.10, depthM: 2.8, color: '#0ea5e9' },
-        ],
-        '3bhk': [
-          { name: 'BALCONY', icon: '🌿', widthWeight: 0.18, depthM: 2.0, color: '#10b981', isBalcony: true },
-          { name: 'MASTER BEDROOM', icon: '🛏️', widthWeight: 0.26, depthM: 6.5, color: '#3b82f6' },
-          { name: 'BEDROOM 2', icon: '🛏️', widthWeight: 0.20, depthM: 5.2, color: '#6366f1' },
-          { name: 'BEDROOM 3', icon: '🛏️', widthWeight: 0.18, depthM: 4.8, color: '#8b5cf6' },
-          { name: 'KITCHEN', icon: '🍳', widthWeight: 0.10, depthM: 4.2, color: '#f59e0b' },
-          { name: 'TOILET', icon: '🚿', widthWeight: 0.08, depthM: 2.8, color: '#0ea5e9' },
-        ],
-        '4bhk': [
-          { name: 'BALCONY', icon: '🌿', widthWeight: 0.16, depthM: 2.0, color: '#10b981', isBalcony: true },
-          { name: 'MASTER BEDROOM', icon: '🛏️', widthWeight: 0.24, depthM: 6.8, color: '#3b82f6' },
-          { name: 'BEDROOM 2', icon: '🛏️', widthWeight: 0.18, depthM: 5.2, color: '#6366f1' },
-          { name: 'BEDROOM 3', icon: '🛏️', widthWeight: 0.16, depthM: 4.8, color: '#8b5cf6' },
-          { name: 'BEDROOM 4', icon: '🛏️', widthWeight: 0.14, depthM: 4.5, color: '#ec4899' },
-          { name: 'KITCHEN', icon: '🍳', widthWeight: 0.07, depthM: 4.2, color: '#f59e0b' },
-          { name: 'TOILET', icon: '🚿', widthWeight: 0.05, depthM: 2.8, color: '#0ea5e9' },
-        ],
-      };
-
-      const currentRoomBoxes = ROOM_BOX_DEFS[bhkType] || ROOM_BOX_DEFS['3bhk'];
       const numUnits = Math.min(8, Math.max(2, unitCount));
 
       // Raycast helper to find outer perimeter intersection point
@@ -435,18 +399,27 @@ export default function ShapeStudioPage() {
         boundaryHits.push({ ...hit, angle });
       }
 
-      // Draw Radial Partition Boundary Lines
+      // ── STRICT POLYGON CLIPPING: Nothing can ever bleed outside ──────────
+      ctx.save();
+      ctx.beginPath();
+      ctx.moveTo(toCanvasX(polygonPts[0].x), toCanvasY(polygonPts[0].y));
+      for (let i = 1; i < polygonPts.length; i++) {
+        ctx.lineTo(toCanvasX(polygonPts[i].x), toCanvasY(polygonPts[i].y));
+      }
+      ctx.closePath();
+      ctx.clip();
+
+      // 1. Draw Primary Unit Division Walls (from Core to Outer Facade)
       for (let i = 0; i < numUnits; i++) {
         const hit = boundaryHits[i];
         const theme = UNIT_THEMES[i % UNIT_THEMES.length];
 
         ctx.save();
-        ctx.strokeStyle = isDark ? theme.stroke : theme.stroke;
-        ctx.lineWidth = 2;
-        ctx.setLineDash([4, 3]);
+        ctx.strokeStyle = theme.stroke;
+        ctx.lineWidth = 2.5;
+        ctx.setLineDash([6, 3]);
 
         ctx.beginPath();
-        // Start from outer edge of core
         const coreBorderRadius = Math.max(coreW, coreH) / 2;
         const startX = cx + Math.cos(hit.angle) * coreBorderRadius;
         const startY = cy + Math.sin(hit.angle) * coreBorderRadius;
@@ -457,159 +430,209 @@ export default function ShapeStudioPage() {
         ctx.restore();
       }
 
-      // Render Each Flat Unit's Proportional 90° Orthogonal Room Boxes & Living Room
+      // 2. Draw Clean Architectural Rooms Inside Each Unit Zone
       for (let u = 0; u < numUnits; u++) {
         const startHit = boundaryHits[u];
         const nextHit = boundaryHits[(u + 1) % numUnits];
         const theme = UNIT_THEMES[u % UNIT_THEMES.length];
-        const midAngle = (startHit.angle + nextHit.angle + (nextHit.angle < startHit.angle ? 2 * Math.PI : 0)) / 2;
+        const spanAngle = nextHit.angle - startHit.angle + (nextHit.angle < startHit.angle ? 2 * Math.PI : 0);
+        const midAngle = startHit.angle + spanAngle / 2;
 
-        // 1. Calculate Flat Zone Midpoint for Central Living Room
         const midHit = raycastPolygon(midAngle);
-        const livingDist = (Math.max(coreW, coreH) / 2 + Math.sqrt((midHit.x - cx) ** 2 + (midHit.y - cy) ** 2)) * 0.40;
-        const livingX = cx + Math.cos(midAngle) * livingDist;
-        const livingY = cy + Math.sin(midAngle) * livingDist;
+        const maxDist = Math.sqrt((midHit.x - cx) ** 2 + (midHit.y - cy) ** 2);
+        const coreRadius = Math.max(coreW, coreH) / 2 + 2;
 
-        // 2. Draw 90° Orthogonal Facade Room Boxes with Proportional Sizing
+        // Inward Demarcation Line separating Exterior Rooms from Central Living
+        const roomZoneDepth = Math.min(8.5, Math.max(4.5, (maxDist - coreRadius) * 0.48));
+        const roomWallRadius = maxDist - roomZoneDepth;
+
+        // 2a. Draw Concentric / Orthogonal Room Demarcation Wall
+        ctx.save();
+        ctx.strokeStyle = isDark ? 'rgba(255, 255, 255, 0.35)' : 'rgba(0, 0, 0, 0.4)';
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+
+        const arcSteps = 16;
+        for (let s = 0; s <= arcSteps; s++) {
+          const a = startHit.angle + (spanAngle * s) / arcSteps;
+          const hitA = raycastPolygon(a);
+          const distA = Math.sqrt((hitA.x - cx) ** 2 + (hitA.y - cy) ** 2);
+          const rA = Math.max(coreRadius + 3, distA - roomZoneDepth);
+          const wx = cx + Math.cos(a) * rA;
+          const wy = cy + Math.sin(a) * rA;
+
+          if (s === 0) ctx.moveTo(toCanvasX(wx), toCanvasY(wy));
+          else ctx.lineTo(toCanvasX(wx), toCanvasY(wy));
+        }
+        ctx.stroke();
+        ctx.restore();
+
+        // 2b. Partition Exterior Room Zone into Rooms
         if (showExteriorBoxes) {
-          const numBoxes = currentRoomBoxes.length;
-          let balconyBoxCenter: { x: number; y: number } | null = null;
-          let runningWeight = 0;
+          // Room types per BHK
+          const roomsConfig = bhkType === '1bhk'
+            ? [
+                { name: 'BALCONY', icon: '🌿', widthFraction: 0.30, color: '#10b981', isBalcony: true },
+                { name: 'MASTER BEDROOM', icon: '🛏️', widthFraction: 0.40, color: '#3b82f6' },
+                { name: 'KITCHEN', icon: '🍳', widthFraction: 0.18, color: '#f59e0b' },
+                { name: 'TOILET', icon: '🚿', widthFraction: 0.12, color: '#0ea5e9' },
+              ]
+            : bhkType === '2bhk'
+            ? [
+                { name: 'BALCONY', icon: '🌿', widthFraction: 0.22, color: '#10b981', isBalcony: true },
+                { name: 'MASTER BEDROOM', icon: '🛏️', widthFraction: 0.32, color: '#3b82f6' },
+                { name: 'BEDROOM 2', icon: '🛏️', widthFraction: 0.26, color: '#6366f1' },
+                { name: 'KITCHEN', icon: '🍳', widthFraction: 0.12, color: '#f59e0b' },
+                { name: 'TOILET', icon: '🚿', widthFraction: 0.08, color: '#0ea5e9' },
+              ]
+            : bhkType === '3bhk'
+            ? [
+                { name: 'BALCONY', icon: '🌿', widthFraction: 0.18, color: '#10b981', isBalcony: true },
+                { name: 'MASTER BEDROOM', icon: '🛏️', widthFraction: 0.28, color: '#3b82f6' },
+                { name: 'BEDROOM 2', icon: '🛏️', widthFraction: 0.22, color: '#6366f1' },
+                { name: 'BEDROOM 3', icon: '🛏️', widthFraction: 0.18, color: '#8b5cf6' },
+                { name: 'KITCHEN', icon: '🍳', widthFraction: 0.08, color: '#f59e0b' },
+                { name: 'TOILET', icon: '🚿', widthFraction: 0.06, color: '#0ea5e9' },
+              ]
+            : [
+                { name: 'BALCONY', icon: '🌿', widthFraction: 0.16, color: '#10b981', isBalcony: true },
+                { name: 'MASTER BEDROOM', icon: '🛏️', widthFraction: 0.25, color: '#3b82f6' },
+                { name: 'BEDROOM 2', icon: '🛏️', widthFraction: 0.20, color: '#6366f1' },
+                { name: 'BEDROOM 3', icon: '🛏️', widthFraction: 0.16, color: '#8b5cf6' },
+                { name: 'BEDROOM 4', icon: '🛏️', widthFraction: 0.13, color: '#ec4899' },
+                { name: 'KITCHEN', icon: '🍳', widthFraction: 0.06, color: '#f59e0b' },
+                { name: 'TOILET', icon: '🚿', widthFraction: 0.04, color: '#0ea5e9' },
+              ];
 
-          for (let b = 0; b < numBoxes; b++) {
-            const boxDef = currentRoomBoxes[b];
-            const tStart = runningWeight;
-            const tEnd = runningWeight + boxDef.widthWeight;
-            runningWeight += boxDef.widthWeight;
+          let curFrac = 0;
+          let balconyMidX = 0;
+          let balconyMidY = 0;
 
-            const angleA = startHit.angle + (nextHit.angle - startHit.angle + (nextHit.angle < startHit.angle ? 2 * Math.PI : 0)) * tStart;
-            const angleB = startHit.angle + (nextHit.angle - startHit.angle + (nextHit.angle < startHit.angle ? 2 * Math.PI : 0)) * tEnd;
+          roomsConfig.forEach((rm, idx) => {
+            const startAngleRm = startHit.angle + spanAngle * curFrac;
+            const endAngleRm = startHit.angle + spanAngle * (curFrac + rm.widthFraction);
+            const midAngleRm = (startAngleRm + endAngleRm) / 2;
+            curFrac += rm.widthFraction;
 
-            const pA = raycastPolygon(angleA);
-            const pB = raycastPolygon(angleB);
+            // Draw dividing wall between rooms
+            if (idx > 0) {
+              const wallHit = raycastPolygon(startAngleRm);
+              const wallDist = Math.sqrt((wallHit.x - cx) ** 2 + (wallHit.y - cy) ** 2);
+              const wallInDist = Math.max(coreRadius + 2, wallDist - (rm.isBalcony ? 2.5 : roomZoneDepth));
 
-            // Calculate exact 90° orthogonal inward normal vector from facade segment
-            const edgeDx = pB.x - pA.x;
-            const edgeDy = pB.y - pA.y;
-            const edgeLen = Math.sqrt(edgeDx * edgeDx + edgeDy * edgeDy) || 1;
-            
-            // Inward normal perpendicular to facade
-            let normX = -edgeDy / edgeLen;
-            let normY = edgeDx / edgeLen;
+              const wx1 = cx + Math.cos(startAngleRm) * wallInDist;
+              const wy1 = cy + Math.sin(startAngleRm) * wallInDist;
+              const wx2 = wallHit.x;
+              const wy2 = wallHit.y;
 
-            // Ensure normal points inward toward centroid (cx, cy)
-            const midEdgeX = (pA.x + pB.x) / 2;
-            const midEdgeY = (pA.y + pB.y) / 2;
-            if (normX * (cx - midEdgeX) + normY * (cy - midEdgeY) < 0) {
-              normX = -normX;
-              normY = -normY;
+              ctx.save();
+              ctx.strokeStyle = isDark ? 'rgba(255, 255, 255, 0.4)' : 'rgba(0, 0, 0, 0.45)';
+              ctx.lineWidth = 1.5;
+              ctx.beginPath();
+              ctx.moveTo(toCanvasX(wx1), toCanvasY(wy1));
+              ctx.lineTo(toCanvasX(wx2), toCanvasY(wy2));
+              ctx.stroke();
+              ctx.restore();
             }
 
-            // Inward depth based on room type
-            const depthM = boxDef.depthM;
-            const inA_x = pA.x + normX * depthM;
-            const inA_y = pA.y + normY * depthM;
-            const inB_x = pB.x + normX * depthM;
-            const inB_y = pB.y + normY * depthM;
+            // Room Centroid
+            const rmHit = raycastPolygon(midAngleRm);
+            const rmDist = Math.sqrt((rmHit.x - cx) ** 2 + (rmHit.y - cy) ** 2);
+            const centerDist = rm.isBalcony
+              ? rmDist - 1.2 // very thin sleek balcony along facade
+              : rmDist - roomZoneDepth / 2;
 
-            const boxMidX = (pA.x + pB.x + inA_x + inB_x) / 4;
-            const boxMidY = (pA.y + pB.y + inA_y + inB_y) / 4;
+            const rmCenterX = cx + Math.cos(midAngleRm) * centerDist;
+            const rmCenterY = cy + Math.sin(midAngleRm) * centerDist;
 
-            if (boxDef.isBalcony) {
-              balconyBoxCenter = { x: boxMidX, y: boxMidY };
-            }
+            if (rm.isBalcony) {
+              balconyMidX = rmCenterX;
+              balconyMidY = rmCenterY;
 
-            ctx.save();
-            ctx.beginPath();
-            ctx.moveTo(toCanvasX(pA.x), toCanvasY(pA.y));
-            ctx.lineTo(toCanvasX(pB.x), toCanvasY(pB.y));
-            ctx.lineTo(toCanvasX(inB_x), toCanvasY(inB_y));
-            ctx.lineTo(toCanvasX(inA_x), toCanvasY(inA_y));
-            ctx.closePath();
-
-            // Box Fill & Stroke
-            if (boxDef.isBalcony) {
-              // Thin Balcony Deck (1.5-2m depth) - Highlighted Green
-              ctx.fillStyle = isDark ? 'rgba(16, 185, 129, 0.35)' : 'rgba(16, 185, 129, 0.25)';
+              // Balcony Deck Line (Green Accent)
+              ctx.save();
               ctx.strokeStyle = '#10b981';
-              ctx.lineWidth = 2;
-              ctx.fill();
+              ctx.lineWidth = 2.5;
+              const bHit1 = raycastPolygon(startAngleRm);
+              const bHit2 = raycastPolygon(endAngleRm);
+              ctx.beginPath();
+              ctx.moveTo(toCanvasX(bHit1.x), toCanvasY(bHit1.y));
+              ctx.lineTo(toCanvasX(bHit2.x), toCanvasY(bHit2.y));
               ctx.stroke();
 
-              // Open Sliding Glass Door Threshold (NO SOLID WALL between living & balcony)
+              // Sliding Glass Door line with living room (No Solid Wall)
+              const sliderDist = rmDist - 2.2;
+              const sx1 = cx + Math.cos(startAngleRm) * sliderDist;
+              const sy1 = cy + Math.sin(startAngleRm) * sliderDist;
+              const sx2 = cx + Math.cos(endAngleRm) * sliderDist;
+              const sy2 = cy + Math.sin(endAngleRm) * sliderDist;
+
               ctx.strokeStyle = '#34d399';
-              ctx.lineWidth = 2.5;
-              ctx.setLineDash([3, 3]);
+              ctx.lineWidth = 2;
+              ctx.setLineDash([4, 3]);
               ctx.beginPath();
-              ctx.moveTo(toCanvasX(inA_x), toCanvasY(inA_y));
-              ctx.lineTo(toCanvasX(inB_x), toCanvasY(inB_y));
+              ctx.moveTo(toCanvasX(sx1), toCanvasY(sy1));
+              ctx.lineTo(toCanvasX(sx2), toCanvasY(sy2));
               ctx.stroke();
               ctx.setLineDash([]);
-            } else {
-              // Clean 90° Orthogonal Room Box
-              ctx.fillStyle = isDark ? 'rgba(15, 23, 42, 0.85)' : 'rgba(248, 250, 252, 0.9)';
-              ctx.strokeStyle = isDark ? 'rgba(255, 255, 255, 0.45)' : 'rgba(0, 0, 0, 0.45)';
-              ctx.lineWidth = 1.5;
-              ctx.fill();
-              ctx.stroke();
-
-              // Color-coded Room Category Accent Line
-              ctx.strokeStyle = boxDef.color;
-              ctx.lineWidth = 2.5;
-              ctx.beginPath();
-              ctx.moveTo(toCanvasX(pA.x), toCanvasY(pA.y));
-              ctx.lineTo(toCanvasX(pB.x), toCanvasY(pB.y));
-              ctx.stroke();
+              ctx.restore();
             }
 
-            // Box Label & Icon (Font size scaled to room box width)
-            const fontSize = boxDef.widthWeight < 0.12 ? 6.5 : (boxDef.widthWeight < 0.20 ? 7.5 : 8.5);
+            // Room Name Label
+            ctx.save();
+            const fontSize = rm.widthFraction < 0.10 ? 6.5 : (rm.widthFraction < 0.20 ? 7.5 : 8.5);
             ctx.font = `bold ${fontSize}px monospace`;
-            ctx.fillStyle = boxDef.isBalcony ? '#10b981' : (isDark ? '#f8fafc' : '#0f172a');
+            ctx.fillStyle = rm.isBalcony ? '#10b981' : (isDark ? '#f8fafc' : '#0f172a');
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
-            
-            if (boxDef.widthWeight >= 0.12) {
-              ctx.fillText(`${boxDef.icon} ${boxDef.name}`, toCanvasX(boxMidX), toCanvasY(boxMidY));
+
+            if (rm.widthFraction >= 0.12) {
+              ctx.fillText(`${rm.icon} ${rm.name}`, toCanvasX(rmCenterX), toCanvasY(rmCenterY));
             } else {
-              ctx.fillText(boxDef.icon, toCanvasX(boxMidX), toCanvasY(boxMidY) - 3);
-              ctx.fillText(boxDef.name.slice(0, 4), toCanvasX(boxMidX), toCanvasY(boxMidY) + 5);
+              ctx.fillText(rm.icon, toCanvasX(rmCenterX), toCanvasY(rmCenterY) - 3);
+              ctx.fillText(rm.name.slice(0, 4), toCanvasX(rmCenterX), toCanvasY(rmCenterY) + 5);
             }
             ctx.restore();
-          }
+          });
 
-          // 3. Direct Seamless Glazed Slider Flow from Living Room to Balcony
-          if (showLivingBalconyFlow && balconyBoxCenter) {
+          // 2c. Direct Living Room to Balcony Slider Connection
+          if (showLivingBalconyFlow && balconyMidX && balconyMidY) {
+            const livingCenterX = cx + Math.cos(midAngle) * (coreRadius + 7);
+            const livingCenterY = cy + Math.sin(midAngle) * (coreRadius + 7);
+
             ctx.save();
             ctx.strokeStyle = '#10b981';
-            ctx.lineWidth = 2;
+            ctx.lineWidth = 1.5;
             ctx.setLineDash([3, 2]);
             ctx.beginPath();
-            ctx.moveTo(toCanvasX(livingX), toCanvasY(livingY));
-            ctx.lineTo(toCanvasX(balconyBoxCenter.x), toCanvasY(balconyBoxCenter.y));
+            ctx.moveTo(toCanvasX(livingCenterX), toCanvasY(livingCenterY));
+            ctx.lineTo(toCanvasX(balconyMidX), toCanvasY(balconyMidY));
             ctx.stroke();
 
-            // Flow Label Badge (Direct Living-to-Balcony Access)
-            const flowMidX = (livingX + balconyBoxCenter.x) / 2;
-            const flowMidY = (livingY + balconyBoxCenter.y) / 2;
+            const flowMidX = (livingCenterX + balconyMidX) / 2;
+            const flowMidY = (livingCenterY + balconyMidY) / 2;
             ctx.font = 'bold 7px monospace';
             ctx.fillStyle = '#10b981';
             ctx.textAlign = 'center';
-            ctx.fillText('GLAZED SLIDER (NO WALL) ➜', toCanvasX(flowMidX), toCanvasY(flowMidY) - 4);
+            ctx.fillText('SLIDING DOOR (NO WALL) ➜', toCanvasX(flowMidX), toCanvasY(flowMidY) - 3);
             ctx.restore();
           }
         }
 
-        // 4. Central Expansive Living & Dining Room Badge
-        ctx.save();
-        const badgeCanvasX = toCanvasX(livingX);
-        const badgeCanvasY = toCanvasY(livingY);
+        // 2d. Central Expansive Living & Dining Hall Badge
+        const livingDistM = coreRadius + (maxDist - roomZoneDepth - coreRadius) * 0.48;
+        const livingX = cx + Math.cos(midAngle) * livingDistM;
+        const livingY = cy + Math.sin(midAngle) * livingDistM;
 
-        ctx.fillStyle = isDark ? '#0f172a' : '#ffffff';
+        ctx.save();
+        const badgeX = toCanvasX(livingX);
+        const badgeY = toCanvasY(livingY);
+
+        ctx.fillStyle = isDark ? '#090d16' : '#ffffff';
         ctx.strokeStyle = theme.stroke;
-        ctx.lineWidth = 2;
+        ctx.lineWidth = 1.8;
         ctx.beginPath();
-        ctx.roundRect(badgeCanvasX - 36, badgeCanvasY - 16, 72, 32, 5);
+        ctx.roundRect(badgeX - 42, badgeY - 16, 84, 32, 6);
         ctx.fill();
         ctx.stroke();
 
@@ -617,25 +640,27 @@ export default function ShapeStudioPage() {
         ctx.fillStyle = theme.stroke;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        ctx.fillText(`FLAT ${theme.label} LIVING`, badgeCanvasX, badgeCanvasY - 5);
-        ctx.font = '7px monospace';
+        ctx.fillText(`FLAT ${theme.label} LIVING`, badgeX, badgeY - 5);
+        ctx.font = '7.5px monospace';
         ctx.fillStyle = isDark ? '#94a3b8' : '#64748b';
-        ctx.fillText(`& DINING HALL`, badgeCanvasX, badgeCanvasY + 7);
+        ctx.fillText(`& DINING HALL`, badgeX, badgeY + 7);
         ctx.restore();
 
-        // 5. Unit Entry Door Marker along Central Corridor
-        const entryRadius = (Math.max(coreW, coreH) / 2) + 2.5;
-        const entryX = cx + Math.cos(midAngle) * entryRadius;
-        const entryY = cy + Math.sin(midAngle) * entryRadius;
+        // 2e. Dedicated Unit Entrance Door at Central Corridor
+        const entryRadiusM = coreRadius + 1.5;
+        const entryX = cx + Math.cos(midAngle) * entryRadiusM;
+        const entryY = cy + Math.sin(midAngle) * entryRadiusM;
 
         ctx.save();
-        ctx.font = 'bold 8.5px monospace';
+        ctx.font = 'bold 8px monospace';
         ctx.fillStyle = theme.stroke;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        ctx.fillText(`🚪 ENTRY ${theme.label}`, toCanvasX(entryX), toCanvasY(entryY));
+        ctx.fillText(`🚪 ${theme.label} ENTRY`, toCanvasX(entryX), toCanvasY(entryY));
         ctx.restore();
       }
+
+      ctx.restore(); // Close strict polygon clipping
     }
 
     // 7. Draw Vertices (Nodes)
