@@ -412,31 +412,6 @@ export const MASTER_SHAPES_50: ShapeDefinition[] = [
   },
 
   {
-    id: 'bosco-verticale',
-    name: 'BOSCO VERTICALE (STAGGERED SLABS)',
-    category: 'architectural',
-    inspiration: 'Stefano Boeri (Milan)',
-    description: 'Twin staggered overlapping orthogonal towers with perimeter protruding deep cantilever terraces.',
-    efficiency: 85,
-    defaultAspect: '3:2 (Landscape)',
-    tags: ['Stefano Boeri', 'Biophilic', 'Cantilever', 'Twin Slabs'],
-    getPolygon: (cx, cy, w, h) => {
-      const rx = w / 2;
-      const ry = h / 2;
-      return [
-        { x: cx - 0.88 * rx, y: cy - 0.85 * ry },
-        { x: cx + 0.30 * rx, y: cy - 0.85 * ry },
-        { x: cx + 0.30 * rx, y: cy - 0.20 * ry },
-        { x: cx + 0.88 * rx, y: cy - 0.20 * ry },
-        { x: cx + 0.88 * rx, y: cy + 0.85 * ry },
-        { x: cx - 0.30 * rx, y: cy + 0.85 * ry },
-        { x: cx - 0.30 * rx, y: cy + 0.20 * ry },
-        { x: cx - 0.88 * rx, y: cy + 0.20 * ry },
-      ];
-    },
-  },
-
-  {
     id: 'aqua-waveform',
     name: 'AQUA TOWER (UNDULATING WAVEFORM)',
     category: 'architectural',
@@ -717,31 +692,6 @@ export const MASTER_SHAPES_50: ShapeDefinition[] = [
   },
 
   {
-    id: 'double-diamond',
-    name: 'DOUBLE-DIAMOND (INTERLOCKING)',
-    category: 'geometric',
-    inspiration: 'Hexagonal Interlocking Array',
-    description: 'Thick twin interlocking angled diamond pods offering 6 panoramic corner living rooms per floor.',
-    efficiency: 84,
-    defaultAspect: '16:9 (Landscape)',
-    tags: ['Diamond', 'Corner Units', 'Interlocking', 'Panoramic'],
-    getPolygon: (cx, cy, w, h) => {
-      const rx = w / 2;
-      const ry = h / 2;
-      return [
-        { x: cx - 0.45 * rx, y: cy - 0.88 * ry },
-        { x: cx + 0.05 * rx, y: cy - 0.25 * ry },
-        { x: cx + 0.55 * rx, y: cy - 0.88 * ry },
-        { x: cx + 0.94 * rx, y: cy },
-        { x: cx + 0.55 * rx, y: cy + 0.88 * ry },
-        { x: cx + 0.05 * rx, y: cy + 0.25 * ry },
-        { x: cx - 0.45 * rx, y: cy + 0.88 * ry },
-        { x: cx - 0.94 * rx, y: cy },
-      ];
-    },
-  },
-
-  {
     id: 'octagram-star',
     name: 'OCTAGRAM (8-POINT STAR TOWER)',
     category: 'geometric',
@@ -788,31 +738,6 @@ export const MASTER_SHAPES_50: ShapeDefinition[] = [
         { x: cx + 0.55 * rx, y: cy + 0.78 * ry },
         { x: cx,             y: cy + 0.90 * ry },
         { x: cx - 0.55 * rx, y: cy + 0.78 * ry },
-      ];
-    },
-  },
-
-  {
-    id: 'chevron-v',
-    name: 'CHEVRON (WIDE V-WING)',
-    category: 'geometric',
-    inspiration: 'Swept V-Wing Architecture',
-    description: 'Extra thick forward-swept wide V-wing angle with 26m habitable wing depth and private entry forecourt.',
-    efficiency: 86,
-    defaultAspect: '1:1 (Square)',
-    tags: ['Chevron', 'V-Shape', 'Wind Deflection', 'Modernist'],
-    getPolygon: (cx, cy, w, h) => {
-      const rx = w / 2;
-      const ry = h / 2;
-      return [
-        { x: cx,             y: cy - 0.75 * ry },
-        { x: cx + 0.92 * rx, y: cy + 0.25 * ry },
-        { x: cx + 0.92 * rx, y: cy + 0.80 * ry },
-        { x: cx + 0.40 * rx, y: cy + 0.92 * ry },
-        { x: cx,             y: cy + 0.25 * ry },
-        { x: cx - 0.40 * rx, y: cy + 0.92 * ry },
-        { x: cx - 0.92 * rx, y: cy + 0.80 * ry },
-        { x: cx - 0.92 * rx, y: cy + 0.25 * ry },
       ];
     },
   },
