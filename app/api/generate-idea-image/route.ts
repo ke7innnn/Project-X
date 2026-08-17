@@ -438,23 +438,28 @@ You are inspecting ${candidateUrls.length} candidate floor plan zoning layouts a
    • Clean orthogonal linework with exactly ${numFlats} distinct unit zones.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-MANDATORY SCORING PROCESS:
+MANDATORY UNBIASED SCORING PROCESS:
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-1. Grade EVERY single candidate independently from 0 to 100 in "candidateScores" ([score0, score1, score2, score3]).
-2. Set "winnerIndex" to the index of whichever candidate earned the HIGHEST score.
-3. In "candidateCritiques", explain the exact pros and cons for each candidate (shape fidelity, living-balcony connection, ventilation).
+• DO NOT default to any particular candidate index. Judge each candidate (Candidate 0, 1, 2, 3) independently and strictly on its own architectural merit.
+• For each candidate, evaluate:
+  1. Shape Fidelity (0-50 pts): Does it match Image 0's outer boundary without rounding corners or clipping wings?
+  2. Living-to-Balcony Connection (0-25 pts): Is the central living room directly attached to the exterior balcony?
+  3. Ventilation (0-20 pts): Are bedrooms/kitchen/bathrooms on exterior walls?
+  4. Orthogonal CAD (0-5 pts): Clean 90-degree internal zoning?
+• Sum the sub-scores to compute the total score (0-100) for each candidate in the "candidateScores" array.
+• Whichever candidate achieves the highest numerical score is selected as the winner.
 
-Output your evaluation ONLY as a valid JSON object in this exact format:
+Output your evaluation ONLY as a valid JSON object matching this schema:
 {
-  "candidateScores": [82, 96, 75, 88],
-  "winnerIndex": 1,
-  "winnerScore": 96,
-  "reasoning": "Candidate 1 scored highest (96/100) because it preserved the exact 1:1 shape silhouette with zero corner rounding (Priority 1) and created a direct seamless sliding connection from the Living Room to the Attached Balcony (Priority 2), while placing all bedrooms along the exterior facade.",
+  "candidateScores": [<score_0>, <score_1>, <score_2>, <score_3>],
+  "winnerIndex": <index_of_highest_score>,
+  "winnerScore": <highest_score>,
+  "reasoning": "<concise explanation of why the highest-scoring candidate won>",
   "candidateCritiques": [
-    "Candidate 0 (Score: 82/100): Decent layout, but slight corner rounding on south wing.",
-    "Candidate 1 (Score: 96/100): Flawless 1:1 shape match, living room directly connected to exterior balcony, bedrooms on facade.",
-    "Candidate 2 (Score: 75/100): Warped contour on east wing.",
-    "Candidate 3 (Score: 88/100): Good shape fidelity, but living room to balcony connection is slightly narrow."
+    "Candidate 0 (Score: X/100): <specific visual critique>",
+    "Candidate 1 (Score: X/100): <specific visual critique>",
+    "Candidate 2 (Score: X/100): <specific visual critique>",
+    "Candidate 3 (Score: X/100): <specific visual critique>"
   ]
 }`;
 
@@ -482,9 +487,9 @@ Output your evaluation ONLY as a valid JSON object in this exact format:
       body: JSON.stringify({
         model: 'google/gemini-2.5-flash',
         messages: [{ role: 'user', content: contentArray }],
-        temperature: 0.1,
+        temperature: 0.2,
         response_format: { type: 'json_object' },
-        max_tokens: 800,
+        max_tokens: 900,
       }),
       signal: AbortSignal.timeout(25000),
     });
@@ -504,29 +509,35 @@ Output your evaluation ONLY as a valid JSON object in this exact format:
     console.log('[EvaluatorAgent] Vision evaluation raw response:', rawContent);
     const parsed = JSON.parse(rawContent);
 
-    // Calculate winning index from candidateScores array to eliminate positional bias
+    // Calculate winning index dynamically from candidateScores array to guarantee zero hardcoded positional bias
     let winnerIndex = 0;
-    let winnerScore = 92;
+    let winnerScore = 90;
 
     if (Array.isArray(parsed.candidateScores) && parsed.candidateScores.length === candidateUrls.length) {
       let maxScore = -1;
+      const topIndices: number[] = [];
       parsed.candidateScores.forEach((score: any, idx: number) => {
         const numScore = typeof score === 'number' ? score : parseInt(score, 10) || 0;
         if (numScore > maxScore) {
           maxScore = numScore;
-          winnerIndex = idx;
+          topIndices.length = 0;
+          topIndices.push(idx);
+        } else if (numScore === maxScore) {
+          topIndices.push(idx);
         }
       });
-      winnerScore = maxScore > 0 ? maxScore : (parsed.winnerScore || 92);
+      // In case of exact ties, choose fairly among top scorers
+      winnerIndex = topIndices[Math.floor(Math.random() * topIndices.length)];
+      winnerScore = maxScore > 0 ? maxScore : (parsed.winnerScore || 90);
     } else if (typeof parsed.winnerIndex === 'number' && parsed.winnerIndex >= 0 && parsed.winnerIndex < candidateUrls.length) {
       winnerIndex = parsed.winnerIndex;
-      winnerScore = parsed.winnerScore || 92;
+      winnerScore = parsed.winnerScore || 90;
     }
 
     return {
       winnerIndex,
       winnerScore,
-      reasoning: parsed.reasoning || `Candidate ${winnerIndex + 1} scored the highest for shape fidelity and architectural layout.`,
+      reasoning: parsed.reasoning || `Candidate ${winnerIndex + 1} scored the highest (${winnerScore}/100) for shape fidelity and architectural layout.`,
       candidateCritiques: Array.isArray(parsed.candidateCritiques) ? parsed.candidateCritiques : [],
     };
   } catch (err: any) {
