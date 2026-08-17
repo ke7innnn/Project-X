@@ -412,6 +412,81 @@ async function getUploadedReferenceUrl(customBase64?: string | null): Promise<st
   return null;
 }
 
+
+
+async function compileArchitecturalPromptWithAgent(opts: {
+  userPrompt: string;
+  widthM: number;
+  lengthM: number;
+  numFlats: number;
+  roomConfig: string;
+}): Promise<string> {
+  const openRouterKey = process.env.OPENROUTER_API_KEY || process.env.NEXT_PUBLIC_OPENROUTER_API_KEY;
+  if (!openRouterKey) {
+    return buildPrompt({ isSingle: false, buildingType: 'multi-residential', numFlats: opts.numFlats, hasDividers: false, hasCore: true, roomItems: '', roomListLabelHint: '', verifyChecks: '', widthM: opts.widthM, lengthM: opts.lengthM, roomConfig: opts.roomConfig, userPrompt: opts.userPrompt });
+  }
+
+  const bhkLabel = opts.roomConfig === '1bhk' ? '1 BHK' : opts.roomConfig === '2bhk' ? '2 BHK' : opts.roomConfig === '3bhk' ? '3 BHK' : opts.roomConfig === '4bhk' ? '4 BHK' : '2 BHK';
+
+  const systemMessage = `You are a Principal Architectural Prompt Engineer for high-end master presentation boards.
+Your mission is to write a single, ultra-detailed, laser-focused prompt for an image diffusion model (OpenAI GPT-Image-2) to generate a complete master architectural presentation board.
+
+STRICT DESIGN RULES:
+1. FOCUS 100% EXCLUSIVELY ON THIS ONE SHAPE:
+   - Identify the user's specific requested building shape from the brief (e.g. Arc/Crescent, Stepped-L, Hexagon, Batman, etc.).
+   - Write explicit geometric contour directives ONLY for this exact shape. Do NOT mention, describe, or mix with other unrelated shapes.
+   - AUTHENTIC NEGATIVE SPACE: Open void/air outside the shape must clearly show clean presentation board background. NEVER draw a solid rectangular box or barrel.
+2. CRITICAL UNIT SEPARATION & DEMISING WALLS:
+   - Partition the 2D floor plan into EXACTLY ${opts.numFlats} INDEPENDENT APARTMENTS (${opts.numFlats} × ${bhkLabel} FLATS).
+   - SOLID SEPARATING PARTY WALLS: Every single flat (FLAT 01 to FLAT ${String(opts.numFlats).padStart(2, '0')}) MUST be bounded by thick, visible, continuous 200mm solid structural demising party walls. Zero room bleeding or chaotic overlapping between adjacent units!
+   - INDEPENDENT APARTMENT BOXES: Each flat is a complete self-contained private unit with its own front entrance door (with visible door swing arc) opening from a common circulation corridor.
+   - ROOM ANATOMY PER FLAT: Each flat contains its own private Living Lounge, Modular Kitchen, ${bhkLabel === '1 BHK' ? '1 Bedroom, and 1 Bathroom' : bhkLabel === '2 BHK' ? '2 Bedrooms (Master Suite with Ensuite + 2nd Bedroom), and 2 Bathrooms' : bhkLabel === '3 BHK' ? '3 Bedrooms, and 3 Bathrooms' : '4 Bedrooms, and 4 Bathrooms'}, and its own private Attached Facade Balcony.
+   - All bedrooms and living rooms must sit along the outer perimeter facade for direct window ventilation.
+3. 4-PANEL PRESENTATION BOARD COMPOSITION:
+   - Panel 1 (Left 70%): Full 2D top-down CAD master floor plan with warm travertine/marble flooring, furnished rooms, central core (2 elevators + 2 stairwells), and callout labels for every single unit (FLAT 01 to FLAT ${String(opts.numFlats).padStart(2, '0')}).
+   - Panel 2 (Top-Right 30%): "TOP VIEW (BUILDING FORM)" - 3D aerial roof massing render of that EXACT shape from directly above.
+   - Panel 3 (Middle-Right 30%): "3D VIEW (BUILDING FORM)" - Photorealistic 3D isometric perspective tower elevation rising in that EXACT shape with matching floor slabs and wrap-around glass balconies.
+   - Panel 4 (Bottom-Right 30%): "FLOOR PLAN SUMMARY" & "FLAT LEGEND" card displaying Title, Dimensions (${opts.widthM}m × ${opts.lengthM}m), Total Unit Mix (${opts.numFlats} × ${bhkLabel} FLATS), and color-coded legend table.
+
+Return ONLY the raw prompt text to send to the image generation model. No conversational introductory or concluding remarks.`;
+
+  try {
+    console.log('[ConceptGenerator] Calling AI Architectural Prompt Compiler Agent...');
+    const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${openRouterKey}`,
+        'Content-Type': 'application/json',
+        'HTTP-Referer': 'https://projectx.app',
+        'X-Title': 'Project X Architectural Prompt Compiler Agent',
+      },
+      body: JSON.stringify({
+        model: 'google/gemini-2.5-flash',
+        messages: [
+          { role: 'system', content: systemMessage },
+          { role: 'user', content: `USER ARCHITECTURAL BRIEF: "${opts.userPrompt}"\nBUILDING DIMENSIONS: ${opts.widthM}m × ${opts.lengthM}m\nEXACT FLATS PER FLOOR: ${opts.numFlats} FLATS\nUNIT TYPE: ${bhkLabel}` }
+        ],
+        temperature: 0.2,
+        max_tokens: 1200,
+      }),
+      signal: AbortSignal.timeout(10000),
+    });
+
+    if (res.ok) {
+      const json = await res.json();
+      const compiledText = json.choices?.[0]?.message?.content?.trim();
+      if (compiledText && compiledText.length > 200) {
+        console.log('[ConceptGenerator] AI Prompt Compiler Agent generated customized prompt successfully!');
+        return compiledText;
+      }
+    }
+  } catch (err: any) {
+    console.warn('[ConceptGenerator] Prompt Compiler Agent failed, using algorithmic fallback:', err.message);
+  }
+
+  return buildPrompt({ isSingle: false, buildingType: 'multi-residential', numFlats: opts.numFlats, hasDividers: false, hasCore: true, roomItems: '', roomListLabelHint: '', verifyChecks: '', widthM: opts.widthM, lengthM: opts.lengthM, roomConfig: opts.roomConfig, userPrompt: opts.userPrompt });
+}
+
 // ── Route Handler ─────────────────────────────────────────────────────────────
 
 export async function POST(req: Request) {
@@ -444,49 +519,18 @@ export async function POST(req: Request) {
     const isSingle = buildingType === 'single-residential';
     const numFlats = isSingle ? 1 : (reqNumFlats ? Math.max(1, Math.min(10, Number(reqNumFlats))) : (flatCount && flatCount !== 'auto' ? Math.max(1, Math.min(10, parseInt(flatCount, 10))) : 6));
 
-    // Room definitions
-    let roomItems = '', roomListLabelHint = '', verifyChecks = '';
-    if (isSingle) {
-      roomItems = 'L = Living\nK = Kitchen\nMB = Master Bedroom\nB2 = Bedroom 2\nT1 = Master Toilet\nT2 = Common Toilet\nFOY = Foyer\nUTI = Utility';
-      roomListLabelHint = 'L K MB B2 T1 T2 FOY UTI';
-      verifyChecks = '- Exactly 1 Foyer.\n- Exactly 1 Living room.\n- Exactly 1 Kitchen.\n- Exactly 2 Bedrooms.\n- Exactly 2 Bathrooms.';
-    } else {
-      if (roomConfig === '1bhk') {
-        roomItems = 'L-i = Living\nK-i = Kitchen\nB-i = Bedroom\nT-i = Bathroom';
-        roomListLabelHint = 'L-i K-i B-i T-i';
-        verifyChecks = `- Exactly ${numFlats} Living rooms.\n- Exactly ${numFlats} Kitchens.\n- Exactly ${numFlats} Bedrooms.\n- Exactly ${numFlats} Bathrooms.`;
-      } else if (roomConfig === '2bhk') {
-        roomItems = 'L-i = Living\nK-i = Kitchen\nB1-i = Master Bedroom\nB2-i = Bedroom 2\nT1-i = Master Bathroom\nT2-i = Common Bathroom';
-        roomListLabelHint = 'L-i K-i B1-i B2-i T1-i T2-i';
-        verifyChecks = `- Exactly ${numFlats} Living rooms.\n- Exactly ${numFlats} Kitchens.\n- Exactly ${numFlats * 2} Bedrooms.\n- Exactly ${numFlats * 2} Bathrooms.`;
-      } else if (roomConfig === '3bhk') {
-        roomItems = 'L-i = Living\nK-i = Kitchen\nB1-i = Master Bedroom\nB2-i = Bedroom 2\nB3-i = Bedroom 3\nT1-i = Master Bathroom\nT2-i = Bathroom 2\nT3-i = Common Bathroom';
-        roomListLabelHint = 'L-i K-i B1-i B2-i B3-i T1-i T2-i T3-i';
-        verifyChecks = `- Exactly ${numFlats} Living rooms.\n- Exactly ${numFlats} Kitchens.\n- Exactly ${numFlats * 3} Bedrooms.\n- Exactly ${numFlats * 3} Bathrooms.`;
-      } else {
-        roomItems = 'L-i = Living\nK-i = Kitchen\nB-i = Bedroom\nT-i = Bathroom';
-        roomListLabelHint = 'L-i K-i B-i T-i';
-        verifyChecks = `- Exactly ${numFlats} Living rooms.\n- Exactly ${numFlats} Kitchens.\n- Exactly ${numFlats * 4} Bedrooms.\n- Exactly ${numFlats * 4} Bathrooms.`;
-      }
-    }
-
-    const promptOpts = { 
-      isSingle, 
-      buildingType, 
-      numFlats, 
-      hasDividers, 
-      hasCore, 
-      roomItems, 
-      roomListLabelHint, 
-      verifyChecks,
+    // ── STAGE 1: Compile Hyper-Specialized Prompt via AI Architectural Compiler Agent ──
+    const stage1Prompt = await compileArchitecturalPromptWithAgent({
+      userPrompt: userPrompt || '',
       widthM,
       lengthM,
+      numFlats,
       roomConfig,
-      userPrompt
-    };
-    const stage1Prompt = buildPrompt(promptOpts);
+    });
 
-    // ── STAGE 1: Run Text-to-Image (or Image-to-Image if custom sketch uploaded) ──
+    console.log('[ConceptGenerator] Final Prompt length:', stage1Prompt.length);
+
+    // ── Run Text-to-Image (or Image-to-Image if custom sketch uploaded) ──
     const stage1Input = buildFalInput(stage1Model, customUserRefUrl, stage1Prompt);
     console.log('[ConceptGenerator] Stage 1 input keys:', Object.keys(stage1Input));
     const stage1Url = await runModel(stage1Model, stage1Input);
