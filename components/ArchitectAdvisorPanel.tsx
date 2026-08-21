@@ -2248,30 +2248,7 @@ Use these measurements to determine which apartment types can physically fit in 
               </div>
             </div>
 
-            {/* AI Workflow Pipeline Selector */}
-            <div className="flex flex-col gap-1 bg-black/20 p-2 rounded-lg border border-white/5">
-              <span className="text-[9px] font-bold text-cyan-500/60 uppercase tracking-wider block">AI PIPELINE:</span>
-              <select
-                value={selectedModel}
-                onChange={(e) => onModelChange(e.target.value)}
-                className="w-full bg-black/40 border border-white/10 focus:border-cyan-400 focus:outline-none rounded px-2 py-1.5 text-[11px] text-cyan-400 cursor-pointer"
-              >
-                <optgroup label="2-Stage Pipelines (Recommended)" className="bg-[#0a0a0f]">
-                  <option value="grok-gpt" className="bg-[#0a0a0f] text-cyan-400">Grok → GPT Image 2 (Best)</option>
-                  <option value="gpt-low-gpt-medium" className="bg-[#0a0a0f] text-cyan-400">GPT Low → GPT Medium (Cheaper)</option>
-                  <option value="grok-nano" className="bg-[#0a0a0f] text-cyan-400">Grok → Nano Banana Pro</option>
-                  <option value="grok-kontext" className="bg-[#0a0a0f] text-cyan-400">Grok → FLUX Kontext</option>
-                  <option value="flux-klein-gpt" className="bg-[#0a0a0f] text-cyan-400">FLUX Klein → GPT Image 2</option>
-                  <option value="flux-kontext-gpt" className="bg-[#0a0a0f] text-cyan-400">FLUX Kontext → GPT Image 2</option>
-                </optgroup>
-                <optgroup label="Single Model" className="bg-[#0a0a0f]">
-                  <option value="grok-solo" className="bg-[#0a0a0f] text-cyan-400">Grok Only (Fast)</option>
-                  <option value="gpt-solo" className="bg-[#0a0a0f] text-cyan-400">GPT Image 2 Only</option>
-                  <option value="flux-klein-solo" className="bg-[#0a0a0f] text-cyan-400">FLUX Klein Only</option>
-                  <option value="gemini-solo" className="bg-[#0a0a0f] text-cyan-400">Gemini Only</option>
-                </optgroup>
-              </select>
-            </div>
+
 
             <button
               onClick={handleGenerateTrigger}

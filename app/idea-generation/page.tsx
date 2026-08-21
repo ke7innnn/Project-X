@@ -648,20 +648,6 @@ STAGE 2 → Refine interior layout, enforce NBC room sizes, verify room complete
               />
             </div>
 
-            {/* AI Model Engine Selector */}
-            <div className="flex flex-col gap-1.5">
-              <label className="text-[9px] tracking-[2px] text-cyan-500/60 uppercase font-mono block">AI MODEL ENGINE</label>
-              <select
-                value={selectedModel}
-                onChange={(e) => setSelectedModel(e.target.value)}
-                disabled={isGenerating}
-                className="w-full bg-black/40 border border-white/10 focus:border-cyan-400 focus:outline-none rounded-lg p-2 text-[11px] text-cyan-400 cursor-pointer"
-              >
-                <option value="nano-banana-pro" className="bg-[#0a0a0f] text-cyan-400">Nano Banana Pro (Fast)</option>
-                <option value="nano-banana-2" className="bg-[#0a0a0f] text-cyan-400">Nano Banana 2 (Balanced)</option>
-                <option value="gpt-image-2" className="bg-[#0a0a0f] text-cyan-400">GPT Image 2 — Medium (Best Quality)</option>
-              </select>
-            </div>
 
             {/* Footprint Selector */}
             <div className="flex flex-col gap-1.5">
