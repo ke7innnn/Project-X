@@ -14,39 +14,31 @@ async function uploadBase64ToFalStorage(dataUri: string): Promise<string> {
 }
 
 function buildRoughSketchPrompt(): string {
-  return `Use the uploaded reference image as the **strict geometric reference** and convert it into a clean, professional **2D architectural CAD floor plan**.
+  return `You are a licensed senior 2D architectural CAD drafter. EDIT AND CONVERT THE UPLOADED REFERENCE IMAGE into a clean, professional 2D architectural CAD floor plan.
 
-**CRITICAL: Preserve the exact overall building geometry from the reference. Do NOT change, straighten, simplify, rotate, resize, or redesign the building shape.** The final plan must clearly maintain the same footprint, proportions, orientation, and arrangement as the reference sketch.
+### Input Reference Image Legend
+* **Black area (outside)**: Exterior property / background
+* **White area**: Exact building floor plate boundary footprint
+* **Orange lines**: User-drawn rough interior room partition wall sketches
+* **Black lines (if any)**: Main structural flat / wing divider cuts
 
-**Orange lines in the reference image represent rough interior room partitions drawn by the user.** Convert these orange partition hints into clean architectural CAD room walls. Follow the same room division logic and partition arrangement visible in the reference image. Keep the rooms empty — **no furniture, beds, sofas, tables, vehicles, people, plants, or decorative objects**.
+### Critical Geometry Preservation
+1. **Preserve the exact building footprint boundary**: Do NOT alter, reshape, simplify, rotate, resize, or replace the overall building shape. The building's exterior perimeter and wings must remain identical to the white area in the reference image.
+2. **Convert orange lines into architectural CAD walls**: Treat each orange line as a room partition. Draft clean, straight, consistent-thickness interior CAD walls following the exact placement and room division logic of the orange lines.
+3. **Sharpen & regularize**: Make wall lines perfectly straight, parallel, or perpendicular (90° angles). Ensure corner joints and T-intersections meet cleanly without stray gaps or overshoots. Balance mirrored wings symmetrically.
 
-Sharpen and regularize the geometry — straighten slightly skewed lines, make intersections crisp, balance symmetrical sections to appear mirrored and equal — but do NOT change the overall footprint or room arrangement. Treat this as a rough freehand sketch that needs to be professionally redrawn by an architect in AutoCAD.
+### CAD Drafting Specifications
+* **View**: Pure 2D top-down orthographic CAD blueprint view (no 3D, no perspective, no elevation angles).
+* **Color Palette**: Pure white background with crisp, solid black CAD wall linework only. No colored fills, no grey gradients, no drop shadows.
+* **Openings**: Add standard architectural door openings with clean arc swings and simple window indicators on exterior walls.
+* **Empty Rooms**: Keep every room completely clean and empty.
+* **Strict Prohibitions**:
+  - NO furniture (no beds, sofas, tables, chairs, sinks, stoves)
+  - NO room name labels, dimensions, text, numbers, or annotations
+  - NO people, vehicles, trees, plants, or landscaping
+  - NO decorative textures, floor hatching, or shading
 
-Do NOT add any room name labels or flat labels inside the rooms. Leave rooms completely empty and unlabeled.
-
-### CAD Drafting Style
-
-* Professional AutoCAD / architectural floor-plan appearance
-* Pure **2D top-down orthographic view**
-* Clean **black wall outlines on a white background**
-* Consistent wall thickness
-* Straight, precise architectural lines
-* Clean corners and accurate intersections
-* Clear door openings and simple door swings where appropriate
-* Windows/openings can be represented using standard architectural CAD symbols
-* Clearly separate every room
-* No perspective, No 3D rendering, No shadows, No textures
-* No colors (black linework on white only)
-* No furniture, No landscaping, No exterior decoration
-* No room labels or text inside rooms
-
-### Geometry Preservation
-
-The **building footprint is the highest-priority requirement**. Keep the overall shape exactly in the same configuration as the reference sketch. The orange interior lines define room partitions — respect their general location and direction but convert them into clean, professional CAD wall lines.
-
-The final result should look like the uploaded rough sketch has been **professionally redrawn by an architect in AutoCAD**, with the same building footprint and the same room organization, but with rough sketch lines replaced by precise CAD walls and clean empty rooms.
-
-**Output:** clean professional architectural floor plan, top view, white background, black CAD linework, exact building shape preserved, empty rooms without any labels or furniture.`;
+**Final Goal**: A pristine architectural CAD floor plan that looks like an architect imported the user's sketch into AutoCAD and drew precise, clean black walls over the white footprint, perfectly maintaining the building's geometry and room layout.`;
 }
 
 export async function POST(req: Request) {

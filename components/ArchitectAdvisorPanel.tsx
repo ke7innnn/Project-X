@@ -620,30 +620,32 @@ const ArchitectAdvisorPanel = forwardRef<ArchitectAdvisorRef, Props>(({ onParams
         }
       }
 
-      // 5. Draw room-hint grid boxes inside the outer polygon
-      ctx.save();
-      ctx.beginPath();
-      ctx.moveTo(outer[0].x, outer[0].y);
-      for (let i = 1; i < outer.length; i++) {
-        ctx.lineTo(outer[i].x, outer[i].y);
-      }
-      ctx.closePath();
-      ctx.clip();
-
-      const gridCellSize = 50;
-      ctx.strokeStyle = 'rgba(0, 0, 0, 0.2)';
-      ctx.lineWidth = 0.5;
-
-      for (let gy = 0; gy <= expH; gy += gridCellSize) {
-        const rowOffset = (Math.random() - 0.5) * gridCellSize;
-        for (let gx = 0; gx <= expW; gx += gridCellSize) {
-          const w = gridCellSize * (0.6 + Math.random() * 1.0);
-          const h = gridCellSize * (0.6 + Math.random() * 1.0);
-          const yScatter = (Math.random() - 0.5) * 10;
-          ctx.strokeRect(gx + rowOffset, gy + yScatter, w, h);
+      // 5. Draw room-hint grid boxes inside the outer polygon (only if not in rough sketch mode to avoid noise)
+      if (roomSketchLines.length === 0) {
+        ctx.save();
+        ctx.beginPath();
+        ctx.moveTo(outer[0].x, outer[0].y);
+        for (let i = 1; i < outer.length; i++) {
+          ctx.lineTo(outer[i].x, outer[i].y);
         }
+        ctx.closePath();
+        ctx.clip();
+
+        const gridCellSize = 50;
+        ctx.strokeStyle = 'rgba(0, 0, 0, 0.2)';
+        ctx.lineWidth = 0.5;
+
+        for (let gy = 0; gy <= expH; gy += gridCellSize) {
+          const rowOffset = (Math.random() - 0.5) * gridCellSize;
+          for (let gx = 0; gx <= expW; gx += gridCellSize) {
+            const w = gridCellSize * (0.6 + Math.random() * 1.0);
+            const h = gridCellSize * (0.6 + Math.random() * 1.0);
+            const yScatter = (Math.random() - 0.5) * 10;
+            ctx.strokeRect(gx + rowOffset, gy + yScatter, w, h);
+          }
+        }
+        ctx.restore();
       }
-      ctx.restore();
 
       // 6. Draw custom user-drawn divider lines across the white footprint mask in solid black!
       if (dividerLines.length > 0) {
