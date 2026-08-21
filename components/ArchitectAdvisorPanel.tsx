@@ -2977,6 +2977,10 @@ Use these measurements to determine which apartment types can physically fit in 
               <div className="flex items-center gap-2">
                 <span className="text-[8px] font-mono text-purple-300/80 uppercase">
                   (Drag corners to resize • Drag body to move • Right-click to delete)
+                </span>
+                <span className="text-[9px] font-mono font-bold text-purple-400 bg-purple-950/60 px-2 py-0.5 rounded border border-purple-500/30">
+                  {roomBlocks.length} BLOCKS
+                </span>
                 {roomBlocks.length > 0 && activeBlockId && (
                   <button
                     onClick={() => {
