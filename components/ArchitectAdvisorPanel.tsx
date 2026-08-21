@@ -1947,6 +1947,16 @@ Use these measurements to determine which apartment types can physically fit in 
         }
       }
 
+      // User Custom Drawing / Partition Labels Feedback Loop
+      if ((zoneLabels.length > 0 || dividerLines.length > 0) && apiMessages.length > 0) {
+        const lastMsg = apiMessages[apiMessages.length - 1];
+        if (lastMsg.role === 'user') {
+          const flatLabelsOnly = zoneLabels.filter(l => l.text.toUpperCase().startsWith('F')).map(l => l.text);
+          const totalUnitsCount = flatLabelsOnly.length || zoneLabels.length;
+          lastMsg.content += `\n\n[USER DRAWING & LABELS CONTEXT: The user has actively partitioned the building on the canvas with ${dividerLines.length} cut line(s) and placed ${zoneLabels.length} custom label(s): ${zoneLabels.map(l => l.text).join(', ')}. If the user asks to add or configure units according to their labels (e.g. ${totalUnitsCount} units for ${zoneLabels.map(l => l.text).join(', ')}), you MUST honor this exact count (${totalUnitsCount} total units) across your 3 recommended options (distributed logically into 1BHK, 2BHK, 3BHK, 4BHK) so each labeled pod gets a corresponding unit!]`;
+        }
+      }
+
       const res = await fetch('/api/plot-advisor', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
