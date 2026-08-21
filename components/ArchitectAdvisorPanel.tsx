@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useRef, useEffect, useCallback, forwardRef, useImperativeHandle } from 'react';
-import { Send, Loader2, Upload, CheckCircle2, ChevronRight, RotateCcw, MousePointer, Sparkles, Edit2, Check, Search, X, Layers, ChevronDown, Scissors, Tag, Type } from 'lucide-react';
+import { Send, Loader2, Upload, CheckCircle2, ChevronRight, RotateCcw, MousePointer, Sparkles, Edit2, Check, Search, X, Layers, ChevronDown, Scissors, Tag, Type, Box, LayoutGrid } from 'lucide-react';
 import { MASTER_SHAPES_50, ShapeDefinition } from '@/lib/shapeLibrary50';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -12,6 +12,16 @@ export interface ZoneLabel {
   text: string;
   x: number;
   y: number;
+}
+
+export interface RoomBlock {
+  id: string;
+  type: 'B' | 'K' | 'L' | 'C' | 'T' | 'BAL';
+  label: string; // "B", "K", "L", "C", "T", "BAL"
+  x: number;     // canvas px top-left x
+  y: number;     // canvas px top-left y
+  w: number;     // canvas px width
+  h: number;     // canvas px height
 }
 
 interface PlotData {
@@ -81,6 +91,7 @@ interface Props {
     hasDividers?: boolean;
     numDividers?: number;
     customLabels?: string[];
+    roomBlocks?: Array<{ type: string; label: string; xM: number; yM: number; wM: number; hM: number }>;
   }) => void;
   selectedModel: string;
   onModelChange: (modelId: string) => void;
@@ -401,6 +412,22 @@ const ArchitectAdvisorPanel = forwardRef<ArchitectAdvisorRef, Props>(({ onParams
   const [selectedLabelText, setSelectedLabelText] = useState<string>('F1');
   const [labelDragId, setLabelDragId] = useState<string | null>(null);
 
+  // ── Interactive Room Block Overlay State (B, K, L, C, T, BAL) ─────────────
+  const [isRoomBlockMode, setIsRoomBlockMode] = useState(false);
+  const [roomBlocks, setRoomBlocks] = useState<RoomBlock[]>([]);
+  const [selectedBlockType, setSelectedBlockType] = useState<'B' | 'K' | 'L' | 'C' | 'T' | 'BAL'>('L');
+  const [activeBlockId, setActiveBlockId] = useState<string | null>(null);
+  const [blockDragState, setBlockDragState] = useState<{
+    id: string;
+    mode: 'move' | 'nw' | 'ne' | 'se' | 'sw' | 'e' | 's';
+    startX: number;
+    startY: number;
+    initX: number;
+    initY: number;
+    initW: number;
+    initH: number;
+  } | null>(null);
+
   // Helper: check if a point is inside the traced plot polygon
   const isPointInPlot = useCallback((pt: Point): boolean => {
     if (polygon.length < 3) return true;
@@ -639,11 +666,36 @@ const ArchitectAdvisorPanel = forwardRef<ArchitectAdvisorRef, Props>(({ onParams
         });
         ctx.restore();
       }
+
+      // 8. Draw custom user-placed room blocks (B, K, L, C, T, BAL) in solid black on mask!
+      if (roomBlocks.length > 0) {
+        ctx.save();
+        roomBlocks.forEach(blk => {
+          const sx = Math.round(blk.x * scale + offsetX);
+          const sy = Math.round(blk.y * scale + offsetY);
+          const sw = Math.round(blk.w * scale);
+          const sh = Math.round(blk.h * scale);
+
+          // Draw thick room rectangle boundary
+          ctx.strokeStyle = '#000000';
+          ctx.lineWidth = 4.0;
+          ctx.strokeRect(sx, sy, sw, sh);
+
+          // Draw room label (B, K, L, C, T, BAL) inside room box
+          ctx.fillStyle = '#000000';
+          const fontSize = Math.min(28, Math.max(14, Math.floor(Math.min(sw, sh) * 0.45)));
+          ctx.font = `bold ${fontSize}px monospace`;
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText(blk.label, sx + sw / 2, sy + sh / 2);
+        });
+        ctx.restore();
+      }
     }
 
     // Return full data URL (the API route handles stripping)
     return offscreen.toDataURL('image/png');
-  }, [polygon, isTracingClosed, suggestedShape, canvasW, canvasH, dividerLines, zoneLabels]);
+  }, [polygon, isTracingClosed, suggestedShape, canvasW, canvasH, dividerLines, zoneLabels, roomBlocks]);
 
   const handleGenerateTrigger = useCallback(() => {
     const base64 = exportForAI();
@@ -677,8 +729,16 @@ const ArchitectAdvisorPanel = forwardRef<ArchitectAdvisorRef, Props>(({ onParams
       hasDividers: dividerLines.length > 0,
       numDividers: dividerLines.length,
       customLabels: zoneLabels.map(l => l.text),
+      roomBlocks: roomBlocks.map(b => ({
+        type: b.type,
+        label: b.label,
+        xM: pxToM(b.x),
+        yM: pxToM(b.y),
+        wM: pxToM(b.w),
+        hM: pxToM(b.h),
+      })),
     });
-  }, [exportForAI, onGenerateTrigger, outputW, outputH, shapeWasModified, polygon, suggestedShape, dividerLines, zoneLabels]);
+  }, [exportForAI, onGenerateTrigger, outputW, outputH, shapeWasModified, polygon, suggestedShape, dividerLines, zoneLabels, roomBlocks, pxToM]);
 
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
@@ -1212,6 +1272,110 @@ const ArchitectAdvisorPanel = forwardRef<ArchitectAdvisorRef, Props>(({ onParams
           ctx.restore();
         }
 
+        // ── Render Interactive Room Blocks (B, K, L, C, T, BAL) ───────────────
+        if (roomBlocks.length > 0) {
+          roomBlocks.forEach(blk => {
+            ctx.save();
+            const isSelected = activeBlockId === blk.id;
+
+            // Room palette configuration
+            let fillStyle = 'rgba(16, 185, 129, 0.3)'; // L: Emerald
+            let strokeStyle = '#10b981';
+            if (blk.type === 'B') {
+              fillStyle = 'rgba(59, 130, 246, 0.35)'; strokeStyle = '#3b82f6';
+            } else if (blk.type === 'K') {
+              fillStyle = 'rgba(249, 115, 22, 0.35)'; strokeStyle = '#f97316';
+            } else if (blk.type === 'C') {
+              fillStyle = 'rgba(234, 179, 8, 0.35)'; strokeStyle = '#eab308';
+            } else if (blk.type === 'T') {
+              fillStyle = 'rgba(168, 85, 247, 0.35)'; strokeStyle = '#a855f7';
+            } else if (blk.type === 'BAL') {
+              fillStyle = 'rgba(6, 182, 212, 0.35)'; strokeStyle = '#06b6d4';
+            }
+
+            // Outer box fill
+            ctx.fillStyle = fillStyle;
+            ctx.fillRect(blk.x, blk.y, blk.w, blk.h);
+
+            // Border stroke
+            ctx.strokeStyle = strokeStyle;
+            ctx.lineWidth = isSelected ? 2.5 : 1.5;
+            ctx.setLineDash(blk.type === 'C' ? [6, 3] : []);
+            ctx.strokeRect(blk.x, blk.y, blk.w, blk.h);
+            ctx.setLineDash([]);
+
+            // Dimensions in meters
+            const wM = pxToM(blk.w);
+            const hM = pxToM(blk.h);
+
+            // Centered room label badge
+            ctx.fillStyle = '#ffffff';
+            ctx.font = 'bold 12px monospace';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(blk.label, blk.x + blk.w / 2, blk.y + blk.h / 2 - 4);
+
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.75)';
+            ctx.font = 'bold 8px monospace';
+            ctx.fillText(`${wM}m × ${hM}m`, blk.x + blk.w / 2, blk.y + blk.h / 2 + 7);
+
+            // Corner resize handles if in room block mode
+            if (isRoomBlockMode) {
+              const handleR = 3.5;
+              ctx.fillStyle = isSelected ? '#ffffff' : strokeStyle;
+              ctx.strokeStyle = '#000000';
+              ctx.lineWidth = 1;
+
+              const corners = [
+                { x: blk.x, y: blk.y },
+                { x: blk.x + blk.w, y: blk.y },
+                { x: blk.x + blk.w, y: blk.y + blk.h },
+                { x: blk.x, y: blk.y + blk.h },
+              ];
+              corners.forEach(c => {
+                ctx.beginPath();
+                ctx.arc(c.x, c.y, handleR, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.stroke();
+              });
+            }
+            ctx.restore();
+          });
+        }
+
+        // In-progress Room Block Placement Ghost Preview
+        if (isRoomBlockMode && hoverPt && !blockDragState) {
+          ctx.save();
+          let defWM = 4.5, defHM = 3.5;
+          let previewColor = '#10b981';
+          if (selectedBlockType === 'L') { defWM = 6.0; defHM = 3.8; previewColor = '#10b981'; }
+          else if (selectedBlockType === 'C') { defWM = 8.0; defHM = 1.6; previewColor = '#eab308'; }
+          else if (selectedBlockType === 'K') { defWM = 3.6; defHM = 2.8; previewColor = '#f97316'; }
+          else if (selectedBlockType === 'B') { defWM = 4.5; defHM = 3.5; previewColor = '#3b82f6'; }
+          else if (selectedBlockType === 'T') { defWM = 2.4; defHM = 1.8; previewColor = '#a855f7'; }
+          else if (selectedBlockType === 'BAL') { defWM = 4.5; defHM = 1.6; previewColor = '#06b6d4'; }
+
+          const defWPx = Math.round((defWM / CELL_M) * cellPx);
+          const defHPx = Math.round((defHM / CELL_M) * cellPx);
+          const gx = Math.round(hoverPt.x - defWPx / 2);
+          const gy = Math.round(hoverPt.y - defHPx / 2);
+
+          ctx.fillStyle = 'rgba(255, 255, 255, 0.12)';
+          ctx.fillRect(gx, gy, defWPx, defHPx);
+          ctx.strokeStyle = previewColor;
+          ctx.lineWidth = 1.5;
+          ctx.setLineDash([4, 3]);
+          ctx.strokeRect(gx, gy, defWPx, defHPx);
+          ctx.setLineDash([]);
+
+          ctx.fillStyle = previewColor;
+          ctx.font = 'bold 11px monospace';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText(`+ ${selectedBlockType} (${defWM}m × ${defHM}m)`, hoverPt.x, hoverPt.y);
+          ctx.restore();
+        }
+
       } else {
         // In-progress trace
         ctx.strokeStyle = '#00f0ff';
@@ -1242,7 +1406,7 @@ const ArchitectAdvisorPanel = forwardRef<ArchitectAdvisorRef, Props>(({ onParams
       ctx.setLineDash([]);
       ctx.fillText(`${pxToM(hoverPt.x)}m, ${pxToM(hoverPt.y)}m`, hoverPt.x + 6, hoverPt.y - 3);
     }
-  }, [polygon, hoverPt, isTracingClosed, bgImage, imgBounds, suggestedShape, canvasW, canvasH, cellPx, pxToM, isEditingShape, editablePolygons, hoveredEdge, shapeDragIdx, isRotatingShape, isDraggingWholeShape, shapeWasModified, isDividingMode, dividerLines, activeDividerStart, isLabelingMode, zoneLabels, selectedLabelText, labelDragId]);
+  }, [polygon, hoverPt, isTracingClosed, bgImage, imgBounds, suggestedShape, canvasW, canvasH, cellPx, pxToM, isEditingShape, editablePolygons, hoveredEdge, shapeDragIdx, isRotatingShape, isDraggingWholeShape, shapeWasModified, isDividingMode, dividerLines, activeDividerStart, isLabelingMode, zoneLabels, selectedLabelText, labelDragId, isRoomBlockMode, roomBlocks, selectedBlockType, activeBlockId, blockDragState]);
 
   useEffect(() => {
     // Smooth scroll the closest scrollable container (the page wrapper) instead of using scrollIntoView
@@ -1342,6 +1506,73 @@ const ArchitectAdvisorPanel = forwardRef<ArchitectAdvisorRef, Props>(({ onParams
           setSelectedLabelText(`F${parseInt(match[1]) + 1}`);
         }
       }
+      return;
+    }
+
+    // ── Interactive Room Block Mode Intercept (B, K, L, C, T, BAL) ───────────
+    if (isRoomBlockMode) {
+      const HANDLE_DIST = 14;
+
+      // 1. Check if clicking corner resize handle of an existing room block
+      for (let i = roomBlocks.length - 1; i >= 0; i--) {
+        const blk = roomBlocks[i];
+        if (Math.hypot(raw.x - (blk.x + blk.w), raw.y - (blk.y + blk.h)) <= HANDLE_DIST) {
+          setActiveBlockId(blk.id);
+          setBlockDragState({ id: blk.id, mode: 'se', startX: raw.x, startY: raw.y, initX: blk.x, initY: blk.y, initW: blk.w, initH: blk.h });
+          return;
+        }
+        if (Math.hypot(raw.x - blk.x, raw.y - (blk.y + blk.h)) <= HANDLE_DIST) {
+          setActiveBlockId(blk.id);
+          setBlockDragState({ id: blk.id, mode: 'sw', startX: raw.x, startY: raw.y, initX: blk.x, initY: blk.y, initW: blk.w, initH: blk.h });
+          return;
+        }
+        if (Math.hypot(raw.x - (blk.x + blk.w), raw.y - blk.y) <= HANDLE_DIST) {
+          setActiveBlockId(blk.id);
+          setBlockDragState({ id: blk.id, mode: 'ne', startX: raw.x, startY: raw.y, initX: blk.x, initY: blk.y, initW: blk.w, initH: blk.h });
+          return;
+        }
+        if (Math.hypot(raw.x - blk.x, raw.y - blk.y) <= HANDLE_DIST) {
+          setActiveBlockId(blk.id);
+          setBlockDragState({ id: blk.id, mode: 'nw', startX: raw.x, startY: raw.y, initX: blk.x, initY: blk.y, initW: blk.w, initH: blk.h });
+          return;
+        }
+      }
+
+      // 2. Check if clicking inside an existing room block body to move it
+      for (let i = roomBlocks.length - 1; i >= 0; i--) {
+        const blk = roomBlocks[i];
+        if (raw.x >= blk.x && raw.x <= blk.x + blk.w && raw.y >= blk.y && raw.y <= blk.y + blk.h) {
+          setActiveBlockId(blk.id);
+          setBlockDragState({ id: blk.id, mode: 'move', startX: raw.x, startY: raw.y, initX: blk.x, initY: blk.y, initW: blk.w, initH: blk.h });
+          return;
+        }
+      }
+
+      // 3. Drop new room block at cursor with realistic initial dimensions
+      let defWM = 4.5;
+      let defHM = 3.5;
+      if (selectedBlockType === 'L') { defWM = 6.0; defHM = 3.8; } // Living room: wider & spacious
+      else if (selectedBlockType === 'C') { defWM = 8.0; defHM = 1.6; } // Corridor: long runner
+      else if (selectedBlockType === 'K') { defWM = 3.6; defHM = 2.8; } // Kitchen
+      else if (selectedBlockType === 'B') { defWM = 4.5; defHM = 3.5; } // Bedroom
+      else if (selectedBlockType === 'T') { defWM = 2.4; defHM = 1.8; } // Toilet
+      else if (selectedBlockType === 'BAL') { defWM = 4.5; defHM = 1.6; } // Balcony
+
+      const defWPx = Math.round((defWM / CELL_M) * cellPx);
+      const defHPx = Math.round((defHM / CELL_M) * cellPx);
+
+      const newBlk: RoomBlock = {
+        id: `blk-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+        type: selectedBlockType,
+        label: selectedBlockType,
+        x: Math.round(snapped.x - defWPx / 2),
+        y: Math.round(snapped.y - defHPx / 2),
+        w: defWPx,
+        h: defHPx,
+      };
+
+      setRoomBlocks(prev => [...prev, newBlk]);
+      setActiveBlockId(newBlk.id);
       return;
     }
 
@@ -1567,6 +1798,70 @@ const ArchitectAdvisorPanel = forwardRef<ArchitectAdvisorRef, Props>(({ onParams
       }
     }
 
+    if (isRoomBlockMode) {
+      if (blockDragState) {
+        const dx = raw.x - blockDragState.startX;
+        const dy = raw.y - blockDragState.startY;
+        const snapM = cellPx / 10;
+
+        setRoomBlocks(prev => prev.map(blk => {
+          if (blk.id !== blockDragState.id) return blk;
+
+          let { initX, initY, initW, initH } = blockDragState;
+
+          if (blockDragState.mode === 'move') {
+            const nx = Math.round((initX + dx) / snapM) * snapM;
+            const ny = Math.round((initY + dy) / snapM) * snapM;
+            return { ...blk, x: nx, y: ny };
+          } else if (blockDragState.mode === 'se') {
+            const nw = Math.max(20, Math.round((initW + dx) / snapM) * snapM);
+            const nh = Math.max(16, Math.round((initH + dy) / snapM) * snapM);
+            return { ...blk, w: nw, h: nh };
+          } else if (blockDragState.mode === 'sw') {
+            const nw = Math.max(20, Math.round((initW - dx) / snapM) * snapM);
+            const nx = initX + (initW - nw);
+            const nh = Math.max(16, Math.round((initH + dy) / snapM) * snapM);
+            return { ...blk, x: nx, w: nw, h: nh };
+          } else if (blockDragState.mode === 'ne') {
+            const nw = Math.max(20, Math.round((initW + dx) / snapM) * snapM);
+            const nh = Math.max(16, Math.round((initH - dy) / snapM) * snapM);
+            const ny = initY + (initH - nh);
+            return { ...blk, y: ny, w: nw, h: nh };
+          } else if (blockDragState.mode === 'nw') {
+            const nw = Math.max(20, Math.round((initW - dx) / snapM) * snapM);
+            const nx = initX + (initW - nw);
+            const nh = Math.max(16, Math.round((initH - dy) / snapM) * snapM);
+            const ny = initY + (initH - nh);
+            return { ...blk, x: nx, y: ny, w: nw, h: nh };
+          }
+          return blk;
+        }));
+
+        if (canvasRef.current) canvasRef.current.style.cursor = blockDragState.mode === 'move' ? 'grabbing' : 'nwse-resize';
+      } else {
+        // Dynamic cursor on hover over block or corner
+        let cursor = 'crosshair';
+        for (const blk of roomBlocks) {
+          const HANDLE_DIST = 14;
+          if (Math.hypot(raw.x - (blk.x + blk.w), raw.y - (blk.y + blk.h)) <= HANDLE_DIST || Math.hypot(raw.x - blk.x, raw.y - blk.y) <= HANDLE_DIST) {
+            cursor = 'nwse-resize';
+            break;
+          }
+          if (Math.hypot(raw.x - blk.x, raw.y - (blk.y + blk.h)) <= HANDLE_DIST || Math.hypot(raw.x - (blk.x + blk.w), raw.y - blk.y) <= HANDLE_DIST) {
+            cursor = 'nesw-resize';
+            break;
+          }
+          if (raw.x >= blk.x && raw.x <= blk.x + blk.w && raw.y >= blk.y && raw.y <= blk.y + blk.h) {
+            cursor = 'grab';
+            break;
+          }
+        }
+        if (canvasRef.current) canvasRef.current.style.cursor = cursor;
+      }
+      setHoverPt(snapToGrid(raw.x, raw.y));
+      return;
+    }
+
     if (isDividingMode) {
       setHoverPt(snapToGrid(raw.x, raw.y));
       if (canvasRef.current) canvasRef.current.style.cursor = 'crosshair';
@@ -1590,6 +1885,11 @@ const ArchitectAdvisorPanel = forwardRef<ArchitectAdvisorRef, Props>(({ onParams
   };
 
   const handleCanvasMouseUp = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    if (isRoomBlockMode) {
+      setBlockDragState(null);
+      return;
+    }
+
     if (isDividingMode && activeDividerStart) {
       const raw = getCanvasCoords(e);
       const snapped = snapToGrid(raw.x, raw.y);
@@ -1632,6 +1932,7 @@ const ArchitectAdvisorPanel = forwardRef<ArchitectAdvisorRef, Props>(({ onParams
   }, [customFootprintPts, polygonAreaM2]);
 
   const handleCanvasClick = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    if (isRoomBlockMode) return; // room block mode uses mouseDown/drag
     if (isDividingMode) return; // divider mode uses mousedown/mouseup drag
     if (isLabelingMode) return; // labeling mode handled via mouseDown
     if (isEditingShape) return; // editing mode handles its own clicks in mouseDown
@@ -1671,8 +1972,18 @@ const ArchitectAdvisorPanel = forwardRef<ArchitectAdvisorRef, Props>(({ onParams
     setPolygon(prev => [...prev, snapped]);
   };
 
-  // Right-click to delete a vertex in shape edit mode
+  // Right-click to delete a vertex in shape edit mode or delete a room block
   const handleCanvasContextMenu = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    if (isRoomBlockMode) {
+      e.preventDefault();
+      const raw = getCanvasCoords(e);
+      const clickedIdx = roomBlocks.findIndex(blk => raw.x >= blk.x && raw.x <= blk.x + blk.w && raw.y >= blk.y && raw.y <= blk.y + blk.h);
+      if (clickedIdx !== -1) {
+        setRoomBlocks(prev => prev.filter((_, i) => i !== clickedIdx));
+        return;
+      }
+    }
+
     if (!isEditingShape || !editablePolygons) return;
     e.preventDefault();
     const raw = getCanvasCoords(e);
@@ -1736,6 +2047,10 @@ const ArchitectAdvisorPanel = forwardRef<ArchitectAdvisorRef, Props>(({ onParams
     setZoneLabels([]);
     setSelectedLabelText('F1');
     setLabelDragId(null);
+    setIsRoomBlockMode(false);
+    setRoomBlocks([]);
+    setActiveBlockId(null);
+    setBlockDragState(null);
   };
 
   // ── Shape Editing Functions ─────────────────────────────────────────────────
@@ -1959,6 +2274,17 @@ Use these measurements to determine which apartment types can physically fit in 
           const flatLabelsOnly = zoneLabels.filter(l => l.text.toUpperCase().startsWith('F')).map(l => l.text);
           const totalUnitsCount = flatLabelsOnly.length || zoneLabels.length;
           lastMsg.content += `\n\n[USER DRAWING & LABELS CONTEXT: The user has actively partitioned the building on the canvas with ${dividerLines.length} cut line(s) and placed ${zoneLabels.length} custom label(s): ${zoneLabels.map(l => l.text).join(', ')}. If the user asks to add or configure units according to their labels (e.g. ${totalUnitsCount} units for ${zoneLabels.map(l => l.text).join(', ')}), you MUST honor this exact count (${totalUnitsCount} total units) across your 3 recommended options (distributed logically into 1BHK, 2BHK, 3BHK, 4BHK) so each labeled pod gets a corresponding unit!]`;
+        }
+      }
+
+      // User Room Blocks Spatial Overlay Context
+      if (roomBlocks.length > 0 && apiMessages.length > 0) {
+        const lastMsg = apiMessages[apiMessages.length - 1];
+        if (lastMsg.role === 'user') {
+          const counts: Record<string, number> = {};
+          roomBlocks.forEach(b => { counts[b.label] = (counts[b.label] || 0) + 1; });
+          const summary = Object.entries(counts).map(([k, v]) => `${v}×${k}`).join(', ');
+          lastMsg.content += `\n\n[USER ROOM BLOCKS OVERLAY: The user has placed ${roomBlocks.length} spatial room composition blocks on the floor plan (${summary}) where B=Bedrooms, K=Kitchen, L=Living Room, C=Corridor, T=Toilet, BAL=Balcony. Respect these custom room spatial placements in your analysis and notes!]`;
         }
       }
 
@@ -2504,6 +2830,69 @@ Use these measurements to determine which apartment types can physically fit in 
             </div>
           )}
 
+          {isRoomBlockMode && (
+            <div className="absolute top-2 left-3 right-3 z-30 px-3 py-2 bg-black/90 backdrop-blur-md border border-purple-400/60 rounded-lg flex flex-wrap items-center justify-between shadow-2xl gap-2">
+              <div className="flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-purple-400 animate-pulse" />
+                <span className="text-[10px] font-bold text-purple-300 uppercase tracking-wider">
+                  🧱 SELECT ROOM BLOCK TO PLACE:
+                </span>
+                <div className="flex items-center gap-1.5">
+                  {[
+                    { type: 'L', label: 'L Living', bg: 'bg-emerald-500/20 text-emerald-300 border-emerald-400/40', active: 'bg-emerald-500 text-black shadow-[0_0_8px_#10b981]' },
+                    { type: 'B', label: 'B Bedroom', bg: 'bg-blue-500/20 text-blue-300 border-blue-400/40', active: 'bg-blue-500 text-black shadow-[0_0_8px_#3b82f6]' },
+                    { type: 'K', label: 'K Kitchen', bg: 'bg-orange-500/20 text-orange-300 border-orange-400/40', active: 'bg-orange-500 text-black shadow-[0_0_8px_#f97316]' },
+                    { type: 'C', label: 'C Corridor', bg: 'bg-amber-500/20 text-amber-300 border-amber-400/40', active: 'bg-amber-400 text-black shadow-[0_0_8px_#f59e0b]' },
+                    { type: 'T', label: 'T Toilet', bg: 'bg-purple-500/20 text-purple-300 border-purple-400/40', active: 'bg-purple-500 text-black shadow-[0_0_8px_#a855f7]' },
+                    { type: 'BAL', label: 'BAL Balcony', bg: 'bg-cyan-500/20 text-cyan-300 border-cyan-400/40', active: 'bg-cyan-400 text-black shadow-[0_0_8px_#06b6d4]' },
+                  ].map(item => (
+                    <button
+                      key={item.type}
+                      onClick={() => setSelectedBlockType(item.type as any)}
+                      className={`px-2 py-0.5 rounded text-[9px] font-mono font-bold transition-all cursor-pointer border ${
+                        selectedBlockType === item.type ? item.active : item.bg
+                      }`}
+                    >
+                      + {item.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-[8px] font-mono text-purple-300/80 uppercase">
+                  (Drag corners to resize • Drag body to move • Right-click to delete)
+                </span>
+                <span className="text-[9px] font-mono font-bold text-purple-400 bg-purple-950/60 px-2 py-0.5 rounded border border-purple-500/30">
+                  {roomBlocks.length} BLOCKS
+                </span>
+                {roomBlocks.length > 0 && (
+                  <>
+                    <button
+                      onClick={() => setRoomBlocks(prev => prev.slice(0, -1))}
+                      className="px-2 py-0.5 bg-white/10 hover:bg-white/20 text-slate-300 rounded text-[9px] font-bold cursor-pointer"
+                      title="Undo Last Block"
+                    >
+                      ↶ Undo
+                    </button>
+                    <button
+                      onClick={() => setRoomBlocks([])}
+                      className="px-2 py-0.5 bg-red-500/20 hover:bg-red-500/30 text-red-300 rounded text-[9px] font-bold cursor-pointer"
+                      title="Clear All Room Blocks"
+                    >
+                      ✕ Clear
+                    </button>
+                  </>
+                )}
+                <button
+                  onClick={() => setIsRoomBlockMode(false)}
+                  className="px-2.5 py-0.5 bg-emerald-500/30 hover:bg-emerald-500/40 text-emerald-300 rounded border border-emerald-400 text-[9px] font-bold cursor-pointer"
+                >
+                  ✓ Done
+                </button>
+              </div>
+            </div>
+          )}
+
           <canvas
             ref={canvasRef}
             width={canvasW}
@@ -2544,17 +2933,17 @@ Use these measurements to determine which apartment types can physically fit in 
               )}
             </div>
 
-            {/* Live Divide & Label Buttons */}
+            {/* Live Divide, Labels & Room Blocks Buttons */}
             {(suggestedShape || (isTracingClosed && polygon.length >= 3)) && (
               <div className="flex items-center gap-2 ml-auto">
                 {/* Divide Button */}
                 {!isDividingMode ? (
                   <button
-                    onClick={() => { setIsDividingMode(true); setIsLabelingMode(false); setIsEditingShape(false); }}
+                    onClick={() => { setIsDividingMode(true); setIsLabelingMode(false); setIsRoomBlockMode(false); setIsEditingShape(false); }}
                     className="px-2.5 py-0.5 bg-gradient-to-r from-cyan-500/30 to-blue-500/20 hover:from-cyan-500/40 hover:to-blue-500/30 text-cyan-300 rounded border border-cyan-400/50 transition-all flex items-center gap-1.5 text-[9px] font-bold shadow-[0_0_10px_rgba(0,240,255,0.2)] cursor-pointer"
                   >
                     <Scissors className="w-3 h-3 text-cyan-400" />
-                    <span>Live Divide Flats {dividerLines.length > 0 ? `(${dividerLines.length})` : ''}</span>
+                    <span>Live Divide {dividerLines.length > 0 ? `(${dividerLines.length})` : ''}</span>
                   </button>
                 ) : (
                   <div className="flex items-center gap-1.5">
@@ -2588,11 +2977,11 @@ Use these measurements to determine which apartment types can physically fit in 
                 {/* Labeling Button */}
                 {!isLabelingMode ? (
                   <button
-                    onClick={() => { setIsLabelingMode(true); setIsDividingMode(false); setIsEditingShape(false); }}
+                    onClick={() => { setIsLabelingMode(true); setIsDividingMode(false); setIsRoomBlockMode(false); setIsEditingShape(false); }}
                     className="px-2.5 py-0.5 bg-gradient-to-r from-emerald-500/30 to-teal-500/20 hover:from-emerald-500/40 hover:to-teal-500/30 text-emerald-300 rounded border border-emerald-400/50 transition-all flex items-center gap-1.5 text-[9px] font-bold shadow-[0_0_10px_rgba(16,185,129,0.2)] cursor-pointer"
                   >
                     <Tag className="w-3 h-3 text-emerald-400" />
-                    <span>Add Labels {zoneLabels.length > 0 ? `(${zoneLabels.length})` : '(F1, F2...)'}</span>
+                    <span>Labels {zoneLabels.length > 0 ? `(${zoneLabels.length})` : '(F1, BHK)'}</span>
                   </button>
                 ) : (
                   <div className="flex items-center gap-1.5">
@@ -2607,6 +2996,35 @@ Use these measurements to determine which apartment types can physically fit in 
                         onClick={() => setZoneLabels([])}
                         className="px-2 py-0.5 bg-red-500/20 hover:bg-red-500/30 text-red-300 rounded text-[9px] font-bold cursor-pointer"
                         title="Clear All Labels"
+                      >
+                        ✕ Clear
+                      </button>
+                    )}
+                  </div>
+                )}
+
+                {/* Room Blocks Button */}
+                {!isRoomBlockMode ? (
+                  <button
+                    onClick={() => { setIsRoomBlockMode(true); setIsLabelingMode(false); setIsDividingMode(false); setIsEditingShape(false); }}
+                    className="px-2.5 py-0.5 bg-gradient-to-r from-purple-500/30 to-indigo-500/20 hover:from-purple-500/40 hover:to-indigo-500/30 text-purple-300 rounded border border-purple-400/50 transition-all flex items-center gap-1.5 text-[9px] font-bold shadow-[0_0_10px_rgba(168,85,247,0.2)] cursor-pointer"
+                  >
+                    <Box className="w-3 h-3 text-purple-400" />
+                    <span>Room Blocks {roomBlocks.length > 0 ? `(${roomBlocks.length})` : '(B, K, L, C)'}</span>
+                  </button>
+                ) : (
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      onClick={() => setIsRoomBlockMode(false)}
+                      className="px-2.5 py-0.5 bg-emerald-500/30 hover:bg-emerald-500/40 text-emerald-300 rounded border border-emerald-400 transition-all flex items-center gap-1 text-[9px] font-bold shadow-[0_0_8px_rgba(16,185,129,0.3)] cursor-pointer"
+                    >
+                      <Check className="w-3 h-3" /> Done Blocks
+                    </button>
+                    {roomBlocks.length > 0 && (
+                      <button
+                        onClick={() => setRoomBlocks([])}
+                        className="px-2 py-0.5 bg-red-500/20 hover:bg-red-500/30 text-red-300 rounded text-[9px] font-bold cursor-pointer"
+                        title="Clear All Blocks"
                       >
                         ✕ Clear
                       </button>

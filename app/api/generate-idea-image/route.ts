@@ -158,8 +158,9 @@ function buildStage1Prompt(opts: {
   hasDividers?: boolean;
   numDividers?: number;
   customLabels?: string[];
+  roomBlocks?: Array<{ type: string; label: string; xM: number; yM: number; wM: number; hM: number }>;
 }): string {
-  const { numFlats, hasReferenceImage, units1BHK = 0, units2BHK = 0, units3BHK = 0, units4BHK = 0, bhkType = '2bhk', hasDividers = false, numDividers = 0, customLabels = [] } = opts;
+  const { numFlats, hasReferenceImage, units1BHK = 0, units2BHK = 0, units3BHK = 0, units4BHK = 0, bhkType = '2bhk', hasDividers = false, numDividers = 0, customLabels = [], roomBlocks = [] } = opts;
   const flatLabelsArray = Array.from({ length: numFlats }, (_, i) => `F${i + 1}`);
   const flatLabels = flatLabelsArray.join(', ');
   const uniqueLabelLines = flatLabelsArray.map(label => `• ${label} (use once)`).join('\n');
@@ -237,6 +238,25 @@ function buildStage1Prompt(opts: {
 
   return `You are a licensed senior 2D architectural CAD drafter. EDIT THE FIRST UPLOADED IMAGE ONLY.
 
+${roomBlocks && roomBlocks.length > 0 ? `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🧱 CRITICAL USER-DEFINED ROOM BLOCK COMPOSITION OVERLAYS (B, K, L, C, T, BAL)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+• The input image mask includes ${roomBlocks.length} explicit user-placed rectangular room bounding boxes stamped with letter codes:
+  - 'B' = BEDROOM (Master Bedroom / Secondary Bedroom)
+  - 'K' = KITCHEN (Modular Kitchen & Utility Counter)
+  - 'L' = LIVING ROOM (Main Living Lounge & Dining Area)
+  - 'C' = CORRIDOR (Circulation Spine / Connecting Hallway)
+  - 'T' = TOILET / BATHROOM
+  - 'BAL' = ATTACHED FACADE BALCONY
+• THE AI MUST STRICTLY ADHERE TO THIS USER ROOM COMPOSITION:
+  - Place the main Living Lounge exactly in the zone marked by the 'L' block.
+  - Place the Kitchen exactly in the zone marked by the 'K' block.
+  - Place Bedrooms in the exact zones marked by 'B' blocks.
+  - Lay out the internal circulation corridor running through the 'C' block.
+  - Position Toilets in the 'T' block zones.
+  - Attach external facade balconies where 'BAL' blocks are placed.
+  - Form clean orthogonal 90° party walls and internal partitions matching these bounding box positions.
+` : ''}
 ${customLabels && customLabels.length > 0 ? `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 🏷️ USER CUSTOM UNIT & BHK LABELS DETECTED (${customLabels.join(', ')})
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -630,6 +650,7 @@ export async function POST(req: Request) {
       hasDividers = false,
       numDividers = 0,
       customLabels = [],
+      roomBlocks = [],
       // Legacy single-model fallback fields
       prompt,
       inputImageBase64,
@@ -691,6 +712,7 @@ export async function POST(req: Request) {
         hasDividers,
         numDividers,
         customLabels,
+        roomBlocks,
       });
 
       const stage1ImageUrls: string[] = [uploadedTraceUrl];
