@@ -127,6 +127,8 @@ export default function IdeaGenerationPage() {
     stage2OutputUrl?: string;
     stage2Seed?: number;
     userPrompt?: string;
+    workflow?: string;
+  } | null>(null);
   const [showDebugModal, setShowDebugModal] = useState(false);
   const [enhancingCandidateIdx, setEnhancingCandidateIdx] = useState<number | null>(null);
   const [enhancedCandidates, setEnhancedCandidates] = useState<Record<number, { url: string; seed?: number; prompt?: string }>>({});
@@ -479,7 +481,7 @@ STAGE 2 → Refine interior layout, enforce NBC room sizes, verify room complete
           units4BHK,
           passengerLifts,
           staircases,
-          apiKey: falKey,
+          apiKey: apiKey || undefined,
         }),
       });
 
