@@ -343,10 +343,11 @@ async function compileArchitecturalPromptWithAgent(opts: {
   widthM: number;
   lengthM: number;
   numFlats: number;
+  hasDividers?: boolean;
 }): Promise<string> {
   const openRouterKey = process.env.OPENROUTER_API_KEY || process.env.NEXT_PUBLIC_OPENROUTER_API_KEY;
   if (!openRouterKey) {
-    return buildPrompt({ isSingle: false, buildingType: 'multi-residential', numFlats: opts.numFlats, hasDividers: false, hasCore: true, roomItems: '', roomListLabelHint: '', verifyChecks: '', widthM: opts.widthM, lengthM: opts.lengthM, userPrompt: opts.userPrompt });
+    return buildPrompt({ isSingle: false, buildingType: 'multi-residential', numFlats: opts.numFlats, hasDividers: !!opts.hasDividers, hasCore: true, roomItems: '', roomListLabelHint: '', verifyChecks: '', widthM: opts.widthM, lengthM: opts.lengthM, userPrompt: opts.userPrompt });
   }
 
   const systemMessage = `You are a Principal Architectural Prompt Engineer for high-end master presentation boards.
@@ -374,6 +375,7 @@ STRICT DESIGN RULES:
    - Panel 2 (Top-Right 30%): "TOP VIEW (BUILDING FORM)" - 3D aerial roof massing render of that EXACT shape from directly above.
    - Panel 3 (Middle-Right 30%): "3D VIEW (BUILDING FORM)" - Photorealistic 3D isometric perspective tower elevation rising in that EXACT shape with matching floor slabs and wrap-around glass balconies.
    - Panel 4 (Bottom-Right 30%): "FLOOR PLAN SUMMARY" & "FLAT LEGEND" card displaying Title, Dimensions (${opts.widthM}m × ${opts.lengthM}m), Total Unit Mix (${opts.numFlats} APARTMENT UNITS), and color-coded legend table.
+${opts.hasDividers ? '5. USER-DRAWN PARTITIONS: The user has supplied a custom mask with dividing partition cut lines. Respect these cuts as solid demising walls and place separate external flat units in each divided zone with exterior balcony access.' : ''}
 
 Return ONLY the raw prompt text to send to the image generation model. No conversational introductory or concluding remarks.`;
 
@@ -391,7 +393,7 @@ Return ONLY the raw prompt text to send to the image generation model. No conver
         model: 'google/gemini-2.5-flash',
         messages: [
           { role: 'system', content: systemMessage },
-          { role: 'user', content: `USER ARCHITECTURAL BRIEF: "${opts.userPrompt}"\nBUILDING DIMENSIONS: ${opts.widthM}m × ${opts.lengthM}m\nEXACT FLATS PER FLOOR: ${opts.numFlats} APARTMENT UNITS` }
+          { role: 'user', content: `USER ARCHITECTURAL BRIEF: "${opts.userPrompt}"\nBUILDING DIMENSIONS: ${opts.widthM}m × ${opts.lengthM}m\nEXACT FLATS PER FLOOR: ${opts.numFlats} APARTMENT UNITS${opts.hasDividers ? '\nCUSTOM PARTITION CUTS DETECTED: YES' : ''}` }
         ],
         temperature: 0.2,
         max_tokens: 1200,
@@ -411,7 +413,7 @@ Return ONLY the raw prompt text to send to the image generation model. No conver
     console.warn('[ConceptGenerator] Prompt Compiler Agent failed, using algorithmic fallback:', err.message);
   }
 
-  return buildPrompt({ isSingle: false, buildingType: 'multi-residential', numFlats: opts.numFlats, hasDividers: false, hasCore: true, roomItems: '', roomListLabelHint: '', verifyChecks: '', widthM: opts.widthM, lengthM: opts.lengthM, userPrompt: opts.userPrompt });
+  return buildPrompt({ isSingle: false, buildingType: 'multi-residential', numFlats: opts.numFlats, hasDividers: !!opts.hasDividers, hasCore: true, roomItems: '', roomListLabelHint: '', verifyChecks: '', widthM: opts.widthM, lengthM: opts.lengthM, userPrompt: opts.userPrompt });
 }
 
 // ── Route Handler ─────────────────────────────────────────────────────────────
@@ -452,6 +454,7 @@ export async function POST(req: Request) {
       widthM,
       lengthM,
       numFlats,
+      hasDividers,
     });
 
     console.log('[ConceptGenerator] Final Prompt length:', stage1Prompt.length);

@@ -168,7 +168,7 @@ export default function IdeaGenerationPage() {
   ];
 
   // Unified Async Generation and HUD Progress Pipeline
-  const handleGenerate = async (e?: React.FormEvent, aiOpts?: { tracerImageBase64?: string; canvasW?: number; canvasH?: number; shapeW?: number; shapeH?: number; isShapeModified?: boolean }) => {
+  const handleGenerate = async (e?: React.FormEvent, aiOpts?: { tracerImageBase64?: string; canvasW?: number; canvasH?: number; shapeW?: number; shapeH?: number; isShapeModified?: boolean; hasDividers?: boolean; numDividers?: number }) => {
     if (e) e.preventDefault();
     const fallbackBase64 = advisorRef.current?.exportCanvasBase64() || undefined;
     setValidationError(null);
@@ -342,6 +342,8 @@ STAGE 2 → Refine interior layout, enforce NBC room sizes, verify room complete
             useFireSafety: fireSafetyCode,
             shapeW: aiOpts?.shapeW,
             shapeH: aiOpts?.shapeH,
+            hasDividers: aiOpts?.hasDividers,
+            numDividers: aiOpts?.numDividers,
           }),
         }).then(async (res) => {
           const contentType = res.headers.get('content-type') || '';
@@ -475,7 +477,7 @@ STAGE 2 → Refine interior layout, enforce NBC room sizes, verify room complete
     if (params.customPrompt) setCustomPrompt(params.customPrompt);
   }, []);
 
-  const handleGenerateTrigger = useCallback((opts?: { tracerImageBase64?: string; canvasW?: number; canvasH?: number; shapeW?: number; shapeH?: number; isShapeModified?: boolean }) => {
+  const handleGenerateTrigger = useCallback((opts?: { tracerImageBase64?: string; canvasW?: number; canvasH?: number; shapeW?: number; shapeH?: number; isShapeModified?: boolean; hasDividers?: boolean; numDividers?: number }) => {
     handleGenerate(undefined, opts);
   }, [handleGenerate]);
 

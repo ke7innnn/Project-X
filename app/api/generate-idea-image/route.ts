@@ -155,8 +155,10 @@ function buildStage1Prompt(opts: {
   units3BHK?: number;
   units4BHK?: number;
   bhkType?: string;
+  hasDividers?: boolean;
+  numDividers?: number;
 }): string {
-  const { numFlats, hasReferenceImage, units1BHK = 0, units2BHK = 0, units3BHK = 0, units4BHK = 0, bhkType = '2bhk' } = opts;
+  const { numFlats, hasReferenceImage, units1BHK = 0, units2BHK = 0, units3BHK = 0, units4BHK = 0, bhkType = '2bhk', hasDividers = false, numDividers = 0 } = opts;
   const flatLabelsArray = Array.from({ length: numFlats }, (_, i) => `F${i + 1}`);
   const flatLabels = flatLabelsArray.join(', ');
   const uniqueLabelLines = flatLabelsArray.map(label => `• ${label} (use once)`).join('\n');
@@ -198,6 +200,13 @@ function buildStage1Prompt(opts: {
 
   return `You are a licensed senior 2D architectural CAD drafter. EDIT THE FIRST UPLOADED IMAGE ONLY.
 
+${hasDividers ? `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🚨 CRITICAL CUSTOM USER PARTITION DIVIDERS ACTIVE
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+• The input image mask includes ${numDividers} explicit user-drawn internal partition cut lines across the building footprint.
+• The AI MUST strictly respect these user partition cut lines as thick solid structural demising party walls separating each independent flat unit.
+• Allocate individual residential flat units (${flatLabels}) into the custom-divided pods/zones, ensuring every flat maintains direct external facade windows, attached facade balconies, and natural cross-ventilation.
+` : ''}
 ${hasReferenceImage ? `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 IMAGE ROLES — EXTREMELY IMPORTANT
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -568,6 +577,8 @@ export async function POST(req: Request) {
       useFireSafety = true,
       shapeW,
       shapeH,
+      hasDividers = false,
+      numDividers = 0,
       // Legacy single-model fallback fields
       prompt,
       inputImageBase64,
@@ -626,6 +637,8 @@ export async function POST(req: Request) {
         units3BHK,
         units4BHK,
         bhkType: dominantBHK,
+        hasDividers,
+        numDividers,
       });
 
       const stage1ImageUrls: string[] = [uploadedTraceUrl];

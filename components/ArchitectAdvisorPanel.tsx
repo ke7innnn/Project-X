@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useRef, useEffect, useCallback, forwardRef, useImperativeHandle } from 'react';
-import { Send, Loader2, Upload, CheckCircle2, ChevronRight, RotateCcw, MousePointer, Sparkles, Edit2, Check, Search, X, Layers, ChevronDown } from 'lucide-react';
+import { Send, Loader2, Upload, CheckCircle2, ChevronRight, RotateCcw, MousePointer, Sparkles, Edit2, Check, Search, X, Layers, ChevronDown, Scissors } from 'lucide-react';
 import { MASTER_SHAPES_50, ShapeDefinition } from '@/lib/shapeLibrary50';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -64,7 +64,16 @@ export interface ArchitectAdvisorRef {
 
 interface Props {
   onParamsApplied: (params: FormParams) => void;
-  onGenerateTrigger: (opts: { tracerImageBase64?: string; canvasW?: number; canvasH?: number; shapeW?: number; shapeH?: number; isShapeModified?: boolean }) => void;
+  onGenerateTrigger: (opts: {
+    tracerImageBase64?: string;
+    canvasW?: number;
+    canvasH?: number;
+    shapeW?: number;
+    shapeH?: number;
+    isShapeModified?: boolean;
+    hasDividers?: boolean;
+    numDividers?: number;
+  }) => void;
   selectedModel: string;
   onModelChange: (modelId: string) => void;
 }
@@ -371,7 +380,10 @@ const ArchitectAdvisorPanel = forwardRef<ArchitectAdvisorRef, Props>(({ onParams
   const [shapeRotationAngle, setShapeRotationAngle] = useState(0);
   const [rotationStartAngle, setRotationStartAngle] = useState(0);
   const [shapeWasModified, setShapeWasModified] = useState(false);
-  const [shapeGeometryAnalysis, setShapeGeometryAnalysis] = useState<string | null>(null);
+  // ── Live Partition Divider State ───────────────────────────────────────────
+  const [isDividingMode, setIsDividingMode] = useState(false);
+  const [dividerLines, setDividerLines] = useState<Array<{ p1: Point; p2: Point }>>([]);
+  const [activeDividerStart, setActiveDividerStart] = useState<Point | null>(null);
 
   // Helper: check if a point is inside the traced plot polygon
   const isPointInPlot = useCallback((pt: Point): boolean => {
@@ -577,11 +589,30 @@ const ArchitectAdvisorPanel = forwardRef<ArchitectAdvisorRef, Props>(({ onParams
         }
       }
       ctx.restore();
+
+      // 6. Draw custom user-drawn divider lines across the white footprint mask in solid black!
+      if (dividerLines.length > 0) {
+        ctx.save();
+        ctx.strokeStyle = '#000000';
+        ctx.lineWidth = 6.0;
+        ctx.lineCap = 'round';
+        dividerLines.forEach(line => {
+          const sx1 = Math.round(line.p1.x * scale + offsetX);
+          const sy1 = Math.round(line.p1.y * scale + offsetY);
+          const sx2 = Math.round(line.p2.x * scale + offsetX);
+          const sy2 = Math.round(line.p2.y * scale + offsetY);
+          ctx.beginPath();
+          ctx.moveTo(sx1, sy1);
+          ctx.lineTo(sx2, sy2);
+          ctx.stroke();
+        });
+        ctx.restore();
+      }
     }
 
     // Return full data URL (the API route handles stripping)
     return offscreen.toDataURL('image/png');
-  }, [polygon, isTracingClosed, suggestedShape, canvasW, canvasH]);
+  }, [polygon, isTracingClosed, suggestedShape, canvasW, canvasH, dividerLines]);
 
   const handleGenerateTrigger = useCallback(() => {
     const base64 = exportForAI();
@@ -605,8 +636,17 @@ const ArchitectAdvisorPanel = forwardRef<ArchitectAdvisorRef, Props>(({ onParams
       shapeH = maxY - minY;
     }
 
-    onGenerateTrigger({ tracerImageBase64: base64 || undefined, canvasW: outputW, canvasH: outputH, shapeW, shapeH, isShapeModified: shapeWasModified });
-  }, [exportForAI, onGenerateTrigger, outputW, outputH, shapeWasModified, polygon, suggestedShape]);
+    onGenerateTrigger({
+      tracerImageBase64: base64 || undefined,
+      canvasW: outputW,
+      canvasH: outputH,
+      shapeW,
+      shapeH,
+      isShapeModified: shapeWasModified,
+      hasDividers: dividerLines.length > 0,
+      numDividers: dividerLines.length,
+    });
+  }, [exportForAI, onGenerateTrigger, outputW, outputH, shapeWasModified, polygon, suggestedShape, dividerLines]);
 
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
@@ -954,6 +994,101 @@ const ArchitectAdvisorPanel = forwardRef<ArchitectAdvisorRef, Props>(({ onParams
         ctx.restore();
         ctx.textAlign = 'left';
 
+        // ── Render User-Drawn Divider Partition Lines ──────────────────────────
+        if (dividerLines.length > 0) {
+          dividerLines.forEach((line, idx) => {
+            ctx.save();
+            // Outer cyan/amber glow
+            ctx.strokeStyle = 'rgba(0, 240, 255, 0.35)';
+            ctx.lineWidth = 7;
+            ctx.beginPath();
+            ctx.moveTo(line.p1.x, line.p1.y);
+            ctx.lineTo(line.p2.x, line.p2.y);
+            ctx.stroke();
+
+            // Inner gold structural wall line
+            ctx.strokeStyle = '#f59e0b';
+            ctx.lineWidth = 2.5;
+            ctx.setLineDash([6, 3]);
+            ctx.beginPath();
+            ctx.moveTo(line.p1.x, line.p1.y);
+            ctx.lineTo(line.p2.x, line.p2.y);
+            ctx.stroke();
+            ctx.setLineDash([]);
+
+            // Terminal dots
+            [line.p1, line.p2].forEach(p => {
+              ctx.fillStyle = '#00f0ff';
+              ctx.beginPath();
+              ctx.arc(p.x, p.y, 4, 0, Math.PI * 2);
+              ctx.fill();
+              ctx.strokeStyle = '#ffffff';
+              ctx.lineWidth = 1.5;
+              ctx.stroke();
+            });
+
+            // Cut Tag badge at midpoint
+            const midX = (line.p1.x + line.p2.x) / 2;
+            const midY = (line.p1.y + line.p2.y) / 2;
+            const distM = pxToM(Math.hypot(line.p2.x - line.p1.x, line.p2.y - line.p1.y));
+            
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.85)';
+            ctx.fillRect(midX - 32, midY - 10, 64, 20);
+            ctx.strokeStyle = '#f59e0b';
+            ctx.lineWidth = 1;
+            ctx.strokeRect(midX - 32, midY - 10, 64, 20);
+
+            ctx.fillStyle = '#fbbf24';
+            ctx.font = 'bold 8px monospace';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(`CUT #${idx + 1} (${distM}m)`, midX, midY);
+            ctx.restore();
+          });
+        }
+
+        // In-progress Divider Laser Line
+        if (isDividingMode && activeDividerStart && hoverPt) {
+          ctx.save();
+          ctx.strokeStyle = 'rgba(0, 240, 255, 0.85)';
+          ctx.lineWidth = 3;
+          ctx.setLineDash([4, 2]);
+          ctx.beginPath();
+          ctx.moveTo(activeDividerStart.x, activeDividerStart.y);
+          ctx.lineTo(hoverPt.x, hoverPt.y);
+          ctx.stroke();
+          ctx.setLineDash([]);
+
+          // Start node
+          ctx.fillStyle = '#10b981';
+          ctx.beginPath();
+          ctx.arc(activeDividerStart.x, activeDividerStart.y, 6, 0, Math.PI * 2);
+          ctx.fill();
+
+          // End node
+          ctx.fillStyle = '#00f0ff';
+          ctx.beginPath();
+          ctx.arc(hoverPt.x, hoverPt.y, 6, 0, Math.PI * 2);
+          ctx.fill();
+
+          // Live length readout
+          const curLenM = pxToM(Math.hypot(hoverPt.x - activeDividerStart.x, hoverPt.y - activeDividerStart.y));
+          const midX = (activeDividerStart.x + hoverPt.x) / 2;
+          const midY = (activeDividerStart.y + hoverPt.y) / 2;
+          ctx.fillStyle = 'rgba(0,0,0,0.9)';
+          ctx.fillRect(midX - 26, midY - 12, 52, 18);
+          ctx.strokeStyle = '#00f0ff';
+          ctx.lineWidth = 1;
+          ctx.strokeRect(midX - 26, midY - 12, 52, 18);
+
+          ctx.fillStyle = '#00f0ff';
+          ctx.font = 'bold 9px monospace';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText(`${curLenM}m`, midX, midY - 3);
+          ctx.restore();
+        }
+
       } else {
         // In-progress trace
         ctx.strokeStyle = '#00f0ff';
@@ -984,7 +1119,7 @@ const ArchitectAdvisorPanel = forwardRef<ArchitectAdvisorRef, Props>(({ onParams
       ctx.setLineDash([]);
       ctx.fillText(`${pxToM(hoverPt.x)}m, ${pxToM(hoverPt.y)}m`, hoverPt.x + 6, hoverPt.y - 3);
     }
-  }, [polygon, hoverPt, isTracingClosed, bgImage, imgBounds, suggestedShape, canvasW, canvasH, cellPx, pxToM, isEditingShape, editablePolygons, hoveredEdge, shapeDragIdx, isRotatingShape, isDraggingWholeShape, shapeWasModified]);
+  }, [polygon, hoverPt, isTracingClosed, bgImage, imgBounds, suggestedShape, canvasW, canvasH, cellPx, pxToM, isEditingShape, editablePolygons, hoveredEdge, shapeDragIdx, isRotatingShape, isDraggingWholeShape, shapeWasModified, isDividingMode, dividerLines, activeDividerStart]);
 
   useEffect(() => {
     // Smooth scroll the closest scrollable container (the page wrapper) instead of using scrollIntoView
@@ -1048,6 +1183,13 @@ const ArchitectAdvisorPanel = forwardRef<ArchitectAdvisorRef, Props>(({ onParams
 
   const handleCanvasMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
     const raw = getCanvasCoords(e);
+    const snapped = snapToGrid(raw.x, raw.y);
+
+    // ── Live Dividing Mode Intercept ─────────────────────────────────────────
+    if (isDividingMode) {
+      setActiveDividerStart(snapped);
+      return;
+    }
 
     // ── Shape editing intercept ─────────────────────────────────────────────
     if (isEditingShape && editablePolygons && editablePolygons.length > 0) {
@@ -1271,10 +1413,26 @@ const ArchitectAdvisorPanel = forwardRef<ArchitectAdvisorRef, Props>(({ onParams
       }
     }
 
+    if (isDividingMode) {
+      setHoverPt(snapToGrid(raw.x, raw.y));
+      if (canvasRef.current) canvasRef.current.style.cursor = 'crosshair';
+      return;
+    }
+
     setHoverPt(snapToGrid(raw.x, raw.y));
   };
 
-  const handleCanvasMouseUp = () => {
+  const handleCanvasMouseUp = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    if (isDividingMode && activeDividerStart) {
+      const raw = getCanvasCoords(e);
+      const snapped = snapToGrid(raw.x, raw.y);
+      if (Math.hypot(snapped.x - activeDividerStart.x, snapped.y - activeDividerStart.y) > 12) {
+        setDividerLines(prev => [...prev, { p1: activeDividerStart, p2: snapped }]);
+      }
+      setActiveDividerStart(null);
+      return;
+    }
+
     setDragMode(null);
     setDragStartRaw(null);
     setInitialBounds(null);
@@ -1302,6 +1460,7 @@ const ArchitectAdvisorPanel = forwardRef<ArchitectAdvisorRef, Props>(({ onParams
   }, [customFootprintPts, polygonAreaM2]);
 
   const handleCanvasClick = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    if (isDividingMode) return; // divider mode uses mousedown/mouseup drag
     if (isEditingShape) return; // editing mode handles its own clicks in mouseDown
     if (hasDraggedImg) {
       setHasDraggedImg(false);
@@ -1399,8 +1558,10 @@ const ArchitectAdvisorPanel = forwardRef<ArchitectAdvisorRef, Props>(({ onParams
     setIsEditingShape(false);
     setEditablePolygons(null);
     setShapeWasModified(false);
-    setShapeGeometryAnalysis(null);
     setShapeRotationAngle(0);
+    setIsDividingMode(false);
+    setDividerLines([]);
+    setActiveDividerStart(null);
   };
 
   // ── Shape Editing Functions ─────────────────────────────────────────────────
@@ -2054,6 +2215,30 @@ Use these measurements to determine which apartment types can physically fit in 
         <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleImageUpload} />
 
         <div className={`flex flex-col relative flex-1 min-h-0 ${isFullscreen ? 'items-center justify-center p-4 h-[calc(100vh-140px)]' : 'items-center justify-center'}`}>
+          {isDividingMode && (
+            <div className="absolute top-2 left-3 right-3 z-30 px-3 py-1.5 bg-black/85 backdrop-blur-md border border-cyan-400/50 rounded-lg flex items-center justify-between shadow-xl">
+              <div className="flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse" />
+                <span className="text-[10px] font-bold text-cyan-300 uppercase tracking-wider">
+                  ✂️ LIVE DIVIDE: DRAG ACROSS BUILDING TO DRAW PARTITION WALLS
+                </span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-[9px] font-mono font-bold text-emerald-400 bg-emerald-950/60 px-2 py-0.5 rounded border border-emerald-500/30">
+                  {dividerLines.length} CUTS ({dividerLines.length + 1} FLATS)
+                </span>
+                {dividerLines.length > 0 && (
+                  <button
+                    onClick={() => setDividerLines(prev => prev.slice(0, -1))}
+                    className="px-2 py-0.5 bg-white/10 hover:bg-white/20 text-slate-300 rounded text-[9px] cursor-pointer"
+                  >
+                    ↶ Undo Cut
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
+
           <canvas
             ref={canvasRef}
             width={canvasW}
@@ -2093,6 +2278,48 @@ Use these measurements to determine which apartment types can physically fit in 
                 </span>
               )}
             </div>
+
+            {/* Live Divide Button */}
+            {(suggestedShape || (isTracingClosed && polygon.length >= 3)) && (
+              <div className="flex items-center gap-1.5 ml-auto">
+                {!isDividingMode ? (
+                  <button
+                    onClick={() => { setIsDividingMode(true); setIsEditingShape(false); }}
+                    className="px-2.5 py-0.5 bg-gradient-to-r from-cyan-500/30 to-blue-500/20 hover:from-cyan-500/40 hover:to-blue-500/30 text-cyan-300 rounded border border-cyan-400/50 transition-all flex items-center gap-1.5 text-[9px] font-bold shadow-[0_0_10px_rgba(0,240,255,0.2)] cursor-pointer"
+                  >
+                    <Scissors className="w-3 h-3 text-cyan-400" />
+                    <span>Live Divide Flats {dividerLines.length > 0 ? `(${dividerLines.length})` : ''}</span>
+                  </button>
+                ) : (
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      onClick={() => setIsDividingMode(false)}
+                      className="px-2.5 py-0.5 bg-emerald-500/30 hover:bg-emerald-500/40 text-emerald-300 rounded border border-emerald-400 transition-all flex items-center gap-1 text-[9px] font-bold shadow-[0_0_8px_rgba(16,185,129,0.3)] cursor-pointer"
+                    >
+                      <Check className="w-3 h-3" /> Done Dividing
+                    </button>
+                    {dividerLines.length > 0 && (
+                      <>
+                        <button
+                          onClick={() => setDividerLines(prev => prev.slice(0, -1))}
+                          className="px-2 py-0.5 bg-white/10 hover:bg-white/20 text-slate-300 rounded text-[9px] font-bold cursor-pointer"
+                          title="Undo Last Cut"
+                        >
+                          ↶ Undo
+                        </button>
+                        <button
+                          onClick={() => setDividerLines([])}
+                          className="px-2 py-0.5 bg-red-500/20 hover:bg-red-500/30 text-red-300 rounded text-[9px] font-bold cursor-pointer"
+                          title="Clear All Cuts"
+                        >
+                          ✕ Clear
+                        </button>
+                      </>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         )}
       </div>
