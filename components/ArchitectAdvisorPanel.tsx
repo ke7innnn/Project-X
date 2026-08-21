@@ -78,6 +78,10 @@ export interface ArchitectAdvisorRef {
   exportCanvasBase64: () => string | null;
   getShapeModifiedState: () => boolean;
   getCanvasDimensions: () => { w: number, h: number };
+  getRoomSketchState: () => { hasRoomSketch: boolean; numRoomSketchLines: number };
+  getDividersState: () => { hasDividers: boolean; numDividers: number };
+  getCustomLabels: () => string[];
+  getRoomBlocks: () => Array<{ type: string; label: string; xM: number; yM: number; wM: number; hM: number }>;
 }
 
 interface Props {
@@ -792,7 +796,24 @@ const ArchitectAdvisorPanel = forwardRef<ArchitectAdvisorRef, Props>(({ onParams
   useImperativeHandle(ref, () => ({
     exportCanvasBase64: () => exportForAI(),
     getShapeModifiedState: () => shapeWasModified,
-    getCanvasDimensions: () => ({ w: outputW, h: outputH })
+    getCanvasDimensions: () => ({ w: outputW, h: outputH }),
+    getRoomSketchState: () => ({
+      hasRoomSketch: roomSketchLines.length > 0,
+      numRoomSketchLines: roomSketchLines.length,
+    }),
+    getDividersState: () => ({
+      hasDividers: dividerLines.length > 0,
+      numDividers: dividerLines.length,
+    }),
+    getCustomLabels: () => zoneLabels.map(l => l.text),
+    getRoomBlocks: () => roomBlocks.map(b => ({
+      type: b.type,
+      label: b.label,
+      xM: pxToM(b.x),
+      yM: pxToM(b.y),
+      wM: pxToM(b.w),
+      hM: pxToM(b.h),
+    })),
   }));
 
   // Draw canvas

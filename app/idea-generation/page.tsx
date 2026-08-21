@@ -293,9 +293,16 @@ export default function IdeaGenerationPage() {
         // Strip data URL prefix for display in debug modal (modal adds it back)
         const strippedBase64 = typeof traceBase64 === 'string' ? traceBase64.replace(/^data:image\/\w+;base64,/, '') : traceBase64;
 
+        const hasSketch = aiOpts?.hasRoomSketch ?? advisorRef.current?.getRoomSketchState()?.hasRoomSketch ?? false;
+        const numSketchLines = aiOpts?.numRoomSketchLines ?? advisorRef.current?.getRoomSketchState()?.numRoomSketchLines ?? 0;
+        const hasDivs = aiOpts?.hasDividers ?? advisorRef.current?.getDividersState()?.hasDividers ?? false;
+        const numDivs = aiOpts?.numDividers ?? advisorRef.current?.getDividersState()?.numDividers ?? 0;
+        const cLabels = aiOpts?.customLabels ?? advisorRef.current?.getCustomLabels() ?? [];
+        const rBlocks = aiOpts?.roomBlocks ?? advisorRef.current?.getRoomBlocks() ?? [];
+
         // ── ROUGH SKETCH → CAD SINGLE-STEP WORKFLOW ──────────────────────────────
-        if (aiOpts?.hasRoomSketch) {
-          setLogs(prev => [...prev, `[SYS] ROUGH SKETCH MODE DETECTED — ${aiOpts.numRoomSketchLines || 0} room partition line(s) found`]);
+        if (hasSketch) {
+          setLogs(prev => [...prev, `[SYS] ROUGH SKETCH MODE DETECTED — ${numSketchLines} room partition line(s) found`]);
           setLogs(prev => [...prev, `[SYS] BYPASSING MULTI-STAGE PIPELINE — Running Sketch→CAD (1-Step) via GPT Image 2 Medium`]);
           setLogs(prev => [...prev, `[SYS] UPLOADING SKETCH CANVAS TO FAL STORAGE...`]);
 
@@ -390,10 +397,10 @@ STAGE 2 → Refine interior layout, enforce NBC room sizes, verify room complete
             useFireSafety: fireSafetyCode,
             shapeW: aiOpts?.shapeW,
             shapeH: aiOpts?.shapeH,
-            hasDividers: aiOpts?.hasDividers,
-            numDividers: aiOpts?.numDividers,
-            customLabels: aiOpts?.customLabels,
-            roomBlocks: aiOpts?.roomBlocks,
+            hasDividers: hasDivs,
+            numDividers: numDivs,
+            customLabels: cLabels,
+            roomBlocks: rBlocks,
           }),
         }).then(async (res) => {
           const contentType = res.headers.get('content-type') || '';
