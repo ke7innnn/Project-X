@@ -22,6 +22,7 @@ export interface RoomBlock {
   y: number;     // canvas px top-left y
   w: number;     // canvas px width
   h: number;     // canvas px height
+  rotation?: number; // rotation in degrees (0, 45, 90, etc.)
 }
 
 interface PlotData {
@@ -419,13 +420,17 @@ const ArchitectAdvisorPanel = forwardRef<ArchitectAdvisorRef, Props>(({ onParams
   const [activeBlockId, setActiveBlockId] = useState<string | null>(null);
   const [blockDragState, setBlockDragState] = useState<{
     id: string;
-    mode: 'move' | 'nw' | 'ne' | 'se' | 'sw' | 'e' | 's';
+    mode: 'move' | 'nw' | 'ne' | 'se' | 'sw' | 'e' | 's' | 'rotate';
     startX: number;
     startY: number;
     initX: number;
     initY: number;
     initW: number;
     initH: number;
+    initRot: number;
+    centerX: number;
+    centerY: number;
+    startAngle: number;
   } | null>(null);
 
   // Helper: check if a point is inside the traced plot polygon
@@ -669,17 +674,21 @@ const ArchitectAdvisorPanel = forwardRef<ArchitectAdvisorRef, Props>(({ onParams
 
       // 8. Draw custom user-placed room blocks (B, K, L, C, T, BAL) in solid black on mask!
       if (roomBlocks.length > 0) {
-        ctx.save();
         roomBlocks.forEach(blk => {
-          const sx = Math.round(blk.x * scale + offsetX);
-          const sy = Math.round(blk.y * scale + offsetY);
+          ctx.save();
+          const cx = Math.round((blk.x + blk.w / 2) * scale + offsetX);
+          const cy = Math.round((blk.y + blk.h / 2) * scale + offsetY);
           const sw = Math.round(blk.w * scale);
           const sh = Math.round(blk.h * scale);
+          const rad = (((blk.rotation || 0) * Math.PI) / 180);
+
+          ctx.translate(cx, cy);
+          if (rad !== 0) ctx.rotate(rad);
 
           // Draw thick room rectangle boundary
           ctx.strokeStyle = '#000000';
           ctx.lineWidth = 4.0;
-          ctx.strokeRect(sx, sy, sw, sh);
+          ctx.strokeRect(-sw / 2, -sh / 2, sw, sh);
 
           // Draw room label (B, K, L, C, T, BAL) inside room box
           ctx.fillStyle = '#000000';
@@ -687,9 +696,9 @@ const ArchitectAdvisorPanel = forwardRef<ArchitectAdvisorRef, Props>(({ onParams
           ctx.font = `bold ${fontSize}px monospace`;
           ctx.textAlign = 'center';
           ctx.textBaseline = 'middle';
-          ctx.fillText(blk.label, sx + sw / 2, sy + sh / 2);
+          ctx.fillText(blk.label, 0, 0);
+          ctx.restore();
         });
-        ctx.restore();
       }
     }
 
@@ -1277,6 +1286,12 @@ const ArchitectAdvisorPanel = forwardRef<ArchitectAdvisorRef, Props>(({ onParams
           roomBlocks.forEach(blk => {
             ctx.save();
             const isSelected = activeBlockId === blk.id;
+            const cx = blk.x + blk.w / 2;
+            const cy = blk.y + blk.h / 2;
+            const rad = (((blk.rotation || 0) * Math.PI) / 180);
+
+            ctx.translate(cx, cy);
+            if (rad !== 0) ctx.rotate(rad);
 
             // Room palette configuration
             let fillStyle = 'rgba(16, 185, 129, 0.3)'; // L: Emerald
@@ -1295,13 +1310,13 @@ const ArchitectAdvisorPanel = forwardRef<ArchitectAdvisorRef, Props>(({ onParams
 
             // Outer box fill
             ctx.fillStyle = fillStyle;
-            ctx.fillRect(blk.x, blk.y, blk.w, blk.h);
+            ctx.fillRect(-blk.w / 2, -blk.h / 2, blk.w, blk.h);
 
             // Border stroke
             ctx.strokeStyle = strokeStyle;
             ctx.lineWidth = isSelected ? 2.5 : 1.5;
             ctx.setLineDash(blk.type === 'C' ? [6, 3] : []);
-            ctx.strokeRect(blk.x, blk.y, blk.w, blk.h);
+            ctx.strokeRect(-blk.w / 2, -blk.h / 2, blk.w, blk.h);
             ctx.setLineDash([]);
 
             // Dimensions in meters
@@ -1313,24 +1328,28 @@ const ArchitectAdvisorPanel = forwardRef<ArchitectAdvisorRef, Props>(({ onParams
             ctx.font = 'bold 12px monospace';
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
-            ctx.fillText(blk.label, blk.x + blk.w / 2, blk.y + blk.h / 2 - 4);
+            ctx.fillText(blk.label, 0, -4);
 
-            ctx.fillStyle = 'rgba(255, 255, 255, 0.75)';
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.85)';
             ctx.font = 'bold 8px monospace';
-            ctx.fillText(`${wM}m × ${hM}m`, blk.x + blk.w / 2, blk.y + blk.h / 2 + 7);
+            const rotBadge = blk.rotation ? ` • ${Math.round(blk.rotation)}°` : '';
+            ctx.fillText(`${wM}m × ${hM}m${rotBadge}`, 0, 7);
 
-            // Corner resize handles if in room block mode
+            // Corner resize & rotation handles if in room block mode
             if (isRoomBlockMode) {
               const handleR = 3.5;
               ctx.fillStyle = isSelected ? '#ffffff' : strokeStyle;
               ctx.strokeStyle = '#000000';
               ctx.lineWidth = 1;
 
+              const halfW = blk.w / 2;
+              const halfH = blk.h / 2;
+
               const corners = [
-                { x: blk.x, y: blk.y },
-                { x: blk.x + blk.w, y: blk.y },
-                { x: blk.x + blk.w, y: blk.y + blk.h },
-                { x: blk.x, y: blk.y + blk.h },
+                { x: -halfW, y: -halfH },
+                { x: halfW, y: -halfH },
+                { x: halfW, y: halfH },
+                { x: -halfW, y: halfH },
               ];
               corners.forEach(c => {
                 ctx.beginPath();
@@ -1338,6 +1357,24 @@ const ArchitectAdvisorPanel = forwardRef<ArchitectAdvisorRef, Props>(({ onParams
                 ctx.fill();
                 ctx.stroke();
               });
+
+              // Top Rotation Stem & Lever Handle
+              const rotHandleY = -halfH - 20;
+              ctx.strokeStyle = isSelected ? '#00f0ff' : 'rgba(255, 255, 255, 0.6)';
+              ctx.lineWidth = 1.2;
+              ctx.beginPath();
+              ctx.moveTo(0, -halfH);
+              ctx.lineTo(0, rotHandleY);
+              ctx.stroke();
+
+              // Rotation Knob
+              ctx.fillStyle = isSelected ? '#00f0ff' : '#a855f7';
+              ctx.strokeStyle = '#ffffff';
+              ctx.lineWidth = 1.5;
+              ctx.beginPath();
+              ctx.arc(0, rotHandleY, 5, 0, Math.PI * 2);
+              ctx.fill();
+              ctx.stroke();
             }
             ctx.restore();
           });
@@ -1468,6 +1505,22 @@ const ArchitectAdvisorPanel = forwardRef<ArchitectAdvisorRef, Props>(({ onParams
     };
   };
 
+  const toBlockLocal = useCallback((px: number, py: number, blk: RoomBlock) => {
+    const cx = blk.x + blk.w / 2;
+    const cy = blk.y + blk.h / 2;
+    const rad = (((blk.rotation || 0) * Math.PI) / 180);
+    const dx = px - cx;
+    const dy = py - cy;
+    const cos = Math.cos(-rad);
+    const sin = Math.sin(-rad);
+    return {
+      localX: dx * cos - dy * sin,
+      localY: dx * sin + dy * cos,
+      cx,
+      cy,
+    };
+  }, []);
+
   const handleCanvasMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
     const raw = getCanvasCoords(e);
     const snapped = snapToGrid(raw.x, raw.y);
@@ -1513,50 +1566,80 @@ const ArchitectAdvisorPanel = forwardRef<ArchitectAdvisorRef, Props>(({ onParams
     if (isRoomBlockMode) {
       const HANDLE_DIST = 14;
 
-      // 1. Check if clicking corner resize handle of an existing room block
+      // 1. Check top rotation handle on room blocks
       for (let i = roomBlocks.length - 1; i >= 0; i--) {
         const blk = roomBlocks[i];
-        if (Math.hypot(raw.x - (blk.x + blk.w), raw.y - (blk.y + blk.h)) <= HANDLE_DIST) {
+        const { localX, localY, cx, cy } = toBlockLocal(raw.x, raw.y, blk);
+        const rotHandleY = -blk.h / 2 - 20;
+        if (Math.hypot(localX, localY - rotHandleY) <= 14) {
           setActiveBlockId(blk.id);
-          setBlockDragState({ id: blk.id, mode: 'se', startX: raw.x, startY: raw.y, initX: blk.x, initY: blk.y, initW: blk.w, initH: blk.h });
-          return;
-        }
-        if (Math.hypot(raw.x - blk.x, raw.y - (blk.y + blk.h)) <= HANDLE_DIST) {
-          setActiveBlockId(blk.id);
-          setBlockDragState({ id: blk.id, mode: 'sw', startX: raw.x, startY: raw.y, initX: blk.x, initY: blk.y, initW: blk.w, initH: blk.h });
-          return;
-        }
-        if (Math.hypot(raw.x - (blk.x + blk.w), raw.y - blk.y) <= HANDLE_DIST) {
-          setActiveBlockId(blk.id);
-          setBlockDragState({ id: blk.id, mode: 'ne', startX: raw.x, startY: raw.y, initX: blk.x, initY: blk.y, initW: blk.w, initH: blk.h });
-          return;
-        }
-        if (Math.hypot(raw.x - blk.x, raw.y - blk.y) <= HANDLE_DIST) {
-          setActiveBlockId(blk.id);
-          setBlockDragState({ id: blk.id, mode: 'nw', startX: raw.x, startY: raw.y, initX: blk.x, initY: blk.y, initW: blk.w, initH: blk.h });
+          setBlockDragState({
+            id: blk.id,
+            mode: 'rotate',
+            startX: raw.x,
+            startY: raw.y,
+            initX: blk.x,
+            initY: blk.y,
+            initW: blk.w,
+            initH: blk.h,
+            initRot: blk.rotation || 0,
+            centerX: cx,
+            centerY: cy,
+            startAngle: Math.atan2(raw.y - cy, raw.x - cx),
+          });
           return;
         }
       }
 
-      // 2. Check if clicking inside an existing room block body to move it
+      // 2. Check corner resize handles in rotated local space
       for (let i = roomBlocks.length - 1; i >= 0; i--) {
         const blk = roomBlocks[i];
-        if (raw.x >= blk.x && raw.x <= blk.x + blk.w && raw.y >= blk.y && raw.y <= blk.y + blk.h) {
+        const { localX, localY, cx, cy } = toBlockLocal(raw.x, raw.y, blk);
+        const halfW = blk.w / 2;
+        const halfH = blk.h / 2;
+
+        if (Math.hypot(localX - halfW, localY - halfH) <= HANDLE_DIST) {
           setActiveBlockId(blk.id);
-          setBlockDragState({ id: blk.id, mode: 'move', startX: raw.x, startY: raw.y, initX: blk.x, initY: blk.y, initW: blk.w, initH: blk.h });
+          setBlockDragState({ id: blk.id, mode: 'se', startX: raw.x, startY: raw.y, initX: blk.x, initY: blk.y, initW: blk.w, initH: blk.h, initRot: blk.rotation || 0, centerX: cx, centerY: cy, startAngle: 0 });
+          return;
+        }
+        if (Math.hypot(localX - (-halfW), localY - halfH) <= HANDLE_DIST) {
+          setActiveBlockId(blk.id);
+          setBlockDragState({ id: blk.id, mode: 'sw', startX: raw.x, startY: raw.y, initX: blk.x, initY: blk.y, initW: blk.w, initH: blk.h, initRot: blk.rotation || 0, centerX: cx, centerY: cy, startAngle: 0 });
+          return;
+        }
+        if (Math.hypot(localX - halfW, localY - (-halfH)) <= HANDLE_DIST) {
+          setActiveBlockId(blk.id);
+          setBlockDragState({ id: blk.id, mode: 'ne', startX: raw.x, startY: raw.y, initX: blk.x, initY: blk.y, initW: blk.w, initH: blk.h, initRot: blk.rotation || 0, centerX: cx, centerY: cy, startAngle: 0 });
+          return;
+        }
+        if (Math.hypot(localX - (-halfW), localY - (-halfH)) <= HANDLE_DIST) {
+          setActiveBlockId(blk.id);
+          setBlockDragState({ id: blk.id, mode: 'nw', startX: raw.x, startY: raw.y, initX: blk.x, initY: blk.y, initW: blk.w, initH: blk.h, initRot: blk.rotation || 0, centerX: cx, centerY: cy, startAngle: 0 });
           return;
         }
       }
 
-      // 3. Drop new room block at cursor with realistic initial dimensions
+      // 3. Check clicking inside room block body to move it
+      for (let i = roomBlocks.length - 1; i >= 0; i--) {
+        const blk = roomBlocks[i];
+        const { localX, localY, cx, cy } = toBlockLocal(raw.x, raw.y, blk);
+        if (Math.abs(localX) <= blk.w / 2 && Math.abs(localY) <= blk.h / 2) {
+          setActiveBlockId(blk.id);
+          setBlockDragState({ id: blk.id, mode: 'move', startX: raw.x, startY: raw.y, initX: blk.x, initY: blk.y, initW: blk.w, initH: blk.h, initRot: blk.rotation || 0, centerX: cx, centerY: cy, startAngle: 0 });
+          return;
+        }
+      }
+
+      // 4. Drop new room block at cursor with realistic initial dimensions
       let defWM = 4.5;
       let defHM = 3.5;
-      if (selectedBlockType === 'L') { defWM = 6.0; defHM = 3.8; } // Living room: wider & spacious
-      else if (selectedBlockType === 'C') { defWM = 8.0; defHM = 1.6; } // Corridor: long runner
-      else if (selectedBlockType === 'K') { defWM = 3.6; defHM = 2.8; } // Kitchen
-      else if (selectedBlockType === 'B') { defWM = 4.5; defHM = 3.5; } // Bedroom
-      else if (selectedBlockType === 'T') { defWM = 2.4; defHM = 1.8; } // Toilet
-      else if (selectedBlockType === 'BAL') { defWM = 4.5; defHM = 1.6; } // Balcony
+      if (selectedBlockType === 'L') { defWM = 6.0; defHM = 3.8; }
+      else if (selectedBlockType === 'C') { defWM = 8.0; defHM = 1.6; }
+      else if (selectedBlockType === 'K') { defWM = 3.6; defHM = 2.8; }
+      else if (selectedBlockType === 'B') { defWM = 4.5; defHM = 3.5; }
+      else if (selectedBlockType === 'T') { defWM = 2.4; defHM = 1.8; }
+      else if (selectedBlockType === 'BAL') { defWM = 4.5; defHM = 1.6; }
 
       const defWPx = Math.round((defWM / CELL_M) * cellPx);
       const defHPx = Math.round((defHM / CELL_M) * cellPx);
@@ -1569,6 +1652,7 @@ const ArchitectAdvisorPanel = forwardRef<ArchitectAdvisorRef, Props>(({ onParams
         y: Math.round(snapped.y - defHPx / 2),
         w: defWPx,
         h: defHPx,
+        rotation: 0,
       };
 
       setRoomBlocks(prev => [...prev, newBlk]);
@@ -1807,51 +1891,80 @@ const ArchitectAdvisorPanel = forwardRef<ArchitectAdvisorRef, Props>(({ onParams
         setRoomBlocks(prev => prev.map(blk => {
           if (blk.id !== blockDragState.id) return blk;
 
-          let { initX, initY, initW, initH } = blockDragState;
+          if (blockDragState.mode === 'rotate') {
+            const currAngle = Math.atan2(raw.y - blockDragState.centerY, raw.x - blockDragState.centerX);
+            const deltaDeg = ((currAngle - blockDragState.startAngle) * 180) / Math.PI;
+            let newRot = (blockDragState.initRot + deltaDeg) % 360;
+            if (newRot < 0) newRot += 360;
+
+            // Snap to 15° increments when close to standard angles
+            if (Math.abs(newRot % 45) < 3.5) newRot = Math.round(newRot / 45) * 45;
+            else if (Math.abs(newRot % 15) < 2.5) newRot = Math.round(newRot / 15) * 15;
+
+            return { ...blk, rotation: Math.round(newRot) };
+          }
+
+          let { initX, initY, initW, initH, initRot } = blockDragState;
 
           if (blockDragState.mode === 'move') {
             const nx = Math.round((initX + dx) / snapM) * snapM;
             const ny = Math.round((initY + dy) / snapM) * snapM;
             return { ...blk, x: nx, y: ny };
-          } else if (blockDragState.mode === 'se') {
-            const nw = Math.max(20, Math.round((initW + dx) / snapM) * snapM);
-            const nh = Math.max(16, Math.round((initH + dy) / snapM) * snapM);
-            return { ...blk, w: nw, h: nh };
-          } else if (blockDragState.mode === 'sw') {
-            const nw = Math.max(20, Math.round((initW - dx) / snapM) * snapM);
-            const nx = initX + (initW - nw);
-            const nh = Math.max(16, Math.round((initH + dy) / snapM) * snapM);
-            return { ...blk, x: nx, w: nw, h: nh };
-          } else if (blockDragState.mode === 'ne') {
-            const nw = Math.max(20, Math.round((initW + dx) / snapM) * snapM);
-            const nh = Math.max(16, Math.round((initH - dy) / snapM) * snapM);
-            const ny = initY + (initH - nh);
-            return { ...blk, y: ny, w: nw, h: nh };
-          } else if (blockDragState.mode === 'nw') {
-            const nw = Math.max(20, Math.round((initW - dx) / snapM) * snapM);
-            const nx = initX + (initW - nw);
-            const nh = Math.max(16, Math.round((initH - dy) / snapM) * snapM);
-            const ny = initY + (initH - nh);
-            return { ...blk, x: nx, y: ny, w: nw, h: nh };
+          } else {
+            // Local rotated resize delta
+            const rad = ((initRot * Math.PI) / 180);
+            const cos = Math.cos(-rad);
+            const sin = Math.sin(-rad);
+            const localDx = dx * cos - dy * sin;
+            const localDy = dx * sin + dy * cos;
+
+            if (blockDragState.mode === 'se') {
+              const nw = Math.max(20, Math.round((initW + localDx) / snapM) * snapM);
+              const nh = Math.max(16, Math.round((initH + localDy) / snapM) * snapM);
+              return { ...blk, w: nw, h: nh };
+            } else if (blockDragState.mode === 'sw') {
+              const nw = Math.max(20, Math.round((initW - localDx) / snapM) * snapM);
+              const nh = Math.max(16, Math.round((initH + localDy) / snapM) * snapM);
+              return { ...blk, w: nw, h: nh };
+            } else if (blockDragState.mode === 'ne') {
+              const nw = Math.max(20, Math.round((initW + localDx) / snapM) * snapM);
+              const nh = Math.max(16, Math.round((initH - localDy) / snapM) * snapM);
+              return { ...blk, w: nw, h: nh };
+            } else if (blockDragState.mode === 'nw') {
+              const nw = Math.max(20, Math.round((initW - localDx) / snapM) * snapM);
+              const nh = Math.max(16, Math.round((initH - localDy) / snapM) * snapM);
+              return { ...blk, w: nw, h: nh };
+            }
           }
           return blk;
         }));
 
-        if (canvasRef.current) canvasRef.current.style.cursor = blockDragState.mode === 'move' ? 'grabbing' : 'nwse-resize';
+        if (canvasRef.current) {
+          if (blockDragState.mode === 'rotate') canvasRef.current.style.cursor = 'grab';
+          else if (blockDragState.mode === 'move') canvasRef.current.style.cursor = 'grabbing';
+          else canvasRef.current.style.cursor = 'nwse-resize';
+        }
       } else {
-        // Dynamic cursor on hover over block or corner
+        // Dynamic cursor on hover over rotate handle, corner, or body
         let cursor = 'crosshair';
         for (const blk of roomBlocks) {
-          const HANDLE_DIST = 14;
-          if (Math.hypot(raw.x - (blk.x + blk.w), raw.y - (blk.y + blk.h)) <= HANDLE_DIST || Math.hypot(raw.x - blk.x, raw.y - blk.y) <= HANDLE_DIST) {
+          const { localX, localY } = toBlockLocal(raw.x, raw.y, blk);
+          const rotHandleY = -blk.h / 2 - 20;
+          if (Math.hypot(localX, localY - rotHandleY) <= 14) {
+            cursor = 'grab';
+            break;
+          }
+          const halfW = blk.w / 2;
+          const halfH = blk.h / 2;
+          if (Math.hypot(localX - halfW, localY - halfH) <= 14 || Math.hypot(localX - (-halfW), localY - (-halfH)) <= 14) {
             cursor = 'nwse-resize';
             break;
           }
-          if (Math.hypot(raw.x - blk.x, raw.y - (blk.y + blk.h)) <= HANDLE_DIST || Math.hypot(raw.x - (blk.x + blk.w), raw.y - blk.y) <= HANDLE_DIST) {
+          if (Math.hypot(localX - (-halfW), localY - halfH) <= 14 || Math.hypot(localX - halfW, localY - (-halfH)) <= 14) {
             cursor = 'nesw-resize';
             break;
           }
-          if (raw.x >= blk.x && raw.x <= blk.x + blk.w && raw.y >= blk.y && raw.y <= blk.y + blk.h) {
+          if (Math.abs(localX) <= halfW && Math.abs(localY) <= halfH) {
             cursor = 'grab';
             break;
           }
@@ -1977,7 +2090,10 @@ const ArchitectAdvisorPanel = forwardRef<ArchitectAdvisorRef, Props>(({ onParams
     if (isRoomBlockMode) {
       e.preventDefault();
       const raw = getCanvasCoords(e);
-      const clickedIdx = roomBlocks.findIndex(blk => raw.x >= blk.x && raw.x <= blk.x + blk.w && raw.y >= blk.y && raw.y <= blk.y + blk.h);
+      const clickedIdx = roomBlocks.findIndex(blk => {
+        const { localX, localY } = toBlockLocal(raw.x, raw.y, blk);
+        return Math.abs(localX) <= blk.w / 2 && Math.abs(localY) <= blk.h / 2;
+      });
       if (clickedIdx !== -1) {
         setRoomBlocks(prev => prev.filter((_, i) => i !== clickedIdx));
         return;
@@ -2861,10 +2977,18 @@ Use these measurements to determine which apartment types can physically fit in 
               <div className="flex items-center gap-2">
                 <span className="text-[8px] font-mono text-purple-300/80 uppercase">
                   (Drag corners to resize • Drag body to move • Right-click to delete)
-                </span>
-                <span className="text-[9px] font-mono font-bold text-purple-400 bg-purple-950/60 px-2 py-0.5 rounded border border-purple-500/30">
-                  {roomBlocks.length} BLOCKS
-                </span>
+                {roomBlocks.length > 0 && activeBlockId && (
+                  <button
+                    onClick={() => {
+                      setRoomBlocks(prev => prev.map(b => b.id === activeBlockId ? { ...b, rotation: (((b.rotation || 0) + 90) % 360) } : b));
+                    }}
+                    className="px-2 py-0.5 bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 rounded text-[9px] font-bold border border-cyan-400/50 cursor-pointer flex items-center gap-1 shadow-[0_0_6px_rgba(0,240,255,0.3)]"
+                    title="Rotate Selected Room Block by 90°"
+                  >
+                    <RotateCcw className="w-2.5 h-2.5 rotate-180" />
+                    <span>↻ Rotate 90°</span>
+                  </button>
+                )}
                 {roomBlocks.length > 0 && (
                   <>
                     <button
