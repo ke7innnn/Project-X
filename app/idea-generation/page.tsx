@@ -127,9 +127,10 @@ export default function IdeaGenerationPage() {
     stage2OutputUrl?: string;
     stage2Seed?: number;
     userPrompt?: string;
-    workflow?: string;
-  } | null>(null);
   const [showDebugModal, setShowDebugModal] = useState(false);
+  const [enhancingCandidateIdx, setEnhancingCandidateIdx] = useState<number | null>(null);
+  const [enhancedCandidates, setEnhancedCandidates] = useState<Record<number, { url: string; seed?: number; prompt?: string }>>({});
+  const [selectedStage2View, setSelectedStage2View] = useState<'winner' | number>('winner');
 
   // Load project configuration from activeProject config on mount or project switch
   useEffect(() => {
@@ -451,6 +452,66 @@ STAGE 2 → Refine interior layout, enforce NBC room sizes, verify room complete
       ]);
       setValidationError(`API Generation Error: ${errMsg}`);
       setIsGenerating(false);
+    }
+  };
+
+  // Enhance any alternative / rejected Stage 1 Candidate in Step 2 (GPT Image 2 Medium)
+  const handleEnhanceCandidate = async (candidateBase64: string, candidateIndex: number) => {
+    if (enhancingCandidateIdx !== null) return;
+    setEnhancingCandidateIdx(candidateIndex);
+    setValidationError(null);
+    setLogs(prev => [
+      ...prev,
+      `[SYS] ENHANCING CANDIDATE #${candidateIndex + 1} IN STEP 2 (GPT IMAGE 2 MEDIUM)...`,
+      `[SYS] Applying architectural CAD linework & furniture detailing on Candidate #${candidateIndex + 1}...`,
+    ]);
+
+    try {
+      const res = await fetch('/api/enhance-candidate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          candidateBase64,
+          candidateIndex,
+          units1BHK,
+          units2BHK,
+          units3BHK,
+          units4BHK,
+          passengerLifts,
+          staircases,
+          apiKey: falKey,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || 'Failed to enhance candidate in Step 2');
+      }
+
+      setEnhancedCandidates(prev => ({
+        ...prev,
+        [candidateIndex]: {
+          url: data.stage2ImageUrl,
+          seed: data.stage2Seed,
+          prompt: data.refinementPrompt,
+        },
+      }));
+      setSelectedStage2View(candidateIndex);
+
+      setLogs(prev => [
+        ...prev,
+        `[SYS] ✓ CANDIDATE #${candidateIndex + 1} ENHANCED BLUEPRINT GENERATED SUCCESSFULLY!`,
+      ]);
+
+      if (data.stage2ImageUrl) {
+        setVariantsHistory(prev => [data.stage2ImageUrl, ...prev.filter(item => item !== data.stage2ImageUrl)]);
+      }
+    } catch (err: any) {
+      const msg = err.message || 'Failed to enhance candidate';
+      setValidationError(`Candidate Enhancement Error: ${msg}`);
+      setLogs(prev => [...prev, `[ERR] Candidate #${candidateIndex + 1} enhancement failed: ${msg}`]);
+    } finally {
+      setEnhancingCandidateIdx(null);
     }
   };
 
@@ -1239,27 +1300,37 @@ STAGE 2 → Refine interior layout, enforce NBC room sizes, verify room complete
                       {debugPayload.stage1Candidates.map((candUrl, idx) => {
                         const isWinner = idx === (debugPayload.winnerIndex ?? 0);
                         const critique = debugPayload.candidateCritiques?.[idx] || (isWinner ? 'Selected as best candidate.' : '');
+                        const isEnhanced = !!enhancedCandidates[idx];
+                        const isCurrentlyEnhancing = enhancingCandidateIdx === idx;
+
                         return (
                           <div 
                             key={idx}
                             className={`flex flex-col rounded-xl overflow-hidden border transition-all ${
                               isWinner 
                                 ? 'border-emerald-500 bg-emerald-950/20 shadow-[0_0_20px_rgba(16,185,129,0.3)] ring-1 ring-emerald-400'
+                                : isEnhanced
+                                ? 'border-cyan-500/80 bg-cyan-950/20 shadow-[0_0_15px_rgba(0,240,255,0.2)] ring-1 ring-cyan-400/50'
                                 : 'border-white/10 bg-black/60 hover:border-white/20'
                             }`}
                           >
                             <div className={`px-2.5 py-1.5 flex items-center justify-between border-b ${
-                              isWinner ? 'bg-emerald-950/80 border-emerald-500/30' : 'bg-black/80 border-white/10'
+                              isWinner ? 'bg-emerald-950/80 border-emerald-500/30' : isEnhanced ? 'bg-cyan-950/80 border-cyan-500/30' : 'bg-black/80 border-white/10'
                             }`}>
                               <span className={`text-[10px] font-bold uppercase tracking-wider flex items-center gap-1 ${
-                                isWinner ? 'text-emerald-300' : 'text-gray-400'
+                                isWinner ? 'text-emerald-300' : isEnhanced ? 'text-cyan-300' : 'text-gray-400'
                               }`}>
                                 {isWinner && <span className="text-xs">🏆</span>}
+                                {isEnhanced && !isWinner && <span className="text-xs">⚡</span>}
                                 CANDIDATE #{idx + 1}
                               </span>
                               {isWinner ? (
                                 <span className="text-[8px] font-mono font-bold px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-400/40 animate-pulse">
                                   WINNER {debugPayload.winnerScore ? `(${debugPayload.winnerScore}/100)` : ''}
+                                </span>
+                              ) : isEnhanced ? (
+                                <span className="text-[8px] font-mono font-bold px-1.5 py-0.5 rounded bg-cyan-500/20 text-cyan-300 border border-cyan-400/40">
+                                  ENHANCED IN STEP 2
                                 </span>
                               ) : (
                                 <span className="text-[8px] font-mono text-gray-500">OPTION {idx + 1}</span>
@@ -1290,6 +1361,56 @@ STAGE 2 → Refine interior layout, enforce NBC room sizes, verify room complete
                                 {critique}
                               </div>
                             )}
+
+                            {/* Action Button: Send to Step 2 for CAD Detailing */}
+                            <div className="p-2 bg-black/80 border-t border-white/10 mt-auto">
+                              {isWinner ? (
+                                <button
+                                  type="button"
+                                  onClick={() => setSelectedStage2View('winner')}
+                                  className={`w-full py-1 px-2 rounded text-[9px] font-bold uppercase transition-all flex items-center justify-center gap-1 cursor-pointer border ${
+                                    selectedStage2View === 'winner'
+                                      ? 'bg-emerald-500/30 border-emerald-400 text-emerald-300 shadow-[0_0_8px_rgba(16,185,129,0.3)]'
+                                      : 'bg-emerald-950/40 border-emerald-500/30 text-emerald-400 hover:bg-emerald-900/40'
+                                  }`}
+                                >
+                                  🏆 Winner (Default Step 2)
+                                </button>
+                              ) : isEnhanced ? (
+                                <button
+                                  type="button"
+                                  onClick={() => setSelectedStage2View(idx)}
+                                  className={`w-full py-1 px-2 rounded text-[9px] font-bold uppercase transition-all flex items-center justify-center gap-1 cursor-pointer border ${
+                                    selectedStage2View === idx
+                                      ? 'bg-cyan-500/30 border-cyan-400 text-cyan-300 shadow-[0_0_8px_rgba(0,240,255,0.3)]'
+                                      : 'bg-cyan-950/40 border-cyan-500/30 text-cyan-400 hover:bg-cyan-900/40'
+                                  }`}
+                                >
+                                  <Check className="w-2.5 h-2.5 text-cyan-400" />
+                                  <span>View Step 2 Result</span>
+                                </button>
+                              ) : (
+                                <button
+                                  type="button"
+                                  onClick={() => handleEnhanceCandidate(candUrl, idx)}
+                                  disabled={enhancingCandidateIdx !== null}
+                                  className="w-full py-1 px-2 rounded bg-gradient-to-r from-amber-500/20 to-orange-500/20 hover:from-amber-500/30 hover:to-orange-500/30 border border-amber-400/40 hover:border-amber-400 text-amber-300 hover:text-white text-[9px] font-bold uppercase transition-all flex items-center justify-center gap-1 cursor-pointer disabled:opacity-50 shadow-[0_0_8px_rgba(245,158,11,0.15)]"
+                                  title="Send this alternative layout to Step 2 for architectural CAD detailing"
+                                >
+                                  {isCurrentlyEnhancing ? (
+                                    <>
+                                      <Loader2 className="w-2.5 h-2.5 animate-spin" />
+                                      <span>Enhancing in Step 2...</span>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <Zap className="w-2.5 h-2.5 text-amber-400" />
+                                      <span>⚡ Send to Step 2</span>
+                                    </>
+                                  )}
+                                </button>
+                              )}
+                            </div>
                           </div>
                         );
                       })}
@@ -1335,45 +1456,126 @@ STAGE 2 → Refine interior layout, enforce NBC room sizes, verify room complete
                 )}
 
                 {/* 4. Stage 2 (GPT Image 2 Medium) Refinement Prompt */}
-                {debugPayload.stage2Prompt && (
+                {(debugPayload.stage2Prompt || (typeof selectedStage2View === 'number' && enhancedCandidates[selectedStage2View]?.prompt)) && (
                   <div className="flex flex-col gap-2 border-t border-white/10 pt-4">
                     <span className="text-[10px] text-purple-400 uppercase tracking-widest font-bold flex items-center gap-1.5">
                       <span className="w-4 h-4 rounded-full bg-purple-500/20 border border-purple-400 flex items-center justify-center text-[9px]">4</span>
-                      STAGE 2 (GPT IMAGE 2 MEDIUM) CAD DETAILING PROMPT
+                      STAGE 2 (GPT IMAGE 2 MEDIUM) CAD DETAILING PROMPT {typeof selectedStage2View === 'number' ? `(FOR CANDIDATE #${selectedStage2View + 1})` : '(FOR WINNER)'}
                     </span>
                     <div className="p-4 bg-black/60 border border-purple-500/20 rounded-lg text-[11px] text-purple-200/90 font-mono whitespace-pre-wrap leading-relaxed shadow-inner">
                       <span className="text-purple-400 font-bold block mb-1 text-[10px]">STAGE 2 REFINEMENT PROMPT:</span>
-                      {debugPayload.stage2Prompt}
+                      {typeof selectedStage2View === 'number' && enhancedCandidates[selectedStage2View]?.prompt
+                        ? enhancedCandidates[selectedStage2View]?.prompt
+                        : debugPayload.stage2Prompt}
                     </div>
                   </div>
                 )}
 
-                {/* 5. Stage 2 Final Enhanced Architectural Blueprint */}
+                {/* 5. Stage 2 Final Enhanced Architectural Blueprint & Alternative Candidate Switcher */}
                 <div className="flex flex-col gap-2 border-t border-white/10 pt-4">
-                  <div className="flex items-center justify-between">
+                  <div className="flex items-center justify-between flex-wrap gap-2">
                     <span className="text-[10px] text-cyan-400 uppercase tracking-widest font-bold flex items-center gap-1.5">
                       <span className="w-4 h-4 rounded-full bg-cyan-500/20 border border-cyan-400 flex items-center justify-center text-[9px]">5</span>
                       STAGE 2: FINAL ENHANCED 2D CAD ARCHITECTURAL BLUEPRINT
                     </span>
-                    {debugPayload.stage2Seed !== undefined && (
-                      <span className="text-[9px] font-mono px-2 py-0.5 rounded bg-cyan-500/10 border border-cyan-500/30 text-cyan-300 font-bold">
-                        SEED: {debugPayload.stage2Seed}
-                      </span>
-                    )}
+
+                    {/* Layout Switcher Tabs if any candidate was enhanced */}
+                    <div className="flex items-center gap-1.5">
+                      <div className="flex items-center gap-1 bg-black/80 p-0.5 rounded-lg border border-white/10">
+                        <button
+                          type="button"
+                          onClick={() => setSelectedStage2View('winner')}
+                          className={`px-2 py-0.5 rounded text-[9px] font-bold uppercase transition-all cursor-pointer ${
+                            selectedStage2View === 'winner'
+                              ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-400/40 shadow-sm'
+                              : 'text-gray-400 hover:text-white border border-transparent'
+                          }`}
+                        >
+                          🏆 Winner #{((debugPayload.winnerIndex ?? 0) + 1)}
+                        </button>
+                        {Object.keys(enhancedCandidates).map((k) => {
+                          const cIdx = parseInt(k);
+                          return (
+                            <button
+                              key={cIdx}
+                              type="button"
+                              onClick={() => setSelectedStage2View(cIdx)}
+                              className={`px-2 py-0.5 rounded text-[9px] font-bold uppercase transition-all cursor-pointer flex items-center gap-1 ${
+                                selectedStage2View === cIdx
+                                  ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-400/40 shadow-sm'
+                                  : 'text-gray-400 hover:text-white border border-transparent'
+                              }`}
+                            >
+                              <Zap className="w-2.5 h-2.5 text-amber-400" />
+                              <span>Candidate #{cIdx + 1}</span>
+                            </button>
+                          );
+                        })}
+                      </div>
+
+                      {/* Active Blueprint Seed */}
+                      {(() => {
+                        const seed = typeof selectedStage2View === 'number'
+                          ? enhancedCandidates[selectedStage2View]?.seed
+                          : debugPayload.stage2Seed;
+                        return seed !== undefined ? (
+                          <span className="text-[9px] font-mono px-2 py-0.5 rounded bg-cyan-500/10 border border-cyan-500/30 text-cyan-300 font-bold">
+                            SEED: {seed}
+                          </span>
+                        ) : null;
+                      })()}
+                    </div>
                   </div>
-                  {(debugPayload.stage2ProOutputUrl || debugPayload.stage2GptOutputUrl || debugPayload.stage2OutputUrl) ? (
-                    <div className="p-3 bg-black/80 border border-cyan-500/30 rounded-lg flex items-center justify-center">
-                      <img 
-                        src={debugPayload.stage2ProOutputUrl || debugPayload.stage2GptOutputUrl || debugPayload.stage2OutputUrl} 
-                        alt="Stage 2 Enhanced Output"
-                        className="max-w-full max-h-[420px] object-contain border border-cyan-500/30 rounded shadow-lg"
-                      />
-                    </div>
-                  ) : (
-                    <div className="p-4 bg-black/40 border border-cyan-500/10 rounded-lg text-[11px] text-cyan-500/50 font-mono text-center">
-                      Waiting for Stage 2 generation...
-                    </div>
-                  )}
+
+                  {/* Active Blueprint Output Image Display */}
+                  {(() => {
+                    const activeUrl = typeof selectedStage2View === 'number'
+                      ? enhancedCandidates[selectedStage2View]?.url
+                      : (debugPayload.stage2ProOutputUrl || debugPayload.stage2GptOutputUrl || debugPayload.stage2OutputUrl);
+
+                    const title = typeof selectedStage2View === 'number'
+                      ? `Candidate #${selectedStage2View + 1} (Step 2 Enhanced CAD Blueprint)`
+                      : `Winner (Candidate #${(debugPayload.winnerIndex ?? 0) + 1} - Step 2 Enhanced CAD Blueprint)`;
+
+                    return activeUrl ? (
+                      <div className="relative p-3 bg-black/80 border border-cyan-500/30 rounded-lg flex flex-col items-center justify-center group/stage2 shadow-lg">
+                        <img 
+                          src={activeUrl} 
+                          alt="Stage 2 Enhanced Output"
+                          className="max-w-full max-h-[440px] object-contain border border-cyan-500/30 rounded shadow-lg cursor-pointer"
+                          onClick={() => setLightboxImage({ url: activeUrl, title })}
+                        />
+                        <div className="absolute bottom-5 right-5 flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => setLightboxImage({ url: activeUrl, title })}
+                            className="px-2.5 py-1 bg-black/80 hover:bg-black text-cyan-300 text-[10px] font-bold rounded border border-cyan-500/40 flex items-center gap-1 cursor-pointer shadow"
+                          >
+                            <Maximize2 className="w-3 h-3" /> Fullscreen
+                          </button>
+                          <a
+                            href={activeUrl}
+                            download={`enhanced-blueprint-${typeof selectedStage2View === 'number' ? `candidate-${selectedStage2View + 1}` : 'winner'}.png`}
+                            className="px-2.5 py-1 bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 text-[10px] font-bold rounded border border-cyan-400/40 flex items-center gap-1 cursor-pointer shadow"
+                          >
+                            <Download className="w-3 h-3" /> Download
+                          </a>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="p-4 bg-black/40 border border-cyan-500/10 rounded-lg text-[11px] text-cyan-500/50 font-mono text-center">
+                        Waiting for Stage 2 generation...
+                      </div>
+                    );
+                  })()}
+
+                  {/* Informational Callout */}
+                  <div className="p-2.5 bg-gradient-to-r from-amber-950/20 to-cyan-950/20 border border-amber-500/20 rounded-lg flex items-center gap-2 text-[10px] font-mono text-amber-200/80">
+                    <Zap className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                    <span>
+                      <strong>Alternative Layout Tip:</strong> You can click <strong>"⚡ Send to Step 2"</strong> on any candidate in the grid above to generate its publication-grade CAD detailed blueprint without regenerating Step 1!
+                    </span>
+                  </div>
                 </div>
               </div>
             </div>
