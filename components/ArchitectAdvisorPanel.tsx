@@ -380,6 +380,8 @@ const ArchitectAdvisorPanel = forwardRef<ArchitectAdvisorRef, Props>(({ onParams
   const [shapeRotationAngle, setShapeRotationAngle] = useState(0);
   const [rotationStartAngle, setRotationStartAngle] = useState(0);
   const [shapeWasModified, setShapeWasModified] = useState(false);
+  const [shapeGeometryAnalysis, setShapeGeometryAnalysis] = useState<string | null>(null);
+
   // ── Live Partition Divider State ───────────────────────────────────────────
   const [isDividingMode, setIsDividingMode] = useState(false);
   const [dividerLines, setDividerLines] = useState<Array<{ p1: Point; p2: Point }>>([]);
