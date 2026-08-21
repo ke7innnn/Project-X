@@ -19,10 +19,9 @@ export const FLAGS = {
   CUSTOM_DECK: true,
 
   /**
-   * DXF export — hidden until output has been verified to open at correct
-   * scale in real AutoCAD / GstarCAD. A broken DXF is worse than no DXF.
+   * DXF export — unlocked and active.
    */
-  DXF_EXPORT: false,
+  DXF_EXPORT: true,
 
   /** Flythrough / video generation */
   FLYTHROUGH: false,
