@@ -322,8 +322,15 @@ export default function IdeaGenerationPage() {
             throw new Error(sketchData.error || 'Rough sketch to CAD conversion failed');
           }
 
-          setLogs(prev => [...prev, `[SKETCH→CAD] ✅ CAD floor plan generated from rough sketch (1-step, GPT Image 2 Medium)`]);
-          if (sketchData.seed) setLogs(prev => [...prev, `[SKETCH→CAD] Seed: ${sketchData.seed}`]);
+          setDebugPayload({
+            traceBase64: strippedBase64,
+            stage1Prompt: `ROUGH SKETCH → CAD CONVERSION (1-STEP)\n\n• Reference sketch mask with ${numSketchLines} orange room partition wall(s)\n• Engine: GPT Image 2 [Medium]\n• Strict geometric preservation of footprint & room layout\n• CAD linework output: Crisp black walls on white background, empty rooms`,
+            stage2ProOutputUrl: sketchData.url,
+            stage2GptOutputUrl: sketchData.url,
+            stage2OutputUrl: sketchData.url,
+            stage2Seed: sketchData.seed,
+            workflow: 'rough-sketch-to-cad',
+          });
 
           setResultImage(sketchData.url || null);
           setResultTitle(`ROUGH SKETCH → CAD FLOOR PLAN`);
