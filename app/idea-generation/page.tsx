@@ -298,6 +298,12 @@ export default function IdeaGenerationPage() {
 
         // ── ROUGH SKETCH → CAD SINGLE-STEP WORKFLOW ──────────────────────────────
         if (hasSketch) {
+          setDebugPayload({
+            traceBase64: strippedBase64,
+            stage1Prompt: `ROUGH SKETCH → CAD CONVERSION (1-STEP VIA GPT IMAGE 2 MEDIUM)\n\n• Reference sketch mask with ${numSketchLines} orange room partition wall(s)\n• Engine: openai/gpt-image-2/edit [Medium]\n• Strict geometric preservation of building footprint & room layout\n• CAD linework output: Crisp black walls on white background, empty rooms (no labels, no furniture)`,
+            workflow: 'rough-sketch-to-cad',
+          });
+
           setLogs(prev => [...prev, `[SYS] ROUGH SKETCH MODE DETECTED — ${numSketchLines} room partition line(s) found`]);
           setLogs(prev => [...prev, `[SYS] BYPASSING MULTI-STAGE PIPELINE — Running Sketch→CAD (1-Step) via GPT Image 2 Medium`]);
           setLogs(prev => [...prev, `[SYS] UPLOADING SKETCH CANVAS TO FAL STORAGE...`]);
@@ -1302,7 +1308,11 @@ STAGE 2 → Refine interior layout, enforce NBC room sizes, verify room complete
               <div className="flex items-center justify-between p-4 border-b border-cyan-500/20 bg-cyan-950/20">
                 <div className="flex items-center gap-2 text-cyan-400">
                   <Terminal className="w-4 h-4" />
-                  <span className="text-xs font-bold tracking-widest uppercase">3-Stage AI Generation Pipeline Logs ({debugPayload.workflow || selectedModel})</span>
+                  <span className="text-xs font-bold tracking-widest uppercase">
+                    {debugPayload.workflow === 'rough-sketch-to-cad'
+                      ? 'Rough Sketch → CAD Pipeline Logs (1-Step GPT Image 2 Medium)'
+                      : `3-Stage AI Generation Pipeline Logs (${debugPayload.workflow || selectedModel})`}
+                  </span>
                 </div>
                 <button onClick={() => setShowDebugModal(false)} className="text-cyan-400/60 hover:text-white p-1 transition-colors">
                   <X className="w-5 h-5" />
@@ -1314,7 +1324,7 @@ STAGE 2 → Refine interior layout, enforce NBC room sizes, verify room complete
                 <div className="flex flex-col gap-2">
                   <span className="text-[10px] text-cyan-400 uppercase tracking-widest font-bold flex items-center gap-1.5">
                     <span className="w-4 h-4 rounded-full bg-cyan-500/20 border border-cyan-400 flex items-center justify-center text-[9px]">1</span>
-                    EXPORTED TRACE MASK (INPUT BOUNDARY)
+                    EXPORTED TRACE MASK {debugPayload.workflow === 'rough-sketch-to-cad' ? 'WITH ORANGE ROOM PARTITIONS' : '(INPUT BOUNDARY)'}
                   </span>
                   {debugPayload.traceBase64 ? (
                     <div className="p-3 bg-black/80 border border-cyan-500/20 rounded-lg flex items-center justify-center">
@@ -1331,6 +1341,51 @@ STAGE 2 → Refine interior layout, enforce NBC room sizes, verify room complete
                   )}
                 </div>
 
+                {debugPayload.workflow === 'rough-sketch-to-cad' ? (
+                  <>
+                    {/* 2. CAD Synthesis Prompt & Specifications */}
+                    <div className="flex flex-col gap-3 border-t border-white/10 pt-4">
+                      <span className="text-[10px] text-amber-400 uppercase tracking-widest font-bold flex items-center gap-1.5">
+                        <span className="w-4 h-4 rounded-full bg-amber-500/20 border border-amber-400 flex items-center justify-center text-[9px]">2</span>
+                        CAD CONVERSION PROMPT & ARCHITECTURAL SPECIFICATIONS (GPT IMAGE 2 MEDIUM)
+                      </span>
+                      <div className="p-4 bg-black/60 border border-amber-500/20 rounded-lg text-[11px] text-amber-200/90 font-mono whitespace-pre-wrap leading-relaxed shadow-inner">
+                        {debugPayload.stage1Prompt || 'Processing...'}
+                      </div>
+                    </div>
+
+                    {/* 3. Final 2D CAD Floor Plan Blueprint Output */}
+                    <div className="flex flex-col gap-3 border-t border-white/10 pt-4">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] text-cyan-400 uppercase tracking-widest font-bold flex items-center gap-1.5">
+                          <span className="w-4 h-4 rounded-full bg-cyan-500/20 border border-cyan-400 flex items-center justify-center text-[9px]">3</span>
+                          SYNTHESIZED 2D ARCHITECTURAL CAD FLOOR PLAN
+                        </span>
+                        {debugPayload.stage2Seed !== undefined && debugPayload.stage2Seed !== null && (
+                          <span className="text-[9px] font-mono px-2 py-0.5 rounded bg-cyan-500/10 border border-cyan-500/30 text-cyan-300 font-bold">
+                            SEED: {debugPayload.stage2Seed}
+                          </span>
+                        )}
+                      </div>
+
+                      {debugPayload.stage2OutputUrl || debugPayload.stage2ProOutputUrl || resultImage ? (
+                        <div className="p-3 bg-black/80 border border-cyan-500/30 rounded-lg flex flex-col items-center justify-center shadow-lg">
+                          <img 
+                            src={debugPayload.stage2OutputUrl || debugPayload.stage2ProOutputUrl || resultImage!} 
+                            alt="CAD Floor Plan Blueprint" 
+                            className="w-full max-h-[480px] object-contain rounded bg-white shadow-2xl border border-cyan-400/40 p-2"
+                          />
+                        </div>
+                      ) : (
+                        <div className="p-6 bg-black/60 border border-cyan-500/20 rounded-lg text-[11px] text-cyan-400 font-mono flex items-center justify-center gap-2">
+                          <Loader2 className="w-4 h-4 animate-spin text-cyan-400" />
+                          <span>SYNTHESIZING 2D CAD FLOOR PLAN BLUEPRINT VIA GPT IMAGE 2...</span>
+                        </div>
+                      )}
+                    </div>
+                  </>
+                ) : (
+                  <>
                 {/* 2. Stage 1: 4 Parallel Candidate Zoning Layouts */}
                 <div className="flex flex-col gap-3 border-t border-white/10 pt-4">
                   <div className="flex items-center justify-between">
@@ -1634,7 +1689,9 @@ STAGE 2 → Refine interior layout, enforce NBC room sizes, verify room complete
                     </span>
                   </div>
                 </div>
-              </div>
+              </>
+            )}
+          </div>
             </div>
           </div>
         )}
