@@ -74,21 +74,24 @@ export default function ConceptGeneratorPage() {
   // Generation & Output states
   const [isGenerating, setIsGenerating] = useState<boolean>(false);
   const [progressStep, setProgressStep] = useState<string>('');
-  const [generatedImage, setGeneratedImage] = useState<string | null>(null);
+  const [candidateImages, setCandidateImages] = useState<string[]>([]);
+  const [selectedCandidateIndex, setSelectedCandidateIndex] = useState<number>(0);
   const [copied, setCopied] = useState<boolean>(false);
+
+  const activeImage = candidateImages[selectedCandidateIndex] || null;
 
   // Generate Concept Presentation Board
   const handleGenerate = async () => {
     if (!prompt.trim() || isGenerating) return;
 
     setIsGenerating(true);
-    setProgressStep('Analyzing Architectural Brief & Spatial Metrics...');
+    setProgressStep('Analyzing Architectural Brief & Geometry...');
 
     try {
-      setTimeout(() => setProgressStep('Structuring 2D Master Floor Plan Layout...'), 2000);
-      setTimeout(() => setProgressStep('Synthesizing 3D Building Form & Massing Top View...'), 5000);
-      setTimeout(() => setProgressStep('Rendering 3D Isometric Elevation Perspective...'), 8000);
-      setTimeout(() => setProgressStep('Compiling Master Architectural Presentation Board...'), 12000);
+      setTimeout(() => setProgressStep('Structuring 2D Master Floor Plan Layouts...'), 1500);
+      setTimeout(() => setProgressStep('Synthesizing 3D Building Form & Massing Top Views...'), 3500);
+      setTimeout(() => setProgressStep('Rendering 3D Isometric Elevation Perspectives...'), 6000);
+      setTimeout(() => setProgressStep('Generating 4 Parallel Master Presentation Boards...'), 9000);
 
       const res = await fetch('/api/generate-concept-image', {
         method: 'POST',
@@ -107,8 +110,12 @@ export default function ConceptGeneratorPage() {
         throw new Error(data.error || 'Failed to generate concept floor plan');
       }
 
-      const img = data.imageUrls?.[0] || data.stage1ImageUrl;
-      setGeneratedImage(img);
+      const imgs: string[] = Array.isArray(data.imageUrls) && data.imageUrls.length > 0
+        ? data.imageUrls
+        : (data.stage1ImageUrl ? [data.stage1ImageUrl] : []);
+
+      setCandidateImages(imgs);
+      setSelectedCandidateIndex(0);
     } catch (err: any) {
       alert(err.message || 'Generation failed. Please try again.');
     } finally {
@@ -119,18 +126,18 @@ export default function ConceptGeneratorPage() {
 
   // Download High-Res Image
   const handleDownload = () => {
-    if (!generatedImage) return;
+    if (!activeImage) return;
     const a = document.createElement('a');
-    a.href = generatedImage;
-    a.download = `Master_Concept_Board_${Date.now()}.png`;
+    a.href = activeImage;
+    a.download = `Master_Concept_Board_Option_${selectedCandidateIndex + 1}_${Date.now()}.png`;
     a.click();
   };
 
   // Copy Image to Clipboard
   const handleCopy = async () => {
-    if (!generatedImage) return;
+    if (!activeImage) return;
     try {
-      const res = await fetch(generatedImage);
+      const res = await fetch(activeImage);
       const blob = await res.blob();
       await navigator.clipboard.write([new ClipboardItem({ [blob.type]: blob })]);
       setCopied(true);
@@ -312,18 +319,30 @@ export default function ConceptGeneratorPage() {
           
           {/* Main Top Header Controls */}
           <div className="h-12 border-b border-white/10 bg-black/40 backdrop-blur px-5 flex items-center justify-between z-10 shrink-0">
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-3">
               <span className="text-xs font-mono font-bold text-slate-200">
                 PRESENTATION BOARD VIEWPORT
               </span>
-              {generatedImage && (
-                <span className="px-2 py-0.5 rounded text-[9px] font-mono bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
-                  READY
-                </span>
+              {candidateImages.length > 0 && (
+                <div className="flex items-center gap-1.5 ml-2 p-1 rounded-lg bg-slate-900/80 border border-white/10">
+                  {candidateImages.map((_, idx) => (
+                    <button
+                      key={idx}
+                      onClick={() => setSelectedCandidateIndex(idx)}
+                      className={`px-2.5 py-1 rounded-md text-[10px] font-mono font-bold transition-all cursor-pointer ${
+                        selectedCandidateIndex === idx
+                          ? 'bg-gradient-to-r from-cyan-500 to-emerald-400 text-black shadow-md shadow-cyan-500/30 scale-105'
+                          : 'bg-black/40 text-slate-400 hover:text-white hover:bg-white/10'
+                      }`}
+                    >
+                      OPTION {idx + 1}
+                    </button>
+                  ))}
+                </div>
               )}
             </div>
 
-            {generatedImage && (
+            {activeImage && (
               <div className="flex items-center gap-2">
                 <button
                   onClick={handleCopy}
@@ -336,17 +355,17 @@ export default function ConceptGeneratorPage() {
 
                 <button
                   onClick={handleDownload}
-                  className="px-3 py-1 rounded-lg bg-cyan-500/20 hover:bg-cyan-500/30 border border-cyan-400/60 text-cyan-200 text-[10px] font-mono font-bold flex items-center gap-1.5 transition-all shadow-[0_0_12px_rgba(0,240,255,0.2)]"
+                  className="px-3 py-1 rounded-lg bg-cyan-500/20 hover:bg-cyan-500/30 border border-cyan-400/60 text-cyan-200 text-[10px] font-mono font-bold flex items-center gap-1.5 transition-all shadow-[0_0_12px_rgba(0,240,255,0.2)] cursor-pointer"
                 >
                   <Download className="w-3.5 h-3.5" />
-                  <span>DOWNLOAD BOARD (PNG)</span>
+                  <span>DOWNLOAD OPTION {selectedCandidateIndex + 1} (PNG)</span>
                 </button>
               </div>
             )}
           </div>
 
           {/* Viewport Content */}
-          <div className="flex-1 flex items-center justify-center p-6 relative overflow-hidden bg-[#030712]">
+          <div className="flex-1 flex flex-col items-center justify-center p-6 relative overflow-hidden bg-[#030712]">
             
             {/* Loading Overlay */}
             {isGenerating && (
@@ -359,7 +378,7 @@ export default function ConceptGeneratorPage() {
 
                 <div className="flex flex-col items-center gap-1 text-center">
                   <span className="text-sm font-mono font-bold text-white tracking-wider uppercase">
-                    AI CONCEPT ENGINE RUNNING
+                    AI CONCEPT ENGINE GENERATING 4 CANDIDATES
                   </span>
                   <span className="text-xs font-mono text-cyan-400 animate-pulse">
                     {progressStep}
@@ -369,13 +388,34 @@ export default function ConceptGeneratorPage() {
             )}
 
             {/* Generated Image Presentation Display */}
-            {generatedImage ? (
-              <div className="relative max-w-full max-h-full flex items-center justify-center rounded-xl overflow-hidden border border-cyan-500/30 shadow-2xl shadow-black/80">
-                <img
-                  src={generatedImage}
-                  alt="Master Architectural Presentation Board"
-                  className="max-w-full max-h-[calc(100vh-140px)] object-contain rounded-lg"
-                />
+            {activeImage ? (
+              <div className="flex-1 w-full flex flex-col items-center justify-center relative overflow-hidden gap-3">
+                <div className="relative max-w-full max-h-[calc(100vh-210px)] flex items-center justify-center rounded-xl overflow-hidden border border-cyan-500/30 shadow-2xl shadow-black/80">
+                  <img
+                    src={activeImage}
+                    alt={`Master Architectural Presentation Board - Option ${selectedCandidateIndex + 1}`}
+                    className="max-w-full max-h-[calc(100vh-210px)] object-contain rounded-lg"
+                  />
+                </div>
+
+                {/* 4-Candidate Thumbnail Selector Filmstrip */}
+                {candidateImages.length > 1 && (
+                  <div className="flex items-center gap-2 p-1.5 rounded-xl bg-black/60 border border-white/10 backdrop-blur z-20">
+                    {candidateImages.map((img, idx) => (
+                      <div
+                        key={idx}
+                        onClick={() => setSelectedCandidateIndex(idx)}
+                        className={`w-16 h-12 rounded-lg overflow-hidden border-2 cursor-pointer transition-all ${
+                          selectedCandidateIndex === idx
+                            ? 'border-cyan-400 scale-105 shadow-md shadow-cyan-500/40'
+                            : 'border-white/10 hover:border-white/40 opacity-70 hover:opacity-100'
+                        }`}
+                      >
+                        <img src={img} alt={`Candidate ${idx + 1}`} className="w-full h-full object-cover" />
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             ) : (
               /* Empty Placeholder State */
@@ -384,16 +424,16 @@ export default function ConceptGeneratorPage() {
                   <Compass className="w-8 h-8" />
                 </div>
                 <h3 className="text-base font-bold text-white font-mono uppercase mb-1">
-                  Ready to Generate Concept Board
+                  Ready to Generate 4 Concept Options
                 </h3>
                 <p className="text-xs text-slate-400 leading-relaxed mb-4 font-sans">
-                  Select a template or type your architectural brief on the left. The engine will synthesize a high-resolution presentation board with a 2D floor plan, 3D roof massing, and 3D perspective elevation.
+                  Select a template or type your architectural brief on the left. The engine will synthesize 4 distinct presentation boards in parallel with 2D floor plans, 3D roof massing, and 3D perspective elevations.
                 </p>
                 <button
                   onClick={handleGenerate}
                   className="px-4 py-2 rounded-xl bg-cyan-500/20 hover:bg-cyan-500/30 border border-cyan-400/60 text-cyan-300 text-xs font-mono font-bold transition-all shadow-[0_0_15px_rgba(0,240,255,0.2)] cursor-pointer"
                 >
-                  ⚡ Try Default Water Droplet Concept
+                  ⚡ Generate 4 Parallel Concept Boards
                 </button>
               </div>
             )}

@@ -14,9 +14,9 @@ function buildFalInput(falModel: string, imageUrl: string | null, prompt: string
   const usePluralUrls   = falModel.includes('gemini') || falModel.includes('nano-banana') || falModel.includes('klein');
 
   if (isGptImage2T2I || !imageUrl) {
-    return { prompt, quality: 'medium' };
+    return { prompt, quality: 'low' };
   } else if (isGptImage2Edit) {
-    return { image_urls: [imageUrl], prompt, quality: 'medium' };
+    return { image_urls: [imageUrl], prompt, quality: 'low' };
   } else if (isFluxCanny) {
     return { control_image_url: imageUrl, control_lora_image_url: imageUrl, prompt, num_inference_steps: 28, guidance_scale: 3.5, controlnet_conditioning_scale: 1.0 };
   } else if (usePluralUrls) {
@@ -456,19 +456,37 @@ export async function POST(req: Request) {
 
     console.log('[ConceptGenerator] Final Prompt length:', stage1Prompt.length);
 
-    // ── Run Text-to-Image (or Image-to-Image if custom sketch uploaded) ──
+    // ── Run 4 Parallel Candidate Presentation Boards with quality=low ──
     const stage1Input = buildFalInput(stage1Model, customUserRefUrl, stage1Prompt);
-    console.log('[ConceptGenerator] Stage 1 input keys:', Object.keys(stage1Input));
-    const stage1Url = await runModel(stage1Model, stage1Input);
-    console.log('[ConceptGenerator] Stage 1 output URL:', stage1Url);
+    console.log(`[ConceptGenerator] Generating 4 parallel candidate presentation boards with ${stage1Model} (quality=low)...`);
 
-    const stage1Base64 = await fetchToBase64(stage1Url);
+    const candidatePromises = [1, 2, 3, 4].map(async (idx) => {
+      try {
+        const url = await runModel(stage1Model, stage1Input);
+        const b64 = await fetchToBase64(url);
+        return b64;
+      } catch (err: any) {
+        console.warn(`[ConceptGenerator] Candidate #${idx} failed:`, err.message);
+        return null;
+      }
+    });
+
+    const settled = await Promise.allSettled(candidatePromises);
+    const candidateImages = settled
+      .filter((r): r is PromiseFulfilledResult<string | null> => r.status === 'fulfilled' && r.value !== null)
+      .map(r => r.value!);
+
+    if (candidateImages.length === 0) {
+      throw new Error('Failed to generate concept candidates');
+    }
+
+    console.log(`[ConceptGenerator] Successfully generated ${candidateImages.length}/4 candidate presentation boards!`);
 
     return NextResponse.json({
-      imageUrls: [stage1Base64],
-      stage1ImageUrl: stage1Base64,
+      imageUrls: candidateImages,
+      stage1ImageUrl: candidateImages[0],
       systemPrompt: stage1Prompt,
-      userPrompt: `Concept Studio | MODEL: ${stage1Model}`,
+      userPrompt: `Concept Studio | MODEL: ${stage1Model} (4 Candidates)`,
     });
 
   } catch (err: any) {
