@@ -41,6 +41,23 @@ function buildRoughSketchPrompt(): string {
 **Final Goal**: A pristine architectural CAD floor plan that looks like an architect imported the user's sketch into AutoCAD and drew precise, clean black walls over the white footprint, perfectly maintaining the building's geometry and room layout.`;
 }
 
+async function runModel(falModel: string, input: Record<string, any>): Promise<{ url: string; seed?: number }> {
+  const result = await fal.subscribe(falModel, { input });
+  const data = (result as any)?.data || result;
+  const images = data?.images;
+  if (!images || images.length === 0) throw new Error(`${falModel} returned no images`);
+  const seed = data?.seed ?? (result as any)?.seed;
+  return { url: images[0].url, seed };
+}
+
+async function fetchToBase64(url: string): Promise<string> {
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`HTTP ${res.status} fetching image`);
+  const ct = res.headers.get('content-type') || 'image/png';
+  const buf = await res.arrayBuffer();
+  return `data:${ct};base64,${Buffer.from(buf).toString('base64')}`;
+}
+
 export async function POST(req: Request) {
   try {
     const { traceCanvasBase64, apiKey } = await req.json();
@@ -64,32 +81,20 @@ export async function POST(req: Request) {
     const prompt = buildRoughSketchPrompt();
 
     console.log('[RoughSketchToCAD] Calling GPT Image 2 (Medium) for sketch -> CAD conversion...');
-    const result = await fal.subscribe('openai/gpt-image-2/edit', {
-      input: {
-        prompt,
-        image_url: uploadedSketchUrl,
-        image_size: 'square_hd',
-        quality: 'medium',
-        num_images: 1,
-      },
+    const gptRes = await runModel('openai/gpt-image-2/edit', {
+      image_urls: [uploadedSketchUrl],
+      prompt,
+      quality: 'medium',
     });
 
-    const data = (result as any)?.data || result;
-    const images = data?.images;
-
-    if (!images || images.length === 0) {
-      throw new Error('GPT Image 2 returned no images for rough sketch conversion.');
-    }
-
-    const imageUrl = images[0].url;
-    const seed = data?.seed ?? (result as any)?.seed ?? null;
-
-    console.log('[RoughSketchToCAD] CAD conversion complete:', imageUrl);
+    console.log('[RoughSketchToCAD] Fetching result to base64...');
+    const resultBase64 = await fetchToBase64(gptRes.url);
+    console.log('[RoughSketchToCAD] CAD conversion complete');
 
     return NextResponse.json({
-      url: imageUrl,
-      imageUrl,
-      seed,
+      url: resultBase64,
+      imageUrl: resultBase64,
+      seed: gptRes.seed ?? null,
       workflow: 'rough-sketch-to-cad',
     });
   } catch (err: any) {
