@@ -1,11 +1,18 @@
 'use client';
 
 import React, { useState, useRef, useEffect, useCallback, forwardRef, useImperativeHandle } from 'react';
-import { Send, Loader2, Upload, CheckCircle2, ChevronRight, RotateCcw, MousePointer, Sparkles, Edit2, Check, Search, X, Layers, ChevronDown, Scissors } from 'lucide-react';
+import { Send, Loader2, Upload, CheckCircle2, ChevronRight, RotateCcw, MousePointer, Sparkles, Edit2, Check, Search, X, Layers, ChevronDown, Scissors, Tag, Type } from 'lucide-react';
 import { MASTER_SHAPES_50, ShapeDefinition } from '@/lib/shapeLibrary50';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface Point { x: number; y: number; }
+
+export interface ZoneLabel {
+  id: string;
+  text: string;
+  x: number;
+  y: number;
+}
 
 interface PlotData {
   widthM: number;
@@ -73,6 +80,7 @@ interface Props {
     isShapeModified?: boolean;
     hasDividers?: boolean;
     numDividers?: number;
+    customLabels?: string[];
   }) => void;
   selectedModel: string;
   onModelChange: (modelId: string) => void;
@@ -387,6 +395,12 @@ const ArchitectAdvisorPanel = forwardRef<ArchitectAdvisorRef, Props>(({ onParams
   const [dividerLines, setDividerLines] = useState<Array<{ p1: Point; p2: Point }>>([]);
   const [activeDividerStart, setActiveDividerStart] = useState<Point | null>(null);
 
+  // ── Zone Text Labeling State (F1, F2, F3, etc.) ───────────────────────────
+  const [isLabelingMode, setIsLabelingMode] = useState(false);
+  const [zoneLabels, setZoneLabels] = useState<ZoneLabel[]>([]);
+  const [selectedLabelText, setSelectedLabelText] = useState<string>('F1');
+  const [labelDragId, setLabelDragId] = useState<string | null>(null);
+
   // Helper: check if a point is inside the traced plot polygon
   const isPointInPlot = useCallback((pt: Point): boolean => {
     if (polygon.length < 3) return true;
@@ -610,11 +624,26 @@ const ArchitectAdvisorPanel = forwardRef<ArchitectAdvisorRef, Props>(({ onParams
         });
         ctx.restore();
       }
+
+      // 7. Draw custom user zone labels (F1, F2, F3, CORE...) in solid black on mask!
+      if (zoneLabels.length > 0) {
+        ctx.save();
+        ctx.fillStyle = '#000000';
+        ctx.font = 'bold 28px monospace';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        zoneLabels.forEach(lbl => {
+          const sx = Math.round(lbl.x * scale + offsetX);
+          const sy = Math.round(lbl.y * scale + offsetY);
+          ctx.fillText(lbl.text, sx, sy);
+        });
+        ctx.restore();
+      }
     }
 
     // Return full data URL (the API route handles stripping)
     return offscreen.toDataURL('image/png');
-  }, [polygon, isTracingClosed, suggestedShape, canvasW, canvasH, dividerLines]);
+  }, [polygon, isTracingClosed, suggestedShape, canvasW, canvasH, dividerLines, zoneLabels]);
 
   const handleGenerateTrigger = useCallback(() => {
     const base64 = exportForAI();
@@ -647,8 +676,9 @@ const ArchitectAdvisorPanel = forwardRef<ArchitectAdvisorRef, Props>(({ onParams
       isShapeModified: shapeWasModified,
       hasDividers: dividerLines.length > 0,
       numDividers: dividerLines.length,
+      customLabels: zoneLabels.map(l => l.text),
     });
-  }, [exportForAI, onGenerateTrigger, outputW, outputH, shapeWasModified, polygon, suggestedShape, dividerLines]);
+  }, [exportForAI, onGenerateTrigger, outputW, outputH, shapeWasModified, polygon, suggestedShape, dividerLines, zoneLabels]);
 
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
@@ -1091,6 +1121,97 @@ const ArchitectAdvisorPanel = forwardRef<ArchitectAdvisorRef, Props>(({ onParams
           ctx.restore();
         }
 
+        // ── Render Zone Text Labels (F1, F2, F3, etc.) ─────────────────────────
+        if (zoneLabels.length > 0) {
+          zoneLabels.forEach((lbl) => {
+            ctx.save();
+            const isBeingDragged = labelDragId === lbl.id;
+            const text = lbl.text;
+            const labelW = Math.max(36, text.length * 10 + 16);
+            const labelH = 22;
+
+            // Background pill with cyan/emerald glow
+            ctx.shadowColor = isBeingDragged ? '#10b981' : '#00f0ff';
+            ctx.shadowBlur = isBeingDragged ? 14 : 8;
+            ctx.fillStyle = isBeingDragged ? 'rgba(6, 78, 59, 0.95)' : 'rgba(8, 15, 30, 0.9)';
+            ctx.strokeStyle = isBeingDragged ? '#10b981' : 'rgba(0, 240, 255, 0.9)';
+            ctx.lineWidth = 1.5;
+
+            // Rounded rectangle pill
+            const rx = lbl.x - labelW / 2;
+            const ry = lbl.y - labelH / 2;
+            const radius = 6;
+            ctx.beginPath();
+            ctx.moveTo(rx + radius, ry);
+            ctx.lineTo(rx + labelW - radius, ry);
+            ctx.quadraticCurveTo(rx + labelW, ry, rx + labelW, ry + radius);
+            ctx.lineTo(rx + labelW, ry + labelH - radius);
+            ctx.quadraticCurveTo(rx + labelW, ry + labelH, rx + labelW - radius, ry + labelH);
+            ctx.lineTo(rx + radius, ry + labelH);
+            ctx.quadraticCurveTo(rx, ry + labelH, rx, ry + labelH - radius);
+            ctx.lineTo(rx, ry + radius);
+            ctx.quadraticCurveTo(rx, ry, rx + radius, ry);
+            ctx.closePath();
+            ctx.fill();
+            ctx.stroke();
+
+            // Label text
+            ctx.shadowBlur = 0;
+            ctx.fillStyle = isBeingDragged ? '#a7f3d0' : '#ffffff';
+            ctx.font = 'bold 10px monospace';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(text, lbl.x, lbl.y);
+
+            // Anchor point dot
+            ctx.fillStyle = '#00f0ff';
+            ctx.beginPath();
+            ctx.arc(lbl.x, lbl.y + labelH / 2 + 3, 2, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
+          });
+        }
+
+        // In-progress Label Placement Ghost Preview
+        if (isLabelingMode && hoverPt && !labelDragId) {
+          ctx.save();
+          const text = selectedLabelText;
+          const labelW = Math.max(36, text.length * 10 + 16);
+          const labelH = 22;
+
+          ctx.shadowColor = '#00f0ff';
+          ctx.shadowBlur = 12;
+          ctx.fillStyle = 'rgba(0, 240, 255, 0.25)';
+          ctx.strokeStyle = '#00f0ff';
+          ctx.lineWidth = 1.5;
+          ctx.setLineDash([3, 2]);
+
+          const rx = hoverPt.x - labelW / 2;
+          const ry = hoverPt.y - labelH / 2;
+          const radius = 6;
+          ctx.beginPath();
+          ctx.moveTo(rx + radius, ry);
+          ctx.lineTo(rx + labelW - radius, ry);
+          ctx.quadraticCurveTo(rx + labelW, ry, rx + labelW, ry + radius);
+          ctx.lineTo(rx + labelW, ry + labelH - radius);
+          ctx.quadraticCurveTo(rx + labelW, ry + labelH, rx + labelW - radius, ry + labelH);
+          ctx.lineTo(rx + radius, ry + labelH);
+          ctx.quadraticCurveTo(rx, ry + labelH, rx, ry + labelH - radius);
+          ctx.lineTo(rx, ry + radius);
+          ctx.quadraticCurveTo(rx, ry, rx + radius, ry);
+          ctx.closePath();
+          ctx.fill();
+          ctx.stroke();
+          ctx.setLineDash([]);
+
+          ctx.fillStyle = '#00f0ff';
+          ctx.font = 'bold 10px monospace';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText(`+ ${text}`, hoverPt.x, hoverPt.y);
+          ctx.restore();
+        }
+
       } else {
         // In-progress trace
         ctx.strokeStyle = '#00f0ff';
@@ -1121,7 +1242,7 @@ const ArchitectAdvisorPanel = forwardRef<ArchitectAdvisorRef, Props>(({ onParams
       ctx.setLineDash([]);
       ctx.fillText(`${pxToM(hoverPt.x)}m, ${pxToM(hoverPt.y)}m`, hoverPt.x + 6, hoverPt.y - 3);
     }
-  }, [polygon, hoverPt, isTracingClosed, bgImage, imgBounds, suggestedShape, canvasW, canvasH, cellPx, pxToM, isEditingShape, editablePolygons, hoveredEdge, shapeDragIdx, isRotatingShape, isDraggingWholeShape, shapeWasModified, isDividingMode, dividerLines, activeDividerStart]);
+  }, [polygon, hoverPt, isTracingClosed, bgImage, imgBounds, suggestedShape, canvasW, canvasH, cellPx, pxToM, isEditingShape, editablePolygons, hoveredEdge, shapeDragIdx, isRotatingShape, isDraggingWholeShape, shapeWasModified, isDividingMode, dividerLines, activeDividerStart, isLabelingMode, zoneLabels, selectedLabelText, labelDragId]);
 
   useEffect(() => {
     // Smooth scroll the closest scrollable container (the page wrapper) instead of using scrollIntoView
@@ -1190,6 +1311,32 @@ const ArchitectAdvisorPanel = forwardRef<ArchitectAdvisorRef, Props>(({ onParams
     // ── Live Dividing Mode Intercept ─────────────────────────────────────────
     if (isDividingMode) {
       setActiveDividerStart(snapped);
+      return;
+    }
+
+    // ── Zone Labeling Mode Intercept ─────────────────────────────────────────
+    if (isLabelingMode) {
+      // Check if clicked near an existing label to drag it
+      const clickedLabel = zoneLabels.find(lbl => Math.hypot(raw.x - lbl.x, raw.y - lbl.y) <= 22);
+      if (clickedLabel) {
+        setLabelDragId(clickedLabel.id);
+        return;
+      }
+
+      // Drop new label at clicked position
+      const newLabel: ZoneLabel = {
+        id: `lbl-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+        text: selectedLabelText,
+        x: snapped.x,
+        y: snapped.y,
+      };
+      setZoneLabels(prev => [...prev, newLabel]);
+
+      // Auto-advance F1 -> F2 -> F3 -> F4 ...
+      const match = selectedLabelText.match(/^F(\d+)$/i);
+      if (match) {
+        setSelectedLabelText(`F${parseInt(match[1]) + 1}`);
+      }
       return;
     }
 
@@ -1421,6 +1568,19 @@ const ArchitectAdvisorPanel = forwardRef<ArchitectAdvisorRef, Props>(({ onParams
       return;
     }
 
+    if (isLabelingMode) {
+      const snapped = snapToGrid(raw.x, raw.y);
+      if (labelDragId) {
+        setZoneLabels(prev => prev.map(l => l.id === labelDragId ? { ...l, x: snapped.x, y: snapped.y } : l));
+        if (canvasRef.current) canvasRef.current.style.cursor = 'grabbing';
+      } else {
+        const hoverExisting = zoneLabels.some(lbl => Math.hypot(raw.x - lbl.x, raw.y - lbl.y) <= 22);
+        if (canvasRef.current) canvasRef.current.style.cursor = hoverExisting ? 'grab' : 'cell';
+      }
+      setHoverPt(snapped);
+      return;
+    }
+
     setHoverPt(snapToGrid(raw.x, raw.y));
   };
 
@@ -1432,6 +1592,11 @@ const ArchitectAdvisorPanel = forwardRef<ArchitectAdvisorRef, Props>(({ onParams
         setDividerLines(prev => [...prev, { p1: activeDividerStart, p2: snapped }]);
       }
       setActiveDividerStart(null);
+      return;
+    }
+
+    if (isLabelingMode) {
+      setLabelDragId(null);
       return;
     }
 
@@ -1463,6 +1628,7 @@ const ArchitectAdvisorPanel = forwardRef<ArchitectAdvisorRef, Props>(({ onParams
 
   const handleCanvasClick = (e: React.MouseEvent<HTMLCanvasElement>) => {
     if (isDividingMode) return; // divider mode uses mousedown/mouseup drag
+    if (isLabelingMode) return; // labeling mode handled via mouseDown
     if (isEditingShape) return; // editing mode handles its own clicks in mouseDown
     if (hasDraggedImg) {
       setHasDraggedImg(false);
@@ -1554,9 +1720,6 @@ const ArchitectAdvisorPanel = forwardRef<ArchitectAdvisorRef, Props>(({ onParams
     setPlotData(null);
     setSuggestedShape(null);
     setAppliedOptionId(null);
-    setParamsApplied(false);
-    setBgImage(null);
-    setImgBounds(null);
     setIsEditingShape(false);
     setEditablePolygons(null);
     setShapeWasModified(false);
@@ -1564,6 +1727,10 @@ const ArchitectAdvisorPanel = forwardRef<ArchitectAdvisorRef, Props>(({ onParams
     setIsDividingMode(false);
     setDividerLines([]);
     setActiveDividerStart(null);
+    setIsLabelingMode(false);
+    setZoneLabels([]);
+    setSelectedLabelText('F1');
+    setLabelDragId(null);
   };
 
   // ── Shape Editing Functions ─────────────────────────────────────────────────
@@ -2241,6 +2408,69 @@ Use these measurements to determine which apartment types can physically fit in 
             </div>
           )}
 
+          {isLabelingMode && (
+            <div className="absolute top-2 left-3 right-3 z-30 px-3 py-2 bg-black/90 backdrop-blur-md border border-cyan-400/60 rounded-lg flex flex-wrap items-center justify-between shadow-2xl gap-2">
+              <div className="flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse" />
+                <span className="text-[10px] font-bold text-cyan-300 uppercase tracking-wider">
+                  🏷️ CLICK ON SHAPE TO PLACE:
+                </span>
+                <div className="flex items-center gap-1">
+                  {['F1', 'F2', 'F3', 'F4', 'F5', 'F6', 'CORE'].map(tag => (
+                    <button
+                      key={tag}
+                      onClick={() => setSelectedLabelText(tag)}
+                      className={`px-2 py-0.5 rounded text-[9px] font-mono font-bold transition-all cursor-pointer ${
+                        selectedLabelText.toUpperCase() === tag
+                          ? 'bg-cyan-500 text-black shadow-[0_0_8px_#00f0ff]'
+                          : 'bg-slate-800 text-cyan-300 hover:bg-slate-700 border border-cyan-500/30'
+                      }`}
+                    >
+                      {tag}
+                    </button>
+                  ))}
+                </div>
+                <div className="flex items-center gap-1 ml-1 border-l border-white/20 pl-2">
+                  <span className="text-[8px] text-cyan-400/70 font-semibold">CUSTOM:</span>
+                  <input
+                    type="text"
+                    value={selectedLabelText}
+                    onChange={e => setSelectedLabelText(e.target.value.toUpperCase())}
+                    className="w-14 h-5 bg-slate-900 border border-cyan-500/40 text-cyan-300 text-[9px] px-1.5 focus:outline-none focus:border-cyan-300 font-mono text-center rounded"
+                    placeholder="TAG"
+                  />
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-[9px] font-mono font-bold text-cyan-400 bg-cyan-950/60 px-2 py-0.5 rounded border border-cyan-500/30">
+                  {zoneLabels.length} LABELS PLACED
+                </span>
+                {zoneLabels.length > 0 && (
+                  <>
+                    <button
+                      onClick={() => setZoneLabels(prev => prev.slice(0, -1))}
+                      className="px-2 py-0.5 bg-white/10 hover:bg-white/20 text-slate-300 rounded text-[9px] font-bold cursor-pointer"
+                    >
+                      ↶ Undo
+                    </button>
+                    <button
+                      onClick={() => setZoneLabels([])}
+                      className="px-2 py-0.5 bg-red-500/20 hover:bg-red-500/30 text-red-300 rounded text-[9px] font-bold cursor-pointer"
+                    >
+                      ✕ Clear
+                    </button>
+                  </>
+                )}
+                <button
+                  onClick={() => setIsLabelingMode(false)}
+                  className="px-2.5 py-0.5 bg-emerald-500/30 hover:bg-emerald-500/40 text-emerald-300 rounded border border-emerald-400 text-[9px] font-bold cursor-pointer"
+                >
+                  ✓ Done
+                </button>
+              </div>
+            </div>
+          )}
+
           <canvas
             ref={canvasRef}
             width={canvasW}
@@ -2281,12 +2511,13 @@ Use these measurements to determine which apartment types can physically fit in 
               )}
             </div>
 
-            {/* Live Divide Button */}
+            {/* Live Divide & Label Buttons */}
             {(suggestedShape || (isTracingClosed && polygon.length >= 3)) && (
-              <div className="flex items-center gap-1.5 ml-auto">
+              <div className="flex items-center gap-2 ml-auto">
+                {/* Divide Button */}
                 {!isDividingMode ? (
                   <button
-                    onClick={() => { setIsDividingMode(true); setIsEditingShape(false); }}
+                    onClick={() => { setIsDividingMode(true); setIsLabelingMode(false); setIsEditingShape(false); }}
                     className="px-2.5 py-0.5 bg-gradient-to-r from-cyan-500/30 to-blue-500/20 hover:from-cyan-500/40 hover:to-blue-500/30 text-cyan-300 rounded border border-cyan-400/50 transition-all flex items-center gap-1.5 text-[9px] font-bold shadow-[0_0_10px_rgba(0,240,255,0.2)] cursor-pointer"
                   >
                     <Scissors className="w-3 h-3 text-cyan-400" />
@@ -2317,6 +2548,35 @@ Use these measurements to determine which apartment types can physically fit in 
                           ✕ Clear
                         </button>
                       </>
+                    )}
+                  </div>
+                )}
+
+                {/* Labeling Button */}
+                {!isLabelingMode ? (
+                  <button
+                    onClick={() => { setIsLabelingMode(true); setIsDividingMode(false); setIsEditingShape(false); }}
+                    className="px-2.5 py-0.5 bg-gradient-to-r from-emerald-500/30 to-teal-500/20 hover:from-emerald-500/40 hover:to-teal-500/30 text-emerald-300 rounded border border-emerald-400/50 transition-all flex items-center gap-1.5 text-[9px] font-bold shadow-[0_0_10px_rgba(16,185,129,0.2)] cursor-pointer"
+                  >
+                    <Tag className="w-3 h-3 text-emerald-400" />
+                    <span>Add Labels {zoneLabels.length > 0 ? `(${zoneLabels.length})` : '(F1, F2...)'}</span>
+                  </button>
+                ) : (
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      onClick={() => setIsLabelingMode(false)}
+                      className="px-2.5 py-0.5 bg-emerald-500/30 hover:bg-emerald-500/40 text-emerald-300 rounded border border-emerald-400 transition-all flex items-center gap-1 text-[9px] font-bold shadow-[0_0_8px_rgba(16,185,129,0.3)] cursor-pointer"
+                    >
+                      <Check className="w-3 h-3" /> Done Labels
+                    </button>
+                    {zoneLabels.length > 0 && (
+                      <button
+                        onClick={() => setZoneLabels([])}
+                        className="px-2 py-0.5 bg-red-500/20 hover:bg-red-500/30 text-red-300 rounded text-[9px] font-bold cursor-pointer"
+                        title="Clear All Labels"
+                      >
+                        ✕ Clear
+                      </button>
                     )}
                   </div>
                 )}

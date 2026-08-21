@@ -157,8 +157,9 @@ function buildStage1Prompt(opts: {
   bhkType?: string;
   hasDividers?: boolean;
   numDividers?: number;
+  customLabels?: string[];
 }): string {
-  const { numFlats, hasReferenceImage, units1BHK = 0, units2BHK = 0, units3BHK = 0, units4BHK = 0, bhkType = '2bhk', hasDividers = false, numDividers = 0 } = opts;
+  const { numFlats, hasReferenceImage, units1BHK = 0, units2BHK = 0, units3BHK = 0, units4BHK = 0, bhkType = '2bhk', hasDividers = false, numDividers = 0, customLabels = [] } = opts;
   const flatLabelsArray = Array.from({ length: numFlats }, (_, i) => `F${i + 1}`);
   const flatLabels = flatLabelsArray.join(', ');
   const uniqueLabelLines = flatLabelsArray.map(label => `• ${label} (use once)`).join('\n');
@@ -200,6 +201,13 @@ function buildStage1Prompt(opts: {
 
   return `You are a licensed senior 2D architectural CAD drafter. EDIT THE FIRST UPLOADED IMAGE ONLY.
 
+${customLabels && customLabels.length > 0 ? `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🏷️ USER CUSTOM UNIT LABELS DETECTED (${customLabels.join(', ')})
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+• The input image mask includes explicit text labels (${customLabels.join(', ')}) placed directly into specific zones of the building footprint.
+• The AI MUST place each designated apartment flat unit (e.g. F1 -> Flat 1, F2 -> Flat 2, F3 -> Flat 3, CORE -> central elevator/stairwell core) into the exact geographic location marked by its respective text label.
+• Render the unit identification tag clearly inside that unit's main living area.
+` : ''}
 ${hasDividers ? `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 🚨 CRITICAL CUSTOM USER PARTITION DIVIDERS ACTIVE
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -579,6 +587,7 @@ export async function POST(req: Request) {
       shapeH,
       hasDividers = false,
       numDividers = 0,
+      customLabels = [],
       // Legacy single-model fallback fields
       prompt,
       inputImageBase64,
@@ -639,6 +648,7 @@ export async function POST(req: Request) {
         bhkType: dominantBHK,
         hasDividers,
         numDividers,
+        customLabels,
       });
 
       const stage1ImageUrls: string[] = [uploadedTraceUrl];
