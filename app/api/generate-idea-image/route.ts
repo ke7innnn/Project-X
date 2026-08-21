@@ -190,10 +190,12 @@ function buildStage1Prompt(opts: {
       } else if (textUpper.includes('CORE')) {
         customLabelDirectives.push(`• Zone labeled "${lbl}": Dedicated Central Structural Core (2 Passenger Elevators + 2 Fire Staircases + Service Shafts).`);
       } else {
-        customLabelDirectives.push(`• Unit labeled "${lbl}": Assign an independent flat unit into this designated pod with full exterior window frontage and an attached balcony.`);
+        customLabelDirectives.push(`• Unit labeled "${lbl}": Assign flat unit into this designated pod with full exterior window frontage and attached balcony.`);
       }
     });
   }
+
+  const hasCustomBHKs = (customLabels1BHK + customLabels2BHK + customLabels3BHK + customLabels4BHK) > 0;
 
   // If user placed custom BHK labels, prioritize their counts for the box rules!
   const effective1BHK = customLabels1BHK > 0 ? customLabels1BHK : units1BHK;
@@ -258,19 +260,19 @@ ${roomBlocks && roomBlocks.length > 0 ? `━━━━━━━━━━━━━
   - Form clean orthogonal 90° party walls and internal partitions matching these bounding box positions.
 ` : ''}
 ${customLabels && customLabels.length > 0 ? `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-🏷️ USER CUSTOM UNIT & BHK LABELS DETECTED (${customLabels.join(', ')})
+🏷️ USER CUSTOM UNIT LABELS DETECTED (${customLabels.join(', ')})
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 • The input image mask includes explicit text labels (${customLabels.join(', ')}) placed directly into specific zones of the building footprint.
-• The AI MUST place each designated apartment flat unit and configure its interior typology to match the specific BHK requirement:
+• The AI MUST place each designated apartment flat unit into the exact pod area marked with its corresponding tag:
 ${customLabelDirectives.join('\n')}
-• STRICT EXTERIOR FACADE BOX ALLOCATION PER BHK TYPE:
+${hasCustomBHKs ? `• STRICT EXTERIOR FACADE BOX ALLOCATION PER BHK TYPE:
   - 1BHK: EXACTLY 4 exterior facade boxes along outer perimeter (1 Attached Balcony + 1 Bedroom + 1 Kitchen + 1 Toilet).
   - 2BHK: EXACTLY 5 exterior facade boxes along outer perimeter (1 Attached Balcony + 2 Bedrooms + 1 Kitchen + 1 Master Toilet).
   - 3BHK: EXACTLY 6 exterior facade boxes along outer perimeter (1 Attached Balcony + 3 Bedrooms + 1 Kitchen + 1 Master Toilet).
-  - 4BHK: EXACTLY 7 exterior facade boxes along outer perimeter (1 Attached Balcony + 4 Bedrooms + 1 Kitchen + 1 Master Toilet).
+  - 4BHK: EXACTLY 7 exterior facade boxes along outer perimeter (1 Attached Balcony + 4 Bedrooms + 1 Kitchen + 1 Master Toilet).` : ''}
 • Render the unit identification tag clearly inside that unit's main living area.
 ` : ''}
-${hasDividers ? `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+${hasDividers && numDividers > 0 ? `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 🚨 CRITICAL CUSTOM USER PARTITION DIVIDERS ACTIVE
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 • The input image mask includes ${numDividers} explicit user-drawn internal partition cut lines across the building footprint.
