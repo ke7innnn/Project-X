@@ -80,21 +80,49 @@ export async function POST(req: Request) {
 
     const prompt = buildRoughSketchPrompt();
 
-    console.log('[RoughSketchToCAD] Calling GPT Image 2 (Medium) for sketch -> CAD conversion...');
-    const gptRes = await runModel('openai/gpt-image-2/edit', {
-      image_urls: [uploadedSketchUrl],
-      prompt,
-      quality: 'medium',
-    });
+    console.log('[RoughSketchToCAD] Calling GPT Image 2 (Low) to generate 3 parallel CAD options...');
+    const candidatePromises = Array.from({ length: 3 }, () =>
+      runModel('openai/gpt-image-2/edit', {
+        image_urls: [uploadedSketchUrl],
+        prompt,
+        quality: 'low',
+      })
+    );
 
-    console.log('[RoughSketchToCAD] Fetching result to base64...');
-    const resultBase64 = await fetchToBase64(gptRes.url);
-    console.log('[RoughSketchToCAD] CAD conversion complete');
+    const candidateResults = await Promise.allSettled(candidatePromises);
+    const successfulCandidates: Array<{ url: string; seed?: number; index: number }> = [];
+
+    for (let idx = 0; idx < candidateResults.length; idx++) {
+      const res = candidateResults[idx];
+      if (res.status === 'fulfilled' && res.value?.url) {
+        try {
+          const b64 = await fetchToBase64(res.value.url);
+          successfulCandidates.push({ url: b64, seed: res.value.seed, index: idx });
+          console.log(`[RoughSketchToCAD] Option #${idx + 1}/3 generated successfully`);
+        } catch (e) {
+          successfulCandidates.push({ url: res.value.url, seed: res.value.seed, index: idx });
+        }
+      } else if (res.status === 'rejected') {
+        console.warn(`[RoughSketchToCAD] Option #${idx + 1}/3 failed:`, (res as any).reason?.message);
+      }
+    }
+
+    if (successfulCandidates.length === 0) {
+      throw new Error('All 3 GPT Image 2 CAD variations failed.');
+    }
+
+    const imageUrls = successfulCandidates.map(c => c.url);
+    const seeds = successfulCandidates.map(c => c.seed);
+    const primaryUrl = imageUrls[0];
+
+    console.log(`[RoughSketchToCAD] Generated ${imageUrls.length} CAD variations successfully`);
 
     return NextResponse.json({
-      url: resultBase64,
-      imageUrl: resultBase64,
-      seed: gptRes.seed ?? null,
+      url: primaryUrl,
+      imageUrl: primaryUrl,
+      imageUrls,
+      seeds,
+      seed: seeds[0] ?? null,
       workflow: 'rough-sketch-to-cad',
     });
   } catch (err: any) {

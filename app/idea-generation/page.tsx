@@ -300,12 +300,12 @@ export default function IdeaGenerationPage() {
         if (hasSketch) {
           setDebugPayload({
             traceBase64: strippedBase64,
-            stage1Prompt: `ROUGH SKETCH → CAD CONVERSION (1-STEP VIA GPT IMAGE 2 MEDIUM)\n\n• Reference sketch mask with ${numSketchLines} orange room partition wall(s)\n• Engine: openai/gpt-image-2/edit [Medium]\n• Strict geometric preservation of building footprint & room layout\n• CAD linework output: Crisp black walls on white background, empty rooms (no labels, no furniture)`,
+            stage1Prompt: `ROUGH SKETCH → CAD CONVERSION (3 OPTIONS IN PARALLEL)\n\n• Reference sketch mask with ${numSketchLines} orange room partition wall(s)\n• Engine: openai/gpt-image-2/edit [Low] (3 parallel variations)\n• Strict geometric preservation of building footprint & room layout\n• CAD linework output: Crisp black walls on white background, empty rooms (no labels, no furniture)`,
             workflow: 'rough-sketch-to-cad',
           });
 
           setLogs(prev => [...prev, `[SYS] ROUGH SKETCH MODE DETECTED — ${numSketchLines} room partition line(s) found`]);
-          setLogs(prev => [...prev, `[SYS] BYPASSING MULTI-STAGE PIPELINE — Running Sketch→CAD (1-Step) via GPT Image 2 Medium`]);
+          setLogs(prev => [...prev, `[SYS] BYPASSING MULTI-STAGE PIPELINE — Generating 3 CAD Variations in Parallel via GPT Image 2 [Low]`]);
           setLogs(prev => [...prev, `[SYS] UPLOADING SKETCH CANVAS TO FAL STORAGE...`]);
 
           const sketchRes = await fetch('/api/rough-sketch-to-cad', {
@@ -328,22 +328,30 @@ export default function IdeaGenerationPage() {
             throw new Error(sketchData.error || 'Rough sketch to CAD conversion failed');
           }
 
+          const allReturnedImages: string[] = (sketchData.imageUrls && sketchData.imageUrls.length > 0)
+            ? sketchData.imageUrls
+            : [sketchData.url].filter(Boolean);
+
+          setLogs(prev => [...prev, `[SKETCH→CAD] ⚡ Generated ${allReturnedImages.length} CAD floor plan variations in parallel (GPT Image 2 Low)`]);
+          if (sketchData.seed) setLogs(prev => [...prev, `[SKETCH→CAD] Primary Seed: ${sketchData.seed}`]);
+
           setDebugPayload({
             traceBase64: strippedBase64,
-            stage1Prompt: `ROUGH SKETCH → CAD CONVERSION (1-STEP)\n\n• Reference sketch mask with ${numSketchLines} orange room partition wall(s)\n• Engine: GPT Image 2 [Medium]\n• Strict geometric preservation of footprint & room layout\n• CAD linework output: Crisp black walls on white background, empty rooms`,
-            stage2ProOutputUrl: sketchData.url,
-            stage2GptOutputUrl: sketchData.url,
-            stage2OutputUrl: sketchData.url,
+            stage1Prompt: `ROUGH SKETCH → CAD CONVERSION (3 OPTIONS IN PARALLEL)\n\n• Reference sketch mask with ${numSketchLines} orange room partition wall(s)\n• Engine: openai/gpt-image-2/edit [Low] (3 parallel variations)\n• Strict geometric preservation of building footprint & room layout\n• CAD linework output: Crisp black walls on white background, empty rooms (no labels, no furniture)`,
+            stage1Candidates: allReturnedImages,
+            stage2ProOutputUrl: allReturnedImages[0],
+            stage2GptOutputUrl: allReturnedImages[0],
+            stage2OutputUrl: allReturnedImages[0],
             stage2Seed: sketchData.seed,
             workflow: 'rough-sketch-to-cad',
           });
 
-          setResultImage(sketchData.url || null);
-          setResultTitle(`ROUGH SKETCH → CAD FLOOR PLAN`);
-          setResultDesc(`1-Step geometric CAD conversion from user freeform sketch.`);
+          setResultImage(allReturnedImages[0] || null);
+          setResultTitle(`ROUGH SKETCH → CAD FLOOR PLAN (${allReturnedImages.length} OPTIONS)`);
+          setResultDesc(`1-Step geometric CAD conversion (${allReturnedImages.length} parallel options via GPT Image 2 Low).`);
 
           setVariantsHistory(prev => {
-            const list = [sketchData.url, ...prev.filter((item: string) => item !== sketchData.url)];
+            const list = [...allReturnedImages, ...prev.filter((item: string) => !allReturnedImages.includes(item))];
             return list.filter(Boolean).slice(0, 10);
           });
 
@@ -1354,21 +1362,90 @@ STAGE 2 → Refine interior layout, enforce NBC room sizes, verify room complete
                       </div>
                     </div>
 
-                    {/* 3. Final 2D CAD Floor Plan Blueprint Output */}
+                    {/* 3. Final 2D CAD Floor Plan Blueprints (3 Options in Parallel) */}
                     <div className="flex flex-col gap-3 border-t border-white/10 pt-4">
                       <div className="flex items-center justify-between">
                         <span className="text-[10px] text-cyan-400 uppercase tracking-widest font-bold flex items-center gap-1.5">
                           <span className="w-4 h-4 rounded-full bg-cyan-500/20 border border-cyan-400 flex items-center justify-center text-[9px]">3</span>
-                          SYNTHESIZED 2D ARCHITECTURAL CAD FLOOR PLAN
+                          SYNTHESIZED 2D ARCHITECTURAL CAD FLOOR PLANS ({debugPayload.stage1Candidates?.length || 1} OPTIONS GENERATED)
                         </span>
                         {debugPayload.stage2Seed !== undefined && debugPayload.stage2Seed !== null && (
                           <span className="text-[9px] font-mono px-2 py-0.5 rounded bg-cyan-500/10 border border-cyan-500/30 text-cyan-300 font-bold">
-                            SEED: {debugPayload.stage2Seed}
+                            PRIMARY SEED: {debugPayload.stage2Seed}
                           </span>
                         )}
                       </div>
 
-                      {debugPayload.stage2OutputUrl || debugPayload.stage2ProOutputUrl || resultImage ? (
+                      {debugPayload.stage1Candidates && debugPayload.stage1Candidates.length > 1 ? (
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                          {debugPayload.stage1Candidates.map((optUrl, idx) => {
+                            const isSelected = resultImage === optUrl;
+                            return (
+                              <div 
+                                key={idx}
+                                className={`flex flex-col rounded-xl overflow-hidden border transition-all ${
+                                  isSelected 
+                                    ? 'border-emerald-500 bg-emerald-950/20 shadow-[0_0_20px_rgba(16,185,129,0.3)] ring-1 ring-emerald-400' 
+                                    : 'border-white/10 bg-black/60 hover:border-cyan-500/40'
+                                }`}
+                              >
+                                <div className={`px-2.5 py-1.5 flex items-center justify-between border-b ${
+                                  isSelected ? 'bg-emerald-950/80 border-emerald-500/30' : 'bg-black/80 border-white/10'
+                                }`}>
+                                  <span className={`text-[10px] font-bold uppercase tracking-wider flex items-center gap-1 ${
+                                    isSelected ? 'text-emerald-300' : 'text-cyan-300'
+                                  }`}>
+                                    {isSelected && <span>★</span>}
+                                    CAD OPTION #{idx + 1}
+                                  </span>
+                                  {isSelected && (
+                                    <span className="text-[8px] font-mono font-bold px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-400/40 animate-pulse">
+                                      ACTIVE PLAN
+                                    </span>
+                                  )}
+                                </div>
+
+                                <div 
+                                  className="relative bg-white p-2 flex items-center justify-center cursor-pointer group/img min-h-[220px]"
+                                  onClick={() => setLightboxImage({ 
+                                    url: optUrl, 
+                                    title: `CAD Option #${idx + 1}` 
+                                  })}
+                                >
+                                  <img 
+                                    src={optUrl} 
+                                    alt={`CAD Option #${idx + 1}`} 
+                                    className="w-full h-auto max-h-[260px] object-contain rounded transition-transform group-hover/img:scale-[1.02]"
+                                  />
+                                  <div className="absolute top-2 right-2 p-1 bg-black/70 rounded text-white opacity-0 group-hover/img:opacity-100 transition-opacity flex items-center gap-1 text-[8px] font-mono pointer-events-none">
+                                    <Maximize2 className="w-2.5 h-2.5" /> Zoom
+                                  </div>
+                                </div>
+
+                                <div className="p-2 bg-[#08080c] border-t border-white/10 flex items-center justify-between gap-1.5">
+                                  <button
+                                    onClick={() => setResultImage(optUrl)}
+                                    className={`px-2 py-1 rounded text-[9px] font-bold transition-colors cursor-pointer ${
+                                      isSelected
+                                        ? 'bg-emerald-500/30 text-emerald-300 border border-emerald-400/50'
+                                        : 'bg-white/5 hover:bg-cyan-500/20 text-gray-300 hover:text-cyan-300 border border-white/10'
+                                    }`}
+                                  >
+                                    {isSelected ? '✓ Active Plan' : 'Select Plan'}
+                                  </button>
+                                  <a
+                                    href={optUrl}
+                                    download={`cad-option-${idx + 1}.png`}
+                                    className="px-2 py-1 bg-cyan-950/60 hover:bg-cyan-900 border border-cyan-500/30 text-cyan-300 rounded text-[9px] font-bold flex items-center gap-1 transition-colors"
+                                  >
+                                    <Download className="w-2.5 h-2.5" /> Save
+                                  </a>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      ) : debugPayload.stage2OutputUrl || debugPayload.stage2ProOutputUrl || resultImage ? (
                         <div className="p-3 bg-black/80 border border-cyan-500/30 rounded-lg flex flex-col items-center justify-center shadow-lg">
                           <img 
                             src={debugPayload.stage2OutputUrl || debugPayload.stage2ProOutputUrl || resultImage!} 
@@ -1379,7 +1456,7 @@ STAGE 2 → Refine interior layout, enforce NBC room sizes, verify room complete
                       ) : (
                         <div className="p-6 bg-black/60 border border-cyan-500/20 rounded-lg text-[11px] text-cyan-400 font-mono flex items-center justify-center gap-2">
                           <Loader2 className="w-4 h-4 animate-spin text-cyan-400" />
-                          <span>SYNTHESIZING 2D CAD FLOOR PLAN BLUEPRINT VIA GPT IMAGE 2...</span>
+                          <span>SYNTHESIZING 3 CAD FLOOR PLAN OPTIONS IN PARALLEL VIA GPT IMAGE 2 (LOW)...</span>
                         </div>
                       )}
                     </div>
