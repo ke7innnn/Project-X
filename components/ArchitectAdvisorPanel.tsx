@@ -93,6 +93,8 @@ interface Props {
     numDividers?: number;
     customLabels?: string[];
     roomBlocks?: Array<{ type: string; label: string; xM: number; yM: number; wM: number; hM: number }>;
+    hasRoomSketch?: boolean;
+    numRoomSketchLines?: number;
   }) => void;
   selectedModel: string;
   onModelChange: (modelId: string) => void;
@@ -407,6 +409,11 @@ const ArchitectAdvisorPanel = forwardRef<ArchitectAdvisorRef, Props>(({ onParams
   const [dividerLines, setDividerLines] = useState<Array<{ p1: Point; p2: Point }>>([]);
   const [activeDividerStart, setActiveDividerStart] = useState<Point | null>(null);
 
+  // ── Room Sketch Mode (freeform room partition lines for rough sketch → CAD workflow) ──
+  const [isRoomSketchMode, setIsRoomSketchMode] = useState(false);
+  const [roomSketchLines, setRoomSketchLines] = useState<Array<{ p1: Point; p2: Point }>>([]);
+  const [activeRoomSketchStart, setActiveRoomSketchStart] = useState<Point | null>(null);
+
   // ── Zone Text Labeling State (F1, F2, F3, etc.) ───────────────────────────
   const [isLabelingMode, setIsLabelingMode] = useState(false);
   const [zoneLabels, setZoneLabels] = useState<ZoneLabel[]>([]);
@@ -657,6 +664,25 @@ const ArchitectAdvisorPanel = forwardRef<ArchitectAdvisorRef, Props>(({ onParams
         ctx.restore();
       }
 
+      // 6b. Draw user room-sketch lines in ORANGE so AI distinguishes them from flat dividers
+      if (roomSketchLines.length > 0) {
+        ctx.save();
+        ctx.strokeStyle = '#f97316';
+        ctx.lineWidth = 4.0;
+        ctx.lineCap = 'round';
+        roomSketchLines.forEach(line => {
+          const sx1 = Math.round(line.p1.x * scale + offsetX);
+          const sy1 = Math.round(line.p1.y * scale + offsetY);
+          const sx2 = Math.round(line.p2.x * scale + offsetX);
+          const sy2 = Math.round(line.p2.y * scale + offsetY);
+          ctx.beginPath();
+          ctx.moveTo(sx1, sy1);
+          ctx.lineTo(sx2, sy2);
+          ctx.stroke();
+        });
+        ctx.restore();
+      }
+
       // 7. Draw custom user zone labels (F1, F2, F3, CORE...) in solid black on mask!
       if (zoneLabels.length > 0) {
         ctx.save();
@@ -704,7 +730,7 @@ const ArchitectAdvisorPanel = forwardRef<ArchitectAdvisorRef, Props>(({ onParams
 
     // Return full data URL (the API route handles stripping)
     return offscreen.toDataURL('image/png');
-  }, [polygon, isTracingClosed, suggestedShape, canvasW, canvasH, dividerLines, zoneLabels, roomBlocks]);
+  }, [polygon, isTracingClosed, suggestedShape, canvasW, canvasH, dividerLines, zoneLabels, roomBlocks, roomSketchLines]);
 
   const handleGenerateTrigger = useCallback(() => {
     const base64 = exportForAI();
@@ -746,8 +772,10 @@ const ArchitectAdvisorPanel = forwardRef<ArchitectAdvisorRef, Props>(({ onParams
         wM: pxToM(b.w),
         hM: pxToM(b.h),
       })),
+      hasRoomSketch: roomSketchLines.length > 0,
+      numRoomSketchLines: roomSketchLines.length,
     });
-  }, [exportForAI, onGenerateTrigger, outputW, outputH, shapeWasModified, polygon, suggestedShape, dividerLines, zoneLabels, roomBlocks, pxToM]);
+  }, [exportForAI, onGenerateTrigger, outputW, outputH, shapeWasModified, polygon, suggestedShape, dividerLines, zoneLabels, roomBlocks, pxToM, roomSketchLines]);
 
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
@@ -1148,6 +1176,94 @@ const ArchitectAdvisorPanel = forwardRef<ArchitectAdvisorRef, Props>(({ onParams
           });
         }
 
+        // ── Render Room Sketch Lines (orange — rough interior room partitions) ────
+        if (roomSketchLines.length > 0) {
+          roomSketchLines.forEach((line, idx) => {
+            ctx.save();
+            // Outer orange glow
+            ctx.strokeStyle = 'rgba(249, 115, 22, 0.3)';
+            ctx.lineWidth = 8;
+            ctx.beginPath();
+            ctx.moveTo(line.p1.x, line.p1.y);
+            ctx.lineTo(line.p2.x, line.p2.y);
+            ctx.stroke();
+
+            // Inner orange room wall line
+            ctx.strokeStyle = '#f97316';
+            ctx.lineWidth = 2.5;
+            ctx.setLineDash([5, 4]);
+            ctx.beginPath();
+            ctx.moveTo(line.p1.x, line.p1.y);
+            ctx.lineTo(line.p2.x, line.p2.y);
+            ctx.stroke();
+            ctx.setLineDash([]);
+
+            // Terminal dots
+            [line.p1, line.p2].forEach(p => {
+              ctx.fillStyle = '#f97316';
+              ctx.beginPath();
+              ctx.arc(p.x, p.y, 4, 0, Math.PI * 2);
+              ctx.fill();
+              ctx.strokeStyle = '#ffffff';
+              ctx.lineWidth = 1.5;
+              ctx.stroke();
+            });
+
+            // Room sketch tag badge at midpoint
+            const midX = (line.p1.x + line.p2.x) / 2;
+            const midY = (line.p1.y + line.p2.y) / 2;
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.85)';
+            ctx.fillRect(midX - 38, midY - 10, 76, 20);
+            ctx.strokeStyle = '#f97316';
+            ctx.lineWidth = 1;
+            ctx.strokeRect(midX - 38, midY - 10, 76, 20);
+            ctx.fillStyle = '#fb923c';
+            ctx.font = 'bold 8px monospace';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(`ROOM WALL #${idx + 1}`, midX, midY);
+            ctx.restore();
+          });
+        }
+
+        // ── In-progress Room Sketch Laser Line ─────────────────────────────────
+        if (isRoomSketchMode && activeRoomSketchStart && hoverPt) {
+          ctx.save();
+          ctx.strokeStyle = 'rgba(249, 115, 22, 0.9)';
+          ctx.lineWidth = 3;
+          ctx.setLineDash([4, 2]);
+          ctx.beginPath();
+          ctx.moveTo(activeRoomSketchStart.x, activeRoomSketchStart.y);
+          ctx.lineTo(hoverPt.x, hoverPt.y);
+          ctx.stroke();
+          ctx.setLineDash([]);
+
+          ctx.fillStyle = '#10b981';
+          ctx.beginPath();
+          ctx.arc(activeRoomSketchStart.x, activeRoomSketchStart.y, 6, 0, Math.PI * 2);
+          ctx.fill();
+
+          ctx.fillStyle = '#f97316';
+          ctx.beginPath();
+          ctx.arc(hoverPt.x, hoverPt.y, 6, 0, Math.PI * 2);
+          ctx.fill();
+
+          const curLenM = pxToM(Math.hypot(hoverPt.x - activeRoomSketchStart.x, hoverPt.y - activeRoomSketchStart.y));
+          const midX = (activeRoomSketchStart.x + hoverPt.x) / 2;
+          const midY = (activeRoomSketchStart.y + hoverPt.y) / 2;
+          ctx.fillStyle = 'rgba(0,0,0,0.9)';
+          ctx.fillRect(midX - 26, midY - 12, 52, 18);
+          ctx.strokeStyle = '#f97316';
+          ctx.lineWidth = 1;
+          ctx.strokeRect(midX - 26, midY - 12, 52, 18);
+          ctx.fillStyle = '#fb923c';
+          ctx.font = 'bold 9px monospace';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText(`${curLenM}m`, midX, midY - 3);
+          ctx.restore();
+        }
+
         // In-progress Divider Laser Line
         if (isDividingMode && activeDividerStart && hoverPt) {
           ctx.save();
@@ -1443,7 +1559,7 @@ const ArchitectAdvisorPanel = forwardRef<ArchitectAdvisorRef, Props>(({ onParams
       ctx.setLineDash([]);
       ctx.fillText(`${pxToM(hoverPt.x)}m, ${pxToM(hoverPt.y)}m`, hoverPt.x + 6, hoverPt.y - 3);
     }
-  }, [polygon, hoverPt, isTracingClosed, bgImage, imgBounds, suggestedShape, canvasW, canvasH, cellPx, pxToM, isEditingShape, editablePolygons, hoveredEdge, shapeDragIdx, isRotatingShape, isDraggingWholeShape, shapeWasModified, isDividingMode, dividerLines, activeDividerStart, isLabelingMode, zoneLabels, selectedLabelText, labelDragId, isRoomBlockMode, roomBlocks, selectedBlockType, activeBlockId, blockDragState]);
+  }, [polygon, hoverPt, isTracingClosed, bgImage, imgBounds, suggestedShape, canvasW, canvasH, cellPx, pxToM, isEditingShape, editablePolygons, hoveredEdge, shapeDragIdx, isRotatingShape, isDraggingWholeShape, shapeWasModified, isDividingMode, dividerLines, activeDividerStart, isLabelingMode, zoneLabels, selectedLabelText, labelDragId, isRoomBlockMode, roomBlocks, selectedBlockType, activeBlockId, blockDragState, isRoomSketchMode, roomSketchLines, activeRoomSketchStart]);
 
   useEffect(() => {
     // Smooth scroll the closest scrollable container (the page wrapper) instead of using scrollIntoView
@@ -1524,6 +1640,12 @@ const ArchitectAdvisorPanel = forwardRef<ArchitectAdvisorRef, Props>(({ onParams
   const handleCanvasMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
     const raw = getCanvasCoords(e);
     const snapped = snapToGrid(raw.x, raw.y);
+
+    // ── Room Sketch Mode Intercept ────────────────────────────────────────────
+    if (isRoomSketchMode) {
+      setActiveRoomSketchStart(snapped);
+      return;
+    }
 
     // ── Live Dividing Mode Intercept ─────────────────────────────────────────
     if (isDividingMode) {
@@ -1975,6 +2097,12 @@ const ArchitectAdvisorPanel = forwardRef<ArchitectAdvisorRef, Props>(({ onParams
       return;
     }
 
+    if (isRoomSketchMode) {
+      setHoverPt(snapToGrid(raw.x, raw.y));
+      if (canvasRef.current) canvasRef.current.style.cursor = 'crosshair';
+      return;
+    }
+
     if (isDividingMode) {
       setHoverPt(snapToGrid(raw.x, raw.y));
       if (canvasRef.current) canvasRef.current.style.cursor = 'crosshair';
@@ -2000,6 +2128,17 @@ const ArchitectAdvisorPanel = forwardRef<ArchitectAdvisorRef, Props>(({ onParams
   const handleCanvasMouseUp = (e: React.MouseEvent<HTMLCanvasElement>) => {
     if (isRoomBlockMode) {
       setBlockDragState(null);
+      return;
+    }
+
+    // ── Room Sketch Mode Mouse Up ─────────────────────────────────────────────
+    if (isRoomSketchMode && activeRoomSketchStart) {
+      const raw = getCanvasCoords(e);
+      const snapped = snapToGrid(raw.x, raw.y);
+      if (Math.hypot(snapped.x - activeRoomSketchStart.x, snapped.y - activeRoomSketchStart.y) > 12) {
+        setRoomSketchLines(prev => [...prev, { p1: activeRoomSketchStart, p2: snapped }]);
+      }
+      setActiveRoomSketchStart(null);
       return;
     }
 
@@ -3061,13 +3200,13 @@ Use these measurements to determine which apartment types can physically fit in 
               )}
             </div>
 
-            {/* Live Divide, Labels & Room Blocks Buttons */}
+            {/* Live Divide, Labels, Room Blocks & Room Sketch Buttons */}
             {(suggestedShape || (isTracingClosed && polygon.length >= 3)) && (
               <div className="flex items-center gap-2 ml-auto">
                 {/* Divide Button */}
                 {!isDividingMode ? (
                   <button
-                    onClick={() => { setIsDividingMode(true); setIsLabelingMode(false); setIsRoomBlockMode(false); setIsEditingShape(false); }}
+                    onClick={() => { setIsDividingMode(true); setIsLabelingMode(false); setIsRoomBlockMode(false); setIsEditingShape(false); setIsRoomSketchMode(false); }}
                     className="px-2.5 py-0.5 bg-gradient-to-r from-cyan-500/30 to-blue-500/20 hover:from-cyan-500/40 hover:to-blue-500/30 text-cyan-300 rounded border border-cyan-400/50 transition-all flex items-center gap-1.5 text-[9px] font-bold shadow-[0_0_10px_rgba(0,240,255,0.2)] cursor-pointer"
                   >
                     <Scissors className="w-3 h-3 text-cyan-400" />
@@ -3105,7 +3244,7 @@ Use these measurements to determine which apartment types can physically fit in 
                 {/* Labeling Button */}
                 {!isLabelingMode ? (
                   <button
-                    onClick={() => { setIsLabelingMode(true); setIsDividingMode(false); setIsRoomBlockMode(false); setIsEditingShape(false); }}
+                    onClick={() => { setIsLabelingMode(true); setIsDividingMode(false); setIsRoomBlockMode(false); setIsEditingShape(false); setIsRoomSketchMode(false); }}
                     className="px-2.5 py-0.5 bg-gradient-to-r from-emerald-500/30 to-teal-500/20 hover:from-emerald-500/40 hover:to-teal-500/30 text-emerald-300 rounded border border-emerald-400/50 transition-all flex items-center gap-1.5 text-[9px] font-bold shadow-[0_0_10px_rgba(16,185,129,0.2)] cursor-pointer"
                   >
                     <Tag className="w-3 h-3 text-emerald-400" />
@@ -3134,7 +3273,7 @@ Use these measurements to determine which apartment types can physically fit in 
                 {/* Room Blocks Button */}
                 {!isRoomBlockMode ? (
                   <button
-                    onClick={() => { setIsRoomBlockMode(true); setIsLabelingMode(false); setIsDividingMode(false); setIsEditingShape(false); }}
+                    onClick={() => { setIsRoomBlockMode(true); setIsLabelingMode(false); setIsDividingMode(false); setIsEditingShape(false); setIsRoomSketchMode(false); }}
                     className="px-2.5 py-0.5 bg-gradient-to-r from-purple-500/30 to-indigo-500/20 hover:from-purple-500/40 hover:to-indigo-500/30 text-purple-300 rounded border border-purple-400/50 transition-all flex items-center gap-1.5 text-[9px] font-bold shadow-[0_0_10px_rgba(168,85,247,0.2)] cursor-pointer"
                   >
                     <Box className="w-3 h-3 text-purple-400" />
@@ -3159,6 +3298,59 @@ Use these measurements to determine which apartment types can physically fit in 
                     )}
                   </div>
                 )}
+
+                {/* ── Room Sketch Button (rough sketch → CAD single-step workflow) ── */}
+                {!isRoomSketchMode ? (
+                  <button
+                    onClick={() => { setIsRoomSketchMode(true); setIsRoomBlockMode(false); setIsLabelingMode(false); setIsDividingMode(false); setIsEditingShape(false); }}
+                    className={`px-2.5 py-0.5 bg-gradient-to-r from-orange-500/30 to-amber-500/20 hover:from-orange-500/40 hover:to-amber-500/30 text-orange-300 rounded border transition-all flex items-center gap-1.5 text-[9px] font-bold cursor-pointer ${
+                      roomSketchLines.length > 0
+                        ? 'border-orange-400 shadow-[0_0_12px_rgba(249,115,22,0.4)]'
+                        : 'border-orange-400/50 shadow-[0_0_8px_rgba(249,115,22,0.15)]'
+                    }`}
+                    title="Draw rough room partition lines — triggers 1-step Sketch→CAD workflow"
+                  >
+                    <svg className="w-3 h-3 text-orange-400" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                      <path d="M2 14 L14 2" /><path d="M2 2 L7 7" /><path d="M9 9 L14 14" />
+                    </svg>
+                    <span>Rough Sketch {roomSketchLines.length > 0 ? `(${roomSketchLines.length} walls)` : '(Room Lines)'}</span>
+                  </button>
+                ) : (
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      onClick={() => setIsRoomSketchMode(false)}
+                      className="px-2.5 py-0.5 bg-emerald-500/30 hover:bg-emerald-500/40 text-emerald-300 rounded border border-emerald-400 transition-all flex items-center gap-1 text-[9px] font-bold shadow-[0_0_8px_rgba(16,185,129,0.3)] cursor-pointer"
+                    >
+                      <Check className="w-3 h-3" /> Done Sketching
+                    </button>
+                    {roomSketchLines.length > 0 && (
+                      <>
+                        <button
+                          onClick={() => setRoomSketchLines(prev => prev.slice(0, -1))}
+                          className="px-2 py-0.5 bg-white/10 hover:bg-white/20 text-slate-300 rounded text-[9px] font-bold cursor-pointer"
+                          title="Undo Last Room Wall"
+                        >
+                          ↶ Undo
+                        </button>
+                        <button
+                          onClick={() => setRoomSketchLines([])}
+                          className="px-2 py-0.5 bg-red-500/20 hover:bg-red-500/30 text-red-300 rounded text-[9px] font-bold cursor-pointer"
+                          title="Clear All Room Sketch Lines"
+                        >
+                          ✕ Clear
+                        </button>
+                      </>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Room Sketch Mode Active Badge */}
+            {isRoomSketchMode && (
+              <div className="flex items-center gap-2 mt-1.5 px-2 py-1 bg-orange-500/10 border border-orange-400/30 rounded-lg">
+                <span className="w-1.5 h-1.5 rounded-full bg-orange-400 animate-pulse" />
+                <span className="text-[9px] font-bold text-orange-300 tracking-wider">ROOM SKETCH MODE — Draw freeform room partition lines. Generate will run Sketch→CAD (1-Step) workflow.</span>
               </div>
             )}
           </div>

@@ -171,7 +171,7 @@ export default function IdeaGenerationPage() {
   ];
 
   // Unified Async Generation and HUD Progress Pipeline
-  const handleGenerate = async (e?: React.FormEvent, aiOpts?: { tracerImageBase64?: string; canvasW?: number; canvasH?: number; shapeW?: number; shapeH?: number; isShapeModified?: boolean; hasDividers?: boolean; numDividers?: number; customLabels?: string[]; roomBlocks?: Array<{ type: string; label: string; xM: number; yM: number; wM: number; hM: number }> }) => {
+  const handleGenerate = async (e?: React.FormEvent, aiOpts?: { tracerImageBase64?: string; canvasW?: number; canvasH?: number; shapeW?: number; shapeH?: number; isShapeModified?: boolean; hasDividers?: boolean; numDividers?: number; customLabels?: string[]; roomBlocks?: Array<{ type: string; label: string; xM: number; yM: number; wM: number; hM: number }>; hasRoomSketch?: boolean; numRoomSketchLines?: number }) => {
     if (e) e.preventDefault();
     const fallbackBase64 = advisorRef.current?.exportCanvasBase64() || undefined;
     setValidationError(null);
@@ -293,7 +293,52 @@ export default function IdeaGenerationPage() {
         // Strip data URL prefix for display in debug modal (modal adds it back)
         const strippedBase64 = typeof traceBase64 === 'string' ? traceBase64.replace(/^data:image\/\w+;base64,/, '') : traceBase64;
 
+        // ── ROUGH SKETCH → CAD SINGLE-STEP WORKFLOW ──────────────────────────────
+        if (aiOpts?.hasRoomSketch) {
+          setLogs(prev => [...prev, `[SYS] ROUGH SKETCH MODE DETECTED — ${aiOpts.numRoomSketchLines || 0} room partition line(s) found`]);
+          setLogs(prev => [...prev, `[SYS] BYPASSING MULTI-STAGE PIPELINE — Running Sketch→CAD (1-Step) via GPT Image 2 Medium`]);
+          setLogs(prev => [...prev, `[SYS] UPLOADING SKETCH CANVAS TO FAL STORAGE...`]);
+
+          const sketchRes = await fetch('/api/rough-sketch-to-cad', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              traceCanvasBase64: traceBase64,
+            }),
+          });
+
+          clearInterval(logInterval);
+
+          const sketchContentType = sketchRes.headers.get('content-type') || '';
+          if (!sketchContentType.includes('application/json')) {
+            const text = await sketchRes.text();
+            throw new Error(`Sketch-to-CAD server error (${sketchRes.status}): ${text.slice(0, 200)}`);
+          }
+          const sketchData = await sketchRes.json();
+          if (!sketchRes.ok) {
+            throw new Error(sketchData.error || 'Rough sketch to CAD conversion failed');
+          }
+
+          setLogs(prev => [...prev, `[SKETCH→CAD] ✅ CAD floor plan generated from rough sketch (1-step, GPT Image 2 Medium)`]);
+          if (sketchData.seed) setLogs(prev => [...prev, `[SKETCH→CAD] Seed: ${sketchData.seed}`]);
+
+          setResultImage(sketchData.url || null);
+          setResultTitle(`ROUGH SKETCH → CAD FLOOR PLAN`);
+          setResultDesc(`1-Step geometric CAD conversion from user freeform sketch.`);
+
+          setVariantsHistory(prev => {
+            const list = [sketchData.url, ...prev.filter((item: string) => item !== sketchData.url)];
+            return list.filter(Boolean).slice(0, 10);
+          });
+
+          setIsGenerating(false);
+          return;
+        }
+
+        // ── NORMAL 2-STAGE PIPELINE (unchanged when no room sketch lines) ─────
+
         // Build a client-side preview of what the server will generate
+
         const totalUnits = units1BHK + units2BHK + units3BHK + units4BHK;
         const mixParts = [
           units1BHK > 0 ? `${units1BHK} × 1BHK` : null,
@@ -542,7 +587,7 @@ STAGE 2 → Refine interior layout, enforce NBC room sizes, verify room complete
     if (params.customPrompt) setCustomPrompt(params.customPrompt);
   }, []);
 
-  const handleGenerateTrigger = useCallback((opts?: { tracerImageBase64?: string; canvasW?: number; canvasH?: number; shapeW?: number; shapeH?: number; isShapeModified?: boolean; hasDividers?: boolean; numDividers?: number; customLabels?: string[]; roomBlocks?: Array<{ type: string; label: string; xM: number; yM: number; wM: number; hM: number }> }) => {
+  const handleGenerateTrigger = useCallback((opts?: { tracerImageBase64?: string; canvasW?: number; canvasH?: number; shapeW?: number; shapeH?: number; isShapeModified?: boolean; hasDividers?: boolean; numDividers?: number; customLabels?: string[]; roomBlocks?: Array<{ type: string; label: string; xM: number; yM: number; wM: number; hM: number }>; hasRoomSketch?: boolean; numRoomSketchLines?: number }) => {
     handleGenerate(undefined, opts);
   }, [handleGenerate]);
 
