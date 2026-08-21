@@ -177,11 +177,7 @@ export default function IdeaGenerationPage() {
     setValidationError(null);
 
     // 1. Validations & Sanity Checks
-    const trimmedPrompt = customPrompt.trim();
-    if (!trimmedPrompt) {
-      setValidationError("Design notes / prompt cannot be empty. Please describe the building layout details.");
-      return;
-    }
+    const trimmedPrompt = customPrompt.trim() || 'Residential floor plan';
 
     // Footprint shape select check
     if (footprintShape === 'custom' && !customFootprintText.trim()) {
