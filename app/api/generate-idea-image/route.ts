@@ -164,30 +164,66 @@ function buildStage1Prompt(opts: {
   const flatLabels = flatLabelsArray.join(', ');
   const uniqueLabelLines = flatLabelsArray.map(label => `• ${label} (use once)`).join('\n');
 
+  // Analyze custom labels for explicit BHK assignments
+  const customLabelDirectives: string[] = [];
+  let customLabels1BHK = 0;
+  let customLabels2BHK = 0;
+  let customLabels3BHK = 0;
+  let customLabels4BHK = 0;
+
+  if (customLabels && customLabels.length > 0) {
+    customLabels.forEach(lbl => {
+      const textUpper = lbl.toUpperCase();
+      if (textUpper.includes('1BHK') || textUpper.includes('1 BHK') || textUpper === '1BHK') {
+        customLabels1BHK++;
+        customLabelDirectives.push(`• Unit labeled "${lbl}": MUST be a 1BHK unit with EXACTLY 4 exterior facade boxes (1 Attached Balcony + 1 Bedroom + 1 Kitchen + 1 Toilet).`);
+      } else if (textUpper.includes('2BHK') || textUpper.includes('2 BHK') || textUpper === '2BHK') {
+        customLabels2BHK++;
+        customLabelDirectives.push(`• Unit labeled "${lbl}": MUST be a 2BHK unit with EXACTLY 5 exterior facade boxes (1 Attached Balcony + 2 Bedrooms [Master + Bed 2] + 1 Kitchen + 1 Master Toilet).`);
+      } else if (textUpper.includes('3BHK') || textUpper.includes('3 BHK') || textUpper === '3BHK') {
+        customLabels3BHK++;
+        customLabelDirectives.push(`• Unit labeled "${lbl}": MUST be a 3BHK unit with EXACTLY 6 exterior facade boxes (1 Attached Balcony + 3 Bedrooms [Master + Bed 2 + Bed 3] + 1 Kitchen + 1 Master Toilet).`);
+      } else if (textUpper.includes('4BHK') || textUpper.includes('4 BHK') || textUpper === '4BHK') {
+        customLabels4BHK++;
+        customLabelDirectives.push(`• Unit labeled "${lbl}": MUST be a 4BHK unit with EXACTLY 7 exterior facade boxes (1 Attached Balcony + 4 Bedrooms + 1 Kitchen + 1 Master Toilet).`);
+      } else if (textUpper.includes('CORE')) {
+        customLabelDirectives.push(`• Zone labeled "${lbl}": Dedicated Central Structural Core (2 Passenger Elevators + 2 Fire Staircases + Service Shafts).`);
+      } else {
+        customLabelDirectives.push(`• Unit labeled "${lbl}": Assign an independent flat unit into this designated pod with full exterior window frontage and an attached balcony.`);
+      }
+    });
+  }
+
+  // If user placed custom BHK labels, prioritize their counts for the box rules!
+  const effective1BHK = customLabels1BHK > 0 ? customLabels1BHK : units1BHK;
+  const effective2BHK = customLabels2BHK > 0 ? customLabels2BHK : units2BHK;
+  const effective3BHK = customLabels3BHK > 0 ? customLabels3BHK : units3BHK;
+  const effective4BHK = customLabels4BHK > 0 ? customLabels4BHK : units4BHK;
+
   // Build exact exterior box count specifications per unit
   const boxRules: string[] = [];
   let totalBoxes = 0;
   let flatIdx = 1;
 
-  if (units1BHK > 0) {
-    const list = Array.from({ length: units1BHK }, () => `F${flatIdx++}`).join(', ');
+  if (effective1BHK > 0) {
+    const list = Array.from({ length: effective1BHK }, () => `F${flatIdx++}`).join(', ');
     boxRules.push(`• 1BHK Units (${list}): EXACTLY 4 exterior facade boxes along outer perimeter (1 Attached Balcony + 1 Bedroom + 1 Kitchen + 1 Toilet).`);
-    totalBoxes += units1BHK * 4;
+    totalBoxes += effective1BHK * 4;
   }
-  if (units2BHK > 0) {
-    const list = Array.from({ length: units2BHK }, () => `F${flatIdx++}`).join(', ');
+  if (effective2BHK > 0) {
+    const list = Array.from({ length: effective2BHK }, () => `F${flatIdx++}`).join(', ');
     boxRules.push(`• 2BHK Units (${list}): EXACTLY 5 exterior facade boxes along outer perimeter (1 Attached Balcony + 2 Bedrooms [Master + Bed 2] + 1 Kitchen + 1 Master Toilet).`);
-    totalBoxes += units2BHK * 5;
+    totalBoxes += effective2BHK * 5;
   }
-  if (units3BHK > 0) {
-    const list = Array.from({ length: units3BHK }, () => `F${flatIdx++}`).join(', ');
+  if (effective3BHK > 0) {
+    const list = Array.from({ length: effective3BHK }, () => `F${flatIdx++}`).join(', ');
     boxRules.push(`• 3BHK Units (${list}): EXACTLY 6 exterior facade boxes along outer perimeter (1 Attached Balcony + 3 Bedrooms [Master + Bed 2 + Bed 3] + 1 Kitchen + 1 Master Toilet).`);
-    totalBoxes += units3BHK * 6;
+    totalBoxes += effective3BHK * 6;
   }
-  if (units4BHK > 0) {
-    const list = Array.from({ length: units4BHK }, () => `F${flatIdx++}`).join(', ');
+  if (effective4BHK > 0) {
+    const list = Array.from({ length: effective4BHK }, () => `F${flatIdx++}`).join(', ');
     boxRules.push(`• 4BHK Units (${list}): EXACTLY 7 exterior facade boxes along outer perimeter (1 Attached Balcony + 4 Bedrooms + 1 Kitchen + 1 Master Toilet).`);
-    totalBoxes += units4BHK * 7;
+    totalBoxes += effective4BHK * 7;
   }
 
   // Fallback if generic dominant BHK
@@ -202,10 +238,16 @@ function buildStage1Prompt(opts: {
   return `You are a licensed senior 2D architectural CAD drafter. EDIT THE FIRST UPLOADED IMAGE ONLY.
 
 ${customLabels && customLabels.length > 0 ? `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-🏷️ USER CUSTOM UNIT LABELS DETECTED (${customLabels.join(', ')})
+🏷️ USER CUSTOM UNIT & BHK LABELS DETECTED (${customLabels.join(', ')})
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 • The input image mask includes explicit text labels (${customLabels.join(', ')}) placed directly into specific zones of the building footprint.
-• The AI MUST place each designated apartment flat unit (e.g. F1 -> Flat 1, F2 -> Flat 2, F3 -> Flat 3, CORE -> central elevator/stairwell core) into the exact geographic location marked by its respective text label.
+• The AI MUST place each designated apartment flat unit and configure its interior typology to match the specific BHK requirement:
+${customLabelDirectives.join('\n')}
+• STRICT EXTERIOR FACADE BOX ALLOCATION PER BHK TYPE:
+  - 1BHK: EXACTLY 4 exterior facade boxes along outer perimeter (1 Attached Balcony + 1 Bedroom + 1 Kitchen + 1 Toilet).
+  - 2BHK: EXACTLY 5 exterior facade boxes along outer perimeter (1 Attached Balcony + 2 Bedrooms + 1 Kitchen + 1 Master Toilet).
+  - 3BHK: EXACTLY 6 exterior facade boxes along outer perimeter (1 Attached Balcony + 3 Bedrooms + 1 Kitchen + 1 Master Toilet).
+  - 4BHK: EXACTLY 7 exterior facade boxes along outer perimeter (1 Attached Balcony + 4 Bedrooms + 1 Kitchen + 1 Master Toilet).
 • Render the unit identification tag clearly inside that unit's main living area.
 ` : ''}
 ${hasDividers ? `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━

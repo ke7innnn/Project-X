@@ -1332,10 +1332,15 @@ const ArchitectAdvisorPanel = forwardRef<ArchitectAdvisorRef, Props>(({ onParams
       };
       setZoneLabels(prev => [...prev, newLabel]);
 
-      // Auto-advance F1 -> F2 -> F3 -> F4 ...
-      const match = selectedLabelText.match(/^F(\d+)$/i);
-      if (match) {
-        setSelectedLabelText(`F${parseInt(match[1]) + 1}`);
+      // Auto-advance F1 -> F2 -> F3 ... or F1 (2BHK) -> F2 (2BHK)
+      const matchCompound = selectedLabelText.match(/^F(\d+)\s*\((.+)\)$/i);
+      if (matchCompound) {
+        setSelectedLabelText(`F${parseInt(matchCompound[1]) + 1} (${matchCompound[2]})`);
+      } else {
+        const match = selectedLabelText.match(/^F(\d+)$/i);
+        if (match) {
+          setSelectedLabelText(`F${parseInt(match[1]) + 1}`);
+        }
       }
       return;
     }
@@ -2426,11 +2431,12 @@ Use these measurements to determine which apartment types can physically fit in 
                   🏷️ CLICK ON SHAPE TO PLACE:
                 </span>
                 <div className="flex items-center gap-1">
-                  {['F1', 'F2', 'F3', 'F4', 'F5', 'F6', 'CORE'].map(tag => (
+                  <span className="text-[8px] text-cyan-400/60 font-semibold uppercase">FLATS:</span>
+                  {['F1', 'F2', 'F3', 'F4', 'F5', 'F6', 'F7', 'F8'].map(tag => (
                     <button
                       key={tag}
                       onClick={() => setSelectedLabelText(tag)}
-                      className={`px-2 py-0.5 rounded text-[9px] font-mono font-bold transition-all cursor-pointer ${
+                      className={`px-1.5 py-0.5 rounded text-[9px] font-mono font-bold transition-all cursor-pointer ${
                         selectedLabelText.toUpperCase() === tag
                           ? 'bg-cyan-500 text-black shadow-[0_0_8px_#00f0ff]'
                           : 'bg-slate-800 text-cyan-300 hover:bg-slate-700 border border-cyan-500/30'
@@ -2440,7 +2446,24 @@ Use these measurements to determine which apartment types can physically fit in 
                     </button>
                   ))}
                 </div>
-                <div className="flex items-center gap-1 ml-1 border-l border-white/20 pl-2">
+
+                <div className="flex items-center gap-1 border-l border-white/20 pl-2">
+                  <span className="text-[8px] text-amber-400/80 font-semibold uppercase">BHK:</span>
+                  {['1BHK', '2BHK', '3BHK', '4BHK', 'CORE'].map(tag => (
+                    <button
+                      key={tag}
+                      onClick={() => setSelectedLabelText(tag)}
+                      className={`px-1.5 py-0.5 rounded text-[9px] font-mono font-bold transition-all cursor-pointer ${
+                        selectedLabelText.toUpperCase() === tag
+                          ? 'bg-amber-400 text-black shadow-[0_0_8px_#f59e0b]'
+                          : 'bg-amber-950/40 text-amber-300 hover:bg-amber-900/50 border border-amber-500/40'
+                      }`}
+                    >
+                      {tag}
+                    </button>
+                  ))}
+                </div>
+                <div className="flex items-center gap-1 border-l border-white/20 pl-2">
                   <span className="text-[8px] text-cyan-400/70 font-semibold">CUSTOM:</span>
                   <input
                     type="text"
