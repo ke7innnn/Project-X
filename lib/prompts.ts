@@ -382,7 +382,15 @@ CRITICAL INSTRUCTIONS:
 - Apply high-quality textures, realistic global illumination, and ray-traced shadows.
 - Ensure the lighting direction strictly matches the requested sunpath direction.
 - The environment should reflect the requested style beautifully.
-- Do NOT include any text, dimensions, labels, or numbers in the final 3D render. The floor plan input contains text labels and dimensions, but these must be completely ignored and excluded from the photorealistic 3D output.`;
+
+STRICTLY FORBIDDEN — ABSOLUTE RULE — NO EXCEPTIONS:
+- ZERO text of any kind in the output image.
+- ZERO dimension lines, measurement arrows, or scale bars.
+- ZERO room labels, floor labels, unit labels, or any annotation whatsoever.
+- ZERO numbers, numerals, or alphanumeric characters visible anywhere in the image.
+- ZERO architectural drawing symbols, hatching legends, or CAD-style overlays.
+- The 2D floor plan input may contain labels, room names, and dimensions — these MUST be 100% ignored and MUST NOT appear in the 3D photorealistic output in any form.
+- If text or labels are rendered, the output is INVALID. Treat this as the highest-priority constraint above all stylistic choices.`;
 };
 
 export const EDIT_RENDER_TRANSLATOR_SYSTEM_PROMPT = (params: any, isInpaint?: boolean) => {

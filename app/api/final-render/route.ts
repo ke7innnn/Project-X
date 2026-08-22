@@ -26,7 +26,7 @@ export async function POST(request: Request) {
 
     const body = {
       prompt,
-      negative_prompt: "text, words, letters, typography, alphabet, writing, labels, fonts, numbers, watermarks, blurred text, scrambled letters, floating text, symbols, illegible text, text on floor",
+      negative_prompt: "text, words, letters, typography, alphabet, writing, labels, room labels, floor labels, unit labels, annotations, dimension lines, measurement arrows, scale bars, rulers, numbers, numerals, digits, watermarks, blurred text, scrambled letters, floating text, symbols, illegible text, text on floor, text on walls, text overlay, CAD symbols, hatching, legend, callouts, blueprints overlay, drawing symbols, architectural annotations",
       image_urls: [
         floorPlanBase64.startsWith('data:')
           ? floorPlanBase64
