@@ -22,7 +22,7 @@ export async function POST(request: Request) {
       ? FINAL_RENDER_PROMPT({ ...collectedParameters, renderStyle, sunpathDirection })
       : FINAL_RENDER_PROMPT;
 
-    console.log(`[xai/grok-imagine-image/edit] Generating 3D Render with style: "${renderStyle || 'Normal'}", sunpath: "${sunpathDirection || 'Default'}"`);
+    console.log(`[xai/grok-imagine-image/v2.0/edit] Generating 3D Render with style: "${renderStyle || 'Normal'}", sunpath: "${sunpathDirection || 'Default'}"`);
 
     const body = {
       prompt,
@@ -34,9 +34,9 @@ export async function POST(request: Request) {
       ]
     };
 
-    console.log(`[xai/grok-imagine-image/edit] Generating 3D Render.`);
+    console.log(`[xai/grok-imagine-image/v2.0/edit] Generating 3D Render.`);
     
-    const response = await fetch('https://fal.run/xai/grok-imagine-image/edit', {
+    const response = await fetch('https://fal.run/xai/grok-imagine-image/v2.0/edit', {
       method: 'POST',
       headers: {
         'Authorization': `Key ${FAL_KEY}`,
@@ -48,13 +48,13 @@ export async function POST(request: Request) {
 
     if (!response.ok) {
       const errText = await response.text();
-      throw new Error(`xai/grok-imagine-image/edit rendering error ${response.status}: ${errText}`);
+      throw new Error(`xai/grok-imagine-image/v2.0/edit rendering error ${response.status}: ${errText}`);
     }
 
     const data = await response.json();
     const imageUrl = data?.images?.[0]?.url;
     if (!imageUrl) {
-      throw new Error('xai/grok-imagine-image/edit returned no render image URL');
+      throw new Error('xai/grok-imagine-image/v2.0/edit returned no render image URL');
     }
 
     // Download the rendered image as base64
