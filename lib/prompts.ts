@@ -383,6 +383,15 @@ CRITICAL INSTRUCTIONS:
 - Ensure the lighting direction strictly matches the requested sunpath direction.
 - The environment should reflect the requested style beautifully.
 
+ROOM DESIGNATION & FURNITURE PLACEMENT RULE (CRITICAL):
+- Strictly read and obey every room label indicated on the 2D floor plan (e.g. Master Bedroom, Bedroom, Living Room, Dining Room, Kitchen, Dry Kitchen, Balcony, Toilet/Bathroom, Utility, Foyer, Walk-in Closet).
+- Furnish and stage each room STRICTLY according to its labeled purpose:
+  * Bedrooms MUST only contain beds, nightstands, wardrobes, and bedroom furnishings (NEVER place kitchen counters, dining tables, or living sofas in a designated bedroom).
+  * Kitchens MUST strictly contain kitchen cabinets, countertops, cooktops, sink, and refrigerator (NEVER place beds or bedroom furniture in a kitchen).
+  * Living / Dining areas MUST strictly contain sofas, coffee tables, dining sets, and entertainment consoles.
+  * Bathrooms MUST strictly contain sanitaryware, vanity, and shower/bathtub fixtures.
+- The interior layout of fixtures and furniture must 100% respect the architectural function of each labeled space, while ensuring zero text labels appear in the final render.
+
 STRICTLY FORBIDDEN — ABSOLUTE RULE — NO EXCEPTIONS:
 - ZERO text of any kind in the output image.
 - ZERO dimension lines, measurement arrows, or scale bars.

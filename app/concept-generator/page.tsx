@@ -19,8 +19,10 @@ import {
   Building,
   Image as ImageIcon,
   CheckCircle2,
-  FileCode
+  FileCode,
+  Palette
 } from 'lucide-react';
+import ConceptMoodboard from '@/components/ConceptMoodboard';
 
 const CONCEPT_PRESETS = [
   {
@@ -62,6 +64,9 @@ const CONCEPT_PRESETS = [
 
 export default function ConceptGeneratorPage() {
   const router = useRouter();
+
+  // Mode Tab: Generator vs Moodboard
+  const [activeTab, setActiveTab] = useState<'generator' | 'moodboard'>('generator');
 
   // Input states
   const [prompt, setPrompt] = useState<string>(
@@ -169,9 +174,35 @@ export default function ConceptGeneratorPage() {
                 CONCEPT GENERATOR STUDIO
               </h1>
               <p className="text-[10px] text-slate-400 font-mono">
-                Text-to-Image Presentation Board Engine (2D Floor Plan + 3D Massing + 3D Elevation)
+                Presentation Board Engine & Architectural Moodboard Studio
               </p>
             </div>
+          </div>
+
+          {/* Mode Switcher Tabs */}
+          <div className="hidden sm:flex items-center bg-black/60 border border-white/10 rounded-xl p-1 shadow-inner ml-3">
+            <button
+              onClick={() => setActiveTab('generator')}
+              className={`px-3 py-1 rounded-lg text-[11px] font-mono font-bold uppercase tracking-wider flex items-center gap-1.5 transition-all cursor-pointer ${
+                activeTab === 'generator'
+                  ? 'bg-cyan-500 text-black shadow-md shadow-cyan-500/30'
+                  : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              <FileCode className="w-3.5 h-3.5" /> Concept Generator
+            </button>
+
+            <button
+              onClick={() => setActiveTab('moodboard')}
+              className={`px-3 py-1 rounded-lg text-[11px] font-mono font-bold uppercase tracking-wider flex items-center gap-1.5 transition-all cursor-pointer ${
+                activeTab === 'moodboard'
+                  ? 'bg-gradient-to-r from-emerald-400 to-teal-400 text-black shadow-md shadow-emerald-500/30 font-black'
+                  : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              <Palette className="w-3.5 h-3.5" /> Moodboard & Inspiration
+              <span className="px-1 py-0.2 bg-emerald-950 text-emerald-300 rounded text-[8px] border border-emerald-500/40 font-mono">NEW</span>
+            </button>
           </div>
         </div>
 
@@ -183,8 +214,16 @@ export default function ConceptGeneratorPage() {
         </div>
       </header>
 
-      {/* ── Main Layout: Sidebar Controls (Left) + Viewport (Right) ── */}
-      <div className="flex-1 flex overflow-hidden">
+      {/* ── Main Body: Conditional Tab Rendering ── */}
+      {activeTab === 'moodboard' ? (
+        <ConceptMoodboard 
+          onApplyToPrompt={(inspirationText) => {
+            setPrompt(prev => `${prev} ${inspirationText}`.trim());
+            setActiveTab('generator');
+          }} 
+        />
+      ) : (
+        <div className="flex-1 flex overflow-hidden">
         {/* Left Control Panel */}
         <aside className="w-[420px] shrink-0 border-r border-white/10 bg-slate-900/50 backdrop-blur-md flex flex-col overflow-y-auto p-4 gap-4">
           {/* Presets Bar */}
@@ -441,6 +480,7 @@ export default function ConceptGeneratorPage() {
 
         </main>
       </div>
+      )}
 
     </div>
   );

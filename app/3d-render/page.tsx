@@ -3,10 +3,11 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useArchitectStore } from '@/store/useArchitectStore';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, Box, Download, Settings2, Sparkles, Loader2, UploadCloud, Folder, Search, Plus, MapPin, Clock, Trash2, Map } from 'lucide-react';
+import { ArrowLeft, Box, Download, Settings2, Sparkles, Loader2, UploadCloud, Folder, Search, Plus, MapPin, Clock, Trash2, Map, Compass, Building } from 'lucide-react';
 import CinematicIntro from '@/components/CinematicIntro';
 import { RenderHistoryItem } from '@/types';
 import SaveToProjectModal from '@/components/SaveToProjectModal';
+import SitePlanStudio from '@/components/SitePlanStudio';
 import { supabase } from '@/lib/supabase';
 import { v4 as uuidv4 } from 'uuid';
 import { useActiveProjectGuard } from '@/lib/useActiveProjectGuard';
@@ -19,6 +20,9 @@ export default function Render3DPage() {
   const { currentFloorPlan, setCurrentFloorPlan, finalRender, setFinalRender, collectedParameters, projectName, placeName } = useArchitectStore();
   const switchSession = useArchitectStore(state => state.switchSession);
   const { replaceState, sessionId } = useArchitectStore();
+
+  // Active Studio Mode: Floor Plan 3D Render vs Site Plan / Masterplan 3D Studio
+  const [activeStudioTab, setActiveStudioTab] = useState<'floorplan' | 'siteplan'>('floorplan');
 
   const [isRendering, setIsRendering] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -220,37 +224,67 @@ export default function Render3DPage() {
             <ArrowLeft className="text-blue-400 group-hover:text-blue-300" size={18} />
           </button>
           <div>
-            <h1 className="text-xl font-bold tracking-[4px] uppercase text-white drop-shadow-[0_0_8px_rgba(255,255,255,0.3)]">
-              3D Render Matrix
+            <h1 className="text-xl font-bold tracking-[4px] uppercase text-white drop-shadow-[0_0_8px_rgba(255,255,255,0.3)] flex items-center gap-2">
+              <span>3D Render Matrix</span>
             </h1>
             <span className="text-[10px] tracking-[3px] text-blue-400/60 uppercase">
               {projectName ? `Project: ${projectName} (${placeName || 'Unknown Location'})` : 'Photorealistic Generation Engine'}
             </span>
           </div>
+
+          {/* Mode Switcher Tabs */}
+          <div className="hidden md:flex items-center bg-black/70 border border-blue-500/30 rounded-xl p-1 shadow-inner ml-4">
+            <button
+              onClick={() => setActiveStudioTab('floorplan')}
+              className={`px-3.5 py-1.5 rounded-lg text-[11px] font-bold uppercase tracking-wider flex items-center gap-1.5 transition-all cursor-pointer ${
+                activeStudioTab === 'floorplan'
+                  ? 'bg-blue-600 text-white shadow-[0_0_15px_rgba(37,99,235,0.5)]'
+                  : 'text-blue-400/70 hover:text-white'
+              }`}
+            >
+              <Building size={13} /> 3D Floor Plan
+            </button>
+
+            <button
+              onClick={() => setActiveStudioTab('siteplan')}
+              className={`px-3.5 py-1.5 rounded-lg text-[11px] font-bold uppercase tracking-wider flex items-center gap-1.5 transition-all cursor-pointer ${
+                activeStudioTab === 'siteplan'
+                  ? 'bg-gradient-to-r from-emerald-500 to-cyan-400 text-black shadow-[0_0_18px_rgba(16,185,129,0.5)] font-black'
+                  : 'text-cyan-400/70 hover:text-cyan-300'
+              }`}
+            >
+              <Compass size={13} /> 3D Site Plan Studio
+              <span className="px-1 py-0.2 bg-emerald-950/80 text-emerald-300 rounded text-[8px] border border-emerald-500/40 font-mono">NEW</span>
+            </button>
+          </div>
         </div>
         
-        <div className="flex items-center gap-4">
-          <input 
-            type="file" 
-            accept="image/*" 
-            ref={fileInputRef} 
-            onChange={handleFileUpload} 
-            className="hidden" 
-          />
-          <button 
-            onClick={() => fileInputRef.current?.click()}
-            className="flex items-center gap-2 px-4 py-2 text-[10px] uppercase tracking-widest bg-blue-600/10 border border-blue-500/30 text-blue-300 hover:bg-blue-600/20 hover:border-blue-500 font-bold rounded transition-all cursor-pointer glass-card"
-          >
-            <UploadCloud size={14} /> Upload Plan
-          </button>
+        <div className="flex items-center gap-3">
+          {activeStudioTab === 'floorplan' && (
+            <>
+              <input 
+                type="file" 
+                accept="image/*" 
+                ref={fileInputRef} 
+                onChange={handleFileUpload} 
+                className="hidden" 
+              />
+              <button 
+                onClick={() => fileInputRef.current?.click()}
+                className="flex items-center gap-2 px-4 py-2 text-[10px] uppercase tracking-widest bg-blue-600/10 border border-blue-500/30 text-blue-300 hover:bg-blue-600/20 hover:border-blue-500 font-bold rounded transition-all cursor-pointer glass-card"
+              >
+                <UploadCloud size={14} /> Upload Plan
+              </button>
 
-          {finalRender && (
-            <button 
-              onClick={() => setIsSaveModalOpen(true)}
-              className="flex items-center gap-2 px-4 py-2 text-[10px] uppercase tracking-widest bg-blue-600/10 border border-blue-500/30 text-blue-300 hover:bg-blue-600/20 hover:border-blue-500 font-bold rounded transition-all cursor-pointer glass-card"
-            >
-              <Folder size={14} /> Save to Project
-            </button>
+              {finalRender && (
+                <button 
+                  onClick={() => setIsSaveModalOpen(true)}
+                  className="flex items-center gap-2 px-4 py-2 text-[10px] uppercase tracking-widest bg-blue-600/10 border border-blue-500/30 text-blue-300 hover:bg-blue-600/20 hover:border-blue-500 font-bold rounded transition-all cursor-pointer glass-card"
+                >
+                  <Folder size={14} /> Save to Project
+                </button>
+              )}
+            </>
           )}
 
           <button 
@@ -263,7 +297,10 @@ export default function Render3DPage() {
       </header>
 
       {/* Main Content Area */}
-      <main className="relative z-10 flex flex-1 overflow-hidden">
+      {activeStudioTab === 'siteplan' ? (
+        <SitePlanStudio />
+      ) : (
+        <main className="relative z-10 flex flex-1 overflow-hidden">
         
         {/* Left Side: Viewport & Render History */}
         <div className="flex-1 flex flex-col p-8 overflow-y-auto relative custom-scrollbar">
@@ -544,6 +581,7 @@ export default function Render3DPage() {
         </div>
 
       </main>
+      )}
 
       {/* DETAILED CONCEPT INSPECT MODAL OVERLAY */}
       {viewingHistoryId && (() => {
