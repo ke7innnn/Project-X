@@ -78,12 +78,14 @@ export default function SitePlanStudio() {
   const [colorLegend, setColorLegend] = useState<ColorLegendItem[]>(DEFAULT_COLOR_LEGEND);
   const [textPins, setTextPins] = useState<TextPinItem[]>([]);
   const [isPinMode, setIsPinMode] = useState(false);
+  const [isEyedropperMode, setIsEyedropperMode] = useState(false);
   const [activePinDraft, setActivePinDraft] = useState<{ x: number; y: number } | null>(null);
   const [pinInputText, setPinInputText] = useState('SWIMMING POOL');
   
-  // Lighting & Theme
+  // Lighting, Camera & Quality
   const [lightingMode, setLightingMode] = useState<'day' | 'night' | 'custom'>('day');
   const [customTheme, setCustomTheme] = useState('Sunset Golden Hour with warm architectural highlights & soft horizon glow');
+  const [quality, setQuality] = useState<'medium' | 'high'>('medium');
   const [chatPrompt, setChatPrompt] = useState('Render this masterplan with insane ultra-luxurious realism, glass facade towers, crystal blue swimming pools with water reflections, and lush tropical landscaping.');
   
   // Custom Color Key Modal / Input
@@ -104,6 +106,63 @@ export default function SitePlanStudio() {
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const canvasContainerRef = useRef<HTMLDivElement>(null);
+  const sitePlanImgRef = useRef<HTMLImageElement>(null);
+
+  const getColorNameFromRgb = (r: number, g: number, b: number): string => {
+    const max = Math.max(r, g, b);
+    const min = Math.min(r, g, b);
+    const d = max - min;
+    
+    if (max < 45) return 'Dark Grey / Asphalt';
+    if (min > 225) return 'White / Paved Plaza';
+    if (d < 25) return 'Grey / Roadway';
+    
+    if (r > 180 && g > 180 && b < 110) return 'Yellow / Tower Zone';
+    if (r > 200 && g > 110 && b < 100) return 'Orange / Amenities';
+    if (r > 200 && g < 150 && b > 130) return 'Pink / Promenade';
+    if (r > 180 && g < 100 && b < 100) return 'Red / Special Zone';
+    if (r < 110 && g > 150 && b < 130) return 'Green / Garden Park';
+    if (r > 130 && g > 180 && b < 130) return 'Light Green / Lawn';
+    if (r < 110 && g < 150 && b > 180) return 'Blue / Water Pool';
+    if (r < 110 && g > 180 && b > 180) return 'Turquoise / Pool';
+    if (r > 130 && g < 110 && b > 180) return 'Purple / Sports Deck';
+    if (r > 130 && g > 90 && b < 70) return 'Brown / Boardwalk';
+    return 'Site Zone';
+  };
+
+  const sampleColorFromCanvasPoint = (clientX: number, clientY: number) => {
+    const imgEl = sitePlanImgRef.current;
+    if (!imgEl) return;
+
+    const rect = imgEl.getBoundingClientRect();
+    const x = clientX - rect.left;
+    const y = clientY - rect.top;
+    if (x < 0 || y < 0 || x > rect.width || y > rect.height) return;
+
+    try {
+      const offscreenCanvas = document.createElement('canvas');
+      offscreenCanvas.width = imgEl.naturalWidth || rect.width;
+      offscreenCanvas.height = imgEl.naturalHeight || rect.height;
+      const ctx = offscreenCanvas.getContext('2d', { willReadFrequently: true });
+      if (!ctx) return;
+
+      ctx.drawImage(imgEl, 0, 0, offscreenCanvas.width, offscreenCanvas.height);
+      const scaleX = offscreenCanvas.width / rect.width;
+      const scaleY = offscreenCanvas.height / rect.height;
+      const pixel = ctx.getImageData(Math.floor(x * scaleX), Math.floor(y * scaleY), 1, 1).data;
+      const [r, g, b] = pixel;
+      const hex = `#${((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1)}`;
+      const inferredName = getColorNameFromRgb(r, g, b);
+
+      setNewColorHex(hex);
+      setNewColorName(inferredName);
+      setNewColorLabel('');
+      setShowAddColorModal(true);
+      setIsEyedropperMode(false);
+    } catch (err) {
+      console.warn('Eyedropper color sampling error:', err);
+    }
+  };
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -124,6 +183,11 @@ export default function SitePlanStudio() {
   };
 
   const handleCanvasClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (isEyedropperMode) {
+      sampleColorFromCanvasPoint(e.clientX, e.clientY);
+      return;
+    }
+
     if (!isPinMode || !canvasContainerRef.current) return;
 
     const rect = canvasContainerRef.current.getBoundingClientRect();
@@ -198,7 +262,8 @@ export default function SitePlanStudio() {
           textPins,
           chatPrompt,
           lightingMode,
-          customTheme
+          customTheme,
+          quality
         })
       });
 
@@ -291,10 +356,14 @@ export default function SitePlanStudio() {
             <div className="flex flex-col gap-6 max-w-5xl mx-auto w-full">
               
               {/* Canvas Controls Bar */}
-              <div className="flex items-center justify-between bg-black/60 border border-cyan-900/40 rounded-xl p-3 shadow-lg">
-                <div className="flex items-center gap-2">
+              <div className="flex items-center justify-between bg-black/60 border border-cyan-900/40 rounded-xl p-3 shadow-lg flex-wrap gap-2">
+                <div className="flex items-center gap-2 flex-wrap">
+                  {/* Pin Tool Button */}
                   <button
-                    onClick={() => setIsPinMode(!isPinMode)}
+                    onClick={() => {
+                      setIsPinMode(!isPinMode);
+                      if (isEyedropperMode) setIsEyedropperMode(false);
+                    }}
                     className={`px-3 py-1.5 rounded-lg text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 transition-all cursor-pointer ${
                       isPinMode 
                         ? 'bg-amber-500 text-black shadow-[0_0_15px_rgba(245,158,11,0.5)] animate-pulse font-extrabold' 
@@ -305,6 +374,22 @@ export default function SitePlanStudio() {
                     {isPinMode ? '📍 Click on Image to Place Pin' : '+ Place Text Pin Tool'}
                   </button>
 
+                  {/* Eyedropper / Color Picker Tool Button */}
+                  <button
+                    onClick={() => {
+                      setIsEyedropperMode(!isEyedropperMode);
+                      if (isPinMode) setIsPinMode(false);
+                    }}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 transition-all cursor-pointer ${
+                      isEyedropperMode 
+                        ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white shadow-[0_0_18px_rgba(236,72,153,0.6)] animate-pulse font-extrabold' 
+                        : 'bg-purple-950/40 text-purple-300 border border-purple-500/30 hover:border-purple-400'
+                    }`}
+                  >
+                    <Palette size={14} />
+                    {isEyedropperMode ? '🎯 Tap Zone to Sample Color' : '🎨 Pick Color from Image'}
+                  </button>
+
                   {textPins.length > 0 && (
                     <span className="text-[10px] font-mono text-cyan-400/70 bg-cyan-950/30 px-2 py-1 rounded border border-cyan-900/40">
                       {textPins.length} Pin{textPins.length > 1 ? 's' : ''} Placed
@@ -313,7 +398,7 @@ export default function SitePlanStudio() {
                 </div>
 
                 <div className="flex items-center gap-2 text-[10px] font-mono text-cyan-400/60">
-                  <span>Tip: Click on any uncolored/special zone to pin custom text (e.g. "SWIMMING POOL")</span>
+                  <span>{isEyedropperMode ? 'Tap anywhere on the site plan to extract its exact color code' : 'Click zone to add text pin or pick color'}</span>
                 </div>
               </div>
 
@@ -323,13 +408,19 @@ export default function SitePlanStudio() {
                   ref={canvasContainerRef}
                   onClick={handleCanvasClick}
                   className={`relative max-w-full max-h-[500px] inline-block select-none rounded-xl overflow-hidden ${
-                    isPinMode ? 'cursor-crosshair ring-2 ring-amber-400/50' : 'cursor-default'
+                    isEyedropperMode 
+                      ? 'cursor-crosshair ring-2 ring-purple-400 shadow-[0_0_20px_rgba(168,85,247,0.4)]' 
+                      : isPinMode 
+                      ? 'cursor-crosshair ring-2 ring-amber-400/50' 
+                      : 'cursor-default'
                   }`}
                 >
                   <img 
+                    ref={sitePlanImgRef}
                     src={sitePlanImage} 
                     alt="Master Site Plan" 
-                    className="w-full h-auto max-h-[480px] object-contain rounded-xl"
+                    crossOrigin="anonymous"
+                    className="w-full h-auto max-h-[480px] object-contain rounded-xl pointer-events-auto"
                   />
 
                   {/* Rendered Text Pin Markers */}
@@ -608,42 +699,57 @@ export default function SitePlanStudio() {
 
               {/* Add Custom Color Key Modal / Inline Form */}
               {showAddColorModal && (
-                <div className="p-3 bg-black/90 border border-amber-500/40 rounded-xl flex flex-col gap-2 shadow-xl animate-fadeIn">
-                  <span className="text-[9px] font-bold uppercase text-amber-300">Add New Color Key</span>
+                <div className="p-3 bg-black/95 border-2 border-amber-400/80 rounded-xl flex flex-col gap-2 shadow-[0_0_25px_rgba(245,158,11,0.3)] animate-fadeIn">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-bold uppercase text-amber-300 flex items-center gap-1.5 font-mono">
+                      <Palette size={12} /> Color Key (Tapped/Selected)
+                    </span>
+                    <span className="text-[9px] font-mono font-bold px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                      {newColorHex.toUpperCase()}
+                    </span>
+                  </div>
+
                   <div className="flex items-center gap-2">
                     <input 
                       type="color" 
                       value={newColorHex} 
                       onChange={(e) => setNewColorHex(e.target.value)}
-                      className="w-7 h-7 rounded border border-white/20 cursor-pointer bg-transparent"
+                      className="w-8 h-8 rounded border border-white/30 cursor-pointer bg-transparent shrink-0"
                     />
                     <input 
                       type="text"
-                      placeholder="Color Name (e.g. Purple)"
+                      placeholder="Color Name (e.g. Yellow, Olive Green)"
                       value={newColorName}
                       onChange={(e) => setNewColorName(e.target.value)}
-                      className="flex-1 bg-black border border-white/20 rounded px-2 py-1 text-[10px] text-white"
+                      className="flex-1 bg-black border border-white/20 rounded px-2.5 py-1 text-[10px] text-white font-mono focus:border-amber-400 focus:outline-none"
                     />
                   </div>
+
                   <input 
                     type="text"
-                    placeholder="3D Architectural Meaning (e.g. Tennis Court)"
+                    placeholder="3D Architectural Meaning (e.g. Swimming Pool / Plaza)"
                     value={newColorLabel}
                     onChange={(e) => setNewColorLabel(e.target.value)}
-                    className="w-full bg-black border border-white/20 rounded px-2 py-1 text-[10px] text-cyan-300"
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') handleAddColorKey();
+                      if (e.key === 'Escape') setShowAddColorModal(false);
+                    }}
+                    autoFocus
+                    className="w-full bg-black border border-amber-500/50 rounded px-2.5 py-1.5 text-[10px] text-amber-200 font-mono focus:border-amber-400 focus:outline-none placeholder:text-gray-600"
                   />
-                  <div className="flex justify-end gap-1.5 pt-1">
+
+                  <div className="flex justify-end gap-1.5 pt-1 border-t border-white/10">
                     <button 
                       onClick={() => setShowAddColorModal(false)}
-                      className="px-2 py-0.5 text-[9px] text-gray-400"
+                      className="px-2.5 py-1 text-[9px] text-gray-400 hover:text-white"
                     >
                       Cancel
                     </button>
                     <button 
                       onClick={handleAddColorKey}
-                      className="px-2.5 py-1 bg-amber-500 text-black text-[9px] font-bold rounded"
+                      className="px-3 py-1 bg-amber-500 hover:bg-amber-400 text-black text-[9px] font-bold uppercase rounded font-mono shadow"
                     >
-                      Add Key
+                      Save Color Key
                     </button>
                   </div>
                 </div>
@@ -717,6 +823,46 @@ export default function SitePlanStudio() {
                 rows={3}
                 className="w-full bg-black/60 border border-white/10 focus:border-cyan-400 rounded-lg p-2.5 text-[10px] text-cyan-200 font-mono resize-none focus:outline-none leading-relaxed"
               />
+            </div>
+
+            {/* 4. Camera Angle & Quality Settings */}
+            <div className="flex flex-col gap-2 border-t border-cyan-950/80 pt-4">
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] font-bold uppercase tracking-widest text-amber-400 flex items-center gap-1.5">
+                  <Compass size={12} /> Camera Angle
+                </span>
+                <span className="text-[9px] font-mono px-2 py-0.5 rounded bg-emerald-950/80 border border-emerald-500/40 text-emerald-300 font-bold">
+                  90° Direct Top View Only
+                </span>
+              </div>
+
+              <div className="flex items-center justify-between pt-1">
+                <span className="text-[10px] font-bold uppercase tracking-widest text-amber-400 flex items-center gap-1.5">
+                  <Sparkles size={12} /> GPT Image 2 Quality
+                </span>
+                <div className="flex items-center gap-1 bg-black/60 p-0.5 rounded-lg border border-white/10">
+                  <button
+                    onClick={() => setQuality('medium')}
+                    className={`px-2 py-0.5 rounded text-[9px] font-mono font-bold transition-all cursor-pointer ${
+                      quality === 'medium' 
+                        ? 'bg-cyan-500 text-black shadow' 
+                        : 'text-gray-400 hover:text-white'
+                    }`}
+                  >
+                    Medium
+                  </button>
+                  <button
+                    onClick={() => setQuality('high')}
+                    className={`px-2 py-0.5 rounded text-[9px] font-mono font-bold transition-all cursor-pointer ${
+                      quality === 'high' 
+                        ? 'bg-emerald-400 text-black shadow' 
+                        : 'text-gray-400 hover:text-white'
+                    }`}
+                  >
+                    High
+                  </button>
+                </div>
+              </div>
             </div>
 
             {/* Execute Generation Button */}

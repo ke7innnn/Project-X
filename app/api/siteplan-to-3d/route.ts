@@ -61,14 +61,24 @@ function buildRuleBasedMasterPrompt(
 
   let lightingInstruction = '';
   if (lightingMode === 'day') {
-    lightingInstruction = `* **Lighting & Atmosphere (Daytime Realism)**: Brilliant high-noon sun and golden ambient daylight. Razor-sharp architectural drop shadows, glistening crystal water highlights with soft caustics, vibrant saturated green foliage, subtle atmospheric haze over distant horizons, and realistic glass reflections on tower facades.`;
+    lightingInstruction = `* **CRAZY REALISTIC DAYLIGHTING & ATMOSPHERE**: Ultra-dramatic, brilliant high-noon sun and vibrant golden ambient daylight with crazy volumetric sunbeams. Razor-sharp architectural drop shadows cast by the buildings, glistening crystal-clear turquoise swimming pool water with vivid caustic ripples, glass facade sky reflections, vibrant lush botanical foliage highlights, and ultra-crisp physical micro-textures on every surface.`;
   } else if (lightingMode === 'night') {
-    lightingInstruction = `* **Lighting & Atmosphere (Dramatic Night Aerial)**: Stunning cinematic architectural twilight and night scene. Glowing turquoise illuminated underwater swimming pools, warm 3000K golden interior window glows across all building floors, soft warm LED landscape uplighting on trees, ground bollard lights outlining pathways and roads, glowing vehicle headlights on driveways, and deep indigo twilight sky.`;
+    lightingInstruction = `* **CRAZY DRAMATIC NIGHT LIGHTING & ATMOSPHERE**: Showstopping, cinematic architectural twilight and night scene. Glowing neon turquoise underwater pool luminaires, warm 3000K golden interior window glows across all building floors, luminous landscape LED pathway bollards, tree spotlights casting dramatic shadows, glowing vehicle headlights on asphalt roads, and rich indigo twilight atmosphere with crazy contrast and ambient occlusion.`;
   } else {
-    lightingInstruction = `* **Lighting & Atmosphere (Custom Cinematic Theme)**: ${customTheme || 'Dramatic golden hour sunset with rich orange-pink horizon glow, long cinematic shadows, and warm architectural rim lighting.'}`;
+    lightingInstruction = `* **CRAZY CUSTOM CINEMATIC LIGHTING**: ${customTheme || 'Dramatic golden hour sunset with rich orange-pink horizon glow, long cinematic shadows, and warm architectural rim lighting with crazy volumetric depth.'}`;
   }
 
   return `Transform this 2D site plan and masterplan diagram into an ultra-realistic, publication-grade 3D architectural masterplan aerial render.
+
+### CAMERA ANGLE (CRITICAL MANDATE — STRICT TOP VIEW ONLY):
+* **STRICT 90° TOP-DOWN OVERHEAD VIEW**: The camera angle MUST be a direct, straight-down top view (orthographic aerial top view). 
+* Do NOT tilt the camera into a low-angle perspective or horizon slant.
+* Maintain the true overhead layout, radial curves, and exact footprint orientations directly from above, with extruded 3D building roofs, realistic drop shadows, and landscape depth visible from the top-down vantage point.
+
+### STRICT PROHIBITIONS — ZERO TEXT & ZERO DIMENSIONS (ABSOLUTE MANDATE):
+* **ZERO TEXT OF ANY KIND**: Absolutely NO letters, words, room names, plot codes, numbers, or typography anywhere in the image.
+* **ZERO DIMENSION LINES OR LABELS**: NO measurement arrows, scale bars, grid lines, CAD callouts, or legend overlays.
+* The 2D site plan and text pins are strictly semantic layout directives for the 3D builder — they MUST be 100% excluded and ignored from the visual rendering so the final output is a clean, pristine, photorealistic 3D aerial photograph.
 
 ### Architectural Masterplan Rendering Protocol:
 1. **Geometric Fidelity**: Follow the exact site plan layout, building positions, radial curves, road networks, and land zoning boundaries shown in the reference image. Extrude buildings into modern luxury towers matching the footprint shapes.
@@ -81,8 +91,7 @@ ${chatPrompt ? `* Special Focus: ${chatPrompt}` : '* Render with world-class arc
 
 4. ${lightingInstruction}
 
-5. **Camera & Visual Quality**:
-* Bird's eye aerial perspective / high-angle masterplan view looking down across the development.
+5. **Visual Quality & Finish**:
 * 8K hyper-detailed photorealistic finish: individual balcony glass railings, rooftop amenities, landscaped planters, textured asphalt roads with painted markings, lush tropical tree canopies, walking trails, and modern luxury facade treatments (wood louvers, white marble, bronze trims, floor-to-ceiling double-glazed curtain walls).
 * Absolutely NO 2D flat graphic colors, NO cartoonish fills, NO raw diagram lines. Convert all 2D zones into lush, tactile, tangible 3D physical reality.`;
 }
@@ -105,24 +114,29 @@ async function synthesizePromptWithAgent(
 Your job is to take a 2D colored/zoned site plan diagram and write an INSANELY DETAILED, ultra-photorealistic image-editing prompt that instructs the AI image model to render the site plan into an award-winning 3D masterplan aerial rendering.
 
 RULES:
-1. Directly map every color key-value zone to its physical 3D architectural counterpart (e.g. Yellow = luxury high-rise towers with glass curtain walls, Green = lush botanical parks and manicured lawns, Blue = crystalline resort infinity pools, Grey = asphalt roads and landscaped driveways, Pink = vibrant children's adventure playgrounds).
-2. Incorporate all user text pin locations (e.g. if the user wrote "POOL" in an area, explicitly command the model to construct a photorealistic resort pool in that exact spot).
-3. Infuse crazy realism, specific lighting details (Day / Night / Custom), architectural material textures (travertine marble, wood louvers, reflective glass, lush tropical palm trees, rooftop gardens, LED uplights, water caustics).
-4. Emphasize geometric fidelity to the input reference shapes while turning flat 2D zones into rich, tangible 3D structures and lush terrain.
-5. Output ONLY the raw prompt text for the image generator without conversational chit-chat.`;
+1. CAMERA ANGLE MANDATE (STRICT): The render MUST be a direct 90-degree TOP VIEW ANGLE ONLY (top-down masterplan view). Explicitly command the model to keep the camera pointing straight down at the site plan from above, preserving the exact layout and radial footprint geometry from above with extruded 3D roof depth and shadows.
+2. STRICT ZERO-TEXT & ZERO-DIMENSIONS MANDATE: Absolute prohibition of any text, letters, numerals, room/zone labels, dimension lines, measurement arrows, scale bars, or typography in the rendered image. All text and labels in the input are strictly semantic placement directives and must NEVER appear as visible text in the final 3D photorealistic render.
+3. CRAZY LIGHTING MANDATE: Infuse crazy ultra-dramatic lighting (volumetric sunbeams, razor-sharp building drop shadows, glowing turquoise pool water with caustics, warm 3000K window glows for night, LED landscape uplights, intense contrast and ray-traced reflections).
+4. Directly map every color key-value zone to its physical 3D architectural counterpart (e.g. Yellow = luxury high-rise towers with glass curtain walls, Green = lush botanical parks and manicured lawns, Blue = crystalline resort infinity pools, Grey = asphalt roads and landscaped driveways, Pink = vibrant children's adventure playgrounds).
+5. Incorporate all user text pin locations (e.g. if the user wrote "POOL" in an area, explicitly command the model to construct a photorealistic resort pool in that exact spot).
+6. Emphasize geometric fidelity to the input reference shapes while turning flat 2D zones into rich, tangible 3D structures and lush terrain.
+7. Output ONLY the raw prompt text for the image generator without conversational chit-chat.`;
 
   const userContext = `
+Camera Angle: STRICT TOP VIEW ANGLE ONLY (90-degree overhead top-down perspective).
+Text Policy: STRICT ZERO TEXT, ZERO LABELS, ZERO NUMBERS, ZERO DIMENSIONS.
+
 Color Legend Mappings:
 ${colorLegend.map(item => `- ${item.colorName} (${item.color}): ${item.label}`).join('\n')}
 
 Text Pin Annotations Placed on Image:
 ${textPins.length > 0 ? textPins.map(p => `- Label "${p.text}" at position (${p.x.toFixed(0)}%, ${p.y.toFixed(0)}%)`).join('\n') : 'None'}
 
-Lighting Mode: ${lightingMode.toUpperCase()}
+Lighting Mode: ${lightingMode.toUpperCase()} (with CRAZY dramatic realistic lighting effects)
 ${lightingMode === 'custom' ? `Custom Lighting Theme: ${customTheme}` : ''}
 
 User Chat Instructions:
-"${chatPrompt || 'Render with maximum photorealism, modern luxury architectural towers, and lush landscaping.'}"
+"${chatPrompt || 'Render with maximum photorealism, crazy volumetric lighting, modern luxury architectural towers, and lush landscaping without any visible text.'}"
 `;
 
   try {
@@ -168,6 +182,7 @@ export async function POST(req: Request) {
       chatPrompt = '', 
       lightingMode = 'day', 
       customTheme = '',
+      quality = 'medium',
       apiKey 
     } = body;
 
@@ -197,11 +212,11 @@ export async function POST(req: Request) {
     );
     console.log('[SitePlanTo3D] Master prompt synthesized:\n', masterPrompt.slice(0, 200) + '...');
 
-    console.log('[SitePlanTo3D] Calling GPT Image 2 (Edit) for 3D site plan rendering...');
+    console.log('[SitePlanTo3D] Calling GPT Image 2 (Edit) with quality: medium for 3D site plan rendering...');
     const gptRes = await runModel('openai/gpt-image-2/edit', {
       image_urls: [uploadedSitePlanUrl],
       prompt: masterPrompt,
-      quality: 'low',
+      quality: quality || 'medium',
     });
 
     console.log('[SitePlanTo3D] Fetching rendered result to base64...');
