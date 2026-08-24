@@ -326,11 +326,29 @@ AESTHETICS:
 Crisp architectural CAD linework, warm cream and sand presentation backdrop, ultra-clean publication-ready presentation board layout, photorealistic rendering.`;
 }
 
-// ── Resolve reference image URL (optional user upload) ─────────────────────────
+// ── Resolve reference image URL (optional user upload or moodboard ref) ─────────────────────────
 
-async function getUploadedReferenceUrl(customBase64?: string | null): Promise<string | null> {
-  if (customBase64 && customBase64.length > 50) {
-    const base64Data = customBase64.replace(/^data:image\/\w+;base64,/, '');
+async function getUploadedReferenceUrl(customInput?: string | null): Promise<string | null> {
+  if (!customInput || customInput.length < 10) return null;
+
+  // Remote HTTP/HTTPS URL from Moodboard / Unsplash
+  if (customInput.startsWith('http://') || customInput.startsWith('https://')) {
+    try {
+      const res = await fetch(customInput);
+      if (res.ok) {
+        const buf = await res.arrayBuffer();
+        const file = new File([new Blob([buf], { type: 'image/png' })], 'moodboard_ref.png', { type: 'image/png' });
+        return await fal.storage.upload(file);
+      }
+    } catch (e) {
+      console.warn('[ConceptGenerator] Failed to re-upload remote ref url to fal, using raw url:', e);
+      return customInput;
+    }
+  }
+
+  // Base64 Data URL
+  if (customInput.startsWith('data:image/') || customInput.length > 50) {
+    const base64Data = customInput.replace(/^data:image\/\w+;base64,/, '');
     const buffer = Buffer.from(base64Data, 'base64');
     const file = new File([new Blob([buffer], { type: 'image/png' })], 'user_ref.png', { type: 'image/png' });
     return await fal.storage.upload(file);

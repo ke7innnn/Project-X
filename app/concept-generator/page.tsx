@@ -75,6 +75,7 @@ export default function ConceptGeneratorPage() {
   const [widthM, setWidthM] = useState<number>(80);
   const [lengthM, setLengthM] = useState<number>(80);
   const [numFlats, setNumFlats] = useState<number>(6);
+  const [selectedReferenceImage, setSelectedReferenceImage] = useState<{ url: string; title: string } | null>(null);
 
   // Generation & Output states
   const [isGenerating, setIsGenerating] = useState<boolean>(false);
@@ -103,6 +104,7 @@ export default function ConceptGeneratorPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           userPrompt: prompt,
+          referenceImageBase64: selectedReferenceImage?.url || null,
           widthM,
           lengthM,
           numFlats,
@@ -221,11 +223,44 @@ export default function ConceptGeneratorPage() {
             setPrompt(prev => `${prev} ${inspirationText}`.trim());
             setActiveTab('generator');
           }} 
+          onSelectReferenceImage={(imgUrl, title) => {
+            setSelectedReferenceImage({ url: imgUrl, title: title || 'Moodboard Architectural Reference' });
+            setPrompt(prev => `Floor plan design inspired by reference architecture: ${title || 'modern organic facades and luxury curved balconies'}. ${prev}`.trim());
+            setActiveTab('generator');
+          }}
         />
       ) : (
-        <div className="flex-1 flex overflow-hidden">
+        <div className="flex-1 flex overflow-hidden min-h-0">
         {/* Left Control Panel */}
-        <aside className="w-[420px] shrink-0 border-r border-white/10 bg-slate-900/50 backdrop-blur-md flex flex-col overflow-y-auto p-4 gap-4">
+        <aside className="w-[420px] shrink-0 border-r border-white/10 bg-slate-900/50 backdrop-blur-md flex flex-col overflow-y-auto custom-scrollbar p-4 gap-4 min-h-0">
+          
+          {/* Active Reference Image Card */}
+          {selectedReferenceImage && (
+            <div className="p-3 bg-emerald-950/40 border border-emerald-500/50 rounded-xl flex items-center justify-between gap-3 shadow-[0_0_15px_rgba(16,185,129,0.15)] animate-fadeIn">
+              <div className="flex items-center gap-2.5 min-w-0">
+                <img 
+                  src={selectedReferenceImage.url} 
+                  alt="Reference" 
+                  className="w-12 h-12 rounded-lg object-cover border border-emerald-400/40 shrink-0 shadow" 
+                />
+                <div className="flex flex-col min-w-0">
+                  <span className="text-[9px] font-mono font-bold text-emerald-300 uppercase tracking-wide flex items-center gap-1">
+                    <Sparkles className="w-3 h-3 text-emerald-400" /> Active Visual Reference
+                  </span>
+                  <span className="text-[10px] text-slate-200 truncate font-mono">{selectedReferenceImage.title}</span>
+                  <span className="text-[8px] font-mono text-emerald-400/80 mt-0.5">Floor plans will be synthesized from this image</span>
+                </div>
+              </div>
+              <button
+                onClick={() => setSelectedReferenceImage(null)}
+                className="text-[10px] text-slate-400 hover:text-red-400 p-1 font-mono hover:bg-white/5 rounded transition-colors cursor-pointer"
+                title="Remove Reference"
+              >
+                ✕
+              </button>
+            </div>
+          )}
+
           {/* Presets Bar */}
           <div className="flex flex-col gap-1.5">
             <span className="text-[10px] font-mono font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1">

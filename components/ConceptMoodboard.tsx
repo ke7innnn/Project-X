@@ -26,6 +26,7 @@ export interface MoodboardItem {
 
 interface ConceptMoodboardProps {
   onApplyToPrompt: (keywords: string) => void;
+  onSelectReferenceImage: (imgUrl: string, title?: string) => void;
 }
 
 const PRESET_SEARCH_PILLS = [
@@ -40,7 +41,7 @@ const PRESET_SEARCH_PILLS = [
   'Futuristic Atrium Design'
 ];
 
-export default function ConceptMoodboard({ onApplyToPrompt }: ConceptMoodboardProps) {
+export default function ConceptMoodboard({ onApplyToPrompt, onSelectReferenceImage }: ConceptMoodboardProps) {
   const [searchQuery, setSearchQuery] = useState('Biophilic Luxury Tower');
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [isSearching, setIsSearching] = useState(false);
@@ -64,7 +65,7 @@ export default function ConceptMoodboard({ onApplyToPrompt }: ConceptMoodboardPr
       source: 'Unsplash'
     }
   ]);
-  const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
+  const [lightboxItem, setLightboxItem] = useState<MoodboardItem | null>(null);
   const [appliedNotice, setAppliedNotice] = useState(false);
 
   useEffect(() => {
@@ -142,7 +143,7 @@ export default function ConceptMoodboard({ onApplyToPrompt }: ConceptMoodboardPr
   };
 
   return (
-    <div className="flex-1 flex flex-col h-full bg-slate-950 overflow-hidden font-sans text-slate-200">
+    <div className="flex-1 flex flex-col h-[calc(100vh-3.5rem)] max-h-[calc(100vh-3.5rem)] bg-slate-950 overflow-hidden font-sans text-slate-200 min-h-0">
       
       {/* Search Header Bar */}
       <div className="p-4 border-b border-white/10 bg-slate-900/60 backdrop-blur-md flex flex-col gap-3 shrink-0">
@@ -222,10 +223,10 @@ export default function ConceptMoodboard({ onApplyToPrompt }: ConceptMoodboardPr
       </div>
 
       {/* Main Moodboard Body: Split between Pinned Board (Left) and Image Search Gallery (Right) */}
-      <div className="flex-1 flex overflow-hidden">
+      <div className="flex-1 flex overflow-hidden min-h-0">
         
         {/* Left: Active Pinned Moodboard */}
-        <div className="w-[380px] border-r border-white/10 bg-slate-900/40 p-4 flex flex-col gap-3 overflow-y-auto custom-scrollbar shrink-0">
+        <div className="w-[380px] border-r border-white/10 bg-slate-900/40 p-4 flex flex-col gap-3 overflow-y-auto custom-scrollbar shrink-0 min-h-0">
           <div className="flex items-center justify-between">
             <span className="text-xs font-mono font-bold uppercase tracking-wider text-cyan-400 flex items-center gap-1.5">
               <Layers className="w-3.5 h-3.5" /> Active Moodboard ({pinnedItems.length})
@@ -245,7 +246,7 @@ export default function ConceptMoodboard({ onApplyToPrompt }: ConceptMoodboardPr
               <div
                 key={item.id}
                 className="group/pin relative rounded-xl overflow-hidden border border-white/10 bg-black/60 shadow-lg aspect-square cursor-pointer"
-                onClick={() => setLightboxUrl(item.url)}
+                onClick={() => setLightboxItem(item)}
               >
                 <img 
                   src={item.url} 
@@ -253,14 +254,27 @@ export default function ConceptMoodboard({ onApplyToPrompt }: ConceptMoodboardPr
                   className="w-full h-full object-cover group-hover/pin:scale-105 transition-transform duration-300"
                 />
                 
-                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-black/30 opacity-0 group-hover/pin:opacity-100 transition-opacity p-2 flex flex-col justify-between">
-                  <button
-                    onClick={(e) => handleUnpinImage(item.id, e)}
-                    className="self-end p-1 rounded-md bg-black/70 hover:bg-red-600 text-white text-[10px] transition-colors"
-                    title="Remove from moodboard"
-                  >
-                    <Trash2 className="w-3 h-3" />
-                  </button>
+                <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/30 to-black/40 opacity-0 group-hover/pin:opacity-100 transition-opacity p-2 flex flex-col justify-between">
+                  <div className="flex items-center justify-between">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onSelectReferenceImage(item.url, item.title);
+                      }}
+                      className="px-2 py-0.5 rounded bg-emerald-500 hover:bg-emerald-400 text-black text-[9px] font-mono font-bold shadow flex items-center gap-1"
+                      title="Use as visual reference for floor plan generation"
+                    >
+                      <span>📐 Use as Ref</span>
+                    </button>
+
+                    <button
+                      onClick={(e) => handleUnpinImage(item.id, e)}
+                      className="p-1 rounded-md bg-black/70 hover:bg-red-600 text-white text-[10px] transition-colors"
+                      title="Remove from moodboard"
+                    >
+                      <Trash2 className="w-3 h-3" />
+                    </button>
+                  </div>
 
                   <span className="text-[9px] font-mono text-white/90 line-clamp-2 leading-tight">
                     {item.title}
@@ -282,7 +296,7 @@ export default function ConceptMoodboard({ onApplyToPrompt }: ConceptMoodboardPr
         </div>
 
         {/* Right: Search Image Results Stream */}
-        <div className="flex-1 p-5 overflow-y-auto custom-scrollbar bg-black/40">
+        <div className="flex-1 p-5 overflow-y-auto custom-scrollbar bg-black/40 min-h-0">
           <div className="flex items-center justify-between mb-3">
             <span className="text-xs font-mono font-bold uppercase tracking-wider text-slate-400">
               Search Results for "{searchQuery}"
@@ -298,7 +312,7 @@ export default function ConceptMoodboard({ onApplyToPrompt }: ConceptMoodboardPr
               <span className="text-xs font-mono tracking-widest uppercase">Fetching Reference Photography...</span>
             </div>
           ) : searchResults.length > 0 ? (
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3.5">
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3.5 pb-8">
               {searchResults.map((img) => {
                 const isPinned = pinnedItems.some(p => p.url === img.url);
                 return (
@@ -310,18 +324,31 @@ export default function ConceptMoodboard({ onApplyToPrompt }: ConceptMoodboardPr
                       src={img.thumbUrl || img.url} 
                       alt={img.description} 
                       className="w-full h-full object-cover group-hover/img:scale-105 transition-transform duration-300 cursor-pointer"
-                      onClick={() => setLightboxUrl(img.url)}
+                      onClick={() => setLightboxItem({
+                        id: img.id,
+                        url: img.url,
+                        title: img.description || searchQuery,
+                        source: img.photographer || 'Architectural Feed'
+                      })}
                     />
 
                     {/* Overlay Action Bar */}
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover/img:opacity-100 transition-opacity p-2.5 flex flex-col justify-between pointer-events-none">
-                      <div className="self-end pointer-events-auto">
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent opacity-0 group-hover/img:opacity-100 transition-opacity p-2.5 flex flex-col justify-between pointer-events-none">
+                      <div className="flex items-center justify-between gap-1 pointer-events-auto">
+                        <button
+                          onClick={() => onSelectReferenceImage(img.url, img.description)}
+                          className="px-2 py-0.5 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-black text-[9px] font-mono font-bold uppercase flex items-center gap-1 shadow cursor-pointer"
+                          title="Generate floor plan directly from this reference image"
+                        >
+                          📐 Use as Ref
+                        </button>
+
                         <button
                           onClick={() => handlePinImage(img)}
                           disabled={isPinned}
-                          className={`px-2.5 py-1 rounded-lg text-[10px] font-mono font-bold uppercase flex items-center gap-1 transition-all cursor-pointer shadow ${
+                          className={`px-2 py-0.5 rounded-lg text-[9px] font-mono font-bold uppercase flex items-center gap-1 transition-all cursor-pointer shadow ${
                             isPinned
-                              ? 'bg-emerald-500 text-black'
+                              ? 'bg-cyan-500/80 text-black'
                               : 'bg-cyan-500 hover:bg-cyan-400 text-black'
                           }`}
                         >
@@ -354,30 +381,47 @@ export default function ConceptMoodboard({ onApplyToPrompt }: ConceptMoodboardPr
       </div>
 
       {/* Lightbox Modal */}
-      {lightboxUrl && (
+      {lightboxItem && (
         <div 
-          className="fixed inset-0 z-50 bg-black/95 backdrop-blur-md flex items-center justify-center p-6 select-none cursor-zoom-out"
-          onClick={() => setLightboxUrl(null)}
+          className="fixed inset-0 z-50 bg-black/95 backdrop-blur-md flex items-center justify-center p-6 select-none cursor-zoom-out overflow-y-auto"
+          onClick={() => setLightboxItem(null)}
         >
-          <div className="relative max-w-5xl max-h-[90vh] flex flex-col items-center" onClick={(e) => e.stopPropagation()}>
+          <div className="relative max-w-5xl max-h-[92vh] flex flex-col items-center my-auto" onClick={(e) => e.stopPropagation()}>
             <img 
-              src={lightboxUrl} 
-              alt="Moodboard Reference Enlarge" 
-              className="max-w-full max-h-[82vh] object-contain rounded-xl shadow-2xl border border-white/20"
+              src={lightboxItem.url} 
+              alt={lightboxItem.title} 
+              className="max-w-full max-h-[75vh] object-contain rounded-xl shadow-2xl border border-white/20"
             />
-            <div className="mt-3 flex items-center gap-3">
+            
+            <div className="mt-2 text-center max-w-xl">
+              <p className="text-xs font-mono text-white font-medium line-clamp-1">{lightboxItem.title}</p>
+              <span className="text-[9px] font-mono text-cyan-400/70">Source: {lightboxItem.source}</span>
+            </div>
+
+            <div className="mt-3 flex items-center gap-3 flex-wrap justify-center">
               <button
                 onClick={() => {
-                  handlePinImage({ url: lightboxUrl, description: searchQuery });
-                  setLightboxUrl(null);
+                  onSelectReferenceImage(lightboxItem.url, lightboxItem.title);
+                  setLightboxItem(null);
                 }}
-                className="px-4 py-1.5 bg-cyan-500 text-black font-mono font-bold text-xs uppercase rounded-lg shadow"
+                className="px-5 py-2 bg-gradient-to-r from-emerald-500 to-teal-400 hover:from-emerald-400 hover:to-teal-300 text-black font-mono font-black text-xs uppercase rounded-xl shadow-[0_0_20px_rgba(16,185,129,0.4)] flex items-center gap-1.5 cursor-pointer"
               >
-                + Pin to Moodboard
+                📐 Generate Floor Plan from this Reference <ArrowRight className="w-3.5 h-3.5" />
               </button>
+
               <button
-                onClick={() => setLightboxUrl(null)}
-                className="px-4 py-1.5 bg-white/10 text-white font-mono text-xs uppercase rounded-lg"
+                onClick={() => {
+                  handlePinImage({ url: lightboxItem.url, description: lightboxItem.title });
+                  setLightboxItem(null);
+                }}
+                className="px-4 py-2 bg-cyan-500 hover:bg-cyan-400 text-black font-mono font-bold text-xs uppercase rounded-xl shadow cursor-pointer flex items-center gap-1"
+              >
+                <Plus className="w-3.5 h-3.5" /> Pin to Moodboard
+              </button>
+
+              <button
+                onClick={() => setLightboxItem(null)}
+                className="px-4 py-2 bg-white/10 hover:bg-white/20 text-white font-mono text-xs uppercase rounded-xl cursor-pointer"
               >
                 Close
               </button>
