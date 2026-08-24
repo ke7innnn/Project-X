@@ -20,9 +20,12 @@ import {
   Image as ImageIcon,
   CheckCircle2,
   FileCode,
-  Palette
+  Palette,
+  ArrowRight,
+  ExternalLink
 } from 'lucide-react';
 import ConceptMoodboard from '@/components/ConceptMoodboard';
+import { useArchitectStore } from '@/store/useArchitectStore';
 
 const CONCEPT_PRESETS = [
   {
@@ -84,6 +87,12 @@ export default function ConceptGeneratorPage() {
   const [selectedCandidateIndex, setSelectedCandidateIndex] = useState<number>(0);
   const [copied, setCopied] = useState<boolean>(false);
 
+  // CAD Blueprint Conversion States
+  const [isConvertingCad, setIsConvertingCad] = useState<boolean>(false);
+  const [cadResultImage, setCadResultImage] = useState<string | null>(null);
+  const [showCadModal, setShowCadModal] = useState<boolean>(false);
+  const [cadProgressStep, setCadProgressStep] = useState<string>('');
+
   const activeImage = candidateImages[selectedCandidateIndex] || null;
 
   // Generate Concept Presentation Board
@@ -97,7 +106,7 @@ export default function ConceptGeneratorPage() {
       setTimeout(() => setProgressStep('Structuring 2D Master Floor Plan Layouts...'), 1500);
       setTimeout(() => setProgressStep('Synthesizing 3D Building Form & Massing Top Views...'), 3500);
       setTimeout(() => setProgressStep('Rendering 3D Isometric Elevation Perspectives...'), 6000);
-      setTimeout(() => setProgressStep('Generating 4 Parallel Master Presentation Boards...'), 9000);
+      setTimeout(() => setProgressStep('Generating 3 Parallel Master Presentation Boards...'), 9000);
 
       const res = await fetch('/api/generate-concept-image', {
         method: 'POST',
@@ -129,6 +138,60 @@ export default function ConceptGeneratorPage() {
       setIsGenerating(false);
       setProgressStep('');
     }
+  };
+
+  // Convert 2D Plan on Left of Board to Pure B&W CAD Line Drawing
+  const handleConvertToCad = async () => {
+    if (!activeImage || isConvertingCad) return;
+    setIsConvertingCad(true);
+    setCadProgressStep('Extracting Left 2D Master Floor Plan Plate...');
+    setShowCadModal(true);
+
+    try {
+      setTimeout(() => setCadProgressStep('Synthesizing Monochromatic Vector CAD Linework...'), 2000);
+      setTimeout(() => setCadProgressStep('Rendering Crisp Black-on-White Blueprint...'), 5000);
+
+      const res = await fetch('/api/concept-to-cad', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          conceptBoardBase64: activeImage,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok || !data.cadImageUrl) {
+        throw new Error(data.error || 'Failed to extract 2D CAD line plan');
+      }
+
+      setCadResultImage(data.cadImageUrl);
+    } catch (err: any) {
+      alert(err.message || 'CAD conversion failed. Please try again.');
+      setShowCadModal(false);
+    } finally {
+      setIsConvertingCad(false);
+      setCadProgressStep('');
+    }
+  };
+
+  // Download High-Res CAD Image
+  const handleDownloadCad = () => {
+    if (!cadResultImage) return;
+    const a = document.createElement('a');
+    a.href = cadResultImage;
+    a.download = `CAD_Line_Plan_Option_${selectedCandidateIndex + 1}_${Date.now()}.png`;
+    a.click();
+  };
+
+  // Open in PNG-to-DXF Vectorizer Studio
+  const handleOpenInPngToDxf = () => {
+    if (!cadResultImage) return;
+    try {
+      useArchitectStore.getState().setCurrentFloorPlan(cadResultImage);
+    } catch (e) {
+      console.warn('Could not set currentFloorPlan in store', e);
+    }
+    router.push('/png-to-dxf');
   };
 
   // Download High-Res Image
@@ -444,8 +507,18 @@ export default function ConceptGeneratorPage() {
             {activeImage && (
               <div className="flex items-center gap-2">
                 <button
+                  onClick={handleConvertToCad}
+                  disabled={isConvertingCad}
+                  className="px-3.5 py-1 rounded-lg bg-gradient-to-r from-emerald-500 via-teal-400 to-cyan-400 hover:from-emerald-400 hover:to-cyan-300 text-black text-[10px] font-mono font-black flex items-center gap-1.5 transition-all shadow-[0_0_15px_rgba(16,185,129,0.35)] cursor-pointer"
+                  title="Extract and convert the 2D floor plan on the left to pure black-on-white CAD lines"
+                >
+                  {isConvertingCad ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Layers className="w-3.5 h-3.5" />}
+                  <span>📐 GENERATE 2D CAD PLAN (B&W)</span>
+                </button>
+
+                <button
                   onClick={handleCopy}
-                  className="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 text-slate-300 hover:text-white text-[10px] font-mono flex items-center gap-1.5 transition-colors"
+                  className="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 text-slate-300 hover:text-white text-[10px] font-mono flex items-center gap-1.5 transition-colors cursor-pointer"
                   title="Copy to Clipboard"
                 >
                   {copied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
@@ -457,7 +530,7 @@ export default function ConceptGeneratorPage() {
                   className="px-3 py-1 rounded-lg bg-cyan-500/20 hover:bg-cyan-500/30 border border-cyan-400/60 text-cyan-200 text-[10px] font-mono font-bold flex items-center gap-1.5 transition-all shadow-[0_0_12px_rgba(0,240,255,0.2)] cursor-pointer"
                 >
                   <Download className="w-3.5 h-3.5" />
-                  <span>DOWNLOAD OPTION {selectedCandidateIndex + 1} (PNG)</span>
+                  <span>DOWNLOAD (PNG)</span>
                 </button>
               </div>
             )}
@@ -568,6 +641,93 @@ export default function ConceptGeneratorPage() {
 
         </main>
       </div>
+      )}
+
+      {/* ── 2D CAD Plan Extraction Modal ── */}
+      {showCadModal && (
+        <div 
+          className="fixed inset-0 z-50 bg-black/90 backdrop-blur-md flex items-center justify-center p-6 select-none"
+          onClick={() => !isConvertingCad && setShowCadModal(false)}
+        >
+          <div 
+            className="relative w-full max-w-4xl max-h-[92vh] bg-slate-900 border-2 border-emerald-500/50 rounded-2xl shadow-2xl flex flex-col overflow-hidden animate-fadeIn"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div className="px-5 py-3.5 border-b border-white/10 bg-slate-950 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse" />
+                <span className="text-xs font-mono font-bold uppercase tracking-wider text-white">
+                  2D Architectural CAD Line Plan (White BG & Black Lines)
+                </span>
+              </div>
+              {!isConvertingCad && (
+                <button
+                  onClick={() => setShowCadModal(false)}
+                  className="text-xs font-mono text-slate-400 hover:text-white p-1 rounded hover:bg-white/10 cursor-pointer"
+                >
+                  ✕ Close
+                </button>
+              )}
+            </div>
+
+            {/* Modal Body */}
+            <div className="flex-1 p-6 flex flex-col items-center justify-center relative min-h-[420px] bg-slate-950/80">
+              {isConvertingCad ? (
+                <div className="flex flex-col items-center justify-center gap-4 text-center">
+                  <div className="w-20 h-20 rounded-2xl bg-emerald-500/10 border border-emerald-400/40 flex items-center justify-center shadow-[0_0_35px_rgba(16,185,129,0.3)]">
+                    <Loader2 className="w-8 h-8 text-emerald-400 animate-spin" />
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <span className="text-sm font-mono font-bold text-white uppercase tracking-wider">
+                      EXTRACTING 2D FLOOR PLAN FROM PRESENTATION BOARD
+                    </span>
+                    <span className="text-xs font-mono text-emerald-400 animate-pulse">
+                      {cadProgressStep}
+                    </span>
+                  </div>
+                </div>
+              ) : cadResultImage ? (
+                <div className="flex flex-col items-center gap-4 w-full h-full">
+                  <div className="relative max-h-[62vh] max-w-full rounded-xl overflow-hidden border-2 border-slate-700 shadow-2xl bg-white p-2">
+                    <img 
+                      src={cadResultImage} 
+                      alt="2D CAD Line Drawing" 
+                      className="max-h-[58vh] max-w-full object-contain rounded"
+                    />
+                  </div>
+                </div>
+              ) : null}
+            </div>
+
+            {/* Modal Footer Actions */}
+            {cadResultImage && !isConvertingCad && (
+              <div className="px-5 py-3.5 border-t border-white/10 bg-slate-950 flex items-center justify-between gap-3">
+                <span className="text-[10px] font-mono text-slate-400">
+                  Ready for DXF conversion & CAD import
+                </span>
+
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={handleDownloadCad}
+                    className="px-4 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-mono font-bold uppercase flex items-center gap-1.5 transition-colors cursor-pointer"
+                  >
+                    <Download className="w-3.5 h-3.5" />
+                    <span>Download CAD PNG</span>
+                  </button>
+
+                  <button
+                    onClick={handleOpenInPngToDxf}
+                    className="px-5 py-2 rounded-xl bg-gradient-to-r from-emerald-500 via-teal-400 to-cyan-400 hover:from-emerald-400 hover:to-cyan-300 text-black text-xs font-mono font-black uppercase tracking-wider flex items-center gap-1.5 shadow-[0_0_20px_rgba(16,185,129,0.4)] transition-all cursor-pointer transform hover:scale-105"
+                  >
+                    <Sparkles className="w-3.5 h-3.5" />
+                    <span>Open in PNG-to-DXF Studio ➔</span>
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
       )}
 
     </div>
