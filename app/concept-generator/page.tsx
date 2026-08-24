@@ -224,8 +224,8 @@ export default function ConceptGeneratorPage() {
             setActiveTab('generator');
           }} 
           onSelectReferenceImage={(imgUrl, title) => {
-            setSelectedReferenceImage({ url: imgUrl, title: title || 'Moodboard Architectural Reference' });
-            setPrompt(prev => `Floor plan design inspired by reference architecture: ${title || 'modern organic facades and luxury curved balconies'}. ${prev}`.trim());
+            setSelectedReferenceImage({ url: imgUrl, title: title || 'Architectural Reference' });
+            setPrompt(`Luxury master residential floor plan sculpted into the organic architectural silhouette and morphology of the reference image (${title || 'botanical and curved facade geometry'}), with ${numFlats}x apartment units, central elevator and fire stair core, and continuous facade balconies.`);
             setActiveTab('generator');
           }}
         />

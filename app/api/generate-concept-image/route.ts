@@ -66,6 +66,19 @@ function getFlatRoomAnatomy(bhk: string): string {
 function getShapeGeometricDirectives(prompt: string, numFlats: number): { shapeName: string; directives: string } {
   const p = prompt.toLowerCase();
   
+  if (p.includes('leaf') || p.includes('foliage') || p.includes('botanical') || p.includes('ginkgo')) {
+    return {
+      shapeName: 'ORGANIC BOTANICAL LEAF',
+      directives: `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🚨 CRITICAL ORGANIC BOTANICAL LEAF SILHOUETTE MANDATE:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+• The 2D building footprint MUST BE sculpted into an authentic, organic, tapered LEAF SHAPE with elegant curved outer contours, delicate serrations/curves, and tapered tip!
+• DO NOT draw an arc or rectangular block! Sculpt the exact perimeter geometry of a natural leaf with clean negative space around it.
+• APARTMENT LAYOUT: All ${numFlats} apartment units are distributed along the outer perimeter edges of the leaf plate so every bedroom and living lounge captures direct exterior glass windows and curved balconies.
+• 3-WAY SYNCHRONIZATION: The 2D floor plan (left), 3D Top View roof plate (top-right), and 3D Perspective Elevation (mid-right) MUST ALL BE the EXACT SAME organic leaf-shaped luxury skyscraper!`,
+    };
+  }
+
   if (p.includes('arc') || p.includes('crescent') || p.includes('bow')) {
     return {
       shapeName: 'ARC / CRESCENT',
@@ -362,6 +375,7 @@ async function compileArchitecturalPromptWithAgent(opts: {
   lengthM: number;
   numFlats: number;
   hasDividers?: boolean;
+  hasCustomRef?: boolean;
 }): Promise<string> {
   const openRouterKey = process.env.OPENROUTER_API_KEY || process.env.NEXT_PUBLIC_OPENROUTER_API_KEY;
   if (!openRouterKey) {
@@ -372,10 +386,14 @@ async function compileArchitecturalPromptWithAgent(opts: {
 Your mission is to write a single, ultra-detailed, laser-focused prompt for an image diffusion model (OpenAI GPT-Image-2) to generate a complete master architectural presentation board.
 
 STRICT DESIGN RULES:
-1. FOCUS 100% EXCLUSIVELY ON THIS ONE SHAPE:
-   - Identify the user's specific requested building shape from the brief (e.g. Arc/Crescent, Stepped-L, Hexagon, Batman, etc.).
+1. FOCUS 100% EXCLUSIVELY ON THIS ONE SHAPE & SILHOUETTE:
+   - Identify the user's specific requested building shape from the brief (e.g. Leaf/Botanical, Droplet, Arc/Crescent, Stepped-L, Hexagon, Batman, etc.).
    - Write explicit geometric contour directives ONLY for this exact shape. Do NOT mention, describe, or mix with other unrelated shapes.
    - AUTHENTIC NEGATIVE SPACE: Open void/air outside the shape must clearly show clean presentation board background. NEVER draw a solid rectangular box or barrel.
+${opts.hasCustomRef ? `2. 🚨 CRITICAL VISUAL REFERENCE IMAGE MORPHOLOGY MANDATE:
+   - The user has attached an input visual reference image (e.g. biological leaf, architectural silhouette, or organic photo).
+   - The 2D floor plan plate (left), 3D top view roof plate (top-right), and 3D perspective elevation (mid-right) MUST ALL BE SCULPTED TO DIRECTLY MATCH AND DERIVE THEIR GEOMETRIC CONTOURS, CURVES, AND SILHOUETTE FROM THIS REFERENCE IMAGE!
+   - Transform the organic contours of the reference image into a functional luxury architectural floor plan layout divided into ${opts.numFlats} units.` : ''}
 2. CRITICAL UNIT SEPARATION & DEMISING WALLS:
    - Partition the 2D floor plan into EXACTLY ${opts.numFlats} INDEPENDENT APARTMENT UNITS (FLAT 01 to FLAT ${String(opts.numFlats).padStart(2, '0')}).
    - SOLID SEPARATING PARTY WALLS: Every single flat MUST be bounded by thick, visible, continuous 200mm solid structural demising party walls. Zero room bleeding or chaotic overlapping between adjacent units!
@@ -411,7 +429,7 @@ Return ONLY the raw prompt text to send to the image generation model. No conver
         model: 'google/gemini-2.5-flash',
         messages: [
           { role: 'system', content: systemMessage },
-          { role: 'user', content: `USER ARCHITECTURAL BRIEF: "${opts.userPrompt}"\nBUILDING DIMENSIONS: ${opts.widthM}m × ${opts.lengthM}m\nEXACT FLATS PER FLOOR: ${opts.numFlats} APARTMENT UNITS${opts.hasDividers ? '\nCUSTOM PARTITION CUTS DETECTED: YES' : ''}` }
+          { role: 'user', content: `USER ARCHITECTURAL BRIEF: "${opts.userPrompt}"\nBUILDING DIMENSIONS: ${opts.widthM}m × ${opts.lengthM}m\nEXACT FLATS PER FLOOR: ${opts.numFlats} APARTMENT UNITS${opts.hasCustomRef ? '\nVISUAL REFERENCE IMAGE ATTACHED: YES (Trace & sculpt building silhouette from reference image)' : ''}${opts.hasDividers ? '\nCUSTOM PARTITION CUTS DETECTED: YES' : ''}` }
         ],
         temperature: 0.2,
         max_tokens: 1200,
@@ -473,6 +491,7 @@ export async function POST(req: Request) {
       lengthM,
       numFlats,
       hasDividers,
+      hasCustomRef,
     });
 
     console.log('[ConceptGenerator] Final Prompt length:', stage1Prompt.length);
