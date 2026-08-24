@@ -383,6 +383,12 @@ CRITICAL INSTRUCTIONS:
 - Ensure the lighting direction strictly matches the requested sunpath direction.
 - The environment should reflect the requested style beautifully.
 
+WALL PRESERVATION & ZERO ROOM MERGING MANDATE (CRITICAL):
+- Extrude EVERY SINGLE internal partition wall, boundary wall, and room divider line drawn in the 2D floor plan into solid physical 3D vertical walls.
+- STRICTLY FORBIDDEN to merge, combine, or connect 2 or 3 separate rooms into one large open space.
+- NEVER erase, ignore, break down, or punch through any internal partition wall.
+- Every individual room enclosed by walls in the 2D floor plan (every bedroom, bathroom, toilet, kitchen, utility, hallway, balcony, and living area) MUST remain a completely separate, distinct, and fully enclosed room with its own physical 3D walls and designated doorway openings in the 3D render.
+
 ROOM DESIGNATION & FURNITURE PLACEMENT RULE (CRITICAL):
 - Strictly read and obey every room label indicated on the 2D floor plan (e.g. Master Bedroom, Bedroom, Living Room, Dining Room, Kitchen, Dry Kitchen, Balcony, Toilet/Bathroom, Utility, Foyer, Walk-in Closet).
 - Furnish and stage each room STRICTLY according to its labeled purpose:
