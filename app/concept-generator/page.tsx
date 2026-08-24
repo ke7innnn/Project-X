@@ -235,28 +235,53 @@ export default function ConceptGeneratorPage() {
         <aside className="w-[420px] shrink-0 border-r border-white/10 bg-slate-900/50 backdrop-blur-md flex flex-col overflow-y-auto custom-scrollbar p-4 gap-4 min-h-0">
           
           {/* Active Reference Image Card */}
-          {selectedReferenceImage && (
-            <div className="p-3 bg-emerald-950/40 border border-emerald-500/50 rounded-xl flex items-center justify-between gap-3 shadow-[0_0_15px_rgba(16,185,129,0.15)] animate-fadeIn">
-              <div className="flex items-center gap-2.5 min-w-0">
+          {selectedReferenceImage ? (
+            <div className="p-3.5 bg-gradient-to-b from-emerald-950/60 to-slate-900/90 border-2 border-emerald-500/60 rounded-2xl flex flex-col gap-2.5 shadow-[0_0_20px_rgba(16,185,129,0.2)] animate-fadeIn">
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] font-mono font-black text-emerald-300 uppercase tracking-wider flex items-center gap-1.5">
+                  <Sparkles className="w-3.5 h-3.5 text-emerald-400" />
+                  Visual Floor Plan Reference
+                </span>
+                <button
+                  onClick={() => setSelectedReferenceImage(null)}
+                  className="text-[10px] font-mono text-slate-400 hover:text-red-400 p-1 hover:bg-white/5 rounded transition-colors cursor-pointer"
+                  title="Remove Reference"
+                >
+                  ✕ Remove
+                </button>
+              </div>
+
+              <div className="flex items-center gap-3">
                 <img 
                   src={selectedReferenceImage.url} 
                   alt="Reference" 
-                  className="w-12 h-12 rounded-lg object-cover border border-emerald-400/40 shrink-0 shadow" 
+                  className="w-16 h-16 rounded-xl object-cover border border-emerald-400/50 shrink-0 shadow-md" 
                 />
-                <div className="flex flex-col min-w-0">
-                  <span className="text-[9px] font-mono font-bold text-emerald-300 uppercase tracking-wide flex items-center gap-1">
-                    <Sparkles className="w-3 h-3 text-emerald-400" /> Active Visual Reference
+                <div className="flex flex-col min-w-0 flex-1">
+                  <span className="text-xs font-mono font-bold text-white truncate">{selectedReferenceImage.title}</span>
+                  <span className="text-[9px] font-mono text-emerald-400/80 mt-0.5 leading-relaxed">
+                    AI will synthesize 2D layouts and 3D elevations based on this image.
                   </span>
-                  <span className="text-[10px] text-slate-200 truncate font-mono">{selectedReferenceImage.title}</span>
-                  <span className="text-[8px] font-mono text-emerald-400/80 mt-0.5">Floor plans will be synthesized from this image</span>
+                  <button
+                    onClick={() => setActiveTab('moodboard')}
+                    className="self-start mt-1 text-[9px] font-mono text-cyan-400 hover:text-cyan-200 underline cursor-pointer"
+                  >
+                    Change Image in Moodboard ➔
+                  </button>
                 </div>
               </div>
+            </div>
+          ) : (
+            <div className="p-3 rounded-xl bg-white/[0.03] border border-dashed border-white/15 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Palette className="w-4 h-4 text-slate-400" />
+                <span className="text-[10px] font-mono text-slate-400">Want to generate from a photo?</span>
+              </div>
               <button
-                onClick={() => setSelectedReferenceImage(null)}
-                className="text-[10px] text-slate-400 hover:text-red-400 p-1 font-mono hover:bg-white/5 rounded transition-colors cursor-pointer"
-                title="Remove Reference"
+                onClick={() => setActiveTab('moodboard')}
+                className="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-white/10 text-cyan-300 text-[10px] font-mono font-bold uppercase border border-cyan-500/30 hover:border-cyan-400 transition-all cursor-pointer"
               >
-                ✕
+                + Browse Moodboard
               </button>
             </div>
           )}
@@ -491,8 +516,36 @@ export default function ConceptGeneratorPage() {
                   </div>
                 )}
               </div>
+            ) : selectedReferenceImage ? (
+              /* Reference Image Active Empty State */
+              <div className="flex flex-col items-center justify-center text-center max-w-lg p-8 rounded-2xl bg-gradient-to-b from-emerald-950/40 via-slate-900/60 to-black/80 border-2 border-emerald-500/50 shadow-2xl animate-fadeIn">
+                <div className="relative mb-4 group">
+                  <img 
+                    src={selectedReferenceImage.url} 
+                    alt="Active Architectural Reference" 
+                    className="w-44 h-32 object-cover rounded-xl border-2 border-emerald-400 shadow-xl"
+                  />
+                  <div className="absolute -top-2 -right-2 px-2 py-0.5 rounded-full bg-emerald-500 text-black text-[9px] font-mono font-black shadow uppercase">
+                    ACTIVE REF
+                  </div>
+                </div>
+
+                <h3 className="text-sm font-bold text-white font-mono uppercase mb-1">
+                  {selectedReferenceImage.title}
+                </h3>
+                <p className="text-xs text-emerald-300/80 leading-relaxed mb-6 font-sans max-w-sm">
+                  The AI is ready to synthesize 3 publication-grade presentation boards conditioned directly on this reference architecture!
+                </p>
+
+                <button
+                  onClick={handleGenerate}
+                  className="px-6 py-3 rounded-xl bg-gradient-to-r from-emerald-500 via-teal-400 to-cyan-400 hover:from-emerald-400 hover:to-cyan-300 text-black text-xs font-mono font-black uppercase tracking-wider transition-all shadow-[0_0_25px_rgba(16,185,129,0.4)] cursor-pointer transform hover:scale-105"
+                >
+                  ⚡ Generate 3 Concept Boards from this Image
+                </button>
+              </div>
             ) : (
-              /* Empty Placeholder State */
+              /* Default Empty Placeholder State */
               <div className="flex flex-col items-center justify-center text-center max-w-md p-8 rounded-2xl bg-slate-900/40 border border-white/5 shadow-2xl">
                 <div className="w-16 h-16 rounded-2xl bg-cyan-500/10 border border-cyan-400/30 flex items-center justify-center mb-4 text-cyan-300">
                   <Compass className="w-8 h-8" />
