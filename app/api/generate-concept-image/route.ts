@@ -14,9 +14,9 @@ function buildFalInput(falModel: string, imageUrl: string | null, prompt: string
   const usePluralUrls   = falModel.includes('gemini') || falModel.includes('nano-banana') || falModel.includes('klein');
 
   if (isGptImage2T2I || !imageUrl) {
-    return { prompt, quality: 'low' };
+    return { prompt, quality: 'medium' };
   } else if (isGptImage2Edit) {
-    return { image_urls: [imageUrl], prompt, quality: 'low' };
+    return { image_urls: [imageUrl], prompt, quality: 'medium' };
   } else if (isFluxCanny) {
     return { control_image_url: imageUrl, control_lora_image_url: imageUrl, prompt, num_inference_steps: 28, guidance_scale: 3.5, controlnet_conditioning_scale: 1.0 };
   } else if (usePluralUrls) {
@@ -477,11 +477,11 @@ export async function POST(req: Request) {
 
     console.log('[ConceptGenerator] Final Prompt length:', stage1Prompt.length);
 
-    // ── Run 4 Parallel Candidate Presentation Boards with quality=low ──
+    // ── Run 3 Parallel Candidate Presentation Boards with quality=medium ──
     const stage1Input = buildFalInput(stage1Model, customUserRefUrl, stage1Prompt);
-    console.log(`[ConceptGenerator] Generating 4 parallel candidate presentation boards with ${stage1Model} (quality=low)...`);
+    console.log(`[ConceptGenerator] Generating 3 parallel candidate presentation boards with ${stage1Model} (quality=medium)...`);
 
-    const candidatePromises = [1, 2, 3, 4].map(async (idx) => {
+    const candidatePromises = [1, 2, 3].map(async (idx) => {
       try {
         const url = await runModel(stage1Model, stage1Input);
         const b64 = await fetchToBase64(url);
@@ -501,13 +501,13 @@ export async function POST(req: Request) {
       throw new Error('Failed to generate concept candidates');
     }
 
-    console.log(`[ConceptGenerator] Successfully generated ${candidateImages.length}/4 candidate presentation boards!`);
+    console.log(`[ConceptGenerator] Successfully generated ${candidateImages.length}/3 candidate presentation boards!`);
 
     return NextResponse.json({
       imageUrls: candidateImages,
       stage1ImageUrl: candidateImages[0],
       systemPrompt: stage1Prompt,
-      userPrompt: `Concept Studio | MODEL: ${stage1Model} (4 Candidates)`,
+      userPrompt: `Concept Studio | MODEL: ${stage1Model} (3 Candidates | Quality: Medium)`,
     });
 
   } catch (err: any) {

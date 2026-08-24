@@ -452,7 +452,7 @@ export default function ConceptGeneratorPage() {
 
                 <div className="flex flex-col items-center gap-1 text-center">
                   <span className="text-sm font-mono font-bold text-white tracking-wider uppercase">
-                    AI CONCEPT ENGINE GENERATING 4 CANDIDATES
+                    AI CONCEPT ENGINE GENERATING 3 CANDIDATES (MEDIUM QUALITY)
                   </span>
                   <span className="text-xs font-mono text-cyan-400 animate-pulse">
                     {progressStep}
@@ -472,9 +472,9 @@ export default function ConceptGeneratorPage() {
                   />
                 </div>
 
-                {/* 4-Candidate Thumbnail Selector Filmstrip */}
+                {/* 3-Candidate Thumbnail Selector Filmstrip */}
                 {candidateImages.length > 1 && (
-                  <div className="flex items-center gap-2 p-1.5 rounded-xl bg-black/60 border border-white/10 backdrop-blur z-20">
+                  <div className="flex items-center gap-2.5 p-1.5 rounded-xl bg-black/70 border border-white/10 shadow-lg backdrop-blur">
                     {candidateImages.map((img, idx) => (
                       <div
                         key={idx}
@@ -498,16 +498,16 @@ export default function ConceptGeneratorPage() {
                   <Compass className="w-8 h-8" />
                 </div>
                 <h3 className="text-base font-bold text-white font-mono uppercase mb-1">
-                  Ready to Generate 4 Concept Options
+                  Ready to Generate 3 Concept Options
                 </h3>
                 <p className="text-xs text-slate-400 leading-relaxed mb-4 font-sans">
-                  Select a template or type your architectural brief on the left. The engine will synthesize 4 distinct presentation boards in parallel with 2D floor plans, 3D roof massing, and 3D perspective elevations.
+                  Select a template or type your architectural brief on the left. The engine will synthesize 3 distinct presentation boards in parallel with 2D floor plans, 3D roof massing, and 3D perspective elevations at Medium Quality.
                 </p>
                 <button
                   onClick={handleGenerate}
                   className="px-4 py-2 rounded-xl bg-cyan-500/20 hover:bg-cyan-500/30 border border-cyan-400/60 text-cyan-300 text-xs font-mono font-bold transition-all shadow-[0_0_15px_rgba(0,240,255,0.2)] cursor-pointer"
                 >
-                  ⚡ Generate 4 Parallel Concept Boards
+                  ⚡ Generate 3 Parallel Concept Boards
                 </button>
               </div>
             )}
