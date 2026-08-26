@@ -55,8 +55,8 @@ function buildRuleBasedMasterPrompt(
     .join('\n');
 
   const textPinDescriptions = textPins.length > 0
-    ? `\n### Specific Text Annotations & Placements Placed on Plan:\n` +
-      textPins.map(pin => `* Location at approximately (${pin.x.toFixed(0)}% X, ${pin.y.toFixed(0)}% Y) labeled "${pin.text.toUpperCase()}": Construct and render a photorealistic ${pin.text.toUpperCase()} here seamlessly integrated into the surrounding landscape.`).join('\n')
+    ? `\n### Specific Numbered Site Annotations (Pin Coordinates & Placements):\n` +
+      textPins.map((pin, idx) => `* [${idx + 1}] -> ${pin.text.toUpperCase()}: Positioned at approximately (${pin.x.toFixed(0)}% X, ${pin.y.toFixed(0)}% Y) coordinate on the plan. Construct and render a photorealistic, beautifully detailed ${pin.text.toUpperCase()} in this exact location seamlessly integrated into the surrounding landscape.`).join('\n')
     : '';
 
   let lightingInstruction = '';
@@ -118,7 +118,7 @@ RULES:
 2. STRICT ZERO-TEXT & ZERO-DIMENSIONS MANDATE: Absolute prohibition of any text, letters, numerals, room/zone labels, dimension lines, measurement arrows, scale bars, or typography in the rendered image. All text and labels in the input are strictly semantic placement directives and must NEVER appear as visible text in the final 3D photorealistic render.
 3. CRAZY LIGHTING MANDATE: Infuse crazy ultra-dramatic lighting (volumetric sunbeams, razor-sharp building drop shadows, glowing turquoise pool water with caustics, warm 3000K window glows for night, LED landscape uplights, intense contrast and ray-traced reflections).
 4. Directly map every color key-value zone to its physical 3D architectural counterpart (e.g. Yellow = luxury high-rise towers with glass curtain walls, Green = lush botanical parks and manicured lawns, Blue = crystalline resort infinity pools, Grey = asphalt roads and landscaped driveways, Pink = vibrant children's adventure playgrounds).
-5. Incorporate all user text pin locations (e.g. if the user wrote "POOL" in an area, explicitly command the model to construct a photorealistic resort pool in that exact spot).
+5. Incorporate all numbered user text pin locations (e.g. Pin [1] -> "SWIMMING POOL", explicitly command the model to construct a photorealistic resort pool in that exact spot).
 6. Emphasize geometric fidelity to the input reference shapes while turning flat 2D zones into rich, tangible 3D structures and lush terrain.
 7. Output ONLY the raw prompt text for the image generator without conversational chit-chat.`;
 
@@ -129,8 +129,8 @@ Text Policy: STRICT ZERO TEXT, ZERO LABELS, ZERO NUMBERS, ZERO DIMENSIONS.
 Color Legend Mappings:
 ${colorLegend.map(item => `- ${item.colorName} (${item.color}): ${item.label}`).join('\n')}
 
-Text Pin Annotations Placed on Image:
-${textPins.length > 0 ? textPins.map(p => `- Label "${p.text}" at position (${p.x.toFixed(0)}%, ${p.y.toFixed(0)}%)`).join('\n') : 'None'}
+Numbered Text Pin Annotations Placed on Image:
+${textPins.length > 0 ? textPins.map((p, idx) => `- Pin [${idx + 1}] -> "${p.text}" positioned at (${p.x.toFixed(0)}% X, ${p.y.toFixed(0)}% Y)`).join('\n') : 'None'}
 
 Lighting Mode: ${lightingMode.toUpperCase()} (with CRAZY dramatic realistic lighting effects)
 ${lightingMode === 'custom' ? `Custom Lighting Theme: ${customTheme}` : ''}

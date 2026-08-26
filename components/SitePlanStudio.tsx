@@ -77,6 +77,7 @@ export default function SitePlanStudio() {
   const [sitePlanImage, setSitePlanImage] = useState<string | null>(null);
   const [colorLegend, setColorLegend] = useState<ColorLegendItem[]>(DEFAULT_COLOR_LEGEND);
   const [textPins, setTextPins] = useState<TextPinItem[]>([]);
+  const [selectedPinId, setSelectedPinId] = useState<string | null>(null);
   const [isPinMode, setIsPinMode] = useState(false);
   const [isEyedropperMode, setIsEyedropperMode] = useState(false);
   const [activePinDraft, setActivePinDraft] = useState<{ x: number; y: number } | null>(null);
@@ -423,27 +424,54 @@ export default function SitePlanStudio() {
                     className="w-full h-auto max-h-[480px] object-contain rounded-xl pointer-events-auto"
                   />
 
-                  {/* Rendered Text Pin Markers */}
-                  {textPins.map((pin) => (
-                    <div
-                      key={pin.id}
-                      style={{ left: `${pin.x}%`, top: `${pin.y}%` }}
-                      className="absolute -translate-x-1/2 -translate-y-1/2 z-30 group/pin pointer-events-auto"
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      <div className="flex items-center gap-1 bg-amber-500 text-black text-[9px] font-black font-mono px-2 py-0.5 rounded-full shadow-[0_0_12px_rgba(245,158,11,0.9)] border border-amber-200 uppercase tracking-tighter whitespace-nowrap animate-bounce-subtle">
-                        <MapPin size={10} className="shrink-0" />
-                        <span>{pin.text}</span>
-                        <button
-                          onClick={(e) => handleDeletePin(pin.id, e)}
-                          className="w-3.5 h-3.5 rounded-full bg-black/30 hover:bg-red-600 text-white flex items-center justify-center ml-0.5 transition-colors cursor-pointer text-[8px]"
-                          title="Delete pin"
-                        >
-                          ✕
-                        </button>
+                  {/* Rendered Numbered Pin Markers (ChatGPT Comment Style) */}
+                  {textPins.map((pin, idx) => {
+                    const pinNumber = idx + 1;
+                    const isSelected = selectedPinId === pin.id;
+                    return (
+                      <div
+                        key={pin.id}
+                        style={{ left: `${pin.x}%`, top: `${pin.y}%` }}
+                        className="absolute -translate-x-1/2 -translate-y-1/2 z-30 group/pin pointer-events-auto select-none"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setSelectedPinId(selectedPinId === pin.id ? null : pin.id);
+                        }}
+                      >
+                        <div className="relative flex items-center justify-center">
+                          {/* Sleek Numbered Circular Badge */}
+                          <div className="w-6 h-6 rounded-full bg-gradient-to-br from-amber-300 via-amber-400 to-yellow-500 hover:from-amber-200 hover:to-amber-300 text-black font-black font-mono text-[11px] flex items-center justify-center shadow-[0_0_15px_rgba(245,158,11,0.95)] border-2 border-black cursor-pointer hover:scale-125 transition-all transform animate-bounce-subtle">
+                            {pinNumber}
+                          </div>
+
+                          {/* Floating Tooltip / Popover on Hover or Click */}
+                          <div className={`absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2.5 py-1.5 rounded-xl bg-black/95 border border-amber-400/80 text-amber-200 shadow-[0_0_25px_rgba(245,158,11,0.6)] whitespace-nowrap z-40 transition-all flex items-center gap-2 ${
+                            isSelected 
+                              ? 'opacity-100 scale-100 pointer-events-auto' 
+                              : 'opacity-0 scale-95 pointer-events-none group-hover/pin:opacity-100 group-hover/pin:scale-100 group-hover/pin:pointer-events-auto'
+                          }`}>
+                            <div className="flex items-center gap-1.5 font-mono text-[10px]">
+                              <span className="w-4 h-4 rounded-full bg-amber-400 text-black font-black text-[9px] flex items-center justify-center">
+                                {pinNumber}
+                              </span>
+                              <span className="font-bold text-white uppercase tracking-tight">{pin.text}</span>
+                            </div>
+
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleDeletePin(pin.id, e);
+                              }}
+                              className="w-4 h-4 rounded-full bg-red-950/80 hover:bg-red-600 text-red-300 hover:text-white flex items-center justify-center transition-colors cursor-pointer text-[9px] ml-1"
+                              title="Delete pin"
+                            >
+                              ✕
+                            </button>
+                          </div>
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
 
                   {/* Active Draft Pin Popover */}
                   {activePinDraft && (
@@ -452,8 +480,11 @@ export default function SitePlanStudio() {
                       className="absolute -translate-x-1/2 -translate-y-full z-40 mb-2 p-3 bg-black/95 border border-amber-400 rounded-xl shadow-[0_0_25px_rgba(245,158,11,0.6)] flex flex-col gap-2 min-w-[220px]"
                       onClick={(e) => e.stopPropagation()}
                     >
-                      <span className="text-[9px] font-bold uppercase tracking-wider text-amber-300 font-mono flex items-center gap-1">
-                        <MapPin size={11} /> Label This Location
+                      <span className="text-[9px] font-bold uppercase tracking-wider text-amber-300 font-mono flex items-center gap-1.5">
+                        <span className="w-4 h-4 rounded-full bg-amber-400 text-black font-black text-[9px] flex items-center justify-center">
+                          {textPins.length + 1}
+                        </span>
+                        Label Pin #{textPins.length + 1}
                       </span>
                       
                       <input 
@@ -491,9 +522,9 @@ export default function SitePlanStudio() {
                         </button>
                         <button
                           onClick={handleConfirmPin}
-                          className="px-3 py-1 bg-amber-500 text-black text-[9px] font-bold uppercase rounded font-mono hover:bg-amber-400 shadow"
+                          className="px-3 py-1 bg-amber-500 text-black text-[9px] font-bold uppercase rounded font-mono hover:bg-amber-400 shadow flex items-center gap-1"
                         >
-                          Place Pin
+                          <span>Place Pin #{textPins.length + 1}</span>
                         </button>
                       </div>
                     </div>
@@ -756,10 +787,61 @@ export default function SitePlanStudio() {
               )}
             </div>
 
-            {/* 2. Lighting & Atmosphere Engine */}
+            {/* 2. Numbered Canvas Pin Annotations List */}
+            {textPins.length > 0 && (
+              <div className="flex flex-col gap-2.5 border-t border-cyan-950/80 pt-4">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-bold uppercase tracking-widest text-amber-400 flex items-center gap-1.5">
+                    <MapPin size={12} /> 2. Numbered Pin Annotations ({textPins.length})
+                  </span>
+                  <button
+                    onClick={() => setTextPins([])}
+                    className="text-[9px] text-red-400 hover:text-red-300 font-bold uppercase cursor-pointer"
+                  >
+                    Clear All
+                  </button>
+                </div>
+
+                <div className="flex flex-col gap-1.5 max-h-[160px] overflow-y-auto custom-scrollbar pr-1">
+                  {textPins.map((pin, idx) => (
+                    <div 
+                      key={pin.id}
+                      onClick={() => setSelectedPinId(selectedPinId === pin.id ? null : pin.id)}
+                      className={`p-2 rounded-lg bg-black/60 border transition-all flex items-center justify-between gap-2 text-[10px] cursor-pointer ${
+                        selectedPinId === pin.id
+                          ? 'border-amber-400 bg-amber-950/30'
+                          : 'border-white/10 hover:border-amber-500/40'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2 flex-1 min-w-0">
+                        <div className="w-5 h-5 rounded-full bg-gradient-to-r from-amber-400 to-yellow-500 text-black font-black text-[10px] flex items-center justify-center shrink-0 shadow">
+                          {idx + 1}
+                        </div>
+                        <span className="font-bold text-amber-200 uppercase text-[9px] truncate">
+                          {pin.text}
+                        </span>
+                      </div>
+
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDeletePin(pin.id, e);
+                        }}
+                        className="text-gray-500 hover:text-red-400 text-[10px] p-1 cursor-pointer"
+                        title="Delete pin"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* 3. Lighting & Atmosphere Engine */}
             <div className="flex flex-col gap-2.5 border-t border-cyan-950/80 pt-4">
               <span className="text-[10px] font-bold uppercase tracking-widest text-amber-400 flex items-center gap-1.5">
-                <Sun size={12} /> 2. Lighting & Atmosphere
+                <Sun size={12} /> 3. Lighting & Atmosphere
               </span>
 
               <div className="grid grid-cols-3 gap-1.5">
@@ -811,25 +893,25 @@ export default function SitePlanStudio() {
               )}
             </div>
 
-            {/* 3. Natural Language Chat & Design Directives */}
+            {/* 4. Natural Language Chat & Design Directives */}
             <div className="flex flex-col gap-2 border-t border-cyan-950/80 pt-4">
               <span className="text-[10px] font-bold uppercase tracking-widest text-amber-400 flex items-center gap-1.5">
-                <Send size={12} /> 3. Architect Chat & Directives
+                <Send size={12} /> 4. Architect Chat & Directives
               </span>
               <textarea
                 value={chatPrompt}
                 onChange={(e) => setChatPrompt(e.target.value)}
-                placeholder="Instruct the AI: e.g. Add an infinity swimming pool in the garden where POOL is written, with palm trees and glass towers."
+                placeholder="Instruct the AI: e.g. Add an infinity swimming pool in the garden where Pin [1] is placed, with palm trees and glass towers."
                 rows={3}
                 className="w-full bg-black/60 border border-white/10 focus:border-cyan-400 rounded-lg p-2.5 text-[10px] text-cyan-200 font-mono resize-none focus:outline-none leading-relaxed"
               />
             </div>
 
-            {/* 4. Camera Angle & Quality Settings */}
+            {/* 5. Camera Angle & Quality Settings */}
             <div className="flex flex-col gap-2 border-t border-cyan-950/80 pt-4">
               <div className="flex items-center justify-between">
                 <span className="text-[10px] font-bold uppercase tracking-widest text-amber-400 flex items-center gap-1.5">
-                  <Compass size={12} /> Camera Angle
+                  <Compass size={12} /> 5. Camera Angle
                 </span>
                 <span className="text-[9px] font-mono px-2 py-0.5 rounded bg-emerald-950/80 border border-emerald-500/40 text-emerald-300 font-bold">
                   90° Direct Top View Only
