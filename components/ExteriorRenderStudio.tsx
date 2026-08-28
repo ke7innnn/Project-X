@@ -3,13 +3,20 @@
 import React, { useState, useRef } from 'react';
 import {
   UploadCloud, Sparkles, Download, RefreshCw, Loader2, Building2,
-  Sun, Moon, Camera, Settings2, Eye, Trash2, Send, Layers, CheckCircle2
+  Sun, Moon, Camera, Settings2, Eye, Trash2, Send, Layers, Plus, Star, X
 } from 'lucide-react';
+
+interface ModelAngleInput {
+  id: string;
+  base64: string;
+  fileName: string;
+}
 
 interface ExteriorRenderHistoryItem {
   id: string;
   renderBase64: string;
-  modelBase64: string;
+  primaryModelBase64: string;
+  modelCount: number;
   timeOfDay: 'day' | 'night';
   timestamp: number;
 }
@@ -24,10 +31,12 @@ interface MultiAngleResult {
 
 export default function ExteriorRenderStudio() {
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const appendFileInputRef = useRef<HTMLInputElement>(null);
 
-  // Model input state
-  const [modelBase64, setModelBase64] = useState<string | null>(null);
-  const [modelFileName, setModelFileName] = useState<string>('');
+  // Multiple Model inputs state
+  const [modelImages, setModelImages] = useState<ModelAngleInput[]>([]);
+  const [primaryAngleId, setPrimaryAngleId] = useState<string | null>(null);
+  const [activePreviewId, setActivePreviewId] = useState<string | null>(null);
 
   // Minimal Controls (Day / Night, Custom Notes, Quality)
   const [timeOfDay, setTimeOfDay] = useState<'day' | 'night'>('night');
@@ -46,39 +55,84 @@ export default function ExteriorRenderStudio() {
   const [multiAngles, setMultiAngles] = useState<MultiAngleResult[]>([]);
   const [angleError, setAngleError] = useState<string | null>(null);
 
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setModelFileName(file.name);
-    const reader = new FileReader();
-    reader.onload = (ev) => {
-      const b64 = ev.target?.result as string;
-      if (b64) {
-        setModelBase64(b64);
+  const processFiles = (files: FileList | null, isAppend = false) => {
+    if (!files || files.length === 0) return;
+
+    const readPromises: Promise<ModelAngleInput>[] = Array.from(files).map((file) => {
+      return new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.onload = (ev) => {
+          const b64 = ev.target?.result as string;
+          resolve({
+            id: Math.random().toString(36).slice(2),
+            base64: b64,
+            fileName: file.name,
+          });
+        };
+        reader.readAsDataURL(file);
+      });
+    });
+
+    Promise.all(readPromises).then((newItems) => {
+      if (isAppend) {
+        setModelImages((prev) => [...prev, ...newItems]);
+      } else {
+        setModelImages(newItems);
+        if (newItems.length > 0) {
+          setPrimaryAngleId(newItems[0].id);
+          setActivePreviewId(newItems[0].id);
+        }
         setRenderResult(null);
         setMultiAngles([]);
         setErrorMsg(null);
         setAngleError(null);
       }
-    };
-    reader.readAsDataURL(file);
+    });
+  };
+
+  const handleInitialUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    processFiles(e.target.files, false);
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
+  const handleAppendUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    processFiles(e.target.files, true);
+    if (appendFileInputRef.current) appendFileInputRef.current.value = '';
+  };
+
+  const handleRemoveImage = (idToRemove: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setModelImages((prev) => {
+      const filtered = prev.filter((img) => img.id !== idToRemove);
+      if (primaryAngleId === idToRemove && filtered.length > 0) {
+        setPrimaryAngleId(filtered[0].id);
+      }
+      if (activePreviewId === idToRemove && filtered.length > 0) {
+        setActivePreviewId(filtered[0].id);
+      }
+      return filtered;
+    });
+  };
+
   const handleRender = async () => {
-    if (!modelBase64 || isRendering) return;
+    if (modelImages.length === 0 || isRendering) return;
     setIsRendering(true);
     setErrorMsg(null);
     setRenderResult(null);
     setMultiAngles([]);
     setAngleError(null);
 
+    // Reorder images so primaryAngleId is first in the array
+    const primaryImg = modelImages.find((img) => img.id === primaryAngleId) || modelImages[0];
+    const otherImgs = modelImages.filter((img) => img.id !== primaryImg.id);
+    const orderedBase64s = [primaryImg.base64, ...otherImgs.map((img) => img.base64)];
+
     try {
       const res = await fetch('/api/exterior-render', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          modelBase64,
+          modelImages: orderedBase64s,
           timeOfDay,
           extraDirectives,
           quality,
@@ -90,7 +144,8 @@ export default function ExteriorRenderStudio() {
         const item: ExteriorRenderHistoryItem = {
           id: Math.random().toString(36).slice(2),
           renderBase64: data.render,
-          modelBase64,
+          primaryModelBase64: primaryImg.base64,
+          modelCount: orderedBase64s.length,
           timeOfDay,
           timestamp: Date.now(),
         };
@@ -154,6 +209,8 @@ export default function ExteriorRenderStudio() {
   const viewingItem = viewingId ? history.find((h) => h.id === viewingId) : null;
   const displayRender = viewingItem?.renderBase64 || renderResult;
 
+  const currentPreviewImage = modelImages.find((img) => img.id === activePreviewId) || modelImages[0];
+
   return (
     <div className="flex flex-1 overflow-hidden bg-[#020510] text-white font-sans">
       {/* ── Left: Viewport & Outputs ──────────────────────────────────────── */}
@@ -168,46 +225,123 @@ export default function ExteriorRenderStudio() {
             <div>
               <h2 className="text-sm font-bold uppercase tracking-[3px] text-white">Exterior 3D Render Studio</h2>
               <p className="text-[9px] text-amber-400/60 font-mono uppercase tracking-wider">
-                SketchUp Model → Day/Night CGI → Multi-Angle Synthesis
+                Multi-Angle SketchUp Comprehension → Ultra-Luxury CGI → 3-Angle Synthesis
               </p>
             </div>
           </div>
-          {modelBase64 && (
+          {modelImages.length > 0 && (
             <button
               onClick={() => fileInputRef.current?.click()}
               className="text-[9px] text-orange-400 hover:text-orange-200 uppercase font-bold cursor-pointer flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-orange-950/30 border border-orange-500/30"
             >
-              <RefreshCw size={11} /> Change Model Image
+              <RefreshCw size={11} /> Replace Model Images
             </button>
           )}
         </div>
 
-        {modelBase64 ? (
+        {modelImages.length > 0 ? (
           <div className="flex flex-col gap-6">
 
             {/* Split View: Model Input + Primary Render Output */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
               {/* Input Model Panel */}
-              <div className="flex flex-col gap-2">
+              <div className="flex flex-col gap-2.5">
                 <div className="flex items-center justify-between">
                   <span className="text-[10px] font-bold uppercase tracking-widest text-amber-400 font-mono flex items-center gap-1.5">
-                    📐 1. Input 3D Model Screenshot
+                    📐 1. Input 3D Model ({modelImages.length} {modelImages.length === 1 ? 'Angle' : 'Angles'} Uploaded)
                   </span>
+                  <button
+                    onClick={() => appendFileInputRef.current?.click()}
+                    className="text-[9px] text-amber-300 hover:text-white uppercase font-bold cursor-pointer flex items-center gap-1 bg-amber-950/50 border border-amber-500/40 px-2.5 py-1 rounded-md"
+                  >
+                    <Plus size={11} /> Add Another Angle
+                  </button>
                 </div>
+
+                {/* Main Active Preview Card */}
                 <div className="relative rounded-xl overflow-hidden border border-amber-500/30 bg-black/60 shadow-lg flex items-center justify-center p-2 min-h-[380px]">
-                  <img
-                    src={modelBase64}
-                    alt="SketchUp Model Input"
-                    className="w-full max-h-[440px] object-contain rounded-lg"
-                  />
-                  <div className="absolute bottom-3 left-3 bg-black/85 backdrop-blur px-2.5 py-1 rounded-md text-[9px] font-mono text-amber-300 border border-amber-500/30 truncate max-w-[80%]">
-                    📁 {modelFileName || '3D Model Viewport'}
+                  {currentPreviewImage && (
+                    <img
+                      src={currentPreviewImage.base64}
+                      alt="SketchUp Model View"
+                      className="w-full max-h-[440px] object-contain rounded-lg"
+                    />
+                  )}
+                  <div className="absolute bottom-3 left-3 bg-black/85 backdrop-blur px-2.5 py-1 rounded-md text-[9px] font-mono text-amber-300 border border-amber-500/30 truncate max-w-[70%]">
+                    📁 {currentPreviewImage?.fileName || '3D Model View'}
                   </div>
+
+                  {/* Primary Target Badge */}
+                  {currentPreviewImage?.id === primaryAngleId ? (
+                    <div className="absolute top-3 left-3 bg-gradient-to-r from-amber-500 to-orange-500 text-black px-2.5 py-1 rounded-full text-[9px] font-bold font-mono uppercase tracking-wider flex items-center gap-1 shadow-[0_0_15px_rgba(245,158,11,0.5)]">
+                      <Star size={11} className="fill-black" /> Primary Target View
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => currentPreviewImage && setPrimaryAngleId(currentPreviewImage.id)}
+                      className="absolute top-3 left-3 bg-black/80 hover:bg-amber-500 hover:text-black text-amber-300 px-2.5 py-1 rounded-full text-[8px] font-mono uppercase tracking-wider border border-amber-500/40 transition-all cursor-pointer"
+                    >
+                      Set as Primary Target View
+                    </button>
+                  )}
+                </div>
+
+                {/* Multi-Image Thumbnail Gallery Selector */}
+                <div className="flex items-center gap-2 overflow-x-auto custom-scrollbar pb-1">
+                  {modelImages.map((img, idx) => {
+                    const isSelected = img.id === activePreviewId;
+                    const isPrimary = img.id === primaryAngleId;
+                    return (
+                      <div
+                        key={img.id}
+                        onClick={() => setActivePreviewId(img.id)}
+                        className={`group/thumb relative rounded-lg overflow-hidden border cursor-pointer shrink-0 transition-all w-24 aspect-[4/3] ${
+                          isSelected
+                            ? 'border-amber-400 shadow-[0_0_15px_rgba(245,158,11,0.4)]'
+                            : 'border-orange-950/60 hover:border-amber-500/50 bg-black/60'
+                        }`}
+                      >
+                        <img
+                          src={img.base64}
+                          alt={`Angle ${idx + 1}`}
+                          className="w-full h-full object-cover"
+                        />
+                        {/* Primary Star Indicator */}
+                        {isPrimary && (
+                          <div className="absolute top-1 left-1 w-4 h-4 rounded-full bg-amber-400 text-black flex items-center justify-center shadow">
+                            <Star size={9} className="fill-black" />
+                          </div>
+                        )}
+                        {/* Remove Image Button */}
+                        {modelImages.length > 1 && (
+                          <button
+                            onClick={(e) => handleRemoveImage(img.id, e)}
+                            className="absolute top-1 right-1 w-4 h-4 rounded-full bg-black/80 hover:bg-red-500 text-gray-300 hover:text-white flex items-center justify-center opacity-0 group-hover/thumb:opacity-100 transition-opacity"
+                            title="Remove angle"
+                          >
+                            <X size={10} />
+                          </button>
+                        )}
+                        <div className="absolute bottom-0 inset-x-0 bg-black/80 text-[7px] text-amber-200 font-mono text-center py-0.5 truncate px-1">
+                          Angle #{idx + 1}
+                        </div>
+                      </div>
+                    );
+                  })}
+
+                  {/* Add Angle Thumbnail Button */}
+                  <button
+                    onClick={() => appendFileInputRef.current?.click()}
+                    className="w-24 aspect-[4/3] rounded-lg border border-dashed border-amber-500/40 hover:border-amber-400 bg-black/40 hover:bg-amber-950/20 text-amber-300 flex flex-col items-center justify-center gap-1 cursor-pointer shrink-0 transition-all text-center p-1"
+                  >
+                    <Plus size={14} />
+                    <span className="text-[8px] font-mono font-bold uppercase">+ Add Angle</span>
+                  </button>
                 </div>
               </div>
 
               {/* Output Render Panel */}
-              <div className="flex flex-col gap-2">
+              <div className="flex flex-col gap-2.5">
                 <div className="flex items-center justify-between">
                   <span className="text-[10px] font-bold uppercase tracking-widest text-emerald-400 font-mono flex items-center gap-1.5">
                     ✨ 2. Primary 3D Render Output
@@ -230,12 +364,12 @@ export default function ExteriorRenderStudio() {
                     </div>
                     <div>
                       <p className="text-xs font-bold uppercase tracking-[3px] text-white mb-1">
-                        SYNTHESIZING PHOTOREALISTIC EXTERIOR...
+                        SYNTHESIZING 3D MULTI-ANGLE EXTERIOR...
                       </p>
                       <p className="text-[9px] font-mono text-amber-400 tracking-wider">
                         {timeOfDay === 'night'
-                          ? 'Applying fiery sunset sky, 3000K interior glows & LED balcony ribbons...'
-                          : 'Applying brilliant daylight, crisp drop shadows & mirror glass reflections...'}
+                          ? `Comprehending ${modelImages.length} angles → applying fiery sunset sky, 3000K interior glows & LED balcony ribbons...`
+                          : `Comprehending ${modelImages.length} angles → applying angled golden sunlight, glass reflections & sky gardens...`}
                       </p>
                     </div>
                   </div>
@@ -256,10 +390,10 @@ export default function ExteriorRenderStudio() {
                   <div className="rounded-xl border border-orange-950/60 bg-black/40 flex flex-col items-center justify-center min-h-[380px] text-center p-6">
                     <Building2 size={36} className="text-orange-900/60 mb-3" />
                     <p className="text-xs font-bold uppercase tracking-[2px] text-white/80 mb-1">
-                      Ready to Render
+                      Ready to Render ({modelImages.length} {modelImages.length === 1 ? 'Angle' : 'Angles'} Loaded)
                     </p>
                     <p className="text-[9px] text-amber-400/50 font-mono uppercase tracking-wider">
-                      Select Day or Night, pick a camera view & hit Generate
+                      Select Day or Night &amp; hit Generate Render
                     </p>
                   </div>
                 )}
@@ -286,7 +420,7 @@ export default function ExteriorRenderStudio() {
                         ✨ Synthesize 3 Professional Architectural Angles
                       </h3>
                       <p className="text-[9px] text-gray-400 font-mono mt-0.5">
-                        Locks 100% of this design, materials & lighting, then renders <span className="text-amber-300 font-bold">Hero 45°</span>, <span className="text-amber-300 font-bold">Street Level</span>, and <span className="text-amber-300 font-bold">Worm&apos;s Eye</span> in parallel!
+                        Locks 100% of this design, materials &amp; lighting, then renders <span className="text-amber-300 font-bold">Hero 45°</span>, <span className="text-amber-300 font-bold">Street Level</span>, and <span className="text-amber-300 font-bold">Worm&apos;s Eye</span> in parallel!
                       </p>
                     </div>
                   </div>
@@ -504,7 +638,7 @@ export default function ExteriorRenderStudio() {
                         />
                         <div className="p-2 bg-black/90 flex items-center justify-between gap-1 text-[8px] font-mono border-t border-white/5">
                           <span className="text-amber-300 font-bold uppercase">
-                            {h.timeOfDay === 'night' ? '🌙 Night' : '☀️ Day'}
+                            {h.timeOfDay === 'night' ? '🌙 Night' : '☀️ Day'} ({h.modelCount} {h.modelCount === 1 ? 'view' : 'views'})
                           </span>
                           <div className="flex gap-1.5">
                             <button
@@ -535,32 +669,44 @@ export default function ExteriorRenderStudio() {
             )}
           </div>
         ) : (
-          /* Empty State: Prompt Upload */
-          <div className="flex-1 flex flex-col items-center justify-center text-center max-w-md mx-auto py-20">
+          /* Empty State: Multi-Image Upload */
+          <div className="flex-1 flex flex-col items-center justify-center text-center max-w-lg mx-auto py-16">
             <div className="w-20 h-20 rounded-3xl bg-gradient-to-br from-amber-950/60 to-orange-950/40 border border-amber-500/30 flex items-center justify-center mb-6 shadow-[0_0_30px_rgba(245,158,11,0.2)]">
               <Building2 size={36} className="text-amber-400" />
             </div>
             <h2 className="text-base font-black uppercase tracking-[3px] text-white mb-2">
-              Upload 3D Model / SketchUp Angle
+              Upload 1 to 4 SketchUp Model Angles
             </h2>
             <p className="text-xs text-amber-400/60 uppercase tracking-wider leading-relaxed mb-8 font-mono">
-              Upload your SketchUp viewport screenshot.
-              Choose <strong>Day</strong> or <strong>Night</strong> to generate the primary render, then click <strong>Generate 3 Angles</strong> to automatically synthesize Hero View, Street Level, and Worm&apos;s Eye view in parallel!
+              Upload multiple screenshots (e.g. 3/4 perspective, side elevation, podium detail) so the AI comprehends the <strong>complete 3D architectural massing</strong> before generating your render!
             </p>
             <button
               onClick={() => fileInputRef.current?.click()}
               className="flex items-center gap-3 px-8 py-3.5 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-black font-black uppercase tracking-widest text-xs rounded-xl transition-all shadow-[0_0_25px_rgba(245,158,11,0.4)] cursor-pointer"
             >
-              <UploadCloud size={16} /> Choose Model Screenshot
+              <UploadCloud size={16} /> Choose Model Screenshots (Select 1-4)
             </button>
+            <p className="text-[9px] text-gray-500 font-mono mt-3">
+              Hold Shift/Ctrl or drag to select multiple image files at once.
+            </p>
           </div>
         )}
 
+        {/* Hidden File Inputs */}
         <input
           type="file"
           accept="image/*"
+          multiple
           ref={fileInputRef}
-          onChange={handleFileUpload}
+          onChange={handleInitialUpload}
+          className="hidden"
+        />
+        <input
+          type="file"
+          accept="image/*"
+          multiple
+          ref={appendFileInputRef}
+          onChange={handleAppendUpload}
           className="hidden"
         />
       </div>
@@ -574,7 +720,7 @@ export default function ExteriorRenderStudio() {
             <h3 className="text-xs font-bold uppercase tracking-[2.5px] text-white flex items-center gap-2">
               <Settings2 size={13} className="text-amber-400" /> Render Controls
             </h3>
-            <p className="text-[9px] text-amber-400/50 mt-0.5">Lighting · Camera Angle · Custom Directives</p>
+            <p className="text-[9px] text-amber-400/50 mt-0.5">Lighting · Directives · Quality</p>
           </div>
         </div>
 
@@ -673,9 +819,9 @@ export default function ExteriorRenderStudio() {
           <button
             type="button"
             onClick={handleRender}
-            disabled={!modelBase64 || isRendering}
+            disabled={modelImages.length === 0 || isRendering}
             className={`w-full py-3.5 rounded-xl font-black text-xs uppercase tracking-widest flex items-center justify-center gap-2.5 transition-all ${
-              !modelBase64 || isRendering
+              modelImages.length === 0 || isRendering
                 ? 'bg-gray-800 text-gray-600 cursor-not-allowed border border-gray-700'
                 : 'bg-gradient-to-r from-amber-400 via-orange-500 to-amber-500 hover:from-amber-300 hover:to-orange-400 text-black cursor-pointer shadow-[0_0_30px_rgba(245,158,11,0.5)]'
             }`}
@@ -683,12 +829,12 @@ export default function ExteriorRenderStudio() {
             {isRendering ? (
               <>
                 <Loader2 size={15} className="animate-spin" />
-                Rendering...
+                Rendering {modelImages.length > 1 ? `(${modelImages.length} Views)` : ''}...
               </>
             ) : (
               <>
                 <Sparkles size={15} />
-                Generate {timeOfDay === 'night' ? 'Night' : 'Day'} Render
+                Generate {timeOfDay === 'night' ? 'Night' : 'Day'} Render {modelImages.length > 1 ? `(${modelImages.length} Views)` : ''}
               </>
             )}
           </button>

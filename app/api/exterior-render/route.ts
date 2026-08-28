@@ -32,20 +32,29 @@ async function runModel(falModel: string, input: Record<string, any>): Promise<{
 
 function buildExteriorPrompt(opts: {
   timeOfDay: 'day' | 'night';
+  hasMultipleImages?: boolean;
   extraDirectives?: string;
 }): string {
-  const { timeOfDay, extraDirectives } = opts;
+  const { timeOfDay, hasMultipleImages, extraDirectives } = opts;
+
+  const multiImageSection = hasMultipleImages
+    ? `### MULTI-VIEW 3D MASSING COMPREHENSION:
+* The input reference images provide MULTIPLE complementary viewpoints/angles of the EXACT same architectural 3D massing model.
+* Cross-reference all uploaded angles to construct a comprehensive 3D spatial understanding of the building's geometry, curved podium wave louvers, cantilevered balcony profiles, tower height, and crown architecture.
+* Render the primary architectural perspective matching the primary framing (Image 1) with complete spatial accuracy informed by all reference angles.
+`
+    : '';
 
   if (timeOfDay === 'night') {
-    return `Award-winning, hyper-photorealistic 8K architectural dusk & night exterior CGI photograph of an ultra-luxury modern high-rise tower, transformed from the 3D massing model in the input image.
+    return `Award-winning, hyper-photorealistic 8K architectural dusk & night exterior CGI photograph of an ultra-luxury modern high-rise tower, transformed from the 3D massing model in the input image(s).
 
 ### CRITICAL MANDATE — PRESERVE COMPOSITION & ELEVATE TO CGI REALISM:
-* Preserve the EXACT camera angle, framing, perspective, floor count, and building massing from the input reference model screenshot.
+* Preserve the EXACT camera angle, framing, perspective, floor count, and building massing from the primary reference model screenshot.
 * DO NOT copy flat grey, untextured, wireframe, or raw 3D polygon surfaces from the input model.
 * Transform every plane into ultra-luxurious, tangible physical materials with physics-accurate real-world lighting.
 * Output MUST look like a real multi-million dollar architectural photograph taken on a medium format camera — completely indistinguishable from real life.
 
-### HYPER-REALISTIC WINDOW GLASS REFLECTIONS & OPTICS:
+${multiImageSection}### HYPER-REALISTIC WINDOW GLASS REFLECTIONS & OPTICS:
 * Double-glazed low-iron Starphire curtain wall glass with physics-accurate Fresnel reflections (IOR 1.52) — catching high-contrast mirror reflections of the fiery sunset clouds and ambient twilight sky at grazing angles.
 * Micro-subtle tempered glass reflection distortion across individual modular panel seams, giving reflections realistic architectural pillowing and depth rather than flat artificial mirrors.
 * Dual-Layer Glazing Realism: The outer glass pane reflects the burning orange-amber sunset sky and glowing LED ribbons, while the transparent interior reveals warm 2700K–3000K glowing ceiling coffers, recessed downlights, floor slabs, and penthouse silhouettes from within.
@@ -82,15 +91,15 @@ ${extraDirectives ? `### ARCHITECT CUSTOM DIRECTIVES:\n${extraDirectives}` : ''}
   }
 
   // Day mode prompt — Ultra-Luxury Magazine-Cover Daytime CGI
-  return `Award-winning, magazine-cover hyper-photorealistic 8K architectural daytime exterior CGI photograph of an ultra-luxury modern high-rise tower, transformed from the 3D massing model in the input image.
+  return `Award-winning, magazine-cover hyper-photorealistic 8K architectural daytime exterior CGI photograph of an ultra-luxury modern high-rise tower, transformed from the 3D massing model in the input image(s).
 
 ### CRITICAL MANDATE — PRESERVE COMPOSITION & ELEVATE TO CGI REALISM:
-* Preserve the EXACT camera angle, framing, perspective, floor count, and building massing from the input reference model screenshot.
+* Preserve the EXACT camera angle, framing, perspective, floor count, and building massing from the primary reference model screenshot.
 * DO NOT copy flat grey, untextured, wireframe, or raw 3D polygon surfaces from the input model.
 * Transform every surface into ultra-luxurious, tangible physical materials with physics-accurate real-world daylighting.
 * Output MUST look like a real multi-million dollar architectural photograph taken on a high-end medium format camera — completely indistinguishable from real life.
 
-### HYPER-REALISTIC WINDOW GLASS REFLECTIONS & OPTICS:
+${multiImageSection}### HYPER-REALISTIC WINDOW GLASS REFLECTIONS & OPTICS:
 * Double-glazed low-iron Starphire curtain wall glass with physics-accurate Fresnel reflections (IOR 1.52) — catching crystal-clear, razor-sharp mirror reflections of the deep cerulean blue sky, wispy clouds, and distant skyline.
 * Brilliant specular sunlight glints and polarized iridescent anti-reflective edge coatings shimmering across glass facade facets.
 * Micro-subtle panel-by-panel reflection variance (tempered glass pillowing distortion across modular panel joints) making cloud reflections bend naturally across the facade.
@@ -130,14 +139,22 @@ export async function POST(req: Request) {
   try {
     const body = await req.json();
     const {
+      modelImages,
       modelBase64,
       timeOfDay = 'night',
       extraDirectives = '',
       quality = 'medium',
     } = body;
 
-    if (!modelBase64) {
-      return NextResponse.json({ error: 'modelBase64 (SketchUp render image) is required.' }, { status: 400 });
+    // Collect all input images (either array of strings or single base64)
+    const imagesToProcess: string[] = Array.isArray(modelImages) && modelImages.length > 0
+      ? modelImages
+      : modelBase64
+      ? [modelBase64]
+      : [];
+
+    if (imagesToProcess.length === 0) {
+      return NextResponse.json({ error: 'At least one 3D model screenshot (modelImages or modelBase64) is required.' }, { status: 400 });
     }
 
     const falKey = process.env.FAL_KEY;
@@ -146,19 +163,22 @@ export async function POST(req: Request) {
     }
     fal.config({ credentials: falKey });
 
-    console.log('[ExteriorRender] Uploading model screenshot to fal storage...');
-    const uploadedModelUrl = await uploadBase64ToFalStorage(modelBase64);
-    console.log('[ExteriorRender] Model uploaded:', uploadedModelUrl);
+    console.log(`[ExteriorRender] Uploading ${imagesToProcess.length} model screenshot(s) to fal storage in parallel...`);
+    const uploadedModelUrls = await Promise.all(
+      imagesToProcess.map((img) => uploadBase64ToFalStorage(img))
+    );
+    console.log('[ExteriorRender] Model screenshots uploaded:', uploadedModelUrls);
 
     const masterPrompt = buildExteriorPrompt({
       timeOfDay: timeOfDay === 'day' ? 'day' : 'night',
+      hasMultipleImages: uploadedModelUrls.length > 1,
       extraDirectives,
     });
-    console.log('[ExteriorRender] Prompt synthesized:\n', masterPrompt.slice(0, 250) + '...');
+    console.log('[ExteriorRender] Prompt synthesized:\n', masterPrompt.slice(0, 280) + '...');
 
-    console.log('[ExteriorRender] Calling GPT Image 2 Edit (quality:', quality, ')...');
+    console.log('[ExteriorRender] Calling GPT Image 2 Edit with', uploadedModelUrls.length, 'reference images (quality:', quality, ')...');
     const result = await runModel('openai/gpt-image-2/edit', {
-      image_urls: [uploadedModelUrl],
+      image_urls: uploadedModelUrls,
       prompt: masterPrompt,
       quality: quality || 'medium',
     });
@@ -172,12 +192,13 @@ export async function POST(req: Request) {
       imageUrl: resultBase64,
       seed: result.seed ?? null,
       masterPrompt,
+      inputCount: uploadedModelUrls.length,
       workflow: 'exterior-render',
     });
   } catch (err: any) {
-    console.error('[ExteriorRender] Error:', err);
+    console.error('[ExteriorRender Error]', err);
     return NextResponse.json(
-      { error: err.message || 'Exterior rendering failed. Please try again.' },
+      { error: err?.message || 'Failed to render exterior visualization.' },
       { status: 500 }
     );
   }
