@@ -1507,8 +1507,9 @@ NOTE: Each time Master Umesh asks for the brief, these stories are shuffled rand
         router.push('/idea-generation');
       });
     } else if (stageId === 'flythrough') {
-      setStorePhase('edit');
-      speak("Flightpath parameters loaded, Master Umesh.");
+      speak("Opening Flythrough Video Studio, Master Umesh.", () => {
+        router.push('/flythrough');
+      });
     } else if (stageId === 'vault') {
       speak("Accessing project vault, Master Umesh.", () => {
         router.push('/vault');

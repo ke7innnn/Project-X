@@ -3,12 +3,13 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useArchitectStore } from '@/store/useArchitectStore';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, Box, Download, Settings2, Sparkles, Loader2, UploadCloud, Folder, Search, Plus, MapPin, Clock, Trash2, Map, Compass, Building, Building2 } from 'lucide-react';
+import { ArrowLeft, Box, Download, Settings2, Sparkles, Loader2, UploadCloud, Folder, Search, Plus, MapPin, Clock, Trash2, Map, Compass, Building, Building2, Video } from 'lucide-react';
 import CinematicIntro from '@/components/CinematicIntro';
 import { RenderHistoryItem } from '@/types';
 import SaveToProjectModal from '@/components/SaveToProjectModal';
 import SitePlanStudio from '@/components/SitePlanStudio';
 import ExteriorRenderStudio from '@/components/ExteriorRenderStudio';
+import FlythroughStudio from '@/components/FlythroughStudio';
 import { supabase } from '@/lib/supabase';
 import { v4 as uuidv4 } from 'uuid';
 import { useActiveProjectGuard } from '@/lib/useActiveProjectGuard';
@@ -22,8 +23,8 @@ export default function Render3DPage() {
   const switchSession = useArchitectStore(state => state.switchSession);
   const { replaceState, sessionId } = useArchitectStore();
 
-  // Active Studio Mode: Floor Plan 3D Render vs Site Plan / Masterplan 3D Studio
-  const [activeStudioTab, setActiveStudioTab] = useState<'floorplan' | 'siteplan' | 'exterior'>('floorplan');
+  // Active Studio Mode: Floor Plan 3D Render vs Site Plan / Masterplan 3D Studio vs Exterior vs Flythrough
+  const [activeStudioTab, setActiveStudioTab] = useState<'floorplan' | 'siteplan' | 'exterior' | 'flythrough'>('floorplan');
 
   const [isRendering, setIsRendering] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -269,6 +270,18 @@ export default function Render3DPage() {
               <Building2 size={13} /> Exterior Render
               <span className="px-1 py-0.2 bg-orange-950/80 text-orange-300 rounded text-[8px] border border-orange-500/40 font-mono">NEW</span>
             </button>
+
+            <button
+              onClick={() => setActiveStudioTab('flythrough')}
+              className={`px-3.5 py-1.5 rounded-lg text-[11px] font-bold uppercase tracking-wider flex items-center gap-1.5 transition-all cursor-pointer ${
+                activeStudioTab === 'flythrough'
+                  ? 'bg-gradient-to-r from-amber-500 to-orange-500 text-black shadow-[0_0_18px_rgba(245,158,11,0.5)] font-black'
+                  : 'text-amber-400/70 hover:text-amber-300'
+              }`}
+            >
+              <Video size={13} /> Flythrough Video
+              <span className="px-1 py-0.2 bg-amber-950/80 text-amber-300 rounded text-[8px] border border-amber-500/40 font-mono">1m–3m</span>
+            </button>
           </div>
         </div>
         
@@ -314,6 +327,8 @@ export default function Render3DPage() {
         <SitePlanStudio />
       ) : activeStudioTab === 'exterior' ? (
         <ExteriorRenderStudio />
+      ) : activeStudioTab === 'flythrough' ? (
+        <FlythroughStudio />
       ) : (
         <main className="relative z-10 flex flex-1 overflow-hidden">
         
