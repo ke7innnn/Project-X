@@ -33,6 +33,7 @@ const BUILDING_TYPES = [
 ];
 
 const MATERIAL_PRESETS = [
+  { id: 'champagne_gold', label: 'Champagne Gold & Glass', emoji: '✨', desc: 'Curved gold trims, amber LED ribbons (Ref Style)' },
   { id: 'glass_steel', label: 'Glass & Steel', emoji: '🏙️', desc: 'Curtain wall, brushed steel, chrome' },
   { id: 'concrete_wood', label: 'Concrete & Wood', emoji: '🪵', desc: 'Board-form concrete, cedar louvers' },
   { id: 'white_marble', label: 'White Marble', emoji: '🤍', desc: 'Carrara marble, brass trim, luxury' },
@@ -42,8 +43,9 @@ const MATERIAL_PRESETS = [
 ];
 
 const SKY_PRESETS = [
+  { id: 'sunset_dusk', label: 'Fiery Sunset Dusk', emoji: '🔥', desc: 'Dramatic storm sunset, amber rays (Ref Style)' },
   { id: 'golden_hour', label: 'Golden Hour', emoji: '🌅', desc: 'Explosive sunset, amber rim light' },
-  { id: 'blue_hour', label: 'Blue Hour', emoji: '🌆', desc: 'Twilight cobalt, warm interior glow' },
+  { id: 'blue_hour', label: 'Blue Hour Twilight', emoji: '🌆', desc: 'Twilight cobalt, warm interior glow' },
   { id: 'noon_blazing', label: 'Blazing Noon', emoji: '☀️', desc: '5500K sun, electric cerulean sky' },
   { id: 'dramatic_overcast', label: 'Dramatic Overcast', emoji: '⛅', desc: 'Storm clouds, god-rays, silver light' },
   { id: 'rainy_night', label: 'Rainy Night', emoji: '🌧️', desc: 'Neon reflections, wet paving, noir' },
@@ -51,7 +53,7 @@ const SKY_PRESETS = [
 ];
 
 const CAMERA_ANGLES = [
-  { id: 'hero_angle', label: 'Hero Angle', emoji: '📸', desc: '45° elevated, full height reveal' },
+  { id: 'hero_angle', label: 'Hero Angle (45°)', emoji: '📸', desc: '45° elevated, full height reveal' },
   { id: 'street_level', label: 'Street Level', emoji: '🚶', desc: 'Pedestrian eye-level, dramatic up-look' },
   { id: 'worm_eye', label: "Worm's Eye", emoji: '👁️', desc: 'Straight up, extreme convergence' },
   { id: 'drone_45', label: 'Drone 45°', emoji: '🚁', desc: 'Aerial 45° down, crown + context' },
@@ -69,12 +71,12 @@ export default function ExteriorRenderStudio() {
 
   // Controls
   const [buildingType, setBuildingType] = useState('Luxury Residential Tower');
-  const [floors, setFloors] = useState(20);
-  const [materialPreset, setMaterialPreset] = useState('glass_steel');
-  const [skyPreset, setSkyPreset] = useState('golden_hour');
+  const [floors, setFloors] = useState(24);
+  const [materialPreset, setMaterialPreset] = useState('champagne_gold');
+  const [skyPreset, setSkyPreset] = useState('sunset_dusk');
   const [cameraAngle, setCameraAngle] = useState('hero_angle');
   const [extraDirectives, setExtraDirectives] = useState('');
-  const [surroundings, setSurroundings] = useState('');
+  const [surroundings, setSurroundings] = useState('Wet rain-slicked dark asphalt street in foreground with mirror reflections of the golden lights and fiery sunset sky, illuminated Royal Palm trees with warm uplighting, luxury cars, warm street bollards');
   const [quality, setQuality] = useState<'medium' | 'high'>('medium');
 
   // Output state
@@ -383,8 +385,88 @@ export default function ExteriorRenderStudio() {
             </button>
           )}
 
+          {/* Curated 1-Click Mood Presets */}
+          <div className="flex flex-col gap-1.5">
+            <span className="text-[9px] font-bold uppercase tracking-widest text-orange-400 flex items-center gap-1">
+              <Sparkles size={11} /> Quick Mood Preset
+            </span>
+            <div className="grid grid-cols-2 gap-1.5">
+              <button
+                type="button"
+                onClick={() => {
+                  setMaterialPreset('champagne_gold');
+                  setSkyPreset('sunset_dusk');
+                  setCameraAngle('hero_angle');
+                  setSurroundings('Wet rain-slicked dark asphalt street in foreground with mirror reflections of the golden lights and fiery sunset sky, illuminated Royal Palm trees with warm uplighting, luxury cars, warm street bollards');
+                }}
+                className={`p-2 rounded-lg border text-left text-[8px] font-bold uppercase transition-all cursor-pointer flex items-center gap-1.5 ${
+                  materialPreset === 'champagne_gold' && skyPreset === 'sunset_dusk'
+                    ? 'bg-gradient-to-r from-orange-500/30 to-amber-500/20 border-orange-400 text-orange-200 shadow-[0_0_12px_rgba(234,88,12,0.3)]'
+                    : 'bg-black/40 border-white/10 text-gray-300 hover:border-orange-500/30'
+                }`}
+              >
+                <span>🔥</span>
+                <span className="truncate">Ref Sunset Dusk</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setMaterialPreset('glass_steel');
+                  setSkyPreset('blue_hour');
+                  setCameraAngle('street_level');
+                  setSurroundings('Wet dark pavement with cobalt blue and warm amber window puddle reflections, modern street lamps, illuminated landscaping');
+                }}
+                className={`p-2 rounded-lg border text-left text-[8px] font-bold uppercase transition-all cursor-pointer flex items-center gap-1.5 ${
+                  skyPreset === 'blue_hour'
+                    ? 'bg-gradient-to-r from-indigo-500/30 to-blue-500/20 border-indigo-400 text-indigo-200 shadow-[0_0_12px_rgba(99,102,241,0.3)]'
+                    : 'bg-black/40 border-white/10 text-gray-300 hover:border-indigo-500/30'
+                }`}
+              >
+                <span>🌆</span>
+                <span className="truncate">Blue Hour Glow</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setMaterialPreset('white_marble');
+                  setSkyPreset('golden_hour');
+                  setCameraAngle('hero_angle');
+                  setSurroundings('Sun-drenched marble plaza with palm tree shadows, fountains, luxury drop-off');
+                }}
+                className={`p-2 rounded-lg border text-left text-[8px] font-bold uppercase transition-all cursor-pointer flex items-center gap-1.5 ${
+                  materialPreset === 'white_marble'
+                    ? 'bg-gradient-to-r from-amber-500/30 to-yellow-500/20 border-amber-400 text-amber-200 shadow-[0_0_12px_rgba(245,158,11,0.3)]'
+                    : 'bg-black/40 border-white/10 text-gray-300 hover:border-amber-500/30'
+                }`}
+              >
+                <span>🤍</span>
+                <span className="truncate">White Marble Sun</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setMaterialPreset('luxury_dark');
+                  setSkyPreset('stormy_dusk');
+                  setCameraAngle('hero_angle');
+                  setSurroundings('Dark obsidian wet plaza, dramatic vertical spotlights, luxury noir ambiance');
+                }}
+                className={`p-2 rounded-lg border text-left text-[8px] font-bold uppercase transition-all cursor-pointer flex items-center gap-1.5 ${
+                  materialPreset === 'luxury_dark'
+                    ? 'bg-gradient-to-r from-purple-500/30 to-rose-500/20 border-purple-400 text-purple-200 shadow-[0_0_12px_rgba(168,85,247,0.3)]'
+                    : 'bg-black/40 border-white/10 text-gray-300 hover:border-purple-500/30'
+                }`}
+              >
+                <span>🖤</span>
+                <span className="truncate">Obsidian Noir</span>
+              </button>
+            </div>
+          </div>
+
           {/* 1. Building Type + Floors */}
-          <div className="flex flex-col gap-2.5">
+          <div className="flex flex-col gap-2.5 border-t border-orange-950/60 pt-4">
             <span className="text-[10px] font-bold uppercase tracking-widest text-amber-400 flex items-center gap-1.5">
               <Building2 size={12} /> 1. Building Info
             </span>

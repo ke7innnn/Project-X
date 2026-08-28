@@ -42,95 +42,158 @@ function buildExteriorPrompt(opts: {
   const { buildingType, floors, materialPreset, skyPreset, cameraAngle, extraDirectives, surroundings } = opts;
 
   const materialMap: Record<string, string> = {
+    champagne_gold:
+      'Curved champagne-gold anodized aluminum trims, brushed brass balcony handrails, and warm bronze metal louvers. Ultra-clear floor-to-ceiling double-glazed curtain wall glass with warm amber 2700K interior light glowing from inside every room. Fluted travertine and textured limestone podium base with undulating sculptural parametric wave louvers. Luminous glowing LED light ribbons under each curved balcony edge.',
     glass_steel:
-      'ultra-premium floor-to-ceiling double-glazed low-iron glass curtain wall with polished brushed-steel mullion frames, deep dark structural steel spandrel panels, mirror-finish chrome balcony railings, backlit glass facade panels glowing amber at night',
+      'Ultra-premium floor-to-ceiling double-glazed curtain wall glass with dark structural steel mullions. Glass panels blazing with warm amber interior floor-plate light glow from within, mirror-chrome balcony railings catching the sunset light, polished brushed stainless steel spandrel panels, deep-set glazing reveals, and glowing architectural crown lighting.',
     concrete_wood:
-      'exposed fair-faced board-formed concrete walls with ultra-fine horizontal rib texture, warm kiln-dried charred cedar wood louvers and brise-soleil, raw-edge polished concrete soffits, Corten steel accent fins patinated in orange-rust tones, lush planted green terraces',
+      'Warm raw-texture board-formed fair-faced concrete with horizontal rib shadow lines, honey-warm kiln-dried cedar and charred ipe wood brise-soleil louvers glowing amber in the sunset light, planted green balcony terraces overflowing with lush tropical vegetation cascading down facade bays, Corten steel accent fins in glowing rust-orange, polished concrete ground plaza with mirror wet finish.',
     white_marble:
-      'pure book-matched Carrara white marble cladding panels with fine grey veining, polished Arabescato marble base plinth, brushed brass window frames and door surrounds, hand-laid Calacatta marble paving with mirror-finish wet look, crisp white rendered stucco infills',
+      'Pure luminous book-matched Bianco Carrara and Calacatta gold marble cladding panels catching warm sunset glow, brushed 24K gold-finish window frames and architectural trims, polished Arabescato marble podium base reflecting the sky, white Venetian stucco infills, crystal-clear glass balconies with warm interior glow.',
     brick_terracotta:
-      'handcrafted Danish wire-cut elongated brick in warm terracotta and burnt sienna palette, recessed mortar joints, textured terracotta ceramic rain-screen panels, dark bronze window frames with deep reveals, natural travertine paving, and wrought iron decorative railings',
+      'Hand-laid elongated Danish wire-cut brick in warm terracotta, sand, and burnt-sienna tones. Bricks individually lit in warm golden-sunset light with deep mortar joint shadow relief, textured terracotta ceramic rain-screen panels, dark bronze window frames, warm amber interior window glow, natural travertine paving.',
     parametric_mesh:
-      'computational parametric perforated aluminium mesh facade panels in gradient density pattern, anodized titanium gold and matte black finish, sculptural organic geometry, backlit LED strips behind mesh creating otherworldly amber glow at dusk, seamless frameless glazing inserts',
+      'Spectacular computational parametric perforated anodized titanium-gold and rose-gold aluminium mesh facade panels in gradient density organic pattern. Backlit with warm amber LED strips visible through mesh creating an extraordinary glowing lantern effect at dusk, sculptural organic geometry with sweeping curves, frameless dark glass.',
     luxury_dark:
-      'ultra-dark polished black granite and obsidian stone cladding, smoked ultra-dark bronze-tinted glass, black powder-coated aluminium structural grid, brushed dark titanium balcony frames, noir zinc sheet metal coping, deep-set shadow-gap reveals, and dramatically angled blade fins in blackened steel',
+      'Ultra-premium polished absolute black Zimbabwe granite and deep-charcoal nero marquina marble cladding catching brilliant reflections of the sunset sky in intense gold-copper tones, smoked bronze-tinted glass with warm amber interior glow, black powder-coated architectural grid, blackened steel blade fins.',
   };
 
   const skyMap: Record<string, string> = {
+    sunset_dusk:
+      'CRAZY EXPLOSIVE SUNSET DUSK SKY: A showstopping, high-contrast stormy sunset sky at dusk. Turbulent, billowing dark indigo and charcoal storm clouds backlit and under-lit from the setting horizon sun in blazing fiery orange, glowing amber, and radiant crimson. Spectacular volumetric golden light shafts piercing through storm cloud gaps. Dramatic atmospheric mood and crazy lighting contrast.',
     golden_hour:
-      'MAGIC HOUR — Blazing golden hour sunset at exactly 6:42PM with an explosive orange-crimson-magenta horizon gradient sky, razor-sharp elongated building drop shadows slicing diagonally across the paving, warm 2700K amber rim lighting wrapping every facade edge, wispy high-altitude cirrus clouds ablaze in pink and coral, volumetric golden sunbeams punching through cloud breaks, glass panels igniting in intense mirror reflections of the orange sky',
+      'CRAZY GOLDEN HOUR SUNSET: Blazing magic-hour golden sunset with an explosive orange-crimson-magenta horizon sky. Razor-sharp elongated building drop shadows slicing across the paving, warm 2700K amber rim lighting wrapping every facade edge, wispy high-altitude clouds ablaze in pink and coral, volumetric golden sunbeams, and glass panels reflecting the fiery sky.',
     blue_hour:
-      'BLUE HOUR — Cinematic architectural twilight at precisely 7:24PM, the sky is a jaw-dropping gradient from deep prussian navy at zenith to electric cobalt at the horizon, the building lit by warm 3200K golden interior spill from every floor plate glazing, exterior LED architectural uplighters washing the facade in crisp white and ice blue, the foreground paving glowing in subtle puddle reflections of the lit building, first stars visible at the zenith',
-    dramatic_overcast:
-      'DRAMATIC OVERCAST — Brooding, heavy storm-clouds in deep blue-grey and charcoal rolling overhead, diffuse even silvery daylight casting no harsh shadows for ultimate material texture revelation, god-rays of light breaking through gaps in storm clouds with volumetric beams, the building facade textures rendered in extraordinary hyperdetail in the even dramatic lighting, ambient occlusion in every surface crevice for depth',
+      'CINEMATIC BLUE HOUR TWILIGHT: Rich prussian navy sky at zenith transitioning to electric cobalt and ultramarine with a thin blazing amber-orange sunset line at the horizon. The tower is a glowing golden lantern against the deep blue night: every floor spills warm 2800K light, horizontal floor slab edges glow in continuous warm amber LED strips, and the wet street mirrors the lit building.',
     noon_blazing:
-      'SCORCHING MIDDAY SUN — Blazing 5500K white sun at 90 degrees overhead, razor-sharp crisp building drop-shadows pitch black at exactly 90 degrees, vivid saturated sky in electric cerulean cobalt blue, ultra-high contrast between sunlit white facade panels glowing almost neon-bright and shadowed recesses in deep shadow, glass facades reflecting a bright chrome mirror image of the sky, shimmering heat distortion near ground-level paving, ultra-sharp 8K detail in every material surface texture',
+      'BLAZING CINEMATIC MIDDAY SUN: Electric saturated cerulean cobalt blue sky with blazing sun overhead. Ultra-high contrast between sunlit white facade panels and sharp pitch-black drop shadows. Glass facades reflect brilliant chrome mirror reflections of the sky, with heat shimmer distortion and ultra-sharp 8K physical textures.',
+    dramatic_overcast:
+      'BROODING DRAMATIC OVERCAST SKY: Heavy rolling storm clouds in deep blue-grey, charcoal and silver filling the sky. Dramatic god-rays and volumetric light shafts breaking through cloud gaps, spotlighting the building facade. Extreme ambient occlusion in every joint and crevice, revealing hyper-detailed material textures.',
     rainy_night:
-      'RAINY CINEMATIC NIGHT — Heavy rain slicking every horizontal surface in a deep mirror-film, neon architectural facade uplighters and warm 2700K window glows reflecting in oily wet paving in abstract expressionist patterns, deep inky navy sky with no stars, steam rising from warm drainage grates, bokeh neon city glow visible in the background, the building itself an island of warmth against the cold moody night',
+      'HYPER-CINEMATIC RAINY NIGHT: Heavy rain transforming the ground into a deep mirror film of dark water reflecting the building\'s warm amber and white architectural lighting in glistening reflections. Deep inky navy sky, neon uplighters, warm 2700K floor glows, steam rising from grates, and luminous bokeh.',
     stormy_dusk:
-      'STORMY TWILIGHT — Apocalyptic dramatic dusk with turbulent silver-purple storm clouds churning overhead split by a single violent streak of amber-orange horizon glow, blue lightning silhouetting the tower crown, rain-slicked glass facades glowing from within in warm amber, architectural flood-lights cutting dramatic uplighting cones from the building base, deep navy foreground and violently saturated sky creating an alien cinematic moment',
+      'APOCALYPTIC STORMY TWILIGHT: Turbulent apocalyptic dusk with massive cumulonimbus storm clouds churning in violent motion, lit internally in electric amber-orange from the sunset horizon while cloud tops are deep purple. Base architectural floodlights cutting brilliant white cones upward against the violent sky.',
   };
 
   const cameraMap: Record<string, string> = {
-    street_level:
-      'ultra-wide angle street-level pedestrian perspective at exact eye level (1.6m from ground), camera looking up at the building with extreme foreshortening exaggerating the tower height, dramatic convergence of vertical lines, foreground includes landscaped pedestrian plaza, trees, and people for scale',
-    worm_eye:
-      'dramatic worm\'s-eye-view looking straight up at the building from directly below, extreme fisheye-like convergence of vertical lines to zenith vanishing point, facade details overwhelming the frame, explosive sky visible through glass balconies, structural geometry rendered in dramatic perspective distortion',
     hero_angle:
-      'dramatic 45-degree angled hero perspective from a slightly elevated vantage point (approx 3rd floor height of an adjacent building), two facade planes visible simultaneously, showing the full building height from base plaza to rooftop crown, wide-angle 24mm equivalent lens compression, flanking street-level landscape in foreground',
+      'DRAMATIC HERO 45° COMPOSITION: Camera at a dynamic 3/4 angle showing two facade planes simultaneously, with dramatic vertical convergence exaggerating the building\'s soaring height from base podium to rooftop crown, with foreground landscaping and wet reflective street.',
+    street_level:
+      'DRAMATIC PEDESTRIAN STREET-LEVEL PERSPECTIVE: Camera at eye level (1.6m height), looking upward with an ultra-wide angle lens. Extreme vertical perspective convergence lines draw the eye from the wet reflective street and palm trees up to the glowing building crown.',
+    worm_eye:
+      'EXTREME WORM\'S EYE VIEW: Camera directly at the base of the building looking straight up. Facade fills the frame, converging to a vanishing point at the zenith with dramatic perspective distortion on each glowing balcony rim.',
     drone_45:
-      'aerial drone perspective at 45-degree downward angle from approximately 80m elevation, showing the building crown, rooftop terrace, surrounding landscaping and streets below in perfect 45-degree isometric aerial composition, dramatic foreshortening of surrounding urban context',
+      'AERIAL DRONE 45° PERSPECTIVE: Aerial view from approximately 80m elevation showing the rooftop sky garden crown, the full building massing, and the surrounding illuminated landscape and street network below.',
     drone_side:
-      'cinematic lateral drone flyby perspective at mid-building height, exactly parallel to the primary facade, revealing the full height width proportion of the building like an architectural elevation but with extreme 3D depth, surrounding context visible on both sides, ultra-wide 16mm equivalent lens field of view',
+      'CINEMATIC DRONE LATERAL FLYBY: Camera at mid-building height in a lateral position parallel to the primary facade, revealing the full building profile with extreme depth of field.',
     interior_courtyard:
-      'intimate interior courtyard or atrium perspective from within the building envelope, surrounded by 3 or 4 facade planes, looking up at the sky through the open-top atrium or light well, warm morning light flooding down from the opening above, detail of the interior-facing facades with planted balconies, water feature or reflecting pool at base level',
+      'INTIMATE ATRIUM / COURTYARD VIEW: Camera inside the building courtyard looking upward through the open-top atrium at the dramatic sky above, with illuminated balconies and reflecting water pool at base.',
   };
 
-  const material = materialMap[materialPreset] || materialMap['glass_steel'];
-  const sky = skyMap[skyPreset] || skyMap['golden_hour'];
+  const material = materialMap[materialPreset] || materialMap['champagne_gold'];
+  const sky = skyMap[skyPreset] || skyMap['sunset_dusk'];
   const camera = cameraMap[cameraAngle] || cameraMap['hero_angle'];
 
-  return `You are rendering the EXACT building shown in this SketchUp/3D architectural massing model as a HYPER-PHOTOREALISTIC architectural exterior visualization at PUBLICATION GRADE.
+  return `Award-winning, hyper-photorealistic 8K architectural dusk exterior CGI photograph of an ultra-luxury ${buildingType.toLowerCase()} (${floors} stories tall), transformed from the 3D massing model in the input image.
 
-## ABSOLUTE GEOMETRIC FIDELITY MANDATE:
-* CRITICAL: You MUST preserve 100% of the exact building geometry, massing, composition, floor count (${floors} floors), facade articulation, setbacks, cantilevers, overhangs, wing configurations, and architectural form shown in the reference model.
-* DO NOT simplify, round, or alter the building massing or footprint geometry in any way — follow the input model exactly.
-* Count and match every floor plate, every balcony extrusion, every facade bay and column grid spacing from the reference.
-* Maintain the exact same camera angle, composition frame, and lens perspective as shown in the input model.
-* Building Type: ${buildingType.toUpperCase()} — render appropriate architectural scale, proportion, and urban context accordingly.
-* Total Floors: ${floors} — every floor plate, slab edge, and facade bay MUST be counted and rendered correctly.
+### CRITICAL TRANSFORMATION MANDATE — DO NOT COPY SKETCHUP MODEL LOOK:
+* Use the input image ONLY as a reference for overall building massing, floor count, and camera perspective.
+* Completely replace all flat, grey, untextured, and raw 3D polygon surfaces with ultra-luxurious, hyper-detailed architectural materials and physics-accurate real-world lighting.
+* Output MUST look like a real multi-million dollar architectural photograph taken on a high-end medium format camera — completely indistinguishable from real life.
 
-## FACADE MATERIALS (Apply to every surface):
-${material}
+### CRAZY SEXY ARCHITECTURAL LIGHTING:
+* Warm 2700K–3000K golden interior lighting glowing brightly through all floor-to-ceiling glass windows, illuminating interior ceilings and creating cozy amber transparency on every single floor.
+* Continuous, glowing warm golden LED ribbon cove lighting recessed underneath every single curved balcony rim and floor slab edge, wrapping around the entire tower in luminous horizontal bands.
+* Powerful ground-level architectural floodlights and concealed uplights shooting dramatic warm light upward along facade vertical fins, fluted columns, and podium curves.
+* Luminous glowing architectural halo beacon at the tower crown.
+* Street-level bollard lights and warm spotlights illuminating lush palm trees.
 
-## SKY & LIGHTING ATMOSPHERE:
+### CRAZY CINEMATIC SKY:
 ${sky}
 
-## CAMERA COMPOSITION:
+### SEXY CRAZY MATERIALS & PHOTOREALISM TEXTURES:
+${material}
+
+### CAMERA PERSPECTIVE:
 ${camera}
 
-## SURROUNDINGS & CONTEXT:
-${surroundings || 'Ultra-premium urban architectural context: polished granite plaza paving with seamless mirror-wet finish, majestic mature specimen date palms and weeping fig trees with lush canopies, bespoke custom-designed street furniture in black powder-coated steel, luxury sports cars parked at curbside, people in elegant architectural-fashion attire providing human scale, receding boulevard perspective with distant city skyline'}
+### SURROUNDINGS & FOREGROUND REFLECTIONS:
+${surroundings || 'Wet-look, rain-slicked dark asphalt and polished granite street in the foreground with glistening mirror reflections and light caustics mirroring the blazing golden lights of the tower and the fiery sky. Majestic illuminated Royal Palm trees and lush tropical landscaping with warm upward spotlights at podium terraces and street level. Luxury cars and elegantly dressed pedestrians at curbside providing scale.'}
 
-## ULTRA-PHOTOREALISM RENDERING MANDATES:
-* 8K publication-grade photorealistic architectural visualization — each surface texture must be individually grain-mapped and physically correct.
-* Every glass panel must show distinct sky reflections, interior floor plate reveals through glazing, and anti-reflective coating edge glint.
-* Structural elements (columns, beams, spandrel panels) must cast correct physics-accurate soft shadows on adjacent surfaces.
-* Ground plane must show material relief, ambient occlusion in expansion joints, and wet-look or dry-look finish correct to the lighting scenario.
-* Foreground landscaping must be botanically specific with realistic leaf cluster density and volumetric canopy depth.
-* Atmospheric depth haze must fade distant context naturally.
-* RAY-TRACED REFLECTIONS on every glass and polished surface.
-* CRAZY volumetric lighting with visible light shafts in atmospheric conditions.
-* Lens effects: slight chromatic aberration at edges, lens flare on direct light sources, subtle film grain, natural vignette.
-* ZERO cartoon or illustration look — this must be indistinguishable from a real photograph of a real built building.
+### RENDER FINISH & TECHNICAL EXCELLENCE:
+* 8K Octane Render, V-Ray, Unreal Engine 5 architectural visualization quality.
+* Ray-traced reflections on all glass, polished stone, and wet ground surfaces.
+* Volumetric atmospheric glow, subtle lens flare and light bloom around warm fixtures, razor-sharp architectural drop shadows, and rich ambient occlusion in every structural joint.
+* Zero wireframe, zero flat grey surfaces, zero cartoon look.`;
+}
 
-${extraDirectives ? `## ADDITIONAL CLIENT DESIGN DIRECTIVES:\n${extraDirectives}` : ''}
+// LLM Prompt Synthesis Agent for custom directives
+async function synthesizeExteriorPromptWithAgent(opts: {
+  buildingType: string;
+  floors: number;
+  materialPreset: string;
+  skyPreset: string;
+  cameraAngle: string;
+  extraDirectives: string;
+  surroundings: string;
+}): Promise<string> {
+  const groqApiKey = process.env.GROQ_API_KEY || process.env.NEXT_PUBLIC_GROQ_API_KEY || process.env.GROQ_API_KEY_FALLBACK;
+  
+  if (!groqApiKey || !opts.extraDirectives.trim()) {
+    return buildExteriorPrompt(opts);
+  }
 
-## ABSOLUTE PROHIBITIONS:
-* NO text, labels, or watermarks visible anywhere.
-* NO 3D model wireframe or mesh lines visible.
-* NO grey placeholder surfaces — every surface must be fully material-rendered.
-* NO altering the building geometry from what the model shows.`;
+  const systemPrompt = `You are a world-class architectural visualization director and prompt engineer for OpenAI GPT Image 2 (Edit).
+Your job is to write an INSANELY DETAILED, hyper-photorealistic, ultra-luxurious image-editing prompt that instructs the AI model to transform a raw 3D/SketchUp massing model into an award-winning, magazine-cover architectural CGI exterior photograph.
+
+MANDATORY HALLMARKS TO ALWAYS INCLUDE:
+1. CRAZY SEXY LIGHTING: Warm 2700K-3000K interior spills through all glass windows + continuous glowing warm golden LED ribbon cove lights under every curved balcony edge + powerful facade flood uplighting + crown halo beacon.
+2. CRAZY CINEMATIC SKY: Dramatic turbulent sunset/dusk storm clouds with underlit fiery orange, burning amber, and violet rays + volumetric golden light beams.
+3. CRAZY MATERIALS: Curved champagne gold trims, low-iron double-glazed curtain walls with sky reflections, fluted stone podium, lush cascading green sky gardens.
+4. WET GROUND REFLECTIONS: Wet rain-slicked dark asphalt street in foreground reflecting the golden tower lights and fiery sunset sky in glistening mirror caustics.
+5. STRICT NON-COPY: Emphasize transforming the model into rich photorealistic reality, eliminating all raw grey polygon surfaces.
+6. Return ONLY the final raw prompt text with no conversational preamble.`;
+
+  const userContext = `
+Building Type: ${opts.buildingType} (${opts.floors} floors)
+Material Style: ${opts.materialPreset}
+Sky Style: ${opts.skyPreset}
+Camera Angle: ${opts.cameraAngle}
+User Custom Directives: "${opts.extraDirectives}"
+Surroundings: "${opts.surroundings || 'Wet street with mirror reflections, illuminated Royal Palms, luxury cars'}"
+`;
+
+  try {
+    const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${groqApiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'llama-3.3-70b-versatile',
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userContext }
+        ],
+        temperature: 0.7,
+        max_tokens: 700,
+      }),
+      signal: AbortSignal.timeout(12000),
+    });
+
+    if (res.ok) {
+      const data = await res.json();
+      const prompt = data.choices?.[0]?.message?.content?.trim();
+      if (prompt && prompt.length > 100) {
+        return prompt;
+      }
+    }
+  } catch (err) {
+    console.warn('[ExteriorRender] Agent prompt synthesis failed, using rule builder:', err);
+  }
+
+  return buildExteriorPrompt(opts);
 }
 
 export async function POST(req: Request) {
@@ -140,8 +203,8 @@ export async function POST(req: Request) {
       modelBase64,
       buildingType = 'Luxury Residential Tower',
       floors = 20,
-      materialPreset = 'glass_steel',
-      skyPreset = 'golden_hour',
+      materialPreset = 'champagne_gold',
+      skyPreset = 'sunset_dusk',
       cameraAngle = 'hero_angle',
       extraDirectives = '',
       surroundings = '',
@@ -162,7 +225,8 @@ export async function POST(req: Request) {
     const uploadedModelUrl = await uploadBase64ToFalStorage(modelBase64);
     console.log('[ExteriorRender] Model uploaded:', uploadedModelUrl);
 
-    const masterPrompt = buildExteriorPrompt({
+    console.log('[ExteriorRender] Synthesizing master exterior prompt...');
+    const masterPrompt = await synthesizeExteriorPromptWithAgent({
       buildingType,
       floors: Number(floors),
       materialPreset,
@@ -171,6 +235,7 @@ export async function POST(req: Request) {
       extraDirectives,
       surroundings,
     });
+    console.log('[ExteriorRender] Prompt synthesized:\n', masterPrompt.slice(0, 250) + '...');
 
     console.log('[ExteriorRender] Master prompt built, calling GPT Image 2 Edit (quality:', quality, ')...');
     const result = await runModel('openai/gpt-image-2/edit', {
