@@ -16,6 +16,7 @@ interface ExteriorRenderHistoryItem {
   id: string;
   renderBase64: string;
   primaryModelBase64: string;
+  allModelImages?: string[];
   modelCount: number;
   timeOfDay: 'day' | 'night';
   timestamp: number;
@@ -145,6 +146,7 @@ export default function ExteriorRenderStudio() {
           id: Math.random().toString(36).slice(2),
           renderBase64: data.render,
           primaryModelBase64: primaryImg.base64,
+          allModelImages: orderedBase64s,
           modelCount: orderedBase64s.length,
           timeOfDay,
           timestamp: Date.now(),
@@ -167,12 +169,16 @@ export default function ExteriorRenderStudio() {
     setIsGeneratingAngles(true);
     setAngleError(null);
 
+    // Provide the original SketchUp model angle screenshots as Shape/Geometry references
+    const shapeImages = viewingItem?.allModelImages || (modelImages.length > 0 ? modelImages.map((m) => m.base64) : []);
+
     try {
       const res = await fetch('/api/exterior-angles', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           renderedBase64: activeRender,
+          modelImages: shapeImages,
           timeOfDay,
           extraDirectives,
           quality,

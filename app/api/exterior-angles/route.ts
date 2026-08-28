@@ -5,11 +5,11 @@ export const maxDuration = 300;
 
 fal.config({ credentials: process.env.FAL_KEY });
 
-async function uploadBase64ToFalStorage(dataUri: string): Promise<string> {
+async function uploadBase64ToFalStorage(dataUri: string, filename = 'reference.png'): Promise<string> {
   const base64 = dataUri.replace(/^data:image\/\w+;base64,/, '');
   const buffer = Buffer.from(base64, 'base64');
   const blob = new Blob([buffer], { type: 'image/png' });
-  const file = new File([blob], 'rendered_exterior_reference.png', { type: 'image/png' });
+  const file = new File([blob], filename, { type: 'image/png' });
   return fal.storage.upload(file);
 }
 
@@ -61,28 +61,44 @@ const THREE_PROFESSIONAL_ANGLES: AngleConfig[] = [
   },
 ];
 
-function buildAnglePrompt(angle: AngleConfig, timeOfDay: 'day' | 'night', extraDirectives?: string): string {
+function buildAnglePrompt(
+  angle: AngleConfig,
+  timeOfDay: 'day' | 'night',
+  hasShapeReferences: boolean,
+  extraDirectives?: string
+): string {
   const isNight = timeOfDay === 'night';
 
+  const imageReferenceMandate = hasShapeReferences
+    ? `### INPUT IMAGE REFERENCES — CRITICAL READING ORDER:
+* IMAGE 1 (First Image) = ⭐ PRIMARY DESIGN REFERENCE: This is the finalized photorealistic architectural CGI render. You MUST replicate 100% of its materials, luxury finishes, lighting mood, color palette, glass reflections, LED ribbons, balcony profiles, champagne-gold trims, and every architectural detail with absolute fidelity.
+* IMAGES 2, 3, 4... (Additional Images) = 📐 3D SHAPE & GEOMETRY REFERENCES: These are raw 3D model screenshots (SketchUp/Rhino/Revit). Use them ONLY to understand the building's 3D massing, floor count, curved podium geometry, tower profile, and spatial depth. DO NOT replicate any grey/flat/untextured surfaces, wireframes, or unrendered materials from these shape references.
+* SYNTHESIS RULE: Combine the luxury visual language of Image 1 with the architectural geometry comprehension from Images 2+, then render from the new camera angle specified below.
+`
+    : `### INPUT IMAGE REFERENCE:
+* IMAGE 1 = ⭐ PRIMARY DESIGN REFERENCE: Replicate 100% of its materials, lighting, finishes, glass reflections, and every architectural detail. Only synthesize the new camera viewpoint specified below.
+`;
+
   const lightingSection = isNight
-    ? `### ARCHITECTURAL LIGHTING & WINDOW GLASS (MAINTAIN 100% CONSISTENCY):
+    ? `### ARCHITECTURAL LIGHTING & WINDOW GLASS (MAINTAIN 100% CONSISTENCY WITH IMAGE 1):
 * HYPER-REALISTIC GLASS REFLECTIONS: Double-glazed low-iron Starphire curtain wall glass with Fresnel reflections (IOR 1.52) catching high-contrast mirror reflections of fiery sunset clouds and glowing LED ribbons, with subtle panel-by-panel pillowing distortion.
 * Dual-Layer Depth: Outer glass reflects the sky while letting warm 2700K–3000K golden interior illumination from ceiling downlights and penthouse layouts glow from within.
 * Powerful ground-level architectural floodlights shooting warm light upward along podium vertical fins and fluted columns.
 * Glowing architectural halo beacon on the tower crown.
 * CRAZY SUNSET DUSK SKY: Dramatic stormy sunset clouds with underlit fiery orange, burning amber, and radiant crimson rays against deep indigo/violet sky with golden sunbeams.
 * FOREGROUND: Wet rain-slicked dark asphalt street with glistening mirror reflections and light caustics mirroring the tower's warm golden lights and the fiery sky, with illuminated Royal Palm trees.`
-    : `### CRAZY SEXY DAYLIGHTING & WINDOW GLASS (MAINTAIN 100% CONSISTENCY):
+    : `### CRAZY SEXY DAYLIGHTING & WINDOW GLASS (MAINTAIN 100% CONSISTENCY WITH IMAGE 1):
 * HYPER-REALISTIC GLASS REFLECTIONS: Double-glazed low-iron Starphire curtain wall glass with Fresnel reflections (IOR 1.52) catching crystal-clear mirror reflections of the deep cerulean blue sky and wispy clouds, with specular sun glints and polarized iridescent coatings.
 * Dual-Layer Depth: Deeply reflective exterior glass showing clouds and sky while softly revealing warm interior ceiling downlights and luxury furniture inside.
 * Crisp 5200K golden-white morning / late-afternoon sunlight hitting the building at an angled 35-degree perspective, casting long diagonal architectural drop shadows from curved balconies across the facade.
 * Curved champagne-gold aluminum trims and vertical fins gleaming in the sun.
 * Cascading emerald green sky gardens overflowing from balcony planters, sunlit Royal Palms, and wet-look polished granite plaza reflecting the architecture.`;
 
-  return `Award-winning, hyper-photorealistic 8K architectural CGI photograph of the exact same building shown in the reference image, captured from a new professional architectural viewpoint.
+  return `Award-winning, hyper-photorealistic 8K architectural CGI photograph of the exact same building, captured from a new professional architectural viewpoint.
 
+${imageReferenceMandate}
 ### MANDATE — 100% ARCHITECTURAL & MATERIAL CONSISTENCY:
-* You MUST maintain 100% exact architectural consistency with the building in the reference image: identical curved champagne-gold trims, identical floor count, identical balcony profiles, identical fluted podium louvers, identical glass curtain walls, and identical materials.
+* You MUST maintain 100% exact architectural consistency with the DESIGN REFERENCE (Image 1): identical curved champagne-gold trims, identical floor count, identical balcony profiles, identical fluted podium louvers, identical glass curtain walls, and identical materials.
 * Do NOT alter the building design or architectural language — only synthesize the new camera viewpoint specified below.
 
 ### ${angle.cameraPrompt}
@@ -103,6 +119,7 @@ export async function POST(req: Request) {
     const body = await req.json();
     const {
       renderedBase64,
+      modelImages,        // optional: original SketchUp screenshots as shape references
       timeOfDay = 'night',
       extraDirectives = '',
       quality = 'medium',
@@ -118,19 +135,30 @@ export async function POST(req: Request) {
     }
     fal.config({ credentials: falKey });
 
-    console.log('[ExteriorAngles] Uploading rendered reference image to fal storage...');
-    const referenceImageUrl = await uploadBase64ToFalStorage(renderedBase64);
-    console.log('[ExteriorAngles] Reference uploaded:', referenceImageUrl);
+    // Upload rendered reference (Image 1 — Design Reference) + any shape reference images in parallel
+    const shapeRefs: string[] = Array.isArray(modelImages) ? modelImages : [];
+    const hasShapeReferences = shapeRefs.length > 0;
+
+    console.log(`[ExteriorAngles] Uploading rendered design reference + ${shapeRefs.length} shape reference(s) to fal storage...`);
+
+    const [designRefUrl, ...shapeRefUrls] = await Promise.all([
+      uploadBase64ToFalStorage(renderedBase64, 'design_reference.png'),
+      ...shapeRefs.map((img, i) => uploadBase64ToFalStorage(img, `shape_reference_${i + 1}.png`)),
+    ]);
+
+    // Final image_urls order: [Design Reference, ...Shape References]
+    const allImageUrls = [designRefUrl, ...shapeRefUrls];
+    console.log(`[ExteriorAngles] All images uploaded. Total: ${allImageUrls.length} (1 design + ${shapeRefUrls.length} shape refs)`);
 
     console.log('[ExteriorAngles] Launching 3 parallel angle generations (Hero, Street Level, Worm\'s Eye)...');
 
     // Run all 3 angles in parallel using Promise.all
     const anglePromises = THREE_PROFESSIONAL_ANGLES.map(async (angle) => {
-      const prompt = buildAnglePrompt(angle, timeOfDay === 'day' ? 'day' : 'night', extraDirectives);
-      console.log(`[ExteriorAngles] Calling GPT Image 2 for ${angle.label}...`);
+      const prompt = buildAnglePrompt(angle, timeOfDay === 'day' ? 'day' : 'night', hasShapeReferences, extraDirectives);
+      console.log(`[ExteriorAngles] Calling GPT Image 2 for ${angle.label} with ${allImageUrls.length} reference image(s)...`);
       
       const res = await runModel('openai/gpt-image-2/edit', {
-        image_urls: [referenceImageUrl],
+        image_urls: allImageUrls,
         prompt,
         quality: quality || 'medium',
       });
@@ -153,6 +181,7 @@ export async function POST(req: Request) {
     return NextResponse.json({
       success: true,
       angles: angleResults,
+      shapeRefsUsed: shapeRefUrls.length,
     });
   } catch (err: any) {
     console.error('[ExteriorAngles] Error:', err);
