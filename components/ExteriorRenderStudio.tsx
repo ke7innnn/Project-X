@@ -11,7 +11,6 @@ interface ExteriorRenderHistoryItem {
   renderBase64: string;
   modelBase64: string;
   timeOfDay: 'day' | 'night';
-  cameraAngle: string;
   timestamp: number;
 }
 
@@ -23,14 +22,6 @@ interface MultiAngleResult {
   seed?: number | null;
 }
 
-const CAMERA_ANGLES = [
-  { id: 'hero_angle', label: 'Hero View (45°)', emoji: '📸', desc: 'Dramatic 3/4 elevated perspective' },
-  { id: 'street_level', label: 'Street Level', emoji: '🚶', desc: 'Human eye-level looking up' },
-  { id: 'worm_eye', label: "Worm's Eye", emoji: '👁️', desc: 'Directly at base looking straight up' },
-  { id: 'drone_aerial', label: 'Drone Aerial', emoji: '🚁', desc: 'High-angle 45° aerial shot' },
-  { id: 'side_elevation', label: 'Side Profile', emoji: '✈️', desc: 'Clean architectural elevation' },
-];
-
 export default function ExteriorRenderStudio() {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -38,9 +29,8 @@ export default function ExteriorRenderStudio() {
   const [modelBase64, setModelBase64] = useState<string | null>(null);
   const [modelFileName, setModelFileName] = useState<string>('');
 
-  // Minimal Controls (Day / Night, Camera Views, Custom Notes)
+  // Minimal Controls (Day / Night, Custom Notes, Quality)
   const [timeOfDay, setTimeOfDay] = useState<'day' | 'night'>('night');
-  const [cameraAngle, setCameraAngle] = useState('hero_angle');
   const [extraDirectives, setExtraDirectives] = useState('');
   const [quality, setQuality] = useState<'medium' | 'high'>('medium');
 
@@ -90,7 +80,6 @@ export default function ExteriorRenderStudio() {
         body: JSON.stringify({
           modelBase64,
           timeOfDay,
-          cameraAngle,
           extraDirectives,
           quality,
         }),
@@ -103,7 +92,6 @@ export default function ExteriorRenderStudio() {
           renderBase64: data.render,
           modelBase64,
           timeOfDay,
-          cameraAngle,
           timestamp: Date.now(),
         };
         setHistory((prev) => [item, ...prev]);
@@ -496,7 +484,6 @@ export default function ExteriorRenderStudio() {
                 </h4>
                 <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-5 gap-3">
                   {history.map((h, idx) => {
-                    const angle = CAMERA_ANGLES.find((c) => c.id === h.cameraAngle);
                     return (
                       <div
                         key={h.id}
@@ -517,7 +504,7 @@ export default function ExteriorRenderStudio() {
                         />
                         <div className="p-2 bg-black/90 flex items-center justify-between gap-1 text-[8px] font-mono border-t border-white/5">
                           <span className="text-amber-300 font-bold uppercase">
-                            {h.timeOfDay === 'night' ? '🌙 Night' : '☀️ Day'} · {angle?.emoji}
+                            {h.timeOfDay === 'night' ? '🌙 Night' : '☀️ Day'}
                           </span>
                           <div className="flex gap-1.5">
                             <button
@@ -638,43 +625,10 @@ export default function ExteriorRenderStudio() {
             </div>
           </div>
 
-          {/* 2. Different Camera Views */}
-          <div className="flex flex-col gap-2.5 border-t border-orange-950/60 pt-4">
-            <span className="text-[10px] font-bold uppercase tracking-widest text-amber-400 flex items-center gap-1.5">
-              <Camera size={12} /> 2. Camera View Angle
-            </span>
-
-            <div className="flex flex-col gap-1.5">
-              {CAMERA_ANGLES.map((c) => (
-                <button
-                  key={c.id}
-                  type="button"
-                  onClick={() => setCameraAngle(c.id)}
-                  className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer flex items-center justify-between gap-2 ${
-                    cameraAngle === c.id
-                      ? 'bg-amber-500/20 border-amber-400 text-amber-200 shadow-[0_0_12px_rgba(245,158,11,0.25)]'
-                      : 'bg-black/40 border-white/10 text-gray-300 hover:border-amber-500/30'
-                  }`}
-                >
-                  <div className="flex items-center gap-2.5 min-w-0">
-                    <span className="text-sm">{c.emoji}</span>
-                    <div className="flex flex-col min-w-0">
-                      <span className="text-[10px] font-bold uppercase">{c.label}</span>
-                      <span className="text-[8px] text-gray-400 truncate">{c.desc}</span>
-                    </div>
-                  </div>
-                  {cameraAngle === c.id && (
-                    <span className="w-2 h-2 rounded-full bg-amber-400 shadow-[0_0_8px_rgba(245,158,11,1)] shrink-0" />
-                  )}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* 3. Architect Directives (Optional Text) */}
+          {/* 2. Architect Directives (Optional Text) */}
           <div className="flex flex-col gap-2 border-t border-orange-950/60 pt-4">
             <span className="text-[10px] font-bold uppercase tracking-widest text-amber-400 flex items-center gap-1.5">
-              <Send size={12} /> 3. Architect Directives (Optional)
+              <Send size={12} /> 2. Architect Directives (Optional)
             </span>
             <textarea
               value={extraDirectives}
@@ -685,7 +639,7 @@ export default function ExteriorRenderStudio() {
             />
           </div>
 
-          {/* 4. Quality Settings */}
+          {/* 3. Quality Settings */}
           <div className="flex items-center justify-between border-t border-orange-950/60 pt-4">
             <span className="text-[10px] font-bold uppercase tracking-widest text-amber-400 flex items-center gap-1.5">
               <Sparkles size={12} /> Quality

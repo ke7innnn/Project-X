@@ -32,33 +32,17 @@ async function runModel(falModel: string, input: Record<string, any>): Promise<{
 
 function buildExteriorPrompt(opts: {
   timeOfDay: 'day' | 'night';
-  cameraAngle: string;
   extraDirectives?: string;
 }): string {
-  const { timeOfDay, cameraAngle, extraDirectives } = opts;
-
-  const cameraMap: Record<string, string> = {
-    hero_angle:
-      'DRAMATIC HERO 45° VIEW: Camera at a dynamic 3/4 angle showing two facade planes simultaneously, with dramatic vertical convergence exaggerating the building\'s soaring height from base podium to rooftop crown, with foreground landscaping and reflective street.',
-    street_level:
-      'DRAMATIC STREET-LEVEL EYE VIEW: Camera at human eye level (1.6m height) looking upward with an ultra-wide angle lens. Extreme vertical convergence lines draw the eye from the street and illuminated palm trees up to the glowing building crown.',
-    worm_eye:
-      'EXTREME WORM\'S EYE VIEW: Camera placed directly at the base of the building looking straight up at the sky. Facade fills the frame, converging to a vanishing point at the zenith with dramatic perspective distortion on every glowing balcony rim.',
-    drone_aerial:
-      'AERIAL DRONE 45° VIEW: High-angle aerial drone perspective from approximately 80m elevation showing the rooftop sky garden crown, the full building massing, and surrounding illuminated landscape and street network below.',
-    side_elevation:
-      'CINEMATIC SIDE PROFILE VIEW: Camera at mid-building height in a lateral position parallel to the primary facade, revealing the full building architectural elevation with extreme depth of field.',
-  };
-
-  const cameraInstruction = cameraMap[cameraAngle] || cameraMap['hero_angle'];
+  const { timeOfDay, extraDirectives } = opts;
 
   if (timeOfDay === 'night') {
     return `Award-winning, hyper-photorealistic 8K architectural dusk & night exterior CGI photograph of an ultra-luxury modern high-rise tower, transformed from the 3D massing model in the input image.
 
-### CRITICAL MANDATE — DO NOT COPY SKETCHUP MODEL LOOK:
-* Use the input image ONLY as a reference for overall building massing, floor count, and camera perspective.
-* Completely eliminate all flat, grey, untextured, wireframe, or raw 3D polygon surfaces from the input model.
-* Transform every surface into ultra-luxurious, tangible physical materials with physics-accurate real-world lighting.
+### CRITICAL MANDATE — PRESERVE COMPOSITION & ELEVATE TO CGI REALISM:
+* Preserve the EXACT camera angle, framing, perspective, floor count, and building massing from the input reference model screenshot.
+* DO NOT copy flat grey, untextured, wireframe, or raw 3D polygon surfaces from the input model.
+* Transform every plane into ultra-luxurious, tangible physical materials with physics-accurate real-world lighting.
 * Output MUST look like a real multi-million dollar architectural photograph taken on a medium format camera — completely indistinguishable from real life.
 
 ### CRAZY SEXY ARCHITECTURAL LIGHTING (REFERENCE NIGHT STYLE):
@@ -78,9 +62,6 @@ function buildExteriorPrompt(opts: {
 * Fluted travertine and textured limestone podium base with undulating sculptural parametric wave louvers.
 * Lush rooftop sky garden and cascading greenery on balcony terraces with real botanic detail.
 
-### CAMERA PERSPECTIVE:
-${cameraInstruction}
-
 ### SURROUNDINGS & FOREGROUND REFLECTIONS:
 * Wet-look, rain-slicked dark asphalt and polished granite street in the foreground with glistening mirror reflections and light caustics mirroring the blazing golden lights of the tower and the fiery sunset sky.
 * Majestic illuminated Royal Palm trees and lush tropical landscaping with warm upward spotlights at podium terraces and street level. Luxury cars and elegantly dressed pedestrians at curbside providing scale.
@@ -97,9 +78,9 @@ ${extraDirectives ? `### ARCHITECT CUSTOM DIRECTIVES:\n${extraDirectives}` : ''}
   // Day mode prompt
   return `Award-winning, hyper-photorealistic 8K architectural daytime exterior CGI photograph of an ultra-luxury modern high-rise tower, transformed from the 3D massing model in the input image.
 
-### CRITICAL MANDATE — DO NOT COPY SKETCHUP MODEL LOOK:
-* Use the input image ONLY as a reference for overall building massing, floor count, and camera perspective.
-* Completely eliminate all flat, grey, untextured, wireframe, or raw 3D polygon surfaces from the input model.
+### CRITICAL MANDATE — PRESERVE COMPOSITION & ELEVATE TO CGI REALISM:
+* Preserve the EXACT camera angle, framing, perspective, floor count, and building massing from the input reference model screenshot.
+* DO NOT copy flat grey, untextured, wireframe, or raw 3D polygon surfaces from the input model.
 * Transform every surface into ultra-luxurious, tangible physical materials with physics-accurate real-world daylighting.
 * Output MUST look like a real multi-million dollar architectural photograph taken on a medium format camera — completely indistinguishable from real life.
 
@@ -114,9 +95,6 @@ ${extraDirectives ? `### ARCHITECT CUSTOM DIRECTIVES:\n${extraDirectives}` : ''}
 * Ultra-clear floor-to-ceiling double-glazed curtain wall glass with mirror sky reflections.
 * Fluted travertine and textured limestone podium base with undulating sculptural parametric wave louvers.
 * Lush rooftop sky garden and cascading greenery on balcony terraces with sunlit tropical foliage.
-
-### CAMERA PERSPECTIVE:
-${cameraInstruction}
 
 ### SURROUNDINGS & LANDSCAPING:
 * Sun-drenched polished granite plaza paving and clean boulevard with majestic Royal Palm trees casting sharp diagonal shadows.
@@ -137,7 +115,6 @@ export async function POST(req: Request) {
     const {
       modelBase64,
       timeOfDay = 'night',
-      cameraAngle = 'hero_angle',
       extraDirectives = '',
       quality = 'medium',
     } = body;
@@ -158,7 +135,6 @@ export async function POST(req: Request) {
 
     const masterPrompt = buildExteriorPrompt({
       timeOfDay: timeOfDay === 'day' ? 'day' : 'night',
-      cameraAngle: cameraAngle || 'hero_angle',
       extraDirectives,
     });
     console.log('[ExteriorRender] Prompt synthesized:\n', masterPrompt.slice(0, 250) + '...');
