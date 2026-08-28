@@ -3,7 +3,8 @@
 import React, { useState, useRef } from 'react';
 import {
   UploadCloud, Sparkles, Download, RefreshCw, Loader2, Building2,
-  Sun, Moon, Camera, Settings2, Eye, Trash2, Send, Layers, Plus, Star, X
+  Sun, Moon, Camera, Settings2, Eye, Trash2, Send, Layers, Plus, Star, X,
+  Bot, MessageSquare, Wand2, Check, ArrowRight, CornerDownLeft
 } from 'lucide-react';
 
 interface ModelAngleInput {
@@ -31,6 +32,67 @@ interface MultiAngleResult {
   seed?: number | null;
 }
 
+interface ChatMessage {
+  id: string;
+  role: 'user' | 'assistant';
+  text: string;
+  suggestedDirectives?: string;
+  themeName?: string;
+  suggestedTimeOfDay?: 'day' | 'night' | null;
+  timestamp: number;
+}
+
+const THEME_PRESETS = [
+  {
+    id: 'biophilic',
+    title: '🌴 Biophilic Oasis',
+    badge: 'Greenery',
+    desc: 'Vertical gardens & bougainvillea',
+    directives: 'Parametric curved bronze louvers, vertical green living walls with cascading bougainvillea, fluted limestone podium with warm ambient cove lighting, infinity cantilever pool with water caustics, and low-iron Starphire curtain wall glass.',
+    timeOfDay: 'day' as const,
+  },
+  {
+    id: 'cyberpunk',
+    title: '🌆 Cyberpunk Neo-Tokyo',
+    badge: 'Neon Glow',
+    desc: 'Titanium & neon accents',
+    directives: 'Dark brushed titanium facade panels, subtle glowing neon amber and cyan horizontal LED slab accents, wet rain-slicked asphalt street with high-contrast mirror reflections, atmospheric volumetric haze, and futuristic rooftop architectural beacon.',
+    timeOfDay: 'night' as const,
+  },
+  {
+    id: 'nordic',
+    title: '🏛️ Nordic Travertine',
+    badge: 'Minimalist',
+    desc: 'Italian stone & pale oak',
+    directives: 'Honed Italian Roman travertine facade slabs, natural pale oak wood balcony soffits, slim dark bronze window profiles, minimalist fountain courtyard, Scandinavian soft morning fog atmosphere, and lush pine landscaping.',
+    timeOfDay: 'day' as const,
+  },
+  {
+    id: 'dubai_gold',
+    title: '💎 Dubai Gold Luxury',
+    badge: 'Luxury',
+    desc: 'Champagne gold & palm promenade',
+    directives: 'Polished champagne-gold aluminum trim fins, high-contrast mirror Starphire curtain wall glass, illuminated Royal Palm promenade with dancing fountains, valet drop-off with luxury supercars, and glowing crown beacon.',
+    timeOfDay: 'night' as const,
+  },
+  {
+    id: 'obsidian',
+    title: '🖤 Dark Obsidian',
+    badge: 'Stealth',
+    desc: 'Matte black & smoked glass',
+    directives: 'Matte black architectural composite panels, deep smoked low-iron glass, continuous warm 2700K golden LED ribbon under each curved balcony slab, fluted basalt stone podium, and minimalist zen water mirrors.',
+    timeOfDay: 'night' as const,
+  },
+  {
+    id: 'coastal',
+    title: '🌊 Coastal Wave',
+    badge: 'Resort',
+    desc: 'White ribbons & turquoise water',
+    directives: 'Curved sculptural white fiber-reinforced concrete balcony ribbons, aquamarine-tinted low-iron glass balustrades, cantilevered glass sky pool with crystalline turquoise water, specimen Date Palms, and polished white marble plaza.',
+    timeOfDay: 'day' as const,
+  },
+];
+
 export default function ExteriorRenderStudio() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const appendFileInputRef = useRef<HTMLInputElement>(null);
@@ -47,6 +109,13 @@ export default function ExteriorRenderStudio() {
   const [timeOfDay, setTimeOfDay] = useState<'day' | 'night'>('night');
   const [extraDirectives, setExtraDirectives] = useState('');
   const [quality, setQuality] = useState<'medium' | 'high'>('medium');
+
+  // AI Architect Agent & Themes Chat State
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
+  const [chatInput, setChatInput] = useState('');
+  const [isChatLoading, setIsChatLoading] = useState(false);
+  const [activeThemeId, setActiveThemeId] = useState<string | null>(null);
+  const [isChatOpen, setIsChatOpen] = useState(false);
 
   // Output & history state
   const [isRendering, setIsRendering] = useState(false);
@@ -117,6 +186,73 @@ export default function ExteriorRenderStudio() {
       }
       return filtered;
     });
+  };
+
+  const handleSendMessage = async (overridePrompt?: string) => {
+    const promptToSend = overridePrompt || chatInput;
+    if (!promptToSend.trim() || isChatLoading) return;
+
+    const userMsg: ChatMessage = {
+      id: Math.random().toString(36).slice(2),
+      role: 'user',
+      text: promptToSend.trim(),
+      timestamp: Date.now(),
+    };
+
+    setChatMessages((prev) => [...prev, userMsg]);
+    if (!overridePrompt) setChatInput('');
+    setIsChatLoading(true);
+
+    try {
+      const historyPayload = [...chatMessages, userMsg].map((m) => ({
+        role: m.role,
+        content: m.text,
+      }));
+
+      const res = await fetch('/api/exterior-assistant', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          messages: historyPayload,
+          currentDirectives: extraDirectives,
+          timeOfDay,
+          floorCount,
+        }),
+      });
+
+      const data = await res.json();
+      if (data.reply) {
+        const assistantMsg: ChatMessage = {
+          id: Math.random().toString(36).slice(2),
+          role: 'assistant',
+          text: data.reply,
+          suggestedDirectives: data.suggestedDirectives,
+          themeName: data.themeName,
+          suggestedTimeOfDay: data.suggestedTimeOfDay,
+          timestamp: Date.now(),
+        };
+        setChatMessages((prev) => [...prev, assistantMsg]);
+
+        // Auto-apply directives to render prompt
+        if (data.suggestedDirectives) {
+          setExtraDirectives(data.suggestedDirectives);
+          setActiveThemeId(data.themeName || 'AI Custom');
+        }
+        if (data.suggestedTimeOfDay === 'day' || data.suggestedTimeOfDay === 'night') {
+          setTimeOfDay(data.suggestedTimeOfDay);
+        }
+      }
+    } catch (err) {
+      console.error('Chat error:', err);
+    } finally {
+      setIsChatLoading(false);
+    }
+  };
+
+  const applyThemePreset = (preset: typeof THEME_PRESETS[0]) => {
+    setExtraDirectives(preset.directives);
+    setTimeOfDay(preset.timeOfDay);
+    setActiveThemeId(preset.id);
   };
 
   const handleRender = async () => {
@@ -222,27 +358,28 @@ export default function ExteriorRenderStudio() {
 
   const viewingItem = viewingId ? history.find((h) => h.id === viewingId) : null;
   const displayRender = viewingItem?.renderBase64 || renderResult;
-
   const currentPreviewImage = modelImages.find((img) => img.id === activePreviewId) || modelImages[0];
 
   return (
-    <div className="flex flex-1 overflow-hidden bg-[#020510] text-white font-sans">
-      {/* ── Left: Viewport & Outputs ──────────────────────────────────────── */}
-      <div className="flex-1 flex flex-col overflow-y-auto custom-scrollbar p-6 gap-6">
+    <div className="flex-1 flex flex-col xl:flex-row bg-[#08070b] text-white min-h-[calc(100vh-4rem)]">
 
-        {/* Section Header */}
-        <div className="flex items-center justify-between pb-4 border-b border-orange-950/60">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-orange-500 to-amber-500 flex items-center justify-center shadow-[0_0_20px_rgba(245,158,11,0.5)]">
-              <Building2 size={18} className="text-black" />
-            </div>
-            <div>
-              <h2 className="text-sm font-bold uppercase tracking-[3px] text-white">Exterior 3D Render Studio</h2>
-              <p className="text-[9px] text-amber-400/60 font-mono uppercase tracking-wider">
-                Multi-Angle SketchUp Comprehension → Ultra-Luxury CGI → 3-Angle Synthesis
-              </p>
-            </div>
+      {/* ── LEFT / MAIN CONTENT AREA ────────────────────────────────────── */}
+      <div className="flex-1 flex flex-col p-4 lg:p-6 gap-6 overflow-y-auto max-w-7xl mx-auto w-full custom-scrollbar">
+
+        {/* Top Title Bar */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-orange-950/60 pb-4">
+          <div>
+            <h1 className="text-lg lg:text-xl font-black uppercase tracking-[3px] text-white flex items-center gap-2.5">
+              <span className="p-2 rounded-xl bg-gradient-to-br from-amber-500 to-orange-600 text-black shadow-[0_0_20px_rgba(245,158,11,0.4)]">
+                <Building2 size={20} />
+              </span>
+              Exterior 3D Architectural CGI Studio
+            </h1>
+            <p className="text-[10px] text-amber-400/60 font-mono mt-1">
+              Multi-Angle 3D Comprehension · Hyper-Realistic Lighting &amp; Glass · AI Theme Director
+            </p>
           </div>
+
           {modelImages.length > 0 && (
             <button
               onClick={() => fileInputRef.current?.click()}
@@ -336,87 +473,78 @@ export default function ExteriorRenderStudio() {
                             <X size={10} />
                           </button>
                         )}
-                        <div className="absolute bottom-0 inset-x-0 bg-black/80 text-[7px] text-amber-200 font-mono text-center py-0.5 truncate px-1">
+                        <div className="absolute bottom-0 inset-x-0 bg-black/80 px-1 py-0.5 text-[7px] text-gray-300 font-mono truncate">
                           Angle #{idx + 1}
                         </div>
                       </div>
                     );
                   })}
-
-                  {/* Add Angle Thumbnail Button */}
-                  <button
-                    onClick={() => appendFileInputRef.current?.click()}
-                    className="w-24 aspect-[4/3] rounded-lg border border-dashed border-amber-500/40 hover:border-amber-400 bg-black/40 hover:bg-amber-950/20 text-amber-300 flex flex-col items-center justify-center gap-1 cursor-pointer shrink-0 transition-all text-center p-1"
-                  >
-                    <Plus size={14} />
-                    <span className="text-[8px] font-mono font-bold uppercase">+ Add Angle</span>
-                  </button>
                 </div>
               </div>
 
-              {/* Output Render Panel */}
+              {/* Render Output Panel */}
               <div className="flex flex-col gap-2.5">
                 <div className="flex items-center justify-between">
-                  <span className="text-[10px] font-bold uppercase tracking-widest text-emerald-400 font-mono flex items-center gap-1.5">
-                    ✨ 2. Primary 3D Render Output
+                  <span className="text-[10px] font-bold uppercase tracking-widest text-amber-400 font-mono flex items-center gap-1.5">
+                    ✨ 2. Photorealistic Architectural CGI
                   </span>
-                  {displayRender && (
+                  {displayRender && !isRendering && (
                     <button
-                      onClick={() => downloadRender(displayRender, timeOfDay)}
-                      className="text-[9px] text-emerald-400 hover:text-emerald-200 uppercase font-bold cursor-pointer flex items-center gap-1 bg-emerald-950/40 border border-emerald-500/40 px-2.5 py-1 rounded-md"
+                      onClick={() => downloadRender(displayRender)}
+                      className="text-[9px] text-amber-400 hover:text-white uppercase font-bold cursor-pointer flex items-center gap-1 bg-amber-950/50 border border-amber-500/40 px-2.5 py-1 rounded-md"
                     >
-                      <Download size={11} /> Download 8K
+                      <Download size={11} /> Download High-Res
                     </button>
                   )}
                 </div>
 
-                {isRendering ? (
-                  <div className="rounded-xl border-2 border-orange-500/50 bg-[#020512]/90 shadow-[0_0_40px_rgba(245,158,11,0.25)] flex flex-col items-center justify-center gap-3.5 min-h-[380px] p-6 text-center animate-pulse">
-                    <div className="relative">
-                      <div className="w-14 h-14 rounded-full border-2 border-orange-500/30 border-t-amber-400 animate-spin" />
-                      <Building2 className="absolute inset-0 m-auto text-amber-400 animate-pulse" size={20} />
+                <div className="relative rounded-xl overflow-hidden border border-amber-500/40 bg-black/80 shadow-2xl flex items-center justify-center p-2 min-h-[380px]">
+                  {isRendering ? (
+                    <div className="flex flex-col items-center justify-center gap-3 p-8 text-center animate-pulse">
+                      <div className="w-16 h-16 rounded-2xl bg-amber-500/20 border border-amber-400/40 flex items-center justify-center shadow-[0_0_30px_rgba(245,158,11,0.3)]">
+                        <Loader2 size={30} className="animate-spin text-amber-400" />
+                      </div>
+                      <div className="flex flex-col gap-1">
+                        <span className="text-xs font-bold text-amber-300 uppercase tracking-widest font-mono">
+                          Transforming into Architectural CGI...
+                        </span>
+                        <span className="text-[9px] text-gray-400 font-mono max-w-xs">
+                          {modelImages.length > 1 ? `Cross-referencing ${modelImages.length} 3D viewpoints · ` : ''}
+                          {floorCount ? `Locking ${floorCount} Floors · ` : ''}
+                          Synthesizing Starphire glass optics &amp; {timeOfDay === 'night' ? 'dusk sky' : 'sunlight'}
+                        </span>
+                      </div>
                     </div>
-                    <div>
-                      <p className="text-xs font-bold uppercase tracking-[3px] text-white mb-1">
-                        SYNTHESIZING 3D MULTI-ANGLE EXTERIOR...
-                      </p>
-                      <p className="text-[9px] font-mono text-amber-400 tracking-wider">
-                        {timeOfDay === 'night'
-                          ? `Comprehending ${modelImages.length} angles → applying fiery sunset sky, 3000K interior glows & LED balcony ribbons...`
-                          : `Comprehending ${modelImages.length} angles → applying angled golden sunlight, glass reflections & sky gardens...`}
-                      </p>
-                    </div>
-                  </div>
-                ) : displayRender ? (
-                  <div className="relative rounded-xl overflow-hidden border border-emerald-500/40 bg-black shadow-[0_0_35px_rgba(16,185,129,0.15)] flex items-center justify-center p-2 min-h-[380px]">
+                  ) : displayRender ? (
                     <img
                       src={displayRender.startsWith('data:') ? displayRender : `data:image/jpeg;base64,${displayRender}`}
-                      alt="Photorealistic Exterior Render"
-                      className="w-full max-h-[440px] object-contain rounded-lg"
+                      alt="Rendered Architectural CGI"
+                      className="w-full max-h-[440px] object-contain rounded-lg shadow-inner"
                     />
-                    <div className="absolute top-4 right-4 flex items-center gap-1.5">
-                      <span className="px-2.5 py-1 bg-black/85 backdrop-blur text-amber-300 text-[8px] font-mono font-bold uppercase tracking-wider rounded-full border border-amber-500/40">
-                        {timeOfDay === 'night' ? '🌙 Night / Sunset Glow' : '☀️ Brilliant Day'}
+                  ) : (
+                    <div className="flex flex-col items-center justify-center gap-2 p-8 text-center">
+                      <Sparkles size={32} className="text-amber-500/40" />
+                      <span className="text-xs font-bold text-gray-500 uppercase tracking-wider font-mono">
+                        Ready to Generate First Render
                       </span>
+                      <p className="text-[9px] text-gray-600 font-mono max-w-xs">
+                        Configure Time of Day, optional Floor Count &amp; Theme in the sidebar, then click Generate below!
+                      </p>
                     </div>
-                  </div>
-                ) : (
-                  <div className="rounded-xl border border-orange-950/60 bg-black/40 flex flex-col items-center justify-center min-h-[380px] text-center p-6">
-                    <Building2 size={36} className="text-orange-900/60 mb-3" />
-                    <p className="text-xs font-bold uppercase tracking-[2px] text-white/80 mb-1">
-                      Ready to Render ({modelImages.length} {modelImages.length === 1 ? 'Angle' : 'Angles'} Loaded)
-                    </p>
-                    <p className="text-[9px] text-amber-400/50 font-mono uppercase tracking-wider">
-                      Select Day or Night &amp; hit Generate Render
-                    </p>
-                  </div>
-                )}
+                  )}
+
+                  {displayRender && !isRendering && (
+                    <div className="absolute bottom-3 left-3 bg-black/85 backdrop-blur px-2.5 py-1 rounded-md text-[9px] font-mono text-emerald-400 border border-emerald-500/30">
+                      ✓ 8K Octane Quality · {timeOfDay === 'night' ? '🌙 Night' : '☀️ Day'} {floorCount ? `· ${floorCount}F` : ''}
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
 
             {/* Error Message */}
             {errorMsg && (
-              <div className="p-3 rounded-xl bg-red-950/30 border border-red-500/40 text-[10px] text-red-300 font-mono">
+              <div className="p-3.5 rounded-xl bg-red-950/40 border border-red-500/40 text-xs text-red-300 font-mono">
                 ⚠️ {errorMsg}
               </div>
             )}
@@ -434,7 +562,7 @@ export default function ExteriorRenderStudio() {
                         ✨ Synthesize 3 Professional Architectural Angles
                       </h3>
                       <p className="text-[9px] text-gray-400 font-mono mt-0.5">
-                        Locks 100% of this design, materials &amp; lighting, then renders <span className="text-amber-300 font-bold">Hero 45°</span>, <span className="text-amber-300 font-bold">Street Level</span>, and <span className="text-amber-300 font-bold">Worm&apos;s Eye</span> in parallel!
+                        Uses Render #1 as ⭐ <span className="text-amber-300 font-bold">Design Authority</span> + 3D screenshots as 📐 <span className="text-amber-300 font-bold">Shape References</span> to render <span className="text-amber-300 font-bold">Hero 45°</span>, <span className="text-amber-300 font-bold">Street Level</span>, and <span className="text-amber-300 font-bold">Worm&apos;s Eye</span> in parallel!
                       </p>
                     </div>
                   </div>
@@ -569,7 +697,7 @@ export default function ExteriorRenderStudio() {
                               )}
                             </div>
                             <div className="p-2 bg-black/90 text-[8px] text-gray-400 font-mono truncate border-t border-white/5">
-                              Pedestrian human eye-level looking up
+                              Pedestrian eye-level upward view
                             </div>
                           </div>
                         );
@@ -725,8 +853,8 @@ export default function ExteriorRenderStudio() {
         />
       </div>
 
-      {/* ── Right: Clean Sidebar Controls ─────────────────────────────────── */}
-      <div className="w-[340px] border-l border-orange-950/70 bg-[#030611]/95 backdrop-blur-md flex flex-col shadow-[-10px_0_30px_rgba(0,0,0,0.6)] z-10 font-mono">
+      {/* ── RIGHT / SIDEBAR CONTROLS ────────────────────────────────────────── */}
+      <div className="w-full xl:w-96 border-t xl:border-t-0 xl:border-l border-orange-950/60 bg-[#060509]/95 backdrop-blur flex flex-col shrink-0">
 
         {/* Sidebar Header */}
         <div className="p-5 border-b border-orange-950/60 flex items-center justify-between shrink-0">
@@ -734,7 +862,7 @@ export default function ExteriorRenderStudio() {
             <h3 className="text-xs font-bold uppercase tracking-[2.5px] text-white flex items-center gap-2">
               <Settings2 size={13} className="text-amber-400" /> Render Controls
             </h3>
-            <p className="text-[9px] text-amber-400/50 mt-0.5">Lighting · Directives · Quality</p>
+            <p className="text-[9px] text-amber-400/50 mt-0.5">Lighting · Floors · Themes &amp; Chat</p>
           </div>
         </div>
 
@@ -742,7 +870,7 @@ export default function ExteriorRenderStudio() {
 
           {/* 1. Time of Day (Day / Night) */}
           <div className="flex flex-col gap-2.5">
-            <span className="text-[10px] font-bold uppercase tracking-widest text-amber-400 flex items-center gap-1.5">
+            <span className="text-[10px] font-bold uppercase tracking-widest text-amber-400 flex items-center gap-1.5 font-mono">
               ☀️ 1. Time of Day
             </span>
 
@@ -761,7 +889,7 @@ export default function ExteriorRenderStudio() {
                   <span className="text-[11px] font-bold uppercase">☀️ Day</span>
                 </div>
                 <span className="text-[8px] text-amber-400/70 leading-tight font-bold">
-                  ☀️ Golden angled sun, champagne gold glints, mirror sky reflections &amp; sky gardens
+                  ☀️ Crisp 5200K sun, clean Starphire glass, angled shadows &amp; palm plaza
                 </span>
               </button>
 
@@ -841,24 +969,159 @@ export default function ExteriorRenderStudio() {
             </p>
           </div>
 
-          {/* 3. Architect Directives (Optional Text) */}
+          {/* 3. AI Design Agent & Themes (Interactive Chat Assistant) */}
+          <div className="flex flex-col gap-3 border-t border-orange-950/60 pt-4">
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] font-bold uppercase tracking-widest text-amber-400 flex items-center gap-1.5 font-mono">
+                <Bot size={13} className="text-amber-400" /> 3. AI Design Agent &amp; Themes
+              </span>
+              <button
+                type="button"
+                onClick={() => setIsChatOpen(!isChatOpen)}
+                className="text-[9px] font-mono text-amber-400 hover:text-amber-200 flex items-center gap-1 bg-amber-950/40 border border-amber-500/30 px-2 py-0.5 rounded cursor-pointer"
+              >
+                <MessageSquare size={10} />
+                {isChatOpen ? 'Hide Chat' : 'Open Chat Agent'}
+              </button>
+            </div>
+
+            {/* Quick Architectural Theme Presets */}
+            <div className="grid grid-cols-2 gap-1.5">
+              {THEME_PRESETS.map((preset) => {
+                const isSelected = activeThemeId === preset.id;
+                return (
+                  <button
+                    key={preset.id}
+                    type="button"
+                    onClick={() => applyThemePreset(preset)}
+                    className={`p-2 rounded-lg border text-left transition-all cursor-pointer flex flex-col gap-0.5 ${
+                      isSelected
+                        ? 'bg-gradient-to-r from-amber-500/25 to-orange-500/20 border-amber-400 shadow-[0_0_12px_rgba(245,158,11,0.3)] text-amber-200'
+                        : 'bg-black/40 border-white/10 text-gray-400 hover:border-amber-500/40 hover:text-gray-200'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="text-[9px] font-bold truncate">{preset.title}</span>
+                      {isSelected && <Check size={10} className="text-amber-400 shrink-0" />}
+                    </div>
+                    <span className="text-[7px] text-gray-400 font-mono truncate">{preset.desc}</span>
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Interactive Chat Drawer */}
+            {isChatOpen && (
+              <div className="rounded-xl border border-amber-500/30 bg-black/80 p-3 flex flex-col gap-2.5 shadow-lg">
+                <div className="flex items-center justify-between border-b border-white/5 pb-1.5 font-mono text-[8px] text-gray-400">
+                  <span className="flex items-center gap-1 text-amber-300 font-bold">
+                    <Sparkles size={10} /> Senior Visualizer AI Agent
+                  </span>
+                  <span>Tell me your vibe, style or theme</span>
+                </div>
+
+                {/* Chat Messages Log */}
+                <div className="flex flex-col gap-2 max-h-48 overflow-y-auto custom-scrollbar p-1">
+                  {chatMessages.length === 0 ? (
+                    <div className="text-[8px] text-gray-500 font-mono text-center py-3">
+                      Ask anything! e.g. <em>&quot;I want a warm Mediterranean stone look with bougainvillea&quot;</em> or <em>&quot;Add dark obsidian glass and bronze fin accents&quot;</em>.
+                    </div>
+                  ) : (
+                    chatMessages.map((msg) => (
+                      <div
+                        key={msg.id}
+                        className={`flex flex-col gap-1 text-[9px] font-mono rounded-lg p-2 ${
+                          msg.role === 'user'
+                            ? 'bg-amber-500/10 border border-amber-500/20 text-amber-200 self-end max-w-[90%]'
+                            : 'bg-white/5 border border-white/10 text-gray-200 self-start max-w-[95%]'
+                        }`}
+                      >
+                        <span className="text-[7px] font-bold uppercase text-gray-500">
+                          {msg.role === 'user' ? '👤 You' : '🤖 AI Visualizer'}
+                        </span>
+                        <p className="leading-relaxed">{msg.text}</p>
+                        {msg.suggestedDirectives && (
+                          <div className="mt-1 p-1.5 rounded bg-black/60 border border-amber-500/30 flex items-center justify-between gap-1 text-[8px] text-amber-300">
+                            <span className="truncate">⚡ Applied: {msg.themeName || 'Custom Theme'}</span>
+                            <span className="text-emerald-400 font-bold shrink-0">✓ Injected</span>
+                          </div>
+                        )}
+                      </div>
+                    ))
+                  )}
+
+                  {isChatLoading && (
+                    <div className="flex items-center gap-1.5 text-[9px] text-amber-400 font-mono animate-pulse p-1">
+                      <Loader2 size={11} className="animate-spin" />
+                      Formulating architectural directives...
+                    </div>
+                  )}
+                </div>
+
+                {/* Chat Input */}
+                <div className="flex items-center gap-1.5 pt-1 border-t border-white/5">
+                  <input
+                    type="text"
+                    value={chatInput}
+                    onChange={(e) => setChatInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        handleSendMessage();
+                      }
+                    }}
+                    placeholder="Suggest ideas, materials, styles..."
+                    className="flex-1 bg-black/60 border border-white/10 focus:border-amber-400 rounded-lg px-2.5 py-1.5 text-[9px] text-amber-200 focus:outline-none font-mono"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => handleSendMessage()}
+                    disabled={isChatLoading || !chatInput.trim()}
+                    className="p-1.5 rounded-lg bg-amber-500 hover:bg-amber-400 disabled:bg-gray-800 text-black cursor-pointer shrink-0 transition-all"
+                    title="Send to AI Agent"
+                  >
+                    <Send size={11} />
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* 4. Architect Directives (Synced Text) */}
           <div className="flex flex-col gap-2 border-t border-orange-950/60 pt-4">
-            <span className="text-[10px] font-bold uppercase tracking-widest text-amber-400 flex items-center gap-1.5 font-mono">
-              <Send size={12} /> 3. Architect Directives (Optional)
-            </span>
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] font-bold uppercase tracking-widest text-amber-400 flex items-center gap-1.5 font-mono">
+                <Send size={12} /> 4. Custom Directives (Injected in Prompt)
+              </span>
+              {extraDirectives && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setExtraDirectives('');
+                    setActiveThemeId(null);
+                  }}
+                  className="text-[8px] font-mono text-gray-500 hover:text-amber-300 underline cursor-pointer"
+                >
+                  Clear
+                </button>
+              )}
+            </div>
             <textarea
               value={extraDirectives}
-              onChange={(e) => setExtraDirectives(e.target.value)}
+              onChange={(e) => {
+                setExtraDirectives(e.target.value);
+                setActiveThemeId(null);
+              }}
               placeholder="e.g. Add an infinity sky pool on the podium, champagne gold vertical fins, and palm trees."
               rows={3}
               className="w-full bg-black/60 border border-white/10 focus:border-amber-400 rounded-xl p-2.5 text-[10px] text-amber-200 resize-none focus:outline-none leading-relaxed font-mono"
             />
           </div>
 
-          {/* 4. Quality Settings */}
+          {/* 5. Quality Settings */}
           <div className="flex items-center justify-between border-t border-orange-950/60 pt-4">
             <span className="text-[10px] font-bold uppercase tracking-widest text-amber-400 flex items-center gap-1.5 font-mono">
-              <Sparkles size={12} /> Quality
+              <Sparkles size={12} /> 5. Quality
             </span>
             <div className="flex items-center gap-1 bg-black/60 p-0.5 rounded-lg border border-white/10">
               <button

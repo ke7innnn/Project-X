@@ -99,46 +99,33 @@ ${floorSection}${multiImageSection}### HYPER-REALISTIC WINDOW GLASS REFLECTIONS 
 ${extraDirectives ? `### ARCHITECT CUSTOM DIRECTIVES:\n${extraDirectives}` : ''}`;
   }
 
-  // Day mode prompt — Ultra-Luxury Magazine-Cover Daytime CGI
-  return `Award-winning, magazine-cover hyper-photorealistic 8K architectural daytime exterior CGI photograph of an ultra-luxury modern high-rise tower, transformed from the 3D massing model in the input image(s).
+  // Day mode prompt — Clean, crisp, non-overcomplicated daylighting
+  return `Award-winning, hyper-photorealistic 8K architectural daytime exterior CGI photograph of an ultra-luxury modern high-rise tower, transformed from the 3D massing model in the input image(s).
 
 ### CRITICAL MANDATE — PRESERVE COMPOSITION & ELEVATE TO CGI REALISM:
 * Preserve the EXACT camera angle, framing, perspective, and building massing from the primary reference model screenshot.
 * DO NOT copy flat grey, untextured, wireframe, or raw 3D polygon surfaces from the input model.
 * Transform every surface into ultra-luxurious, tangible physical materials with physics-accurate real-world daylighting.
-* Output MUST look like a real multi-million dollar architectural photograph taken on a high-end medium format camera — completely indistinguishable from real life.
+* Output MUST look like a real multi-million dollar architectural photograph taken on a medium format camera — completely indistinguishable from real life.
 
-${floorSection}${multiImageSection}### HYPER-REALISTIC WINDOW GLASS REFLECTIONS & OPTICS:
-* Double-glazed low-iron Starphire curtain wall glass with physics-accurate Fresnel reflections (IOR 1.52) — catching crystal-clear, razor-sharp mirror reflections of the deep cerulean blue sky, wispy clouds, and distant skyline.
-* Brilliant specular sunlight glints and polarized iridescent anti-reflective edge coatings shimmering across glass facade facets.
-* Micro-subtle panel-by-panel reflection variance (tempered glass pillowing distortion across modular panel joints) making cloud reflections bend naturally across the facade.
-* Dual-Layer Depth: Deeply reflective exterior glass showing clouds and sky, while softly revealing warm interior ceiling downlights, minimalist chandeliers, and penthouse furniture layouts inside.
-* Seamless structural laminated glass balcony balustrades with polished stainless-steel handrails catching sharp sun highlights.
+${floorSection}${multiImageSection}### CRISP DAYLIGHTING & ARCHITECTURAL GLASS:
+* Crystal-clear double-glazed low-iron Starphire curtain wall glass with realistic sky reflections and natural daylight interior visibility.
+* Crisp, golden-white 5200K morning / late-afternoon sunlight hitting the building at a dramatic 35-degree angle, casting razor-sharp architectural drop shadows from balconies across the facade.
+* Clear blue sky with light wispy cirrus clouds and rich natural sunbeams.
 
-### CRAZY SEXY DAYLIGHTING & ATMOSPHERE:
-* Crisp, golden-white 5200K morning / late-afternoon sunlight striking the building at a dramatic 35-degree angle, casting long, razor-sharp architectural drop shadows from every cantilevered curved balcony, column, and sculptural louver across the facade.
-* Deep saturated electric cerulean-azure blue sky with high-altitude luminous feathered cirrus clouds catching brilliant specular sun glints.
-* Subtle volumetric atmospheric sunlight shafts and gentle lens flare kissing the tower crown.
-* Deep ambient occlusion in every structural joint, shadow reveal, and balcony underside, creating immense 3D sculptural depth.
+### SEXY MATERIALS & ELEVATED FINISHES:
+* Curved champagne-gold anodized aluminum trims, vertical aerofoil blade fins, and warm bronze window profiles.
+* Fluted travertine and textured limestone podium base with undulating sculptural parametric wave louvers.
+* Lush rooftop sky garden and cascading greenery on balcony terraces with sunlit tropical foliage.
 
-### SEXY CRAZY MATERIALS & MICRO-TEXTURES:
-* Curved champagne-gold anodized aluminum trims, vertical aerofoil blade fins, and brushed brass window profiles gleaming with warm metallic specular reflections in the direct sunlight.
-* Fluted Roman travertine and honed Calacatta marble podium base with fine vertical shadow relief and undulating sculptural parametric wave louvers in champagne bronze.
-
-### LUSH SKY GARDENS & WATER CAUSTICS:
-* Cascading emerald green tropical vegetation (hanging ivy, bougainvillea, philodendrons) overflowing luxuriously from cantilevered balcony planters and podium terraces.
-* Sun-drenched specimen Date Palms and Royal Palms with individual translucent green fronds backlit by the sun.
-* Podium infinity edge water features and glass-bottom cantilevered sky pools with crystalline turquoise water casting dancing sun caustics onto stone soffits and columns.
-
-### GROUND PLAZA & URBAN LUXURY CONTEXT:
-* Sun-drenched polished dark granite and travertine plaza with wet-look mirror sun reflections, fountains with mist spray catching subtle rainbow sun flares.
-* Luxury supercars (Ferrari, Porsche, Bentley) parked at the valet drop-off entrance.
-* Elegantly dressed pedestrians in modern designer clothing casting crisp diagonal shadows for human scale.
+### SURROUNDINGS & LANDSCAPING:
+* Sun-drenched polished granite plaza paving and clean boulevard with majestic Royal Palm trees casting sharp diagonal shadows.
+* Manicured tropical garden landscaping, fountains, luxury drop-off entrance with sports cars and pedestrians providing scale.
 
 ### RENDER FINISH & TECHNICAL EXCELLENCE:
-* 8K Octane Render, V-Ray 6, Unreal Engine 5 architectural visualization quality.
-* Ray-traced reflections on all glass, polished stone, metal trims, and water surfaces.
-* Razor-sharp architectural drop shadows, micro-textures on every stone and metal material, rich ambient occlusion.
+* 8K Octane Render, V-Ray, Unreal Engine 5 architectural visualization quality.
+* Ray-traced reflections on all glass and polished stone surfaces.
+* Razor-sharp architectural drop shadows, micro-textures on every facade material, ambient occlusion in every joint.
 * Zero wireframe, zero flat grey surfaces, zero cartoon look.
 
 ${extraDirectives ? `### ARCHITECT CUSTOM DIRECTIVES:\n${extraDirectives}` : ''}`;

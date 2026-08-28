@@ -96,12 +96,11 @@ function buildAnglePrompt(
 * Glowing architectural halo beacon on the tower crown.
 * CRAZY SUNSET DUSK SKY: Dramatic stormy sunset clouds with underlit fiery orange, burning amber, and radiant crimson rays against deep indigo/violet sky with golden sunbeams.
 * FOREGROUND: Wet rain-slicked dark asphalt street with glistening mirror reflections and light caustics mirroring the tower's warm golden lights and the fiery sky, with illuminated Royal Palm trees.`
-    : `### CRAZY SEXY DAYLIGHTING & WINDOW GLASS (MAINTAIN 100% CONSISTENCY WITH IMAGE 1):
-* HYPER-REALISTIC GLASS REFLECTIONS: Double-glazed low-iron Starphire curtain wall glass with Fresnel reflections (IOR 1.52) catching crystal-clear mirror reflections of the deep cerulean blue sky and wispy clouds, with specular sun glints and polarized iridescent coatings.
-* Dual-Layer Depth: Deeply reflective exterior glass showing clouds and sky while softly revealing warm interior ceiling downlights and luxury furniture inside.
-* Crisp 5200K golden-white morning / late-afternoon sunlight hitting the building at an angled 35-degree perspective, casting long diagonal architectural drop shadows from curved balconies across the facade.
+    : `### CRISP DAYLIGHTING & ARCHITECTURAL GLASS (MAINTAIN 100% CONSISTENCY WITH IMAGE 1):
+* Double-glazed low-iron Starphire curtain wall glass with crisp mirror sky reflections and interior daylight visibility.
+* Crisp 5200K golden-white morning / late-afternoon sunlight hitting the building at an angled 35-degree perspective, casting sharp diagonal architectural drop shadows from curved balconies across the facade.
 * Curved champagne-gold aluminum trims and vertical fins gleaming in the sun.
-* Cascading emerald green sky gardens overflowing from balcony planters, sunlit Royal Palms, and wet-look polished granite plaza reflecting the architecture.`;
+* Cascading emerald green sky gardens on balcony planters, sunlit Royal Palms, and polished granite plaza reflecting the architecture.`;
 
   return `Award-winning, hyper-photorealistic 8K architectural CGI photograph of the exact same building, captured from a new professional architectural viewpoint.
 
