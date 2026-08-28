@@ -33,9 +33,10 @@ async function runModel(falModel: string, input: Record<string, any>): Promise<{
 function buildExteriorPrompt(opts: {
   timeOfDay: 'day' | 'night';
   hasMultipleImages?: boolean;
+  floorCount?: string | number;
   extraDirectives?: string;
 }): string {
-  const { timeOfDay, hasMultipleImages, extraDirectives } = opts;
+  const { timeOfDay, hasMultipleImages, floorCount, extraDirectives } = opts;
 
   const multiImageSection = hasMultipleImages
     ? `### MULTI-VIEW 3D MASSING COMPREHENSION:
@@ -45,16 +46,24 @@ function buildExteriorPrompt(opts: {
 `
     : '';
 
+  const floorSection = floorCount && Number(floorCount) > 0
+    ? `### STRICT ARCHITECTURAL FLOOR COUNT MANDATE — EXACTLY ${floorCount} FLOORS:
+* TOTAL STOREYS: The building MUST have EXACTLY ${floorCount} FLOORS / STOREYS from the ground-level podium to the top penthouse / crown level.
+* COUNT EVERY LEVEL: Render precisely ${floorCount} distinct floor slabs, horizontal balcony bands, and window levels.
+* ZERO DEVIATION: Under NO circumstances should you hallucinate extra floors, add random storeys, or truncate/omit any floors. Maintain the exact ${floorCount}-floor architectural vertical proportion and spacing.
+`
+    : '';
+
   if (timeOfDay === 'night') {
     return `Award-winning, hyper-photorealistic 8K architectural dusk & night exterior CGI photograph of an ultra-luxury modern high-rise tower, transformed from the 3D massing model in the input image(s).
 
 ### CRITICAL MANDATE — PRESERVE COMPOSITION & ELEVATE TO CGI REALISM:
-* Preserve the EXACT camera angle, framing, perspective, floor count, and building massing from the primary reference model screenshot.
+* Preserve the EXACT camera angle, framing, perspective, and building massing from the primary reference model screenshot.
 * DO NOT copy flat grey, untextured, wireframe, or raw 3D polygon surfaces from the input model.
 * Transform every plane into ultra-luxurious, tangible physical materials with physics-accurate real-world lighting.
 * Output MUST look like a real multi-million dollar architectural photograph taken on a medium format camera — completely indistinguishable from real life.
 
-${multiImageSection}### HYPER-REALISTIC WINDOW GLASS REFLECTIONS & OPTICS:
+${floorSection}${multiImageSection}### HYPER-REALISTIC WINDOW GLASS REFLECTIONS & OPTICS:
 * Double-glazed low-iron Starphire curtain wall glass with physics-accurate Fresnel reflections (IOR 1.52) — catching high-contrast mirror reflections of the fiery sunset clouds and ambient twilight sky at grazing angles.
 * Micro-subtle tempered glass reflection distortion across individual modular panel seams, giving reflections realistic architectural pillowing and depth rather than flat artificial mirrors.
 * Dual-Layer Glazing Realism: The outer glass pane reflects the burning orange-amber sunset sky and glowing LED ribbons, while the transparent interior reveals warm 2700K–3000K glowing ceiling coffers, recessed downlights, floor slabs, and penthouse silhouettes from within.
@@ -94,12 +103,12 @@ ${extraDirectives ? `### ARCHITECT CUSTOM DIRECTIVES:\n${extraDirectives}` : ''}
   return `Award-winning, magazine-cover hyper-photorealistic 8K architectural daytime exterior CGI photograph of an ultra-luxury modern high-rise tower, transformed from the 3D massing model in the input image(s).
 
 ### CRITICAL MANDATE — PRESERVE COMPOSITION & ELEVATE TO CGI REALISM:
-* Preserve the EXACT camera angle, framing, perspective, floor count, and building massing from the primary reference model screenshot.
+* Preserve the EXACT camera angle, framing, perspective, and building massing from the primary reference model screenshot.
 * DO NOT copy flat grey, untextured, wireframe, or raw 3D polygon surfaces from the input model.
 * Transform every surface into ultra-luxurious, tangible physical materials with physics-accurate real-world daylighting.
 * Output MUST look like a real multi-million dollar architectural photograph taken on a high-end medium format camera — completely indistinguishable from real life.
 
-${multiImageSection}### HYPER-REALISTIC WINDOW GLASS REFLECTIONS & OPTICS:
+${floorSection}${multiImageSection}### HYPER-REALISTIC WINDOW GLASS REFLECTIONS & OPTICS:
 * Double-glazed low-iron Starphire curtain wall glass with physics-accurate Fresnel reflections (IOR 1.52) — catching crystal-clear, razor-sharp mirror reflections of the deep cerulean blue sky, wispy clouds, and distant skyline.
 * Brilliant specular sunlight glints and polarized iridescent anti-reflective edge coatings shimmering across glass facade facets.
 * Micro-subtle panel-by-panel reflection variance (tempered glass pillowing distortion across modular panel joints) making cloud reflections bend naturally across the facade.
@@ -141,6 +150,7 @@ export async function POST(req: Request) {
     const {
       modelImages,
       modelBase64,
+      floorCount,
       timeOfDay = 'night',
       extraDirectives = '',
       quality = 'medium',
@@ -172,11 +182,12 @@ export async function POST(req: Request) {
     const masterPrompt = buildExteriorPrompt({
       timeOfDay: timeOfDay === 'day' ? 'day' : 'night',
       hasMultipleImages: uploadedModelUrls.length > 1,
+      floorCount,
       extraDirectives,
     });
-    console.log('[ExteriorRender] Prompt synthesized:\n', masterPrompt.slice(0, 280) + '...');
+    console.log('[ExteriorRender] Prompt synthesized:\n', masterPrompt.slice(0, 320) + '...');
 
-    console.log('[ExteriorRender] Calling GPT Image 2 Edit with', uploadedModelUrls.length, 'reference images (quality:', quality, ')...');
+    console.log('[ExteriorRender] Calling GPT Image 2 Edit with', uploadedModelUrls.length, 'reference images (quality:', quality, ', floors:', floorCount || 'auto', ')...');
     const result = await runModel('openai/gpt-image-2/edit', {
       image_urls: uploadedModelUrls,
       prompt: masterPrompt,
@@ -193,6 +204,7 @@ export async function POST(req: Request) {
       seed: result.seed ?? null,
       masterPrompt,
       inputCount: uploadedModelUrls.length,
+      floorCount: floorCount || null,
       workflow: 'exterior-render',
     });
   } catch (err: any) {

@@ -17,6 +17,7 @@ interface ExteriorRenderHistoryItem {
   renderBase64: string;
   primaryModelBase64: string;
   allModelImages?: string[];
+  floorCount?: string;
   modelCount: number;
   timeOfDay: 'day' | 'night';
   timestamp: number;
@@ -38,6 +39,9 @@ export default function ExteriorRenderStudio() {
   const [modelImages, setModelImages] = useState<ModelAngleInput[]>([]);
   const [primaryAngleId, setPrimaryAngleId] = useState<string | null>(null);
   const [activePreviewId, setActivePreviewId] = useState<string | null>(null);
+
+  // Strict Floor Count Parameter
+  const [floorCount, setFloorCount] = useState<string>('');
 
   // Minimal Controls (Day / Night, Custom Notes, Quality)
   const [timeOfDay, setTimeOfDay] = useState<'day' | 'night'>('night');
@@ -134,6 +138,7 @@ export default function ExteriorRenderStudio() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           modelImages: orderedBase64s,
+          floorCount: floorCount.trim() ? floorCount.trim() : undefined,
           timeOfDay,
           extraDirectives,
           quality,
@@ -147,6 +152,7 @@ export default function ExteriorRenderStudio() {
           renderBase64: data.render,
           primaryModelBase64: primaryImg.base64,
           allModelImages: orderedBase64s,
+          floorCount: floorCount.trim() || undefined,
           modelCount: orderedBase64s.length,
           timeOfDay,
           timestamp: Date.now(),
@@ -171,6 +177,7 @@ export default function ExteriorRenderStudio() {
 
     // Provide the original SketchUp model angle screenshots as Shape/Geometry references
     const shapeImages = viewingItem?.allModelImages || (modelImages.length > 0 ? modelImages.map((m) => m.base64) : []);
+    const activeFloorCount = viewingItem?.floorCount || (floorCount.trim() ? floorCount.trim() : undefined);
 
     try {
       const res = await fetch('/api/exterior-angles', {
@@ -179,6 +186,7 @@ export default function ExteriorRenderStudio() {
         body: JSON.stringify({
           renderedBase64: activeRender,
           modelImages: shapeImages,
+          floorCount: activeFloorCount,
           timeOfDay,
           extraDirectives,
           quality,
@@ -643,10 +651,10 @@ export default function ExteriorRenderStudio() {
                           className="w-full aspect-video object-cover group-hover/card:scale-105 transition-transform duration-300"
                         />
                         <div className="p-2 bg-black/90 flex items-center justify-between gap-1 text-[8px] font-mono border-t border-white/5">
-                          <span className="text-amber-300 font-bold uppercase">
-                            {h.timeOfDay === 'night' ? '🌙 Night' : '☀️ Day'} ({h.modelCount} {h.modelCount === 1 ? 'view' : 'views'})
+                          <span className="text-amber-300 font-bold uppercase truncate">
+                            {h.timeOfDay === 'night' ? '🌙 Night' : '☀️ Day'}{h.floorCount ? ` • ${h.floorCount}F` : ''} ({h.modelCount}v)
                           </span>
-                          <div className="flex gap-1.5">
+                          <div className="flex gap-1.5 shrink-0">
                             <button
                               onClick={(e) => { e.stopPropagation(); downloadRender(h.renderBase64, h.timeOfDay); }}
                               className="text-gray-400 hover:text-white"
@@ -777,23 +785,79 @@ export default function ExteriorRenderStudio() {
             </div>
           </div>
 
-          {/* 2. Architect Directives (Optional Text) */}
+          {/* 2. Total Number of Floors (Strict Parameter) */}
+          <div className="flex flex-col gap-2.5 border-t border-orange-950/60 pt-4">
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] font-bold uppercase tracking-widest text-amber-400 flex items-center gap-1.5 font-mono">
+                <Building2 size={13} /> 2. Total Floors / Storeys (Strict)
+              </span>
+              {floorCount && (
+                <button
+                  type="button"
+                  onClick={() => setFloorCount('')}
+                  className="text-[8px] font-mono text-gray-500 hover:text-amber-300 underline cursor-pointer"
+                >
+                  Reset Auto
+                </button>
+              )}
+            </div>
+
+            <div className="flex items-center gap-2">
+              <div className="relative flex-1">
+                <input
+                  type="number"
+                  min={1}
+                  max={200}
+                  value={floorCount}
+                  onChange={(e) => setFloorCount(e.target.value)}
+                  placeholder="e.g. 35 (Auto if empty)"
+                  className="w-full bg-black/60 border border-white/10 focus:border-amber-400 rounded-xl px-3 py-2 text-[10px] text-amber-200 focus:outline-none font-mono"
+                />
+              </div>
+            </div>
+
+            {/* Quick Floor Count Preset Chips */}
+            <div className="flex flex-wrap gap-1.5">
+              {['12', '24', '35', '45', '60', '80'].map((preset) => (
+                <button
+                  key={preset}
+                  type="button"
+                  onClick={() => setFloorCount(preset)}
+                  className={`px-2 py-1 rounded-md text-[8px] font-mono font-bold transition-all cursor-pointer ${
+                    floorCount === preset
+                      ? 'bg-amber-400 text-black shadow-[0_0_10px_rgba(245,158,11,0.5)]'
+                      : 'bg-black/60 border border-white/10 text-gray-400 hover:border-amber-500/40 hover:text-amber-300'
+                  }`}
+                >
+                  {preset} Fl
+                </button>
+              ))}
+            </div>
+
+            <p className="text-[8px] text-gray-400 font-mono leading-tight">
+              {floorCount
+                ? `🔒 Strict Mandate: AI will count & render EXACTLY ${floorCount} storeys from podium to crown.`
+                : '💡 Leave empty to match the 3D model automatically, or enter a number to strictly lock the floor count.'}
+            </p>
+          </div>
+
+          {/* 3. Architect Directives (Optional Text) */}
           <div className="flex flex-col gap-2 border-t border-orange-950/60 pt-4">
-            <span className="text-[10px] font-bold uppercase tracking-widest text-amber-400 flex items-center gap-1.5">
-              <Send size={12} /> 2. Architect Directives (Optional)
+            <span className="text-[10px] font-bold uppercase tracking-widest text-amber-400 flex items-center gap-1.5 font-mono">
+              <Send size={12} /> 3. Architect Directives (Optional)
             </span>
             <textarea
               value={extraDirectives}
               onChange={(e) => setExtraDirectives(e.target.value)}
               placeholder="e.g. Add an infinity sky pool on the podium, champagne gold vertical fins, and palm trees."
               rows={3}
-              className="w-full bg-black/60 border border-white/10 focus:border-amber-400 rounded-xl p-2.5 text-[10px] text-amber-200 resize-none focus:outline-none leading-relaxed"
+              className="w-full bg-black/60 border border-white/10 focus:border-amber-400 rounded-xl p-2.5 text-[10px] text-amber-200 resize-none focus:outline-none leading-relaxed font-mono"
             />
           </div>
 
-          {/* 3. Quality Settings */}
+          {/* 4. Quality Settings */}
           <div className="flex items-center justify-between border-t border-orange-950/60 pt-4">
-            <span className="text-[10px] font-bold uppercase tracking-widest text-amber-400 flex items-center gap-1.5">
+            <span className="text-[10px] font-bold uppercase tracking-widest text-amber-400 flex items-center gap-1.5 font-mono">
               <Sparkles size={12} /> Quality
             </span>
             <div className="flex items-center gap-1 bg-black/60 p-0.5 rounded-lg border border-white/10">

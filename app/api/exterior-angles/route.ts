@@ -65,6 +65,7 @@ function buildAnglePrompt(
   angle: AngleConfig,
   timeOfDay: 'day' | 'night',
   hasShapeReferences: boolean,
+  floorCount?: string | number,
   extraDirectives?: string
 ): string {
   const isNight = timeOfDay === 'night';
@@ -78,6 +79,14 @@ function buildAnglePrompt(
     : `### INPUT IMAGE REFERENCE:
 * IMAGE 1 = ⭐ PRIMARY DESIGN REFERENCE: Replicate 100% of its materials, lighting, finishes, glass reflections, and every architectural detail. Only synthesize the new camera viewpoint specified below.
 `;
+
+  const floorSection = floorCount && Number(floorCount) > 0
+    ? `### STRICT ARCHITECTURAL FLOOR COUNT MANDATE — EXACTLY ${floorCount} FLOORS:
+* TOTAL STOREYS: The building MUST have EXACTLY ${floorCount} FLOORS / STOREYS from the ground-level podium to the top penthouse / crown level.
+* Count every single floor level, balcony band, and slab line meticulously so there are precisely ${floorCount} distinct floor tiers visible in this camera angle.
+* ZERO DEVIATION: Under NO circumstances should you hallucinate extra floors or omit floors. Maintain the exact ${floorCount}-floor count identically to the design reference.
+`
+    : '';
 
   const lightingSection = isNight
     ? `### ARCHITECTURAL LIGHTING & WINDOW GLASS (MAINTAIN 100% CONSISTENCY WITH IMAGE 1):
@@ -97,7 +106,7 @@ function buildAnglePrompt(
   return `Award-winning, hyper-photorealistic 8K architectural CGI photograph of the exact same building, captured from a new professional architectural viewpoint.
 
 ${imageReferenceMandate}
-### MANDATE — 100% ARCHITECTURAL & MATERIAL CONSISTENCY:
+${floorSection}### MANDATE — 100% ARCHITECTURAL & MATERIAL CONSISTENCY:
 * You MUST maintain 100% exact architectural consistency with the DESIGN REFERENCE (Image 1): identical curved champagne-gold trims, identical floor count, identical balcony profiles, identical fluted podium louvers, identical glass curtain walls, and identical materials.
 * Do NOT alter the building design or architectural language — only synthesize the new camera viewpoint specified below.
 
@@ -120,6 +129,7 @@ export async function POST(req: Request) {
     const {
       renderedBase64,
       modelImages,        // optional: original SketchUp screenshots as shape references
+      floorCount,         // optional: strict floor count parameter
       timeOfDay = 'night',
       extraDirectives = '',
       quality = 'medium',
@@ -154,8 +164,8 @@ export async function POST(req: Request) {
 
     // Run all 3 angles in parallel using Promise.all
     const anglePromises = THREE_PROFESSIONAL_ANGLES.map(async (angle) => {
-      const prompt = buildAnglePrompt(angle, timeOfDay === 'day' ? 'day' : 'night', hasShapeReferences, extraDirectives);
-      console.log(`[ExteriorAngles] Calling GPT Image 2 for ${angle.label} with ${allImageUrls.length} reference image(s)...`);
+      const prompt = buildAnglePrompt(angle, timeOfDay === 'day' ? 'day' : 'night', hasShapeReferences, floorCount, extraDirectives);
+      console.log(`[ExteriorAngles] Calling GPT Image 2 for ${angle.label} with ${allImageUrls.length} reference image(s) (floors: ${floorCount || 'auto'})...`);
       
       const res = await runModel('openai/gpt-image-2/edit', {
         image_urls: allImageUrls,
@@ -182,6 +192,7 @@ export async function POST(req: Request) {
       success: true,
       angles: angleResults,
       shapeRefsUsed: shapeRefUrls.length,
+      floorCount: floorCount || null,
     });
   } catch (err: any) {
     console.error('[ExteriorAngles] Error:', err);
