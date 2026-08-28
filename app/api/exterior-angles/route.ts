@@ -65,17 +65,17 @@ function buildAnglePrompt(angle: AngleConfig, timeOfDay: 'day' | 'night', extraD
   const isNight = timeOfDay === 'night';
 
   const lightingSection = isNight
-    ? `### ARCHITECTURAL LIGHTING & ATMOSPHERE (MAINTAIN 100% CONSISTENCY):
-* Warm 2700K–3000K golden interior lighting spilling through all floor-to-ceiling glass windows, illuminating interior ceilings on every floor.
-* Continuous glowing warm golden LED ribbon cove lighting recessed underneath every single curved balcony rim and floor slab edge.
+    ? `### ARCHITECTURAL LIGHTING & WINDOW GLASS (MAINTAIN 100% CONSISTENCY):
+* HYPER-REALISTIC GLASS REFLECTIONS: Double-glazed low-iron Starphire curtain wall glass with Fresnel reflections (IOR 1.52) catching high-contrast mirror reflections of fiery sunset clouds and glowing LED ribbons, with subtle panel-by-panel pillowing distortion.
+* Dual-Layer Depth: Outer glass reflects the sky while letting warm 2700K–3000K golden interior illumination from ceiling downlights and penthouse layouts glow from within.
 * Powerful ground-level architectural floodlights shooting warm light upward along podium vertical fins and fluted columns.
 * Glowing architectural halo beacon on the tower crown.
 * CRAZY SUNSET DUSK SKY: Dramatic stormy sunset clouds with underlit fiery orange, burning amber, and radiant crimson rays against deep indigo/violet sky with golden sunbeams.
 * FOREGROUND: Wet rain-slicked dark asphalt street with glistening mirror reflections and light caustics mirroring the tower's warm golden lights and the fiery sky, with illuminated Royal Palm trees.`
-    : `### CRAZY SEXY DAYLIGHTING & ATMOSPHERE (MAINTAIN 100% CONSISTENCY):
+    : `### CRAZY SEXY DAYLIGHTING & WINDOW GLASS (MAINTAIN 100% CONSISTENCY):
+* HYPER-REALISTIC GLASS REFLECTIONS: Double-glazed low-iron Starphire curtain wall glass with Fresnel reflections (IOR 1.52) catching crystal-clear mirror reflections of the deep cerulean blue sky and wispy clouds, with specular sun glints and polarized iridescent coatings.
+* Dual-Layer Depth: Deeply reflective exterior glass showing clouds and sky while softly revealing warm interior ceiling downlights and luxury furniture inside.
 * Crisp 5200K golden-white morning / late-afternoon sunlight hitting the building at an angled 35-degree perspective, casting long diagonal architectural drop shadows from curved balconies across the facade.
-* Deep electric cerulean-azure blue sky with luminous cirrus clouds and specular sun glints.
-* Ultra-clear double-glazed low-iron glass reflecting sky and clouds while revealing warm interior downlights and penthouse layouts.
 * Curved champagne-gold aluminum trims and vertical fins gleaming in the sun.
 * Cascading emerald green sky gardens overflowing from balcony planters, sunlit Royal Palms, and wet-look polished granite plaza reflecting the architecture.`;
 

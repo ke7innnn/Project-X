@@ -45,6 +45,13 @@ function buildExteriorPrompt(opts: {
 * Transform every plane into ultra-luxurious, tangible physical materials with physics-accurate real-world lighting.
 * Output MUST look like a real multi-million dollar architectural photograph taken on a medium format camera — completely indistinguishable from real life.
 
+### HYPER-REALISTIC WINDOW GLASS REFLECTIONS & OPTICS:
+* Double-glazed low-iron Starphire curtain wall glass with physics-accurate Fresnel reflections (IOR 1.52) — catching high-contrast mirror reflections of the fiery sunset clouds and ambient twilight sky at grazing angles.
+* Micro-subtle tempered glass reflection distortion across individual modular panel seams, giving reflections realistic architectural pillowing and depth rather than flat artificial mirrors.
+* Dual-Layer Glazing Realism: The outer glass pane reflects the burning orange-amber sunset sky and glowing LED ribbons, while the transparent interior reveals warm 2700K–3000K glowing ceiling coffers, recessed downlights, floor slabs, and penthouse silhouettes from within.
+* Crisp dark bronze mullions and dark mirror-finish spandrel glass panels with deep structural shadow reveals separating each floor.
+* Seamless structural laminated glass balcony balustrades with polished stainless-steel top caps catching sharp specular rim reflections.
+
 ### CRAZY SEXY ARCHITECTURAL LIGHTING (REFERENCE NIGHT STYLE):
 * Warm 2700K–3000K golden interior lighting glowing brightly through all floor-to-ceiling glass windows, illuminating interior ceilings and creating cozy amber transparency on every single floor.
 * Continuous, glowing warm golden LED ribbon cove lighting recessed underneath every single curved balcony rim and floor slab edge, wrapping around the entire tower in luminous horizontal bands.
@@ -58,7 +65,6 @@ function buildExteriorPrompt(opts: {
 
 ### SEXY CRAZY MATERIALS & PHOTOREALISM TEXTURES:
 * Curved champagne-gold anodized aluminum trims, brushed brass balcony handrails, and warm bronze metal louvers.
-* Ultra-clear floor-to-ceiling double-glazed curtain wall glass with warm amber interior light glowing from inside every room.
 * Fluted travertine and textured limestone podium base with undulating sculptural parametric wave louvers.
 * Lush rooftop sky garden and cascading greenery on balcony terraces with real botanic detail.
 
@@ -84,6 +90,13 @@ ${extraDirectives ? `### ARCHITECT CUSTOM DIRECTIVES:\n${extraDirectives}` : ''}
 * Transform every surface into ultra-luxurious, tangible physical materials with physics-accurate real-world daylighting.
 * Output MUST look like a real multi-million dollar architectural photograph taken on a high-end medium format camera — completely indistinguishable from real life.
 
+### HYPER-REALISTIC WINDOW GLASS REFLECTIONS & OPTICS:
+* Double-glazed low-iron Starphire curtain wall glass with physics-accurate Fresnel reflections (IOR 1.52) — catching crystal-clear, razor-sharp mirror reflections of the deep cerulean blue sky, wispy clouds, and distant skyline.
+* Brilliant specular sunlight glints and polarized iridescent anti-reflective edge coatings shimmering across glass facade facets.
+* Micro-subtle panel-by-panel reflection variance (tempered glass pillowing distortion across modular panel joints) making cloud reflections bend naturally across the facade.
+* Dual-Layer Depth: Deeply reflective exterior glass showing clouds and sky, while softly revealing warm interior ceiling downlights, minimalist chandeliers, and penthouse furniture layouts inside.
+* Seamless structural laminated glass balcony balustrades with polished stainless-steel handrails catching sharp sun highlights.
+
 ### CRAZY SEXY DAYLIGHTING & ATMOSPHERE:
 * Crisp, golden-white 5200K morning / late-afternoon sunlight striking the building at a dramatic 35-degree angle, casting long, razor-sharp architectural drop shadows from every cantilevered curved balcony, column, and sculptural louver across the facade.
 * Deep saturated electric cerulean-azure blue sky with high-altitude luminous feathered cirrus clouds catching brilliant specular sun glints.
@@ -92,9 +105,7 @@ ${extraDirectives ? `### ARCHITECT CUSTOM DIRECTIVES:\n${extraDirectives}` : ''}
 
 ### SEXY CRAZY MATERIALS & MICRO-TEXTURES:
 * Curved champagne-gold anodized aluminum trims, vertical aerofoil blade fins, and brushed brass window profiles gleaming with warm metallic specular reflections in the direct sunlight.
-* Ultra-clear floor-to-ceiling double-glazed low-iron curtain wall glass with ray-traced mirror reflections of the deep blue sky and wispy clouds, while simultaneously revealing warm illuminated interior ceilings with minimalist luxury chandeliers, recessed downlights, and penthouse furniture layouts within.
 * Fluted Roman travertine and honed Calacatta marble podium base with fine vertical shadow relief and undulating sculptural parametric wave louvers in champagne bronze.
-* Seamless structural laminated glass balustrades with polished stainless-steel top caps catching sharp sunlight glints.
 
 ### LUSH SKY GARDENS & WATER CAUSTICS:
 * Cascading emerald green tropical vegetation (hanging ivy, bougainvillea, philodendrons) overflowing luxuriously from cantilevered balcony planters and podium terraces.
