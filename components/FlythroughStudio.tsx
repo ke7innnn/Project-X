@@ -167,6 +167,35 @@ export default function FlythroughStudio() {
   };
 
   // ── MASTER FLYTHROUGH PIPELINE GENERATOR ────────────────────────────────────
+// Lightweight client-side image compression to ensure requests stay well under Vercel's 4.5MB limit
+async function compressImageForApi(dataUri: string, maxDimension = 1280, quality = 0.82): Promise<string> {
+  if (!dataUri || !dataUri.startsWith('data:image/')) return dataUri;
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      let { width, height } = img;
+      if (width > maxDimension || height > maxDimension) {
+        if (width > height) {
+          height = Math.round((height * maxDimension) / width);
+          width = maxDimension;
+        } else {
+          width = Math.round((width * maxDimension) / height);
+          height = maxDimension;
+        }
+      }
+      const canvas = document.createElement('canvas');
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return resolve(dataUri);
+      ctx.drawImage(img, 0, 0, width, height);
+      resolve(canvas.toDataURL('image/jpeg', quality));
+    };
+    img.onerror = () => resolve(dataUri);
+    img.src = dataUri;
+  });
+}
+
   const handleStartFlythroughGeneration = async () => {
     if (referenceImages.length === 0 || isGenerating) return;
 
@@ -204,8 +233,13 @@ export default function FlythroughStudio() {
       setActiveShotlist(initialShots);
 
       // ── STAGE 2: EXPAND EXTRA ANGLES FIRST (IF ENABLED) ─────────────────────
+      // Compress reference images first so payload is < 600KB (well under Vercel 4.5MB limit)
+      const compressedRefImages = await Promise.all(
+        referenceImages.map((img) => compressImageForApi(img.base64))
+      );
+
       let masterAnglePool: Array<{ base64: string; label: string }> = referenceImages.map((img, i) => ({
-        base64: img.base64,
+        base64: compressedRefImages[i] || img.base64,
         label: `Uploaded Angle #${i + 1}`,
       }));
 
@@ -218,7 +252,7 @@ export default function FlythroughStudio() {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-              referenceImages: referenceImages.map((img) => img.base64),
+              referenceImages: compressedRefImages,
               requestedAnglesCount: 4,
             }),
           });
@@ -230,9 +264,11 @@ export default function FlythroughStudio() {
               label: a.label,
             }));
             masterAnglePool = [...masterAnglePool, ...newPool];
+          } else {
+            console.warn('[ExpandAngles] Expansion returned without angles:', expandData);
           }
         } catch (angleErr) {
-          console.warn('Angle expansion skipped, continuing with uploaded references...', angleErr);
+          console.warn('[ExpandAngles] Expansion error:', angleErr);
         }
       }
 
@@ -304,11 +340,25 @@ export default function FlythroughStudio() {
         throw new Error('All video shot generations failed. Please check FAL key or connection.');
       }
 
+      // Strip massive base64 strings so the payload to /api/flythrough-stitch is < 2KB (avoiding Vercel 413)
+      const lightweightShots = validShots.map((s) => ({
+        shotNumber: s.shotNumber,
+        startTime: s.startTime,
+        endTime: s.endTime,
+        duration: s.duration,
+        title: s.title,
+        cameraMotion: s.cameraMotion,
+        angleType: s.angleType,
+        prompt: s.prompt,
+        focalLength: s.focalLength,
+        videoUrl: s.videoUrl,
+      }));
+
       const stitchRes = await fetch('/api/flythrough-stitch', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          shots: validShots,
+          shots: lightweightShots,
           audioMood: selectedAudioMood,
           filmTitle: directorData.filmTitle || 'Architectural Masterpiece Flythrough',
           duration: selectedDuration,
