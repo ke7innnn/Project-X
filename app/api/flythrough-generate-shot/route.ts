@@ -40,7 +40,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Image input (imageBase64 or imageUrls) is required.' }, { status: 400 });
     }
 
-    const enhancedPrompt = `${prompt || 'Smooth cinematic architectural drone shot, fluid 24fps cinema movement, realistic glass reflections and sunlight, zero morphing.'}, 8k octane architectural visualization quality, photorealistic 24fps cinema.`;
+    const enhancedPrompt = `Cinematic commercial architectural flythrough film of finished luxury building, ${prompt || 'smooth fluid drone camera glide, slow cinema motion'}, preserving exact photorealistic materials, realistic low-iron glass reflections and natural sunlight, 8k octane architectural visualization finish, 24fps fluid motion, zero morphing, zero wireframe.`;
 
     console.log(`[GenerateShot] Rendering shot with engine: ${engine}...`);
 

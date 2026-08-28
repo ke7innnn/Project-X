@@ -91,11 +91,12 @@ export async function POST(req: Request) {
     console.log(`[ExpandAngles] Synthesizing ${blueprintsToGenerate.length} new unique angles in parallel...`);
 
     const anglePromises = blueprintsToGenerate.map(async (blueprint) => {
-      const prompt = `Award-winning, hyper-photorealistic 8K architectural daytime exterior CGI photograph of the exact same building shown in the reference images.
+      const prompt = `Award-winning, hyper-photorealistic 8K architectural CGI photograph of the exact finished building shown in the reference renders.
 
-### STRICT ARCHITECTURAL & MATERIAL CONSISTENCY MANDATE:
-* You MUST maintain 100% exact architectural consistency with the building in the reference images: identical facade color, identical floor count, identical balcony profiles, identical podium louvers, identical glass curtain walls, and identical pitched roof pavilions.
-* Do NOT alter the building design — only synthesize the new camera viewpoint specified below.
+### FINISHED ARCHITECTURAL MASTER RENDER MANDATE:
+* The provided reference images are fully finished, hyper-photorealistic architectural renders / high-end architectural photography with complete materials, textures, glazing, landscaping, and lighting.
+* Treat the reference images as the exact ground-truth completed building. Maintain 100% consistency with all materials, facade textures, warm sandstone/terracotta cladding, metallic window trims, floor counts, balcony profiles, podium louvers, and roof pavilions.
+* Do NOT treat this as a wireframe, sketch, skeleton, or raw 3D mesh. Keep the finished photorealistic fidelity.
 
 ### ${blueprint.cameraPrompt}
 

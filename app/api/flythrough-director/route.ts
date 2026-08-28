@@ -36,6 +36,10 @@ Ensure the shots flow seamlessly in a professional architectural showreel progre
 2. Middle: Dynamic upward jib/crane shots tracking facade textures, balcony rhythms, low-iron glass reflections, sun glints, and mid-tower perspectives.
 3. Climax & Finale: High-altitude 45-degree drone orbits around the pitched roof pavilions/crown, pulling back to show the full building silhouette against the sunset/sky.
 
+CRITICAL ARCHITECTURAL DIRECTIVE:
+- The reference images are finished photorealistic 8K master CGI renders. All shot prompts must describe camera motion and cinematic lighting around this finished building, preserving its luxury materials, stone facade, glass reflections, and detailed balconies.
+- Never describe or treat the building as a sketch, wireframe, or raw CAD skeleton.
+
 Output strictly valid JSON with no markdown wrapping.`;
 
 export async function POST(req: Request) {
