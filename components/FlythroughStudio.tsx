@@ -84,7 +84,7 @@ export default function FlythroughStudio() {
   // 2. Flythrough Parameters
   const [selectedDuration, setSelectedDuration] = useState<60 | 120 | 180>(60);
   const [selectedAudioMood, setSelectedAudioMood] = useState<string>('luxury_orchestral');
-  const [videoEngine, setVideoEngine] = useState<'wan_2_1' | 'kling_1_6' | 'seedance'>('wan_2_1');
+  const [videoEngine, setVideoEngine] = useState<'seedance' | 'kling_1_6' | 'minimax' | 'wan_2_1'>('seedance');
   const [expandAnglesFirst, setExpandAnglesFirst] = useState<boolean>(true);
   const [customAtmosphere, setCustomAtmosphere] = useState<string>('');
 
@@ -903,34 +903,60 @@ async function compressImageForApi(dataUri: string, maxDimension = 1280, quality
           {/* 4. Video Generation Engine */}
           <div className="flex flex-col gap-2.5 border-t border-orange-950/60 pt-4">
             <span className="text-[10px] font-bold uppercase tracking-widest text-amber-400 flex items-center gap-1.5 font-mono">
-              <Sliders size={13} /> 4. Video Engine
+              <Sliders size={13} /> 4. Video Generation Engine
             </span>
 
             <div className="grid grid-cols-2 gap-2">
               <button
                 type="button"
-                onClick={() => setVideoEngine('wan_2_1')}
-                className={`p-2 rounded-lg border text-left transition-all cursor-pointer ${
-                  videoEngine === 'wan_2_1'
-                    ? 'bg-amber-500/25 border-amber-400 text-amber-200'
-                    : 'bg-black/40 border-white/10 text-gray-400'
+                onClick={() => setVideoEngine('seedance')}
+                className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer flex flex-col gap-0.5 ${
+                  videoEngine === 'seedance'
+                    ? 'bg-gradient-to-br from-amber-500/25 to-orange-500/20 border-amber-400 text-amber-200 shadow-[0_0_15px_rgba(245,158,11,0.3)]'
+                    : 'bg-black/40 border-white/10 text-gray-400 hover:border-amber-500/30'
                 }`}
               >
-                <div className="text-[9px] font-bold">Wan 2.1 (SOTA)</div>
-                <div className="text-[7px] text-amber-400/80 font-mono">Best Quality &amp; Lowest Cost</div>
+                <div className="text-[9px] font-black text-amber-300">✨ ByteDance Seedance</div>
+                <div className="text-[7px] text-gray-400 font-mono">3D Reference &amp; Zero Morphing</div>
               </button>
 
               <button
                 type="button"
                 onClick={() => setVideoEngine('kling_1_6')}
-                className={`p-2 rounded-lg border text-left transition-all cursor-pointer ${
+                className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer flex flex-col gap-0.5 ${
                   videoEngine === 'kling_1_6'
-                    ? 'bg-amber-500/25 border-amber-400 text-amber-200'
-                    : 'bg-black/40 border-white/10 text-gray-400'
+                    ? 'bg-gradient-to-br from-amber-500/25 to-orange-500/20 border-amber-400 text-amber-200 shadow-[0_0_15px_rgba(245,158,11,0.3)]'
+                    : 'bg-black/40 border-white/10 text-gray-400 hover:border-amber-500/30'
                 }`}
               >
-                <div className="text-[9px] font-bold">Kling 1.6</div>
-                <div className="text-[7px] text-gray-400 font-mono">Smooth Cinema Jib</div>
+                <div className="text-[9px] font-black text-white">🎥 Kling 1.6 Pro</div>
+                <div className="text-[7px] text-gray-400 font-mono">Smooth Cinema Jib &amp; Drone</div>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setVideoEngine('minimax')}
+                className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer flex flex-col gap-0.5 ${
+                  videoEngine === 'minimax'
+                    ? 'bg-gradient-to-br from-amber-500/25 to-orange-500/20 border-amber-400 text-amber-200 shadow-[0_0_15px_rgba(245,158,11,0.3)]'
+                    : 'bg-black/40 border-white/10 text-gray-400 hover:border-amber-500/30'
+                }`}
+              >
+                <div className="text-[9px] font-black text-white">🌟 Minimax Hailuo</div>
+                <div className="text-[7px] text-gray-400 font-mono">Photoreal Light &amp; Depth</div>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setVideoEngine('wan_2_1')}
+                className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer flex flex-col gap-0.5 ${
+                  videoEngine === 'wan_2_1'
+                    ? 'bg-gradient-to-br from-amber-500/25 to-orange-500/20 border-amber-400 text-amber-200 shadow-[0_0_15px_rgba(245,158,11,0.3)]'
+                    : 'bg-black/40 border-white/10 text-gray-400 hover:border-amber-500/30'
+                }`}
+              >
+                <div className="text-[9px] font-black text-gray-300">⚡ Wan 2.1</div>
+                <div className="text-[7px] text-amber-400/70 font-mono">Ultra-Budget (~₹40)</div>
               </button>
             </div>
           </div>
