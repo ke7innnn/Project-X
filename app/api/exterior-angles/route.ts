@@ -72,11 +72,12 @@ function buildAnglePrompt(angle: AngleConfig, timeOfDay: 'day' | 'night', extraD
 * Glowing architectural halo beacon on the tower crown.
 * CRAZY SUNSET DUSK SKY: Dramatic stormy sunset clouds with underlit fiery orange, burning amber, and radiant crimson rays against deep indigo/violet sky with golden sunbeams.
 * FOREGROUND: Wet rain-slicked dark asphalt street with glistening mirror reflections and light caustics mirroring the tower's warm golden lights and the fiery sky, with illuminated Royal Palm trees.`
-    : `### DAYLIGHTING & ATMOSPHERE (MAINTAIN 100% CONSISTENCY):
-* Brilliant 5500K golden midday sun with razor-sharp architectural drop shadows.
-* Electric cerulean blue sky with wispy clouds and radiant sunbeams.
-* Crystal-clear sky reflections across floor-to-ceiling glass facades.
-* Clean paved granite plaza with sunlit Royal Palm trees and luxury entrance drop-off.`;
+    : `### CRAZY SEXY DAYLIGHTING & ATMOSPHERE (MAINTAIN 100% CONSISTENCY):
+* Crisp 5200K golden-white morning / late-afternoon sunlight hitting the building at an angled 35-degree perspective, casting long diagonal architectural drop shadows from curved balconies across the facade.
+* Deep electric cerulean-azure blue sky with luminous cirrus clouds and specular sun glints.
+* Ultra-clear double-glazed low-iron glass reflecting sky and clouds while revealing warm interior downlights and penthouse layouts.
+* Curved champagne-gold aluminum trims and vertical fins gleaming in the sun.
+* Cascading emerald green sky gardens overflowing from balcony planters, sunlit Royal Palms, and wet-look polished granite plaza reflecting the architecture.`;
 
   return `Award-winning, hyper-photorealistic 8K architectural CGI photograph of the exact same building shown in the reference image, captured from a new professional architectural viewpoint.
 

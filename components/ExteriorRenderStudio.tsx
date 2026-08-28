@@ -600,8 +600,8 @@ export default function ExteriorRenderStudio() {
                   <Sun size={15} className={timeOfDay === 'day' ? 'text-amber-400' : 'text-gray-400'} />
                   <span className="text-[11px] font-bold uppercase">☀️ Day</span>
                 </div>
-                <span className="text-[8px] text-gray-400 leading-tight">
-                  Sunny blue sky, sharp shadows, luxury glass
+                <span className="text-[8px] text-amber-400/70 leading-tight font-bold">
+                  ☀️ Golden angled sun, champagne gold glints, mirror sky reflections &amp; sky gardens
                 </span>
               </button>
 

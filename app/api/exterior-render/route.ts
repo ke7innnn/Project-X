@@ -75,35 +75,41 @@ function buildExteriorPrompt(opts: {
 ${extraDirectives ? `### ARCHITECT CUSTOM DIRECTIVES:\n${extraDirectives}` : ''}`;
   }
 
-  // Day mode prompt
-  return `Award-winning, hyper-photorealistic 8K architectural daytime exterior CGI photograph of an ultra-luxury modern high-rise tower, transformed from the 3D massing model in the input image.
+  // Day mode prompt — Ultra-Luxury Magazine-Cover Daytime CGI
+  return `Award-winning, magazine-cover hyper-photorealistic 8K architectural daytime exterior CGI photograph of an ultra-luxury modern high-rise tower, transformed from the 3D massing model in the input image.
 
 ### CRITICAL MANDATE — PRESERVE COMPOSITION & ELEVATE TO CGI REALISM:
 * Preserve the EXACT camera angle, framing, perspective, floor count, and building massing from the input reference model screenshot.
 * DO NOT copy flat grey, untextured, wireframe, or raw 3D polygon surfaces from the input model.
 * Transform every surface into ultra-luxurious, tangible physical materials with physics-accurate real-world daylighting.
-* Output MUST look like a real multi-million dollar architectural photograph taken on a medium format camera — completely indistinguishable from real life.
+* Output MUST look like a real multi-million dollar architectural photograph taken on a high-end medium format camera — completely indistinguishable from real life.
 
-### BRILLIANT DAYLIGHTING & ATMOSPHERE:
-* Brilliant 5500K natural golden midday sun with razor-sharp, physics-accurate architectural drop shadows cast across balconies and facade recesses.
-* Electric cerulean blue sky with soft wispy clouds and radiant sunbeams.
-* Crystal-clear sky reflections and cloud reflections across floor-to-ceiling double-glazed glass facades.
-* Bright, airy interior transparency revealing luxury penthouse interior layouts.
+### CRAZY SEXY DAYLIGHTING & ATMOSPHERE:
+* Crisp, golden-white 5200K morning / late-afternoon sunlight striking the building at a dramatic 35-degree angle, casting long, razor-sharp architectural drop shadows from every cantilevered curved balcony, column, and sculptural louver across the facade.
+* Deep saturated electric cerulean-azure blue sky with high-altitude luminous feathered cirrus clouds catching brilliant specular sun glints.
+* Subtle volumetric atmospheric sunlight shafts and gentle lens flare kissing the tower crown.
+* Deep ambient occlusion in every structural joint, shadow reveal, and balcony underside, creating immense 3D sculptural depth.
 
-### SEXY CRAZY MATERIALS & PHOTOREALISM TEXTURES:
-* Curved champagne-gold anodized aluminum trims, brushed brass balcony handrails, and warm bronze metal louvers gleaming in the sun.
-* Ultra-clear floor-to-ceiling double-glazed curtain wall glass with mirror sky reflections.
-* Fluted travertine and textured limestone podium base with undulating sculptural parametric wave louvers.
-* Lush rooftop sky garden and cascading greenery on balcony terraces with sunlit tropical foliage.
+### SEXY CRAZY MATERIALS & MICRO-TEXTURES:
+* Curved champagne-gold anodized aluminum trims, vertical aerofoil blade fins, and brushed brass window profiles gleaming with warm metallic specular reflections in the direct sunlight.
+* Ultra-clear floor-to-ceiling double-glazed low-iron curtain wall glass with ray-traced mirror reflections of the deep blue sky and wispy clouds, while simultaneously revealing warm illuminated interior ceilings with minimalist luxury chandeliers, recessed downlights, and penthouse furniture layouts within.
+* Fluted Roman travertine and honed Calacatta marble podium base with fine vertical shadow relief and undulating sculptural parametric wave louvers in champagne bronze.
+* Seamless structural laminated glass balustrades with polished stainless-steel top caps catching sharp sunlight glints.
 
-### SURROUNDINGS & LANDSCAPING:
-* Sun-drenched polished granite plaza paving and clean boulevard with majestic Royal Palm trees casting sharp diagonal shadows.
-* Manicured tropical garden landscaping, fountains, luxury drop-off entrance with sports cars and pedestrians providing scale.
+### LUSH SKY GARDENS & WATER CAUSTICS:
+* Cascading emerald green tropical vegetation (hanging ivy, bougainvillea, philodendrons) overflowing luxuriously from cantilevered balcony planters and podium terraces.
+* Sun-drenched specimen Date Palms and Royal Palms with individual translucent green fronds backlit by the sun.
+* Podium infinity edge water features and glass-bottom cantilevered sky pools with crystalline turquoise water casting dancing sun caustics onto stone soffits and columns.
+
+### GROUND PLAZA & URBAN LUXURY CONTEXT:
+* Sun-drenched polished dark granite and travertine plaza with wet-look mirror sun reflections, fountains with mist spray catching subtle rainbow sun flares.
+* Luxury supercars (Ferrari, Porsche, Bentley) parked at the valet drop-off entrance.
+* Elegantly dressed pedestrians in modern designer clothing casting crisp diagonal shadows for human scale.
 
 ### RENDER FINISH & TECHNICAL EXCELLENCE:
-* 8K Octane Render, V-Ray, Unreal Engine 5 architectural visualization quality.
-* Ray-traced reflections on all glass and polished stone surfaces.
-* Razor-sharp architectural drop shadows, micro-textures on every facade material, ambient occlusion in every joint.
+* 8K Octane Render, V-Ray 6, Unreal Engine 5 architectural visualization quality.
+* Ray-traced reflections on all glass, polished stone, metal trims, and water surfaces.
+* Razor-sharp architectural drop shadows, micro-textures on every stone and metal material, rich ambient occlusion.
 * Zero wireframe, zero flat grey surfaces, zero cartoon look.
 
 ${extraDirectives ? `### ARCHITECT CUSTOM DIRECTIVES:\n${extraDirectives}` : ''}`;
