@@ -3,11 +3,12 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useArchitectStore } from '@/store/useArchitectStore';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, Box, Download, Settings2, Sparkles, Loader2, UploadCloud, Folder, Search, Plus, MapPin, Clock, Trash2, Map, Compass, Building } from 'lucide-react';
+import { ArrowLeft, Box, Download, Settings2, Sparkles, Loader2, UploadCloud, Folder, Search, Plus, MapPin, Clock, Trash2, Map, Compass, Building, Building2 } from 'lucide-react';
 import CinematicIntro from '@/components/CinematicIntro';
 import { RenderHistoryItem } from '@/types';
 import SaveToProjectModal from '@/components/SaveToProjectModal';
 import SitePlanStudio from '@/components/SitePlanStudio';
+import ExteriorRenderStudio from '@/components/ExteriorRenderStudio';
 import { supabase } from '@/lib/supabase';
 import { v4 as uuidv4 } from 'uuid';
 import { useActiveProjectGuard } from '@/lib/useActiveProjectGuard';
@@ -22,7 +23,7 @@ export default function Render3DPage() {
   const { replaceState, sessionId } = useArchitectStore();
 
   // Active Studio Mode: Floor Plan 3D Render vs Site Plan / Masterplan 3D Studio
-  const [activeStudioTab, setActiveStudioTab] = useState<'floorplan' | 'siteplan'>('floorplan');
+  const [activeStudioTab, setActiveStudioTab] = useState<'floorplan' | 'siteplan' | 'exterior'>('floorplan');
 
   const [isRendering, setIsRendering] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -256,6 +257,18 @@ export default function Render3DPage() {
               <Compass size={13} /> 3D Site Plan Studio
               <span className="px-1 py-0.2 bg-emerald-950/80 text-emerald-300 rounded text-[8px] border border-emerald-500/40 font-mono">NEW</span>
             </button>
+
+            <button
+              onClick={() => setActiveStudioTab('exterior')}
+              className={`px-3.5 py-1.5 rounded-lg text-[11px] font-bold uppercase tracking-wider flex items-center gap-1.5 transition-all cursor-pointer ${
+                activeStudioTab === 'exterior'
+                  ? 'bg-gradient-to-r from-orange-500 to-rose-500 text-white shadow-[0_0_18px_rgba(234,88,12,0.5)] font-black'
+                  : 'text-orange-400/70 hover:text-orange-300'
+              }`}
+            >
+              <Building2 size={13} /> Exterior Render
+              <span className="px-1 py-0.2 bg-orange-950/80 text-orange-300 rounded text-[8px] border border-orange-500/40 font-mono">NEW</span>
+            </button>
           </div>
         </div>
         
@@ -299,6 +312,8 @@ export default function Render3DPage() {
       {/* Main Content Area */}
       {activeStudioTab === 'siteplan' ? (
         <SitePlanStudio />
+      ) : activeStudioTab === 'exterior' ? (
+        <ExteriorRenderStudio />
       ) : (
         <main className="relative z-10 flex flex-1 overflow-hidden">
         
