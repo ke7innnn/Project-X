@@ -8,8 +8,8 @@ export default function FlythroughPage() {
   useActiveProjectGuard();
 
   return (
-    <div className="flex flex-col min-h-screen bg-[#08070b]">
+    <main className="w-full h-screen max-h-screen flex flex-col overflow-hidden bg-[#08070b]">
       <FlythroughStudio />
-    </div>
+    </main>
   );
 }

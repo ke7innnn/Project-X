@@ -48,16 +48,30 @@ export async function POST(req: Request) {
     let seed = null;
 
     if (engine === 'kling_1_6') {
-      const result: any = await fal.subscribe('fal-ai/kling-video/v1.6/standard/image-to-video', {
-        input: {
-          prompt: enhancedPrompt,
-          image_url: primaryImageUrl,
-          duration: (Number(duration) === 5 ? '5' : '10') as any,
-          aspect_ratio: aspectRatio || '16:9',
-        } as any,
-      });
-      videoUrl = result.data?.video?.url || result?.video?.url;
-      seed = result.data?.seed || result?.seed;
+      try {
+        const result: any = await fal.subscribe('fal-ai/kling-video/v1.6/standard/image-to-video', {
+          input: {
+            prompt: enhancedPrompt,
+            image_url: primaryImageUrl,
+            duration: (Number(duration) === 5 ? '5' : '10') as any,
+            aspect_ratio: aspectRatio || '16:9',
+          } as any,
+        });
+        videoUrl = result.data?.video?.url || result?.video?.url || result?.data?.output?.url;
+        seed = result.data?.seed || result?.seed;
+      } catch (klingErr: any) {
+        console.warn('[GenerateShot] Kling 1.6 failed, falling back to Wan-i2v...', klingErr?.message);
+        const result: any = await fal.subscribe('fal-ai/wan-i2v', {
+          input: {
+            prompt: enhancedPrompt,
+            image_url: primaryImageUrl,
+            aspect_ratio: '16:9',
+            resolution: '720p',
+          } as any,
+        });
+        videoUrl = result.data?.video?.url || result?.video?.url;
+        seed = result.data?.seed || result?.seed;
+      }
     } else if (engine === 'seedance') {
       const allUrls = Array.isArray(imageUrls) && imageUrls.length > 0 ? imageUrls : [primaryImageUrl];
       const result: any = await fal.subscribe('bytedance/seedance-2.0/fast/reference-to-video', {
@@ -72,16 +86,44 @@ export async function POST(req: Request) {
       videoUrl = result.data?.video?.url || result?.video?.url;
       seed = result.data?.seed || result?.seed;
     } else {
-      // Default: Wan 2.1 14B (SOTA & Ultra-Budget)
-      const result: any = await fal.subscribe('fal-ai/wan/v2.1/image-to-video', {
-        input: {
-          prompt: enhancedPrompt,
-          image_url: primaryImageUrl,
-          aspect_ratio: aspectRatio || '16:9',
-        } as any,
-      });
-      videoUrl = result.data?.video?.url || result?.video?.url;
-      seed = result.data?.seed || result?.seed;
+      // Primary: Wan 2.1 (fal-ai/wan-i2v) with automatic Kling fallback
+      try {
+        console.log('[GenerateShot] Calling fal-ai/wan-i2v...');
+        const result: any = await fal.subscribe('fal-ai/wan-i2v', {
+          input: {
+            prompt: enhancedPrompt,
+            image_url: primaryImageUrl,
+            aspect_ratio: '16:9',
+            resolution: '720p',
+          } as any,
+        });
+        videoUrl = result.data?.video?.url || result?.video?.url || result?.data?.output?.url;
+        seed = result.data?.seed || result?.seed;
+      } catch (wanErr: any) {
+        console.warn('[GenerateShot] fal-ai/wan-i2v failed, trying Kling 1.6 fallback...', wanErr?.message);
+        try {
+          const result: any = await fal.subscribe('fal-ai/kling-video/v1.6/standard/image-to-video', {
+            input: {
+              prompt: enhancedPrompt,
+              image_url: primaryImageUrl,
+              duration: '10' as any,
+              aspect_ratio: '16:9',
+            } as any,
+          });
+          videoUrl = result.data?.video?.url || result?.video?.url;
+          seed = result.data?.seed || result?.seed;
+        } catch (klingFallbackErr: any) {
+          console.warn('[GenerateShot] Kling fallback failed, trying Minimax...', klingFallbackErr?.message);
+          const result: any = await fal.subscribe('fal-ai/minimax-video/image-to-video', {
+            input: {
+              prompt: enhancedPrompt,
+              image_url: primaryImageUrl,
+            } as any,
+          });
+          videoUrl = result.data?.video?.url || result?.video?.url;
+          seed = result.data?.seed || result?.seed;
+        }
+      }
     }
 
     if (!videoUrl) {

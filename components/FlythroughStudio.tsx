@@ -358,13 +358,13 @@ export default function FlythroughStudio() {
   const activeShot = activeReel ? activeReel.shots[currentPlayingShotIdx] : null;
 
   return (
-    <div className="flex-1 flex flex-col xl:flex-row bg-[#08070b] text-white min-h-[calc(100vh-4rem)]">
+    <div className="w-full flex-1 h-full max-h-full flex flex-col xl:flex-row overflow-hidden bg-[#08070b] text-white">
 
-      {/* ── LEFT MAIN WORKSPACE ──────────────────────────────────────────────── */}
-      <div className="flex-1 flex flex-col p-4 lg:p-6 gap-6 overflow-y-auto max-w-7xl mx-auto w-full custom-scrollbar">
+      {/* ── LEFT MAIN WORKSPACE (SCROLLABLE) ─────────────────────────────────── */}
+      <div className="flex-1 h-full overflow-y-auto custom-scrollbar flex flex-col p-4 lg:p-6 gap-6 max-w-7xl mx-auto w-full">
 
         {/* Header Title */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-orange-950/60 pb-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-orange-950/60 pb-4 shrink-0">
           <div>
             <h1 className="text-lg lg:text-xl font-black uppercase tracking-[3px] text-white flex items-center gap-2.5">
               <span className="p-2 rounded-xl bg-gradient-to-br from-amber-500 to-orange-600 text-black shadow-[0_0_20px_rgba(245,158,11,0.4)]">
@@ -757,7 +757,7 @@ export default function FlythroughStudio() {
       </div>
 
       {/* ── RIGHT / DIRECTOR CONTROLS SIDEBAR ────────────────────────────────── */}
-      <div className="w-full xl:w-96 border-t xl:border-t-0 xl:border-l border-orange-950/60 bg-[#060509]/95 backdrop-blur flex flex-col shrink-0">
+      <div className="w-full xl:w-96 h-full max-h-full border-t xl:border-t-0 xl:border-l border-orange-950/60 bg-[#060509]/95 backdrop-blur flex flex-col shrink-0 overflow-hidden">
 
         {/* Sidebar Header */}
         <div className="p-5 border-b border-orange-950/60 flex items-center justify-between shrink-0">
