@@ -3,7 +3,7 @@
 import React, { useState, useRef } from 'react';
 import {
   UploadCloud, Sparkles, Download, RefreshCw, Loader2, Building2,
-  Sun, Moon, Camera, Settings2, Eye, Trash2, Send
+  Sun, Moon, Camera, Settings2, Eye, Trash2, Send, Layers, CheckCircle2
 } from 'lucide-react';
 
 interface ExteriorRenderHistoryItem {
@@ -13,6 +13,14 @@ interface ExteriorRenderHistoryItem {
   timeOfDay: 'day' | 'night';
   cameraAngle: string;
   timestamp: number;
+}
+
+interface MultiAngleResult {
+  id: string;
+  label: string;
+  shortDesc: string;
+  render: string;
+  seed?: number | null;
 }
 
 const CAMERA_ANGLES = [
@@ -43,6 +51,11 @@ export default function ExteriorRenderStudio() {
   const [history, setHistory] = useState<ExteriorRenderHistoryItem[]>([]);
   const [viewingId, setViewingId] = useState<string | null>(null);
 
+  // Multi-Angle Parallel State
+  const [isGeneratingAngles, setIsGeneratingAngles] = useState(false);
+  const [multiAngles, setMultiAngles] = useState<MultiAngleResult[]>([]);
+  const [angleError, setAngleError] = useState<string | null>(null);
+
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -53,7 +66,9 @@ export default function ExteriorRenderStudio() {
       if (b64) {
         setModelBase64(b64);
         setRenderResult(null);
+        setMultiAngles([]);
         setErrorMsg(null);
+        setAngleError(null);
       }
     };
     reader.readAsDataURL(file);
@@ -65,6 +80,8 @@ export default function ExteriorRenderStudio() {
     setIsRendering(true);
     setErrorMsg(null);
     setRenderResult(null);
+    setMultiAngles([]);
+    setAngleError(null);
 
     try {
       const res = await fetch('/api/exterior-render', {
@@ -101,11 +118,49 @@ export default function ExteriorRenderStudio() {
     }
   };
 
+  const handleGenerate3Angles = async () => {
+    const activeRender = viewingItem?.renderBase64 || renderResult;
+    if (!activeRender || isGeneratingAngles) return;
+    setIsGeneratingAngles(true);
+    setAngleError(null);
+
+    try {
+      const res = await fetch('/api/exterior-angles', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          renderedBase64: activeRender,
+          timeOfDay,
+          extraDirectives,
+          quality,
+        }),
+      });
+      const data = await res.json();
+      if (data.success && data.angles) {
+        setMultiAngles(data.angles);
+      } else {
+        setAngleError(data.error || 'Failed to generate 3 professional angles.');
+      }
+    } catch (err) {
+      setAngleError('Network error generating multi-angle views.');
+    } finally {
+      setIsGeneratingAngles(false);
+    }
+  };
+
   const downloadRender = (base64: string, label?: string) => {
     const a = document.createElement('a');
     a.href = base64.startsWith('data:') ? base64 : `data:image/jpeg;base64,${base64}`;
     a.download = `exterior-${label || timeOfDay}-${Date.now()}.png`;
     a.click();
+  };
+
+  const downloadAllAngles = () => {
+    multiAngles.forEach((a, i) => {
+      setTimeout(() => {
+        downloadRender(a.render, `${a.id}-${timeOfDay}`);
+      }, i * 400);
+    });
   };
 
   const viewingItem = viewingId ? history.find((h) => h.id === viewingId) : null;
@@ -114,7 +169,7 @@ export default function ExteriorRenderStudio() {
   return (
     <div className="flex flex-1 overflow-hidden bg-[#020510] text-white font-sans">
       {/* ── Left: Viewport & Outputs ──────────────────────────────────────── */}
-      <div className="flex-1 flex flex-col overflow-y-auto custom-scrollbar p-6 gap-5">
+      <div className="flex-1 flex flex-col overflow-y-auto custom-scrollbar p-6 gap-6">
 
         {/* Section Header */}
         <div className="flex items-center justify-between pb-4 border-b border-orange-950/60">
@@ -125,7 +180,7 @@ export default function ExteriorRenderStudio() {
             <div>
               <h2 className="text-sm font-bold uppercase tracking-[3px] text-white">Exterior 3D Render Studio</h2>
               <p className="text-[9px] text-amber-400/60 font-mono uppercase tracking-wider">
-                SketchUp Model → Day / Night Architectural CGI Visualization
+                SketchUp Model → Day/Night CGI → Multi-Angle Synthesis
               </p>
             </div>
           </div>
@@ -140,9 +195,9 @@ export default function ExteriorRenderStudio() {
         </div>
 
         {modelBase64 ? (
-          <div className="flex flex-col gap-5">
+          <div className="flex flex-col gap-6">
 
-            {/* Split View: Model Input + Render Output */}
+            {/* Split View: Model Input + Primary Render Output */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
               {/* Input Model Panel */}
               <div className="flex flex-col gap-2">
@@ -167,7 +222,7 @@ export default function ExteriorRenderStudio() {
               <div className="flex flex-col gap-2">
                 <div className="flex items-center justify-between">
                   <span className="text-[10px] font-bold uppercase tracking-widest text-emerald-400 font-mono flex items-center gap-1.5">
-                    ✨ 2. Ultra-Luxury 3D Render Output
+                    ✨ 2. Primary 3D Render Output
                   </span>
                   {displayRender && (
                     <button
@@ -230,6 +285,208 @@ export default function ExteriorRenderStudio() {
               </div>
             )}
 
+            {/* ── STEP 2: GENERATE 3 PROFESSIONAL ANGLES CARD ───────────────────── */}
+            {displayRender && !isRendering && (
+              <div className="rounded-2xl border-2 border-amber-500/40 bg-gradient-to-br from-[#0c0903] via-[#050409] to-[#020512] p-5 shadow-[0_0_35px_rgba(245,158,11,0.2)] flex flex-col gap-4">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center shadow-[0_0_20px_rgba(245,158,11,0.5)] shrink-0">
+                      <Camera size={20} className="text-black" />
+                    </div>
+                    <div>
+                      <h3 className="text-xs font-black uppercase tracking-[2.5px] text-amber-300 flex items-center gap-2">
+                        ✨ Synthesize 3 Professional Architectural Angles
+                      </h3>
+                      <p className="text-[9px] text-gray-400 font-mono mt-0.5">
+                        Locks 100% of this design, materials & lighting, then renders <span className="text-amber-300 font-bold">Hero 45°</span>, <span className="text-amber-300 font-bold">Street Level</span>, and <span className="text-amber-300 font-bold">Worm&apos;s Eye</span> in parallel!
+                      </p>
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={handleGenerate3Angles}
+                    disabled={isGeneratingAngles}
+                    className={`px-6 py-3 rounded-xl font-black text-xs uppercase tracking-widest flex items-center justify-center gap-2 transition-all shrink-0 cursor-pointer ${
+                      isGeneratingAngles
+                        ? 'bg-gray-800 text-gray-400 cursor-not-allowed border border-gray-700'
+                        : 'bg-gradient-to-r from-amber-400 via-orange-500 to-amber-500 hover:from-amber-300 hover:to-orange-400 text-black shadow-[0_0_25px_rgba(245,158,11,0.5)] hover:scale-[1.02]'
+                    }`}
+                  >
+                    {isGeneratingAngles ? (
+                      <>
+                        <Loader2 size={14} className="animate-spin" />
+                        Generating 3 Angles in Parallel...
+                      </>
+                    ) : (
+                      <>
+                        <Sparkles size={14} />
+                        Generate 3 Angles
+                      </>
+                    )}
+                  </button>
+                </div>
+
+                {/* Angle Error Message */}
+                {angleError && (
+                  <div className="p-3 rounded-xl bg-red-950/30 border border-red-500/40 text-[10px] text-red-300 font-mono">
+                    ⚠️ {angleError}
+                  </div>
+                )}
+
+                {/* 3 Angles Parallel Loading / Gallery Grid */}
+                {(isGeneratingAngles || multiAngles.length > 0) && (
+                  <div className="flex flex-col gap-3 pt-3 border-t border-amber-500/20">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] font-bold uppercase tracking-widest text-amber-400 font-mono flex items-center gap-1.5">
+                        <Layers size={13} /> 3 Architectural Viewpoints Portfolio
+                      </span>
+                      {multiAngles.length > 0 && !isGeneratingAngles && (
+                        <button
+                          type="button"
+                          onClick={downloadAllAngles}
+                          className="text-[9px] text-amber-400 hover:text-amber-200 uppercase font-bold cursor-pointer flex items-center gap-1 bg-amber-950/40 border border-amber-500/40 px-3 py-1 rounded-lg"
+                        >
+                          <Download size={11} /> Download All 3 Angles
+                        </button>
+                      )}
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5">
+                      {/* Hero Angle Card */}
+                      {(() => {
+                        const heroResult = multiAngles.find((a) => a.id === 'hero_angle');
+                        return (
+                          <div className="rounded-xl border border-amber-500/30 bg-black/60 overflow-hidden flex flex-col shadow-lg">
+                            <div className="p-2.5 bg-black/80 flex items-center justify-between border-b border-white/5 font-mono">
+                              <span className="text-[9px] font-bold text-amber-300 uppercase flex items-center gap-1.5">
+                                📸 Hero View (45°)
+                              </span>
+                              {heroResult && (
+                                <button
+                                  onClick={() => downloadRender(heroResult.render, 'hero-45')}
+                                  className="text-gray-400 hover:text-white"
+                                  title="Download"
+                                >
+                                  <Download size={11} />
+                                </button>
+                              )}
+                            </div>
+
+                            <div className="aspect-[4/3] relative flex items-center justify-center p-1 bg-black/90">
+                              {isGeneratingAngles && !heroResult ? (
+                                <div className="flex flex-col items-center gap-2 p-4 text-center animate-pulse">
+                                  <Loader2 size={22} className="animate-spin text-amber-400" />
+                                  <span className="text-[9px] text-amber-300 font-mono">Rendering Hero 45°...</span>
+                                </div>
+                              ) : heroResult ? (
+                                <img
+                                  src={heroResult.render.startsWith('data:') ? heroResult.render : `data:image/jpeg;base64,${heroResult.render}`}
+                                  alt="Hero View"
+                                  className="w-full h-full object-cover rounded-lg"
+                                />
+                              ) : (
+                                <span className="text-[9px] text-gray-500 font-mono">Ready to render</span>
+                              )}
+                            </div>
+                            <div className="p-2 bg-black/90 text-[8px] text-gray-400 font-mono truncate border-t border-white/5">
+                              Dramatic elevated 3/4 perspective
+                            </div>
+                          </div>
+                        );
+                      })()}
+
+                      {/* Street Level Card */}
+                      {(() => {
+                        const streetResult = multiAngles.find((a) => a.id === 'street_level');
+                        return (
+                          <div className="rounded-xl border border-amber-500/30 bg-black/60 overflow-hidden flex flex-col shadow-lg">
+                            <div className="p-2.5 bg-black/80 flex items-center justify-between border-b border-white/5 font-mono">
+                              <span className="text-[9px] font-bold text-amber-300 uppercase flex items-center gap-1.5">
+                                🚶 Street Level
+                              </span>
+                              {streetResult && (
+                                <button
+                                  onClick={() => downloadRender(streetResult.render, 'street-level')}
+                                  className="text-gray-400 hover:text-white"
+                                  title="Download"
+                                >
+                                  <Download size={11} />
+                                </button>
+                              )}
+                            </div>
+
+                            <div className="aspect-[4/3] relative flex items-center justify-center p-1 bg-black/90">
+                              {isGeneratingAngles && !streetResult ? (
+                                <div className="flex flex-col items-center gap-2 p-4 text-center animate-pulse">
+                                  <Loader2 size={22} className="animate-spin text-amber-400" />
+                                  <span className="text-[9px] text-amber-300 font-mono">Rendering Street Level...</span>
+                                </div>
+                              ) : streetResult ? (
+                                <img
+                                  src={streetResult.render.startsWith('data:') ? streetResult.render : `data:image/jpeg;base64,${streetResult.render}`}
+                                  alt="Street Level"
+                                  className="w-full h-full object-cover rounded-lg"
+                                />
+                              ) : (
+                                <span className="text-[9px] text-gray-500 font-mono">Ready to render</span>
+                              )}
+                            </div>
+                            <div className="p-2 bg-black/90 text-[8px] text-gray-400 font-mono truncate border-t border-white/5">
+                              Pedestrian human eye-level looking up
+                            </div>
+                          </div>
+                        );
+                      })()}
+
+                      {/* Worm's Eye Card */}
+                      {(() => {
+                        const wormResult = multiAngles.find((a) => a.id === 'worm_eye');
+                        return (
+                          <div className="rounded-xl border border-amber-500/30 bg-black/60 overflow-hidden flex flex-col shadow-lg">
+                            <div className="p-2.5 bg-black/80 flex items-center justify-between border-b border-white/5 font-mono">
+                              <span className="text-[9px] font-bold text-amber-300 uppercase flex items-center gap-1.5">
+                                👁️ Worm&apos;s Eye
+                              </span>
+                              {wormResult && (
+                                <button
+                                  onClick={() => downloadRender(wormResult.render, 'worm-eye')}
+                                  className="text-gray-400 hover:text-white"
+                                  title="Download"
+                                >
+                                  <Download size={11} />
+                                </button>
+                              )}
+                            </div>
+
+                            <div className="aspect-[4/3] relative flex items-center justify-center p-1 bg-black/90">
+                              {isGeneratingAngles && !wormResult ? (
+                                <div className="flex flex-col items-center gap-2 p-4 text-center animate-pulse">
+                                  <Loader2 size={22} className="animate-spin text-amber-400" />
+                                  <span className="text-[9px] text-amber-300 font-mono">Rendering Worm&apos;s Eye...</span>
+                                </div>
+                              ) : wormResult ? (
+                                <img
+                                  src={wormResult.render.startsWith('data:') ? wormResult.render : `data:image/jpeg;base64,${wormResult.render}`}
+                                  alt="Worm's Eye"
+                                  className="w-full h-full object-cover rounded-lg"
+                                />
+                              ) : (
+                                <span className="text-[9px] text-gray-500 font-mono">Ready to render</span>
+                              )}
+                            </div>
+                            <div className="p-2 bg-black/90 text-[8px] text-gray-400 font-mono truncate border-t border-white/5">
+                              Extreme upward shot from base to zenith
+                            </div>
+                          </div>
+                        );
+                      })()}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* Render Iterations History */}
             {history.length > 0 && (
               <div className="flex flex-col gap-3 pt-4 border-t border-orange-950/60">
@@ -243,7 +500,10 @@ export default function ExteriorRenderStudio() {
                     return (
                       <div
                         key={h.id}
-                        onClick={() => setViewingId(h.id)}
+                        onClick={() => {
+                          setViewingId(h.id);
+                          setMultiAngles([]);
+                        }}
                         className={`group/card relative rounded-xl overflow-hidden border cursor-pointer transition-all ${
                           viewingId === h.id
                             ? 'border-amber-400 shadow-[0_0_20px_rgba(245,158,11,0.4)]'
@@ -297,8 +557,8 @@ export default function ExteriorRenderStudio() {
               Upload 3D Model / SketchUp Angle
             </h2>
             <p className="text-xs text-amber-400/60 uppercase tracking-wider leading-relaxed mb-8 font-mono">
-              Upload your SketchUp, Rhino, Revit, or 3D model viewport screenshot.
-              Choose <strong>Day</strong> or <strong>Night</strong> to generate an ultra-luxurious, crazy realistic architectural CGI render!
+              Upload your SketchUp viewport screenshot.
+              Choose <strong>Day</strong> or <strong>Night</strong> to generate the primary render, then click <strong>Generate 3 Angles</strong> to automatically synthesize Hero View, Street Level, and Worm&apos;s Eye view in parallel!
             </p>
             <button
               onClick={() => fileInputRef.current?.click()}
