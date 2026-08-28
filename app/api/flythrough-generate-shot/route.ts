@@ -18,10 +18,12 @@ export async function POST(req: Request) {
     const {
       imageBase64,
       imageUrls,
+      allReferenceImages = [],
       prompt,
-      engine = 'wan_2_1', // 'wan_2_1' | 'kling_1_6' | 'seedance'
+      engine = 'seedance', // 'seedance' | 'kling_1_6' | 'minimax' | 'wan_2_1'
       duration = 10,
       aspectRatio = '16:9',
+      isExtension = false,
     } = await req.json();
 
     const falKey = process.env.FAL_KEY;
@@ -31,61 +33,116 @@ export async function POST(req: Request) {
     fal.config({ credentials: falKey });
 
     let primaryImageUrl = '';
+    const uploadedReferenceUrls: string[] = [];
 
+    // Upload primary image (the starting viewpoint for this specific shot)
     if (imageBase64) {
       primaryImageUrl = await uploadBase64ToFalStorage(imageBase64, `shot_frame_${Date.now()}.png`);
+      uploadedReferenceUrls.push(primaryImageUrl);
     } else if (Array.isArray(imageUrls) && imageUrls.length > 0) {
       primaryImageUrl = imageUrls[0];
-    } else {
+      uploadedReferenceUrls.push(...imageUrls);
+    }
+
+    // Upload any additional reference images in parallel so Seedance has full building 3D awareness
+    if (Array.isArray(allReferenceImages) && allReferenceImages.length > 0) {
+      const extraUrls = await Promise.all(
+        allReferenceImages
+          .filter((img) => img && img !== imageBase64)
+          .map((img, i) => uploadBase64ToFalStorage(img, `ref_angle_${i + 1}.png`))
+      );
+      uploadedReferenceUrls.push(...extraUrls);
+    }
+
+    if (!primaryImageUrl && uploadedReferenceUrls.length === 0) {
       return NextResponse.json({ error: 'Image input (imageBase64 or imageUrls) is required.' }, { status: 400 });
     }
 
-    const enhancedPrompt = `Cinematic commercial architectural flythrough film of finished luxury building, ${prompt || 'smooth fluid drone camera glide, slow cinema motion'}, preserving exact photorealistic materials, realistic low-iron glass reflections and natural sunlight, 8k octane architectural visualization finish, 24fps fluid motion, zero morphing, zero wireframe.`;
+    const enhancedPrompt = isExtension
+      ? `Seamless continuous camera extension of previous architectural shot, ${prompt || 'smooth uninterrupted forward drone glide'}, 100% consistent building materials and sunlight, 24fps fluid cinema.`
+      : `Cinematic commercial architectural flythrough film of finished luxury building, ${prompt || 'smooth fluid drone camera glide, slow cinema motion'}, preserving exact photorealistic materials, realistic low-iron glass reflections and natural sunlight, 8k octane architectural visualization finish, 24fps fluid motion, zero morphing, zero wireframe.`;
 
-    console.log(`[GenerateShot] Rendering shot with engine: ${engine}...`);
+    console.log(`[GenerateShot] Rendering shot with engine: ${engine} with ${uploadedReferenceUrls.length} reference image(s)...`);
 
     let videoUrl = '';
     let seed = null;
 
-    if (engine === 'seedance' || engine === 'seedance_2_0' || engine === 'seedance_2_5') {
-      console.log('[GenerateShot] Calling ByteDance Seedance Reference-to-Video...');
-      const allUrls = Array.isArray(imageUrls) && imageUrls.length > 0 ? imageUrls : [primaryImageUrl];
-      try {
-        const result: any = await fal.subscribe('bytedance/seedance-2.0/reference-to-video', {
-          input: {
-            prompt: enhancedPrompt,
-            image_urls: allUrls,
-            duration: Math.min(15, Number(duration || 10)),
-            aspect_ratio: aspectRatio || '16:9',
-          } as any,
-        });
-        videoUrl = result.data?.video?.url || result?.video?.url || result?.data?.output?.url;
-        seed = result.data?.seed || result?.seed;
-      } catch (seedErr: any) {
-        console.warn('[GenerateShot] Seedance reference failed, trying Seedance image-to-video...', seedErr?.message);
+    if (engine === 'seedance' || engine === 'seedance_2_0' || engine === 'seedance_2_5' || engine === 'seedance_fast') {
+      const segmindKey = process.env.SEGMIND_API_KEY;
+
+      // 1. Try Segmind Seedance 2.0 Fast first (Ultra-Budget ~₹4 per shot)
+      if (segmindKey) {
         try {
-          const result: any = await fal.subscribe('bytedance/seedance-2.0/image-to-video', {
+          console.log('[GenerateShot] Calling Segmind Seedance 2.0 Fast with direct API key...');
+          const segRes = await fetch('https://api.segmind.com/v1/seedance-2.0-fast', {
+            method: 'POST',
+            headers: {
+              'x-api-key': segmindKey,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              prompt: enhancedPrompt,
+              first_frame_url: primaryImageUrl,
+              duration: Math.min(15, Number(duration || 10)),
+              resolution: '720p',
+              aspect_ratio: '16:9',
+              generate_audio: false,
+            }),
+          });
+
+          const segData = await segRes.json();
+          if (segData?.output || segData?.video_url || segData?.url) {
+            videoUrl = segData.output || segData.video_url || segData.url;
+            console.log('[GenerateShot] Successfully generated via Segmind Seedance 2.0 Fast!');
+          } else {
+            console.warn('[Segmind] Non-video response, falling back to FAL...', segData?.error || segData);
+          }
+        } catch (segErr: any) {
+          console.warn('[Segmind] Call failed, falling back to FAL...', segErr?.message);
+        }
+      }
+
+      // 2. FAL Fallback if Segmind was not used or failed
+      if (!videoUrl) {
+        console.log('[GenerateShot] Calling ByteDance Seedance Reference-to-Video on FAL...');
+        const allUrls = uploadedReferenceUrls.length > 0 ? uploadedReferenceUrls : [primaryImageUrl];
+        try {
+          const result: any = await fal.subscribe('bytedance/seedance-2.0/reference-to-video', {
             input: {
               prompt: enhancedPrompt,
-              image_url: primaryImageUrl,
+              image_urls: allUrls,
               duration: Math.min(15, Number(duration || 10)),
               aspect_ratio: aspectRatio || '16:9',
             } as any,
           });
-          videoUrl = result.data?.video?.url || result?.video?.url;
+          videoUrl = result.data?.video?.url || result?.video?.url || result?.data?.output?.url;
           seed = result.data?.seed || result?.seed;
-        } catch (seedI2VErr: any) {
-          console.warn('[GenerateShot] Seedance failed, falling back to Kling 1.6 Pro...', seedI2VErr?.message);
-          const result: any = await fal.subscribe('fal-ai/kling-video/v1.6/pro/image-to-video', {
-            input: {
-              prompt: enhancedPrompt,
-              image_url: primaryImageUrl,
-              duration: '10' as any,
-              aspect_ratio: '16:9',
-            } as any,
-          });
-          videoUrl = result.data?.video?.url || result?.video?.url;
-          seed = result.data?.seed || result?.seed;
+        } catch (seedErr: any) {
+          console.warn('[GenerateShot] Seedance reference failed, trying Seedance image-to-video...', seedErr?.message);
+          try {
+            const result: any = await fal.subscribe('bytedance/seedance-2.0/image-to-video', {
+              input: {
+                prompt: enhancedPrompt,
+                image_url: primaryImageUrl,
+                duration: Math.min(15, Number(duration || 10)),
+                aspect_ratio: aspectRatio || '16:9',
+              } as any,
+            });
+            videoUrl = result.data?.video?.url || result?.video?.url;
+            seed = result.data?.seed || result?.seed;
+          } catch (seedI2VErr: any) {
+            console.warn('[GenerateShot] Seedance failed, falling back to Kling 1.6 Pro...', seedI2VErr?.message);
+            const result: any = await fal.subscribe('fal-ai/kling-video/v1.6/pro/image-to-video', {
+              input: {
+                prompt: enhancedPrompt,
+                image_url: primaryImageUrl,
+                duration: '10' as any,
+                aspect_ratio: '16:9',
+              } as any,
+            });
+            videoUrl = result.data?.video?.url || result?.video?.url;
+            seed = result.data?.seed || result?.seed;
+          }
         }
       }
     } else if (engine === 'minimax') {
