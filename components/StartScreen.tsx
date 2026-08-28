@@ -1415,8 +1415,9 @@ NOTE: Each time Master Umesh asks for the brief, these stories are shuffled rand
         setStorePhase('edit');
       }
       const response = `${navIntent.label}, Master Umesh.`;
-      if (navIntent.route && navIntent.route !== '/flythrough') {
-        await speak(response, () => router.push(navIntent.route));
+      if (navIntent.route) {
+        try { speak(response); } catch (_) {}
+        router.push(navIntent.route);
       } else {
         await speak(response);
       }
@@ -1437,8 +1438,9 @@ NOTE: Each time Master Umesh asks for the brief, these stories are shuffled rand
             setStorePhase('edit');
           }
           const response = `${suggestedIntent.label}, Master Umesh.`;
-          if (suggestedIntent.route && suggestedIntent.route !== '/flythrough') {
-            await speak(response, () => router.push(suggestedIntent.route));
+          if (suggestedIntent.route) {
+            try { speak(response); } catch (_) {}
+            router.push(suggestedIntent.route);
           } else {
             await speak(response);
           }
@@ -1468,56 +1470,30 @@ NOTE: Each time Master Umesh asks for the brief, these stories are shuffled rand
   }, [storePhase]);
 
   const handleMenuClick = (stageId: string) => {
-    if (statusState === 'speaking' || statusState === 'thinking') return; // Prevent double trigger
     setActiveMenuTab(stageId);
     localStorage.setItem('last_used_tool', stageId);
 
-    if (stageId === 'render-zone') {
-      speak("Accessing Project Archive, Master Umesh.", () => {
-        router.push('/projects');
-      });
-    } else if (stageId === 'edit') {
-      setStorePhase('edit');
-      speak("Entering Edit Matrix, Master Umesh.", () => {
-        router.push('/edit');
-      });
-    } else if (stageId === '3d-render') {
-      setStorePhase('edit');
-      speak("Initializing 3D visualization, Master Umesh.", () => {
-        router.push('/3d-render');
-      });
-    } else if (stageId === 'enhancement') {
-      speak("Initiating Enhancement Studio, Master Umesh.", () => {
-        router.push('/enhancement');
-      });
-    } else if (stageId === 'png-to-dxf') {
-      speak("Initiating vector conversion suite, Master Umesh.", () => {
-        router.push('/png-to-dxf');
-      });
-    } else if (stageId === 'beta') {
-      speak("Initializing Vector Sandbox Beta, Master Umesh.", () => {
-        router.push('/vector-editor');
-      });
-    } else if (stageId === 'concept-generator') {
-      speak("Initiating Concept Generator.", () => {
-        router.push('/concept-generator');
-      });
-    } else if (stageId === 'idea-generation') {
-      speak("Initiating Floor Plan Generator, Master Umesh.", () => {
-        router.push('/idea-generation');
-      });
-    } else if (stageId === 'flythrough') {
-      speak("Opening Flythrough Video Studio, Master Umesh.", () => {
-        router.push('/flythrough');
-      });
-    } else if (stageId === 'vault') {
-      speak("Accessing project vault, Master Umesh.", () => {
-        router.push('/vault');
-      });
-    } else if (stageId === 'presentation') {
-      speak("Opening deck generator, Master Umesh.", () => {
-        router.push('/presentation');
-      });
+    const routes: Record<string, { route: string; speech: string }> = {
+      'render-zone': { route: '/projects', speech: 'Accessing Project Archive, Master Umesh.' },
+      'edit': { route: '/edit', speech: 'Entering Edit Matrix, Master Umesh.' },
+      '3d-render': { route: '/3d-render', speech: 'Initializing 3D visualization, Master Umesh.' },
+      'enhancement': { route: '/enhancement', speech: 'Initiating Enhancement Studio, Master Umesh.' },
+      'png-to-dxf': { route: '/png-to-dxf', speech: 'Initiating vector conversion suite, Master Umesh.' },
+      'beta': { route: '/vector-editor', speech: 'Initializing Vector Sandbox Beta, Master Umesh.' },
+      'concept-generator': { route: '/concept-generator', speech: 'Initiating Concept Generator.' },
+      'idea-generation': { route: '/idea-generation', speech: 'Initiating Floor Plan Generator, Master Umesh.' },
+      'flythrough': { route: '/flythrough', speech: 'Opening Flythrough Video Studio, Master Umesh.' },
+      'vault': { route: '/vault', speech: 'Accessing project vault, Master Umesh.' },
+      'presentation': { route: '/presentation', speech: 'Opening deck generator, Master Umesh.' },
+    };
+
+    const target = routes[stageId];
+    if (target) {
+      if (stageId === 'edit' || stageId === '3d-render') setStorePhase('edit');
+      try {
+        speak(target.speech);
+      } catch (_) {}
+      router.push(target.route);
     }
   };
 
